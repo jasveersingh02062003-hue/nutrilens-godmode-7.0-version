@@ -1188,6 +1188,22 @@ export default function CameraHome() {
           <Check className="w-5 h-5" /> {validationResult.hasBlocks ? '⚠️ Fix issues first' : 'Save Meal'}
         </button>
       </div>
+
+      {/* PES Breakdown Modal */}
+      <PESBreakdownModal
+        open={showPESBreakdown}
+        food={{
+          name: mealName || activeItems.map(i => i.name).join(', '),
+          cost: activeItems.reduce((s, i) => s + (i.itemCost || 0), 0) || mealCost?.amount || 0,
+          protein: Math.round(totalProtein),
+          carbs: Math.round(totalCarbs),
+          fat: Math.round(totalFat),
+          calories: Math.round(totalCal),
+        }}
+        mealLabel={MEAL_LABELS[selectedMealType].label}
+        onConfirm={confirmSaveMeal}
+        onEdit={() => setShowPESBreakdown(false)}
+      />
     </div>
   );
 }
