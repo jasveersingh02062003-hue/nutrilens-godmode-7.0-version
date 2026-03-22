@@ -12,6 +12,15 @@ export interface OnboardingData {
   health: {
     conditions: string[];
     skin: string;
+    genderSpecific: {
+      pcos: boolean;
+      pcosSeverity: number | null;
+      pregnancy: boolean;
+      breastfeeding: boolean;
+      menstrualPhase: string | null;
+      prostate: boolean;
+      testosterone: boolean;
+    };
   };
   activity: { work: string; exercise: string };
   goals: {
@@ -29,6 +38,7 @@ export interface OnboardingData {
     water: number;
     supplements: string[];
     cooking: { skill: string; time: number; equipment: string[] };
+    budget: { enabled: boolean; amount: number; period: string; mealSplit: { breakfast: number; lunch: number; dinner: number; snacks: number } };
   };
   meta: {
     createdAt: string;

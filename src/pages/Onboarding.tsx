@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, Sparkles, Heart, User, Dumbbell, Ruler, Scale, Target, TrendingDown, Droplets, AlertTriangle, ChevronDown, Clock, Loader2, UtensilsCrossed } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Sparkles, Heart, User, Dumbbell, Ruler, Scale, Target, TrendingDown, Droplets, AlertTriangle, ChevronDown, Clock, Loader2, UtensilsCrossed, Zap, Camera, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { calculateBMI, calculateBMR, getBMICategory, getActivityMultiplier } from '@/lib/nutrition';
 import { calculateOnboardingGoals, calculateWaterGoal, type OnboardingGoalResult } from '@/lib/goal-engine';
@@ -66,18 +66,32 @@ const SKIN_INSIGHTS: Record<string, string> = {
   oily: "Your plan will focus on zinc-rich foods like chickpeas and seeds to help regulate oil production.",
   combination: "Your plan will balance omega-3 fats and zinc-rich foods for your combination skin.",
   sensitive: "Your plan will prioritize anti-inflammatory foods like turmeric, berries and leafy greens.",
+  eczema: "Your plan will focus on omega-3 rich foods like flaxseeds and walnuts to reduce inflammation.",
+  rosacea: "Your plan will prioritize anti-inflammatory foods and limit spicy triggers.",
+  psoriasis: "Your plan will focus on vitamin D-rich foods and anti-inflammatory omega-3 sources.",
+};
+
+// ── Condition insights ──
+const CONDITION_INSIGHTS: Record<string, string> = {
+  diabetes: 'low-GI foods to manage blood sugar',
+  thyroid: 'iodine and selenium-rich foods for thyroid support',
+  pcos: 'anti-inflammatory and hormone-balancing foods',
+  hypertension: 'low-sodium, potassium-rich foods for blood pressure',
+  highCholesterol: 'fiber-rich foods and healthy fats to manage cholesterol',
+  ibs: 'gut-friendly, low-FODMAP food choices',
+  anemia: 'iron-rich foods like spinach, lentils and fortified cereals',
 };
 
 // ── Macro food translations ──
 function getProteinTranslation(protein: number, diet: string): string {
   if (diet === 'veg' || diet === 'vegan') {
-    const dal = Math.round(protein * 0.3 / 8); // ~8g per bowl dal
-    const paneer = Math.round(protein * 0.3 / 18); // ~18g per 100g
+    const dal = Math.round(protein * 0.3 / 8);
+    const paneer = Math.round(protein * 0.3 / 18);
     const tofu = Math.round(protein * 0.2 / 12);
     return `~${dal} bowls dal + ${paneer}×100g paneer + ${tofu}×100g tofu daily`;
   }
   const eggs = Math.round(protein * 0.25 / 6);
-  const chicken = Math.round(protein * 0.4 / 25); // ~25g per 100g
+  const chicken = Math.round(protein * 0.4 / 25);
   return `~${eggs} eggs + ${chicken}×100g chicken + a bowl of dal daily`;
 }
 
@@ -95,6 +109,53 @@ function getSupplementInsight(supp: string, protein: number): string {
   return map[supp] || '';
 }
 
+// ── Intelligence Demo data ──
+const DEMO_FOODS = [
+  { name: 'Grilled Paneer Salad', tags: ['lowGI', 'highProtein', 'veg'], cal: 380, protein: 22, carbs: 12, fat: 24, cost: 120 },
+  { name: 'Egg Bhurji with Roti', tags: ['highProtein', 'nonVeg'], cal: 350, protein: 20, carbs: 35, fat: 14, cost: 80 },
+  { name: 'Moong Dal Cheela', tags: ['lowGI', 'highProtein', 'veg', 'vegan'], cal: 220, protein: 14, carbs: 28, fat: 6, cost: 40 },
+  { name: 'Chicken Tikka Bowl', tags: ['highProtein', 'nonVeg', 'lowGI'], cal: 420, protein: 35, carbs: 25, fat: 18, cost: 150 },
+];
+
+const CONDITION_RULES: Record<string, { avoid: string[]; prefer: string[] }> = {
+  diabetes: { avoid: ['highSugar', 'highGI'], prefer: ['lowGI'] },
+  pcos: { avoid: ['highGI', 'inflammatory'], prefer: ['lowGI', 'antiInflammatory'] },
+  hypertension: { avoid: ['highSodium'], prefer: ['potassiumRich'] },
+  highCholesterol: { avoid: ['highSatFat'], prefer: ['fiberRich'] },
+};
+
+function getDemoMeal(diet: string, conditions: string[]) {
+  let pool = DEMO_FOODS;
+  if (diet === 'veg' || diet === 'vegan') pool = pool.filter(f => f.tags.includes('veg') || f.tags.includes('vegan'));
+  if (diet === 'non-veg' || diet === 'noRestrictions') pool = DEMO_FOODS;
+  // Prefer foods matching condition preferences
+  const preferred = pool.filter(f => {
+    return conditions.some(c => CONDITION_RULES[c]?.prefer.some(t => f.tags.includes(t)));
+  });
+  return preferred.length > 0 ? preferred[0] : pool[0];
+}
+
+function getCameraWarnings(conditions: string[]): string[] {
+  const food = { name: 'Sweet Lassi', tags: ['highSugar', 'dairy', 'highGI'] };
+  const warnings: string[] = [];
+  conditions.forEach(c => {
+    const rules = CONDITION_RULES[c];
+    if (!rules) return;
+    const matched = rules.avoid.filter(t => food.tags.includes(t));
+    if (matched.length > 0) {
+      const labels: Record<string, string> = {
+        diabetes: '⚠️ High sugar content — may spike blood glucose',
+        pcos: '⚠️ High-GI dairy — may worsen inflammation',
+        hypertension: '⚠️ Watch sodium in flavoured variants',
+        highCholesterol: '⚠️ Full-fat dairy — consider low-fat option',
+      };
+      if (labels[c]) warnings.push(labels[c]);
+    }
+  });
+  if (warnings.length === 0) warnings.push('✅ No major warnings for your profile');
+  return warnings;
+}
+
 type Phase = 'welcome' | 'scanner' | 'wizard' | 'calculating' | 'success';
 
 interface FormState {
@@ -109,11 +170,21 @@ interface FormState {
   heightIn: number;
   conditions: string[];
   skin: string;
+  // Gender-specific
+  pcosSeverity: number;
+  pregnant: boolean;
+  breastfeeding: boolean;
+  menstrualPhase: string;
+  prostateConcerns: boolean;
+  testosteroneConcerns: boolean;
+  // Activity
   work: string;
   exercise: string;
+  // Goals
   goalType: string;
   goalSpeed: string;
   targetWeight: number;
+  // Lifestyle
   wantLifestyle: boolean | null;
   diet: string;
   water: number;
@@ -121,7 +192,41 @@ interface FormState {
   cookingSkill: string;
   cookingTime: number;
   cookingEquipment: string[];
+  // Budget
+  budgetEnabled: boolean;
+  budgetAmount: number;
+  budgetBreakfast: number;
+  budgetLunch: number;
+  budgetDinner: number;
+  budgetSnacks: number;
 }
+
+/*
+ * Step map:
+ * 0  Name
+ * 1  Gender
+ * 2  Age
+ * 3  Height
+ * 4  Weight
+ * 5  BMI/BMR value drop
+ * 6  Health conditions
+ * 7  Skin
+ * 8  Gender-specific questions (NEW)
+ * 9  Work type
+ * 10 Exercise
+ * 11 Goal type
+ * 12 Goal speed (conditional: lose/gain)
+ * 13 Target weight (conditional: lose/gain)
+ * 14 Final output (calculating transition before this)
+ * 15 Want lifestyle?
+ * 16 Diet (conditional: wantLifestyle)
+ * 17 Water (conditional)
+ * 18 Supplements (conditional)
+ * 19 Budget (conditional) (NEW)
+ * 20 Cooking (conditional)
+ * 21 Intelligence demo (NEW)
+ * 22 Finish
+ */
 
 export default function Onboarding() {
   const navigate = useNavigate();
@@ -137,10 +242,13 @@ export default function Onboarding() {
     name: '', gender: '', age: 25, heightCm: 170, weightKg: 70,
     heightUnit: 'cm', weightUnit: 'kg', heightFt: 5, heightIn: 7,
     conditions: [], skin: '',
+    pcosSeverity: 3, pregnant: false, breastfeeding: false, menstrualPhase: '',
+    prostateConcerns: false, testosteroneConcerns: false,
     work: '', exercise: '',
     goalType: '', goalSpeed: 'balanced', targetWeight: 65,
     wantLifestyle: null,
     diet: '', water: 2.5, supplements: [], cookingSkill: '', cookingTime: 30, cookingEquipment: [],
+    budgetEnabled: false, budgetAmount: 500, budgetBreakfast: 25, budgetLunch: 35, budgetDinner: 30, budgetSnacks: 10,
   });
 
   const set = useCallback(<K extends keyof FormState>(key: K, val: FormState[K]) => setF(prev => ({ ...prev, [key]: val })), []);
@@ -172,15 +280,15 @@ export default function Onboarding() {
   };
 
   const getVisibleSteps = (): number[] => {
-    const steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    const steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
     if (f.goalType === 'lose' || f.goalType === 'gain') {
-      steps.push(11, 12);
+      steps.push(12, 13);
     }
-    steps.push(13, 14);
+    steps.push(14, 15);
     if (f.wantLifestyle === true) {
-      steps.push(15, 16, 17, 18);
+      steps.push(16, 17, 18, 19, 20);
     }
-    steps.push(19);
+    steps.push(21, 22);
     return steps;
   };
 
@@ -195,12 +303,12 @@ export default function Onboarding() {
     if (curIdx < vs.length - 1) {
       const nextStep = vs[curIdx + 1];
       // Show calculating animation before final output
-      if (nextStep === 13) {
+      if (nextStep === 14) {
         computeGoals();
         setPhase('calculating');
         setTimeout(() => {
           setPhase('wizard');
-          setStep(13);
+          setStep(14);
         }, 2500);
         return;
       }
@@ -241,22 +349,25 @@ export default function Onboarding() {
       case 5: return true;
       case 6: return true;
       case 7: return !!f.skin;
-      case 8: return !!f.work;
-      case 9: return !!f.exercise;
-      case 10: return !!f.goalType;
-      case 11: return !!f.goalSpeed;
-      case 12: {
+      case 8: return true; // gender-specific, always valid
+      case 9: return !!f.work;
+      case 10: return !!f.exercise;
+      case 11: return !!f.goalType;
+      case 12: return !!f.goalSpeed;
+      case 13: {
         if (f.goalType === 'lose') return f.targetWeight > 20 && f.targetWeight < f.weightKg;
         if (f.goalType === 'gain') return f.targetWeight > f.weightKg && f.targetWeight < 300;
         return true;
       }
-      case 13: return true;
-      case 14: return f.wantLifestyle !== null;
-      case 15: return !!f.diet;
-      case 16: return f.water >= 0.5 && f.water <= 5.0;
-      case 17: return true;
-      case 18: return !!f.cookingSkill;
-      case 19: return true;
+      case 14: return true;
+      case 15: return f.wantLifestyle !== null;
+      case 16: return !!f.diet;
+      case 17: return f.water >= 0.5 && f.water <= 5.0;
+      case 18: return true;
+      case 19: return true; // budget
+      case 20: return !!f.cookingSkill;
+      case 21: return true; // intelligence demo
+      case 22: return true;
       default: return true;
     }
   };
@@ -273,7 +384,19 @@ export default function Onboarding() {
 
     const data: OnboardingData = {
       basic: { name: f.name, gender: f.gender, age: f.age, heightCm: f.heightCm, weightKg: f.weightKg },
-      health: { conditions: f.conditions, skin: f.skin || 'none' },
+      health: {
+        conditions: f.conditions,
+        skin: f.skin || 'none',
+        genderSpecific: {
+          pcos: f.conditions.includes('pcos'),
+          pcosSeverity: f.conditions.includes('pcos') ? f.pcosSeverity : null,
+          pregnancy: f.pregnant,
+          breastfeeding: f.breastfeeding,
+          menstrualPhase: f.menstrualPhase || null,
+          prostate: f.prostateConcerns,
+          testosterone: f.testosteroneConcerns,
+        },
+      },
       activity: { work: f.work, exercise: f.exercise },
       goals: {
         type: goals.goalType, speed: f.goalSpeed,
@@ -287,6 +410,12 @@ export default function Onboarding() {
       lifestyle: {
         diet: f.diet || 'noRestrictions', water: f.water, supplements: f.supplements,
         cooking: { skill: f.cookingSkill || 'beginner', time: f.cookingTime, equipment: f.cookingEquipment },
+        budget: {
+          enabled: f.budgetEnabled,
+          amount: f.budgetEnabled ? f.budgetAmount : 0,
+          period: 'daily',
+          mealSplit: { breakfast: f.budgetBreakfast, lunch: f.budgetLunch, dinner: f.budgetDinner, snacks: f.budgetSnacks },
+        },
       },
       meta: {
         createdAt: new Date().toISOString(), lastUpdated: new Date().toISOString(),
@@ -463,8 +592,15 @@ export default function Onboarding() {
         const conditionOpts = [
           { value: 'diabetes', label: '🩸 Diabetes' },
           { value: 'thyroid', label: '🦋 Thyroid' },
+          { value: 'hypertension', label: '💓 Hypertension' },
+          { value: 'highCholesterol', label: '🫀 High Cholesterol' },
+          { value: 'ibs', label: '🫄 IBS' },
+          { value: 'anemia', label: '🩸 Anemia' },
           ...(f.gender === 'female' ? [{ value: 'pcos', label: '🌸 PCOS' }] : []),
         ];
+        const activeInsights = f.conditions
+          .filter(c => CONDITION_INSIGHTS[c])
+          .map(c => CONDITION_INSIGHTS[c]);
         return (
           <div className="space-y-5">
             <StepHeader title="Any health conditions?" subtitle="Helps us adjust macros and recommendations." />
@@ -477,6 +613,17 @@ export default function Onboarding() {
               className={`w-full px-4 py-3 rounded-2xl text-sm font-semibold transition-all border ${f.conditions.length === 0 ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border'}`}>
               ✅ None of the above
             </motion.button>
+            {activeInsights.length > 0 && (
+              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+                <p className="text-xs text-foreground leading-relaxed font-medium mb-1">💡 Your plan will focus on:</p>
+                <ul className="space-y-1">
+                  {activeInsights.map((insight, i) => (
+                    <li key={i} className="text-xs text-muted-foreground leading-relaxed">• {insight}</li>
+                  ))}
+                </ul>
+              </motion.div>
+            )}
           </div>
         );
       }
@@ -492,6 +639,9 @@ export default function Onboarding() {
                 { v: 'combination', l: '🔄 Combination' },
                 { v: 'acne-prone', l: '🔴 Acne-Prone' },
                 { v: 'sensitive', l: '🌡️ Sensitive' },
+                { v: 'eczema', l: '🩹 Eczema' },
+                { v: 'rosacea', l: '🌹 Rosacea' },
+                { v: 'psoriasis', l: '🧬 Psoriasis' },
                 { v: 'none', l: '✅ No concerns' },
               ].map((o, i) => (
                 <Option key={o.v} value={o.v} current={f.skin} label={o.l} onSelect={v => set('skin', v)} idx={i} />
@@ -506,8 +656,101 @@ export default function Onboarding() {
           </div>
         );
 
+      // ── Phase 3b: Gender-Specific (NEW) ──
+      case 8: {
+        if (f.gender === 'female') {
+          return (
+            <div className="space-y-5">
+              <StepHeader title="Women's health" subtitle="Helps us fine-tune your nutrition for hormonal balance." />
+              {/* PCOS severity */}
+              {f.conditions.includes('pcos') && (
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                  <p className="text-xs font-semibold text-foreground">PCOS Severity</p>
+                  <div className="flex items-center gap-4">
+                    <input type="range" min={1} max={5} step={1} value={f.pcosSeverity}
+                      onChange={e => set('pcosSeverity', Number(e.target.value))} className="flex-1 accent-primary" />
+                    <span className="text-sm font-mono font-bold text-foreground w-6 text-right">{f.pcosSeverity}/5</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">1 = mild, 5 = severe</p>
+                </motion.div>
+              )}
+              {/* Pregnancy */}
+              <div className="space-y-2.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Are you pregnant?</p>
+                <div className="flex gap-2">
+                  <Option value="yes" current={f.pregnant ? 'yes' : 'no'} label="Yes" onSelect={() => set('pregnant', true)} idx={0} />
+                  <Option value="no" current={!f.pregnant ? 'no' : 'yes'} label="No" onSelect={() => set('pregnant', false)} idx={1} />
+                </div>
+              </div>
+              {/* Breastfeeding */}
+              <div className="space-y-2.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Are you breastfeeding?</p>
+                <div className="flex gap-2">
+                  <Option value="yes" current={f.breastfeeding ? 'yes' : 'no'} label="Yes" onSelect={() => set('breastfeeding', true)} idx={0} />
+                  <Option value="no" current={!f.breastfeeding ? 'no' : 'yes'} label="No" onSelect={() => set('breastfeeding', false)} idx={1} />
+                </div>
+              </div>
+              {/* Menstrual phase */}
+              <div className="space-y-2.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Current menstrual phase (optional)</p>
+                <div className="space-y-2">
+                  {[
+                    { v: 'menstrual', l: '🔴 Menstrual' },
+                    { v: 'follicular', l: '🌱 Follicular' },
+                    { v: 'luteal', l: '🌙 Luteal' },
+                    { v: '', l: '⏭️ Not applicable' },
+                  ].map((o, i) => (
+                    <Option key={o.v + i} value={o.v} current={f.menstrualPhase} label={o.l} onSelect={v => set('menstrualPhase', v)} idx={i} />
+                  ))}
+                </div>
+              </div>
+              {/* Insights */}
+              {(f.pregnant || f.breastfeeding) && (
+                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                  className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+                  <p className="text-xs text-foreground leading-relaxed">
+                    💡 {f.pregnant ? 'Your plan will include extra folate, iron, and calcium for pregnancy.' : ''}
+                    {f.breastfeeding ? ' Your plan will add ~500 extra calories and prioritize nutrient-dense foods for breastfeeding.' : ''}
+                  </p>
+                </motion.div>
+              )}
+            </div>
+          );
+        }
+        // Male
+        return (
+          <div className="space-y-5">
+            <StepHeader title="Men's health" subtitle="Helps us tailor nutrition for your specific needs." />
+            <div className="space-y-2.5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Any prostate concerns?</p>
+              <div className="flex gap-2">
+                <Option value="yes" current={f.prostateConcerns ? 'yes' : 'no'} label="Yes" onSelect={() => set('prostateConcerns', true)} idx={0} />
+                <Option value="no" current={!f.prostateConcerns ? 'no' : 'yes'} label="No" onSelect={() => set('prostateConcerns', false)} idx={1} />
+              </div>
+            </div>
+            <div className="space-y-2.5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Testosterone concerns?</p>
+              <div className="flex gap-2">
+                <Option value="yes" current={f.testosteroneConcerns ? 'yes' : 'no'} label="Yes" onSelect={() => set('testosteroneConcerns', true)} idx={0} />
+                <Option value="no" current={!f.testosteroneConcerns ? 'no' : 'yes'} label="No" onSelect={() => set('testosteroneConcerns', false)} idx={1} />
+              </div>
+            </div>
+            {(f.prostateConcerns || f.testosteroneConcerns) && (
+              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+                <p className="text-xs text-foreground leading-relaxed">
+                  💡 {f.prostateConcerns ? 'Your plan will include lycopene-rich foods like tomatoes and zinc-rich seeds.' : ''}
+                  {f.testosteroneConcerns ? ' Your plan will prioritize zinc, vitamin D, and healthy fats for testosterone support.' : ''}
+                </p>
+              </motion.div>
+            )}
+          </div>
+        );
+      }
+
       // ── Phase 4: Activity ──
-      case 8:
+      case 9:
         return (
           <div className="space-y-5">
             <StepHeader title="What's your work like?" subtitle="Your daily work type affects calorie burn." />
@@ -523,7 +766,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 9:
+      case 10:
         return (
           <div className="space-y-5">
             <StepHeader title="How often do you exercise?" subtitle="Combined with work type for accurate TDEE." />
@@ -541,7 +784,7 @@ export default function Onboarding() {
         );
 
       // ── Phase 5: Goal & Target ──
-      case 10:
+      case 11:
         return (
           <div className="space-y-5">
             <StepHeader title="What's your goal?" subtitle="This determines your daily calorie target." />
@@ -557,7 +800,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 11:
+      case 12:
         return (
           <div className="space-y-5">
             <StepHeader title="Choose your pace" subtitle={f.goalType === 'lose' ? 'How fast do you want to lose weight?' : 'How fast do you want to gain?'} />
@@ -572,7 +815,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 12: {
+      case 13: {
         const isLosing = f.goalType === 'lose';
         const diff = isLosing ? f.weightKg - f.targetWeight : f.targetWeight - f.weightKg;
         const valid = isLosing ? f.targetWeight < f.weightKg : f.targetWeight > f.weightKg;
@@ -606,7 +849,7 @@ export default function Onboarding() {
       }
 
       // ── Phase 6: Final Output ──
-      case 13: {
+      case 14: {
         const g = goalResult;
         if (!g) return null;
         const cueConfig = {
@@ -645,7 +888,6 @@ export default function Onboarding() {
                   <p className="text-[9px] text-muted-foreground">kcal/day</p>
                 </div>
               </div>
-              {/* Calorie gap */}
               {g.goalType !== 'maintain' && (
                 <p className="text-[10px] text-muted-foreground text-center mb-2">
                   {g.goalType === 'lose' ? `${calorieGap} kcal deficit` : `${calorieGap} kcal surplus`} per day
@@ -736,12 +978,12 @@ export default function Onboarding() {
       }
 
       // ── Phase 7: Lifestyle ──
-      case 14:
+      case 15:
         return (
           <div className="space-y-5">
-            <StepHeader title="Want to personalise more?" subtitle="Diet preferences, supplements, and cooking habits." />
+            <StepHeader title="Want to personalise more?" subtitle="Diet preferences, supplements, budget, and cooking habits." />
             <div className="space-y-2.5">
-              <Option value="yes" current={f.wantLifestyle === true ? 'yes' : f.wantLifestyle === false ? 'no' : ''} label="✨ Yes, personalise my plan" sub="Takes about 1 minute"
+              <Option value="yes" current={f.wantLifestyle === true ? 'yes' : f.wantLifestyle === false ? 'no' : ''} label="✨ Yes, personalise my plan" sub="Takes about 2 minutes"
                 onSelect={() => set('wantLifestyle', true)} idx={0} />
               <Option value="no" current={f.wantLifestyle === false ? 'no' : f.wantLifestyle === true ? 'yes' : ''} label="⏭️ Skip for now" sub="You can set these later"
                 onSelect={() => set('wantLifestyle', false)} idx={1} />
@@ -749,7 +991,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 15:
+      case 16:
         return (
           <div className="space-y-5">
             <StepHeader title="Dietary preference" subtitle="Your plan will be tailored accordingly." />
@@ -766,7 +1008,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 16: {
+      case 17: {
         const multiplier = getActivityMultiplier(f.work || 'sitting', f.exercise || 'none');
         const recommended = calculateWaterGoal(f.weightKg, multiplier);
         return (
@@ -788,7 +1030,7 @@ export default function Onboarding() {
         );
       }
 
-      case 17: {
+      case 18: {
         const suppOptions = [
           { value: 'vitaminD', label: '☀️ Vitamin D' },
           { value: 'omega3', label: '🐟 Omega-3' },
@@ -819,7 +1061,62 @@ export default function Onboarding() {
         );
       }
 
-      case 18: {
+      // ── Budget Step (NEW) ──
+      case 19:
+        return (
+          <div className="space-y-5">
+            <StepHeader title="Daily food budget" subtitle="Set a budget to get cost-aware meal suggestions." />
+            <div className="space-y-2.5">
+              <Option value="yes" current={f.budgetEnabled ? 'yes' : 'no'} label="💰 Yes, set a budget" sub="Get meals within your daily budget"
+                onSelect={() => set('budgetEnabled', true)} idx={0} />
+              <Option value="no" current={!f.budgetEnabled ? 'no' : 'yes'} label="⏭️ No budget limit" sub="Skip budget tracking"
+                onSelect={() => set('budgetEnabled', false)} idx={1} />
+            </div>
+            {f.budgetEnabled && (
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+                <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-foreground">Daily budget</p>
+                    <p className="text-lg font-mono font-bold text-primary">₹{f.budgetAmount}</p>
+                  </div>
+                  <input type="range" min={100} max={2000} step={50} value={f.budgetAmount}
+                    onChange={e => set('budgetAmount', Number(e.target.value))} className="w-full accent-primary" />
+                  <div className="flex justify-between text-[10px] text-muted-foreground font-mono"><span>₹100</span><span>₹2000</span></div>
+                </div>
+                <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                  <p className="text-xs font-semibold text-foreground">Meal split</p>
+                  {[
+                    { key: 'budgetBreakfast' as const, label: 'Breakfast', val: f.budgetBreakfast },
+                    { key: 'budgetLunch' as const, label: 'Lunch', val: f.budgetLunch },
+                    { key: 'budgetDinner' as const, label: 'Dinner', val: f.budgetDinner },
+                    { key: 'budgetSnacks' as const, label: 'Snacks', val: f.budgetSnacks },
+                  ].map(m => (
+                    <div key={m.key} className="flex items-center gap-3">
+                      <span className="text-[11px] text-muted-foreground w-16">{m.label}</span>
+                      <input type="range" min={5} max={50} step={5} value={m.val}
+                        onChange={e => set(m.key, Number(e.target.value))} className="flex-1 accent-primary" />
+                      <span className="text-xs font-mono font-semibold text-foreground w-8 text-right">{m.val}%</span>
+                    </div>
+                  ))}
+                  <p className="text-[10px] text-muted-foreground text-center">
+                    Total: {f.budgetBreakfast + f.budgetLunch + f.budgetDinner + f.budgetSnacks}%
+                    {f.budgetBreakfast + f.budgetLunch + f.budgetDinner + f.budgetSnacks !== 100 && (
+                      <span className="text-destructive ml-1">(should be 100%)</span>
+                    )}
+                  </p>
+                </div>
+                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                  className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+                  <p className="text-xs text-foreground leading-relaxed">
+                    💡 With ₹{f.budgetAmount}/day, your meals will be optimized for nutrition within budget — about ₹{Math.round(f.budgetAmount * f.budgetLunch / 100)} for lunch.
+                  </p>
+                </motion.div>
+              </motion.div>
+            )}
+          </div>
+        );
+
+      case 20: {
         const equipmentOpts = [
           { value: 'basic', label: '🍳 Basic (Pan/Pot)' },
           { value: 'microwave', label: '📡 Microwave' },
@@ -867,8 +1164,87 @@ export default function Onboarding() {
         );
       }
 
-      // ── Phase 8: Finish ──
-      case 19:
+      // ── Intelligence Demo (NEW) ──
+      case 21: {
+        const meal = getDemoMeal(f.diet || 'noRestrictions', f.conditions);
+        const warnings = getCameraWarnings(f.conditions);
+        const budgetFits = !f.budgetEnabled || meal.cost <= (f.budgetAmount * 0.35);
+        return (
+          <div className="space-y-5">
+            <StepHeader title="See your AI in action" subtitle="Here's how NutriLens AI will work for you in real time." />
+            {/* Mock meal suggestion */}
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+              className="bg-card border border-border rounded-2xl p-5 space-y-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Zap className="w-4 h-4 text-primary" />
+                <p className="text-xs font-semibold text-primary uppercase tracking-wider">AI Meal Suggestion</p>
+              </div>
+              <p className="text-base font-bold text-foreground">{meal.name}</p>
+              <div className="grid grid-cols-4 gap-2">
+                <div className="text-center">
+                  <p className="text-sm font-mono font-bold text-foreground">{meal.cal}</p>
+                  <p className="text-[9px] text-muted-foreground">kcal</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-mono font-bold text-primary">{meal.protein}g</p>
+                  <p className="text-[9px] text-muted-foreground">protein</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-mono font-bold text-accent">{meal.carbs}g</p>
+                  <p className="text-[9px] text-muted-foreground">carbs</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-mono font-bold text-foreground">{meal.fat}g</p>
+                  <p className="text-[9px] text-muted-foreground">fat</p>
+                </div>
+              </div>
+              {f.budgetEnabled && (
+                <div className="flex items-center gap-2 pt-2 border-t border-border">
+                  <span className="text-xs">{budgetFits ? '✅' : '⚠️'}</span>
+                  <p className="text-[11px] text-muted-foreground">
+                    ₹{meal.cost} — {budgetFits ? 'fits your budget' : 'slightly over budget'}
+                  </p>
+                </div>
+              )}
+              <p className="text-[10px] text-muted-foreground italic">
+                Suggested based on your {f.conditions.length > 0 ? 'health conditions, ' : ''}{f.diet && f.diet !== 'noRestrictions' ? `${f.diet} diet, ` : ''}goal, and profile.
+              </p>
+            </motion.div>
+
+            {/* Mock camera warning */}
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+              className="bg-card border border-border rounded-2xl p-5 space-y-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Camera className="w-4 h-4 text-accent" />
+                <p className="text-xs font-semibold text-accent uppercase tracking-wider">Camera Warning Demo</p>
+              </div>
+              <p className="text-sm text-foreground font-medium">If you scan: <strong>Sweet Lassi</strong></p>
+              <div className="space-y-1.5">
+                {warnings.map((w, i) => (
+                  <motion.div key={i} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 + i * 0.1 }}
+                    className="bg-muted/50 rounded-lg px-3 py-2">
+                    <p className="text-xs text-foreground">{w}</p>
+                  </motion.div>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground italic">
+                Warnings are generated based on your health profile — every scan is personalized.
+              </p>
+            </motion.div>
+
+            {/* Explanation */}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+              className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+              <p className="text-xs text-foreground leading-relaxed">
+                🧠 <strong>This is your AI brain.</strong> Every meal suggestion, camera scan, and budget alert will be personalized using your profile data. The more you use NutriLens, the smarter it gets.
+              </p>
+            </motion.div>
+          </div>
+        );
+      }
+
+      // ── Finish ──
+      case 22:
         return (
           <div className="space-y-6">
             <StepHeader title="All set! 🎉" subtitle="Your personalized nutrition plan is ready." />
@@ -944,7 +1320,7 @@ export default function Onboarding() {
   }
 
   // ── Wizard phase ──
-  const isFinishStep = step === 19;
+  const isFinishStep = step === 22;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
