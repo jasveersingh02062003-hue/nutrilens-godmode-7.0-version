@@ -1288,6 +1288,60 @@ function RecentExpensesInline({ expenses, currency, onEdit, onDelete, onSeeAll }
   );
 }
 
+// ─── Budget-Aware Meal Suggestions ───
+function MealSuggestionsSection({ onRefresh }: { onRefresh: () => void }) {
+  const { profile } = useUserProfile();
+  const upcomingSlots = useMemo(() => getUpcomingMealSlots(), []);
+
+  if (upcomingSlots.length === 0) return null;
+
+  const slotLabels: Record<string, string> = { breakfast: '🌅 Breakfast', lunch: '☀️ Lunch', snack: '🍎 Snack', dinner: '🌙 Dinner' };
+
+  return (
+    <div className="card-elevated p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <UtensilsCrossed className="w-4 h-4 text-primary" />
+        <span className="text-xs font-bold text-foreground uppercase tracking-wider">Budget-Smart Suggestions</span>
+      </div>
+      {upcomingSlots.slice(0, 2).map(slot => {
+        const remaining = getRemainingMealBudget(slot);
+        const suggestions = getRecipesForMeal(slot, remaining, profile);
+
+        return (
+          <div key={slot} className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-foreground">{slotLabels[slot] || slot}</span>
+              <span className="text-[10px] text-muted-foreground">₹{remaining} budget</span>
+            </div>
+            {suggestions.length > 0 ? (
+              <div className="space-y-1.5">
+                {suggestions.slice(0, 3).map(recipe => (
+                  <div key={recipe.id} className="flex items-center gap-2.5 p-2 rounded-xl bg-muted/50">
+                    <span className="text-lg">{recipe.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-foreground truncate">{recipe.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] text-muted-foreground">{recipe.calories} kcal</span>
+                        <span className="text-[10px] font-semibold text-accent">₹{recipe.estimatedCost}</span>
+                        <span className="text-[10px] text-primary">⭐ {recipe.nutritionScore}/10</span>
+                        {recipe.matchReason && (
+                          <span className="text-[9px] text-primary/70">{recipe.matchReason}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[11px] text-muted-foreground italic">No recipes found within budget</p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Main Budget Planner Tab ───
 export default function BudgetPlannerTab() {
   const [refreshKey, setRefreshKey] = useState(0);
