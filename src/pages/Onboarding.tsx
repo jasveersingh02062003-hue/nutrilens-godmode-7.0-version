@@ -242,7 +242,7 @@ export default function Onboarding() {
   const navigate = useNavigate();
   const { refreshProfile } = useUserProfile();
   const { syncProfileToCloud } = useAuth();
-  const [phase, setPhase] = useState<Phase>('welcome');
+  const [phase, setPhase] = useState<Phase>(() => !localStorage.getItem('pes_flex_seen') ? 'featureFlex' : 'welcome');
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
   const [goalResult, setGoalResult] = useState<OnboardingGoalResult | null>(null);
