@@ -54,6 +54,13 @@ export default function Dashboard() {
   const [editingSupplement, setEditingSupplement] = useState<SupplementEntry | null>(null);
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('tutorial_seen'));
 
+  const plannerProfile = getMealPlannerProfile();
+  const plannerIncomplete = !plannerProfile || !plannerProfile.onboardingComplete;
+  const [showPlannerModal, setShowPlannerModal] = useState(() =>
+    plannerIncomplete && !localStorage.getItem('planner_modal_dismissed')
+  );
+  const showPlannerBanner = plannerIncomplete && !showPlannerModal;
+
   useEffect(() => {
     if (!profile?.onboardingComplete) navigate('/onboarding');
     // Apply carry-over from yesterday
