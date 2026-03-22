@@ -34,6 +34,7 @@ import RecoveryOptionsCard from '@/components/RecoveryOptionsCard';
 import { toast } from 'sonner';
 import { getWeather, fetchLiveWeather, type WeatherData } from '@/lib/weather-service';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
+import UpgradeBanner from '@/components/UpgradeBanner';
 
 export default function Dashboard() {
   const navigate = useNavigate();
