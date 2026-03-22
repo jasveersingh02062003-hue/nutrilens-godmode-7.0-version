@@ -1,29 +1,71 @@
 
 
-## Setup Completion Prompt: Budget & Meal Planner Nudge
+## Upgrade Rule Engine: Add Missing Layers (IBS, Anemia, Skin, Gender, Conflicts, Budget Tiers)
 
-### What to Build
+### Current State vs Spec
 
-1. **One-time center modal on Dashboard** — shown only once after onboarding completes, if the user hasn't set up their meal planner profile. Asks them to set up budget & meal plan. "Set My Plan" navigates to `/planner`; "Do it later" dismisses permanently (stored in localStorage).
+| Layer | Status | Gap |
+|-------|--------|-----|
+| 1. BMR/TDEE | ✅ Done | — |
+| 2. Goal Adjustment | ✅ Done | — |
+| 3. Macro Distribution | ✅ Done | — |
+| 4. Health Conditions | ⚠️ Partial | **IBS and Anemia** missing from `conditionRules` in `logic-engine.ts`. No priority system. No condition-specific macro adjustments beyond PCOS/diabetes. |
+| 5. Skin Engine | ⚠️ Partial | Insight text exists in onboarding but **skin rules not integrated into food evaluation** (`evaluateFoodForUser` ignores skin). |
+| 6. Gender/Hormonal | ⚠️ Partial | Data collected (pregnancy, breastfeeding, testosterone, prostate) but **no calorie additions** (+350 pregnancy, +500 breastfeeding) in goal-engine. Male food rules not in logic-engine. |
+| 7. Budget Filter | ⚠️ Partial | Budget tracking exists but **no budget-tier food categorization** (low/mid/high protein sources). |
+| 8. Conflict Resolution | ❌ Missing | No logic for combining conditions (e.g., IBS+Diabetes → low-FODMAP + low-GI). |
 
-2. **Persistent banner on Dashboard** — if the user dismissed the modal but still hasn't completed meal planner setup, show a compact top banner with a CTA linking to `/planner`. Disappears once `getMealPlannerProfile()` returns a completed profile.
+### Plan
 
-3. **Budget step helper text in Onboarding** — on the budget input step, add a small note: "You can fine-tune your budget in the Meal Planner after onboarding."
+**File 1: `src/lib/logic-engine.ts` — Add missing conditions, skin rules, gender rules, conflict resolution**
 
-### Files to Change
+- Add `ibs` and `anemia` to `conditionRules` with proper avoid/prefer keywords
+- Add `skinRules` object with `focus` and `avoid` keywords per skin type (acne, dry, oily, eczema, rosacea)
+- Add `maleHealthRules` for testosterone and prostate (focus/avoid keywords)
+- Add `conditionPriority` map (ibs: 10, diabetes: 10, pcos: 10, hypertension: 9, cholesterol: 9, anemia: 8, thyroid: 6)
+- Add `conflictResolutions` array for known combos (diabetes+ibs → combined avoid lists)
+- Update `evaluateFoodForUser()` to also check skin concerns and male health data from profile
+- Add `getEffectiveRestrictions(profile)` function that merges all condition rules with conflict resolution and returns unified `{avoid, prefer, macroAdjust}` set
 
-**`src/pages/Dashboard.tsx`**
-- Import `getMealPlannerProfile` from `@/lib/meal-planner-store`
-- Add state: `showPlannerModal` (true if `getMealPlannerProfile()` is null AND `localStorage.getItem('planner_modal_dismissed')` is falsy)
-- Add state: `showPlannerBanner` (true if `getMealPlannerProfile()` is null, regardless of modal)
-- Render a `Dialog` modal when `showPlannerModal` is true with title "Set up your daily plan", body text, and two buttons
-- Render a compact banner below the header when `showPlannerBanner && !showPlannerModal`
-- Both "Set My Plan" buttons navigate to `/planner`
-- "Do it later" sets `localStorage.setItem('planner_modal_dismissed', 'true')` and closes modal
+**File 2: `src/lib/goal-engine.ts` — Add pregnancy/breastfeeding calorie adjustments**
 
-**`src/pages/Onboarding.tsx`**
-- On the budget/lifestyle step, add a `<p>` helper: "👉 Head to Meal Planner after onboarding to match your budget with meals"
+In `calculateOnboardingGoals()`:
+- Accept `genderSpecific` data (pregnancy, breastfeeding) as part of input
+- If pregnant: add +350 kcal to target after goal adjustment, add safety warning about not going below 1800 kcal
+- If breastfeeding: add +500 kcal to target, add +1L to water recommendation
+- These adjustments happen AFTER goal calculation but BEFORE macro split
+
+**File 3: `src/lib/nutrition.ts` — Add water activity bonus from spec**
+
+- Update `calculateWaterGoal` (currently in goal-engine) to also accept activity string and add 0.3L for moderate, 0.5L for high — already done via multiplier check, no change needed.
+
+**File 4: `src/lib/onboarding-store.ts` — Pass gender-specific data to goal engine**
+
+- In `saveOnboardingData()`, pass pregnancy/breastfeeding flags into the profile so the goal engine can use them during recalculation
 
 ### What Stays Unchanged
-Everything else — calorie engine, Monica, meal planner page, onboarding flow structure.
+- Onboarding UI (data already collected for all these fields)
+- Calorie engine / redistribution
+- Dashboard, Monica, meal planner
+- Store types (already have `menHealth`, `womenHealth`, `skinConcerns`)
+
+### Technical Details
+
+Conflict resolution approach:
+```
+function resolveConflicts(conditions: string[]): { mergedAvoid: string[], mergedPrefer: string[] } {
+  // Start with all individual avoid/prefer lists
+  // For known combos, apply special rules (e.g., IBS+diabetes = low-FODMAP + low-GI)
+  // Higher priority conditions override lower ones on conflicts
+}
+```
+
+Budget-tier suggestion (added to logic-engine as data, used by suggestion-engine and Monica):
+```
+budgetTiers = {
+  low: { protein: ['eggs','soya','lentils'], carbs: ['rice','roti'], fats: ['milk','peanuts'] },
+  mid: { protein: ['chicken','paneer','curd'], fats: ['nuts','seeds'] },
+  high: { protein: ['fish','salmon'], fats: ['avocado','olive oil'] }
+}
+```
 
