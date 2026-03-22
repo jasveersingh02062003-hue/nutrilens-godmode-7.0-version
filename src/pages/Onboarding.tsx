@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, Sparkles, Heart, User, Dumbbell, Ruler, Scale, Target, TrendingDown, Droplets, AlertTriangle, ChevronDown, Clock, Loader2, UtensilsCrossed, Zap, Camera, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Sparkles, Heart, User, Dumbbell, Ruler, Scale, Target, TrendingDown, Droplets, AlertTriangle, ChevronDown, Clock, Loader2, UtensilsCrossed, Zap, Camera, ShieldAlert, Pencil } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { calculateBMI, calculateBMR, getBMICategory, getActivityMultiplier } from '@/lib/nutrition';
 import { calculateOnboardingGoals, calculateWaterGoal, type OnboardingGoalResult } from '@/lib/goal-engine';
@@ -128,7 +128,6 @@ function getDemoMeal(diet: string, conditions: string[]) {
   let pool = DEMO_FOODS;
   if (diet === 'veg' || diet === 'vegan') pool = pool.filter(f => f.tags.includes('veg') || f.tags.includes('vegan'));
   if (diet === 'non-veg' || diet === 'noRestrictions') pool = DEMO_FOODS;
-  // Prefer foods matching condition preferences
   const preferred = pool.filter(f => {
     return conditions.some(c => CONDITION_RULES[c]?.prefer.some(t => f.tags.includes(t)));
   });
@@ -156,6 +155,20 @@ function getCameraWarnings(conditions: string[]): string[] {
   return warnings;
 }
 
+// ── Label maps ──
+const WORK_LABELS: Record<string, string> = { sitting: 'Desk/Sitting', mixed: 'Mixed', physical: 'Physical' };
+const EXERCISE_LABELS: Record<string, string> = { none: 'None', '1-3': '1–3 days/week', '4-5': '4–5 days/week', daily: 'Daily' };
+const GOAL_LABELS: Record<string, string> = { lose: 'Lose Weight', maintain: 'Maintain', gain: 'Gain Weight' };
+const SPEED_LABELS: Record<string, string> = { balanced: 'Balanced', aggressive: 'Aggressive' };
+const SKIN_LABELS: Record<string, string> = {
+  oily: 'Oily', dry: 'Dry', combination: 'Combination', 'acne-prone': 'Acne-Prone',
+  sensitive: 'Sensitive', eczema: 'Eczema', rosacea: 'Rosacea', psoriasis: 'Psoriasis', none: 'No concerns',
+};
+const CONDITION_LABELS: Record<string, string> = {
+  diabetes: 'Diabetes', thyroid: 'Thyroid', hypertension: 'Hypertension',
+  highCholesterol: 'High Cholesterol', ibs: 'IBS', anemia: 'Anemia', pcos: 'PCOS',
+};
+
 type Phase = 'welcome' | 'scanner' | 'wizard' | 'calculating' | 'success';
 
 interface FormState {
@@ -170,21 +183,17 @@ interface FormState {
   heightIn: number;
   conditions: string[];
   skin: string;
-  // Gender-specific
   pcosSeverity: number;
   pregnant: boolean;
   breastfeeding: boolean;
   menstrualPhase: string;
   prostateConcerns: boolean;
   testosteroneConcerns: boolean;
-  // Activity
   work: string;
   exercise: string;
-  // Goals
   goalType: string;
   goalSpeed: string;
   targetWeight: number;
-  // Lifestyle
   wantLifestyle: boolean | null;
   diet: string;
   water: number;
@@ -192,7 +201,6 @@ interface FormState {
   cookingSkill: string;
   cookingTime: number;
   cookingEquipment: string[];
-  // Budget
   budgetEnabled: boolean;
   budgetAmount: number;
   budgetBreakfast: number;
@@ -202,7 +210,7 @@ interface FormState {
 }
 
 /*
- * Step map:
+ * Step map (with Summary Screen):
  * 0  Name
  * 1  Gender
  * 2  Age
@@ -211,21 +219,22 @@ interface FormState {
  * 5  BMI/BMR value drop
  * 6  Health conditions
  * 7  Skin
- * 8  Gender-specific questions (NEW)
+ * 8  Gender-specific questions
  * 9  Work type
  * 10 Exercise
  * 11 Goal type
  * 12 Goal speed (conditional: lose/gain)
  * 13 Target weight (conditional: lose/gain)
- * 14 Final output (calculating transition before this)
- * 15 Want lifestyle?
- * 16 Diet (conditional: wantLifestyle)
- * 17 Water (conditional)
- * 18 Supplements (conditional)
- * 19 Budget (conditional) (NEW)
- * 20 Cooking (conditional)
- * 21 Intelligence demo (NEW)
- * 22 Finish
+ * 14 ★ SUMMARY SCREEN (review & edit before plan)
+ * 15 Final output (calculating transition before this)
+ * 16 Want lifestyle?
+ * 17 Diet (conditional: wantLifestyle)
+ * 18 Water (conditional)
+ * 19 Supplements (conditional)
+ * 20 Budget (conditional)
+ * 21 Cooking (conditional)
+ * 22 Intelligence demo
+ * 23 Finish
  */
 
 export default function Onboarding() {
@@ -237,6 +246,7 @@ export default function Onboarding() {
   const [direction, setDirection] = useState(1);
   const [goalResult, setGoalResult] = useState<OnboardingGoalResult | null>(null);
   const [showPlansAfterOnboarding, setShowPlansAfterOnboarding] = useState(false);
+  const [editReturnStep, setEditReturnStep] = useState<number | null>(null);
 
   const [f, setF] = useState<FormState>({
     name: '', gender: '', age: 25, heightCm: 170, weightKg: 70,
@@ -253,7 +263,6 @@ export default function Onboarding() {
 
   const set = useCallback(<K extends keyof FormState>(key: K, val: FormState[K]) => setF(prev => ({ ...prev, [key]: val })), []);
 
-  // Unit conversion helpers
   const setHeightFromFtIn = (ft: number, inches: number) => {
     const cm = Math.round(ft * 30.48 + inches * 2.54);
     setF(prev => ({ ...prev, heightFt: ft, heightIn: inches, heightCm: cm }));
@@ -279,16 +288,44 @@ export default function Onboarding() {
     set('weightKg', kg);
   };
 
+  // Map summary section names to step numbers for editing
+  const SECTION_STEP_MAP: Record<string, number> = {
+    basic: 0,
+    health: 6,
+    skin: 7,
+    genderSpecific: 8,
+    activity: 9,
+    goal: 11,
+  };
+
+  const handleEditSection = (section: string) => {
+    const targetStep = SECTION_STEP_MAP[section];
+    if (targetStep !== undefined) {
+      setEditReturnStep(14); // return to summary
+      setDirection(-1);
+      setStep(targetStep);
+    }
+  };
+
+  const handleEditDone = () => {
+    if (editReturnStep !== null) {
+      setDirection(1);
+      setStep(editReturnStep);
+      setEditReturnStep(null);
+    }
+  };
+
   const getVisibleSteps = (): number[] => {
     const steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
     if (f.goalType === 'lose' || f.goalType === 'gain') {
       steps.push(12, 13);
     }
-    steps.push(14, 15);
+    steps.push(14); // Summary screen
+    steps.push(15, 16); // Final plan, want lifestyle?
     if (f.wantLifestyle === true) {
-      steps.push(16, 17, 18, 19, 20);
+      steps.push(17, 18, 19, 20, 21);
     }
-    steps.push(21, 22);
+    steps.push(22, 23);
     return steps;
   };
 
@@ -297,18 +334,24 @@ export default function Onboarding() {
   const progress = currentVisibleIdx >= 0 ? (currentVisibleIdx / (visibleSteps.length - 1)) * 100 : 0;
 
   const goNext = () => {
+    // If we're in edit mode and user clicks continue, return to summary
+    if (editReturnStep !== null) {
+      handleEditDone();
+      return;
+    }
+
     setDirection(1);
     const vs = getVisibleSteps();
     const curIdx = vs.indexOf(step);
     if (curIdx < vs.length - 1) {
       const nextStep = vs[curIdx + 1];
-      // Show calculating animation before final output
-      if (nextStep === 14) {
+      // Show calculating animation before final output (step 15)
+      if (nextStep === 15) {
         computeGoals();
         setPhase('calculating');
         setTimeout(() => {
           setPhase('wizard');
-          setStep(14);
+          setStep(15);
         }, 2500);
         return;
       }
@@ -318,6 +361,12 @@ export default function Onboarding() {
   };
 
   const goBack = () => {
+    // If in edit mode, cancel and return to summary
+    if (editReturnStep !== null) {
+      handleEditDone();
+      return;
+    }
+
     setDirection(-1);
     const vs = getVisibleSteps();
     const curIdx = vs.indexOf(step);
@@ -349,7 +398,7 @@ export default function Onboarding() {
       case 5: return true;
       case 6: return true;
       case 7: return !!f.skin;
-      case 8: return true; // gender-specific, always valid
+      case 8: return true;
       case 9: return !!f.work;
       case 10: return !!f.exercise;
       case 11: return !!f.goalType;
@@ -359,15 +408,16 @@ export default function Onboarding() {
         if (f.goalType === 'gain') return f.targetWeight > f.weightKg && f.targetWeight < 300;
         return true;
       }
-      case 14: return true;
-      case 15: return f.wantLifestyle !== null;
-      case 16: return !!f.diet;
-      case 17: return f.water >= 0.5 && f.water <= 5.0;
-      case 18: return true;
-      case 19: return true; // budget
-      case 20: return !!f.cookingSkill;
-      case 21: return true; // intelligence demo
+      case 14: return true; // summary - always can confirm
+      case 15: return true;
+      case 16: return f.wantLifestyle !== null;
+      case 17: return !!f.diet;
+      case 18: return f.water >= 0.5 && f.water <= 5.0;
+      case 19: return true;
+      case 20: return true;
+      case 21: return !!f.cookingSkill;
       case 22: return true;
+      case 23: return true;
       default: return true;
     }
   };
@@ -443,6 +493,135 @@ export default function Onboarding() {
 
   const bmi = calculateBMI(f.weightKg, f.heightCm);
   const bmr = calculateBMR(f.weightKg, f.heightCm, f.age, f.gender || 'male');
+
+  // ── Summary Screen Component ──
+  const renderSummary = () => {
+    const bmiVal = bmi.toFixed(1);
+    const bmiCat = getBMICategory(bmi);
+
+    const sections = [
+      {
+        key: 'basic',
+        title: 'Basic Info',
+        icon: User,
+        items: [
+          { label: 'Name', value: f.name },
+          { label: 'Gender', value: f.gender === 'male' ? 'Male' : 'Female' },
+          { label: 'Age', value: `${f.age} years` },
+          { label: 'Height', value: `${f.heightCm} cm` },
+          { label: 'Weight', value: `${f.weightKg} kg` },
+          { label: 'BMI', value: `${bmiVal} (${bmiCat})` },
+        ],
+      },
+      {
+        key: 'health',
+        title: 'Health Conditions',
+        icon: Heart,
+        items: [
+          { label: 'Conditions', value: f.conditions.length > 0 ? f.conditions.map(c => CONDITION_LABELS[c] || c).join(', ') : 'None' },
+        ],
+      },
+      {
+        key: 'skin',
+        title: 'Skin Concern',
+        icon: Sparkles,
+        items: [
+          { label: 'Skin Type', value: SKIN_LABELS[f.skin] || f.skin || 'Not set' },
+        ],
+      },
+      ...(f.gender === 'female' ? [{
+        key: 'genderSpecific',
+        title: "Women's Health",
+        icon: Heart,
+        items: [
+          ...(f.conditions.includes('pcos') ? [{ label: 'PCOS Severity', value: `${f.pcosSeverity}/5` }] : []),
+          { label: 'Pregnant', value: f.pregnant ? 'Yes' : 'No' },
+          { label: 'Breastfeeding', value: f.breastfeeding ? 'Yes' : 'No' },
+          ...(f.menstrualPhase ? [{ label: 'Menstrual Phase', value: f.menstrualPhase }] : []),
+        ],
+      }] : [{
+        key: 'genderSpecific',
+        title: "Men's Health",
+        icon: ShieldAlert,
+        items: [
+          { label: 'Prostate Concerns', value: f.prostateConcerns ? 'Yes' : 'No' },
+          { label: 'Testosterone Concerns', value: f.testosteroneConcerns ? 'Yes' : 'No' },
+        ],
+      }]),
+      {
+        key: 'activity',
+        title: 'Activity',
+        icon: Dumbbell,
+        items: [
+          { label: 'Work Type', value: WORK_LABELS[f.work] || f.work },
+          { label: 'Exercise', value: EXERCISE_LABELS[f.exercise] || f.exercise },
+        ],
+      },
+      {
+        key: 'goal',
+        title: 'Goal',
+        icon: Target,
+        items: [
+          { label: 'Goal', value: GOAL_LABELS[f.goalType] || f.goalType },
+          ...(f.goalType !== 'maintain' ? [
+            { label: 'Speed', value: SPEED_LABELS[f.goalSpeed] || f.goalSpeed },
+            { label: 'Target Weight', value: `${f.targetWeight} kg` },
+          ] : []),
+        ],
+      },
+    ];
+
+    return (
+      <div className="space-y-4">
+        <StepHeader title="Review Your Profile" subtitle="Make sure everything looks right before we generate your plan." />
+
+        {sections.map((section, idx) => (
+          <motion.div
+            key={section.key}
+            custom={idx}
+            variants={stagger}
+            initial="hidden"
+            animate="visible"
+            className="bg-card border border-border rounded-2xl p-4"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                  <section.icon className="w-3.5 h-3.5 text-foreground" />
+                </div>
+                <h3 className="text-sm font-semibold text-foreground tracking-tight">{section.title}</h3>
+              </div>
+              <button
+                onClick={() => handleEditSection(section.key)}
+                className="w-7 h-7 rounded-full bg-muted flex items-center justify-center hover:bg-border transition-colors active:scale-95"
+              >
+                <Pencil className="w-3 h-3 text-muted-foreground" />
+              </button>
+            </div>
+            <div className="space-y-1.5 pl-[42px]">
+              {section.items.map(item => (
+                <div key={item.label} className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">{item.label}</span>
+                  <span className="font-semibold text-foreground text-right max-w-[60%]">{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        ))}
+
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="bg-primary/5 border border-primary/20 rounded-xl p-4"
+        >
+          <p className="text-xs text-foreground leading-relaxed text-center">
+            ✨ Tap <strong>Confirm & Generate Plan</strong> below to calculate your personalized nutrition plan.
+          </p>
+        </motion.div>
+      </div>
+    );
+  };
 
   const renderStep = () => {
     switch (step) {
@@ -656,13 +835,12 @@ export default function Onboarding() {
           </div>
         );
 
-      // ── Phase 3b: Gender-Specific (NEW) ──
+      // ── Phase 3b: Gender-Specific ──
       case 8: {
         if (f.gender === 'female') {
           return (
             <div className="space-y-5">
               <StepHeader title="Women's health" subtitle="Helps us fine-tune your nutrition for hormonal balance." />
-              {/* PCOS severity */}
               {f.conditions.includes('pcos') && (
                 <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   className="bg-card border border-border rounded-2xl p-4 space-y-3">
@@ -675,7 +853,6 @@ export default function Onboarding() {
                   <p className="text-[10px] text-muted-foreground">1 = mild, 5 = severe</p>
                 </motion.div>
               )}
-              {/* Pregnancy */}
               <div className="space-y-2.5">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Are you pregnant?</p>
                 <div className="flex gap-2">
@@ -683,7 +860,6 @@ export default function Onboarding() {
                   <Option value="no" current={!f.pregnant ? 'no' : 'yes'} label="No" onSelect={() => set('pregnant', false)} idx={1} />
                 </div>
               </div>
-              {/* Breastfeeding */}
               <div className="space-y-2.5">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Are you breastfeeding?</p>
                 <div className="flex gap-2">
@@ -691,7 +867,6 @@ export default function Onboarding() {
                   <Option value="no" current={!f.breastfeeding ? 'no' : 'yes'} label="No" onSelect={() => set('breastfeeding', false)} idx={1} />
                 </div>
               </div>
-              {/* Menstrual phase */}
               <div className="space-y-2.5">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Current menstrual phase (optional)</p>
                 <div className="space-y-2">
@@ -705,7 +880,6 @@ export default function Onboarding() {
                   ))}
                 </div>
               </div>
-              {/* Insights */}
               {(f.pregnant || f.breastfeeding) && (
                 <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                   className="bg-primary/5 border border-primary/20 rounded-xl p-4">
@@ -718,7 +892,6 @@ export default function Onboarding() {
             </div>
           );
         }
-        // Male
         return (
           <div className="space-y-5">
             <StepHeader title="Men's health" subtitle="Helps us tailor nutrition for your specific needs." />
@@ -740,8 +913,8 @@ export default function Onboarding() {
               <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                 className="bg-primary/5 border border-primary/20 rounded-xl p-4">
                 <p className="text-xs text-foreground leading-relaxed">
-                  💡 {f.prostateConcerns ? 'Your plan will include lycopene-rich foods like tomatoes and zinc-rich seeds.' : ''}
-                  {f.testosteroneConcerns ? ' Your plan will prioritize zinc, vitamin D, and healthy fats for testosterone support.' : ''}
+                  💡 {f.prostateConcerns ? 'Your plan will include lycopene-rich foods like tomatoes and zinc sources.' : ''}
+                  {f.testosteroneConcerns ? ' Your plan will focus on zinc, vitamin D, and healthy fats for hormonal support.' : ''}
                 </p>
               </motion.div>
             )}
@@ -753,12 +926,12 @@ export default function Onboarding() {
       case 9:
         return (
           <div className="space-y-5">
-            <StepHeader title="What's your work like?" subtitle="Your daily work type affects calorie burn." />
+            <StepHeader title="Your work type" subtitle="Affects daily calorie expenditure." />
             <div className="space-y-2.5">
               {[
-                { v: 'sitting', l: '🪑 Sitting / Desk Job', s: 'Most of the day seated' },
-                { v: 'mixed', l: '🚶 Mixed / Moderate', s: 'Some walking and standing' },
-                { v: 'physical', l: '🏗️ Physical / Labour', s: 'On your feet most of the day' },
+                { v: 'sitting', l: '🪑 Desk / Sitting', s: 'Office, WFH, driving' },
+                { v: 'mixed', l: '🚶 Mixed', s: 'Retail, teaching, some walking' },
+                { v: 'physical', l: '🏗️ Physical', s: 'Construction, farming, sports coaching' },
               ].map((o, i) => (
                 <Option key={o.v} value={o.v} current={f.work} label={o.l} sub={o.s} onSelect={v => set('work', v)} idx={i} />
               ))}
@@ -769,13 +942,13 @@ export default function Onboarding() {
       case 10:
         return (
           <div className="space-y-5">
-            <StepHeader title="How often do you exercise?" subtitle="Combined with work type for accurate TDEE." />
+            <StepHeader title="Exercise frequency" subtitle="How often do you work out?" />
             <div className="space-y-2.5">
               {[
-                { v: 'none', l: '😐 No Exercise', s: 'Rarely or never' },
-                { v: '1-3', l: '🚶 1–3 Days/Week', s: 'Light to moderate' },
-                { v: '4-5', l: '🏃 4–5 Days/Week', s: 'Regular training' },
-                { v: 'daily', l: '🏋️ Daily', s: 'Intense daily exercise' },
+                { v: 'none', l: '🛋️ None', s: 'No regular exercise' },
+                { v: '1-3', l: '🏃 1–3 days/week', s: 'Light to moderate' },
+                { v: '4-5', l: '💪 4–5 days/week', s: 'Consistent training' },
+                { v: 'daily', l: '🔥 Daily', s: 'Intense daily exercise' },
               ].map((o, i) => (
                 <Option key={o.v} value={o.v} current={f.exercise} label={o.l} sub={o.s} onSelect={v => set('exercise', v)} idx={i} />
               ))}
@@ -783,16 +956,16 @@ export default function Onboarding() {
           </div>
         );
 
-      // ── Phase 5: Goal & Target ──
+      // ── Phase 5: Goal ──
       case 11:
         return (
           <div className="space-y-5">
-            <StepHeader title="What's your goal?" subtitle="This determines your daily calorie target." />
+            <StepHeader title="What's your goal?" subtitle="This determines your calorie target." />
             <div className="space-y-2.5">
               {[
-                { v: 'lose', l: '🔥 Lose Weight', s: 'Calorie deficit for fat loss' },
-                { v: 'maintain', l: '⚖️ Maintain Weight', s: 'Eat at your maintenance level' },
-                { v: 'gain', l: '💪 Build Muscle / Gain', s: 'Calorie surplus for growth' },
+                { v: 'lose', l: '📉 Lose Weight', s: 'Calorie deficit for fat loss' },
+                { v: 'maintain', l: '⚖️ Maintain', s: 'Stay at current weight' },
+                { v: 'gain', l: '📈 Gain Weight', s: 'Calorie surplus for muscle/weight gain' },
               ].map((o, i) => (
                 <Option key={o.v} value={o.v} current={f.goalType} label={o.l} sub={o.s} onSelect={v => set('goalType', v)} idx={i} />
               ))}
@@ -803,100 +976,95 @@ export default function Onboarding() {
       case 12:
         return (
           <div className="space-y-5">
-            <StepHeader title="Choose your pace" subtitle={f.goalType === 'lose' ? 'How fast do you want to lose weight?' : 'How fast do you want to gain?'} />
+            <StepHeader title="How fast?" subtitle={`Choose your ${f.goalType === 'lose' ? 'fat loss' : 'weight gain'} pace.`} />
             <div className="space-y-2.5">
-              {[
-                { v: 'balanced', l: '🐢 Balanced', s: f.goalType === 'lose' ? '20% deficit — sustainable and healthy' : '10% surplus — lean gains' },
-                { v: 'aggressive', l: '🐇 Aggressive', s: f.goalType === 'lose' ? '30% deficit — faster but harder' : '20% surplus — faster gains' },
-              ].map((o, i) => (
-                <Option key={o.v} value={o.v} current={f.goalSpeed} label={o.l} sub={o.s} onSelect={v => set('goalSpeed', v)} idx={i} />
-              ))}
+              <Option value="balanced" current={f.goalSpeed} label="⚖️ Balanced" sub={f.goalType === 'lose' ? '~0.4–0.5 kg/week — sustainable and easier to maintain' : '~0.25–0.3 kg/week — lean gains, less fat'} onSelect={v => set('goalSpeed', v)} idx={0} />
+              <Option value="aggressive" current={f.goalSpeed} label="🔥 Aggressive" sub={f.goalType === 'lose' ? '~0.7–1.0 kg/week — faster but harder to sustain' : '~0.4–0.5 kg/week — faster but may add some fat'} onSelect={v => set('goalSpeed', v)} idx={1} />
             </div>
           </div>
         );
 
       case 13: {
-        const isLosing = f.goalType === 'lose';
-        const diff = isLosing ? f.weightKg - f.targetWeight : f.targetWeight - f.weightKg;
-        const valid = isLosing ? f.targetWeight < f.weightKg : f.targetWeight > f.weightKg;
+        const isLose = f.goalType === 'lose';
         return (
           <div className="space-y-6">
-            <StepHeader title="What's your target weight?" subtitle={`Current weight: ${f.weightKg} kg`} />
+            <StepHeader title="Target weight" subtitle={isLose ? 'Where do you want to reach?' : 'What weight are you aiming for?'} />
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               <div className="relative">
                 <Target className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input type="number" value={f.targetWeight} onChange={e => set('targetWeight', parseFloat(e.target.value) || 0)}
                   className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-card border border-border text-sm font-semibold outline-none focus:border-primary/30 transition-all" />
               </div>
+              {isLose && f.targetWeight >= f.weightKg && f.targetWeight > 0 && (
+                <p className="text-xs text-destructive mt-1.5">Target must be below current weight ({f.weightKg} kg).</p>
+              )}
+              {!isLose && f.targetWeight <= f.weightKg && f.targetWeight > 0 && (
+                <p className="text-xs text-destructive mt-1.5">Target must be above current weight ({f.weightKg} kg).</p>
+              )}
+              {f.targetWeight > 0 && ((isLose && f.targetWeight < f.weightKg) || (!isLose && f.targetWeight > f.weightKg)) && (
+                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                  className="bg-primary/5 border border-primary/20 rounded-xl p-4 mt-4">
+                  <p className="text-xs text-foreground leading-relaxed">
+                    💡 You want to {isLose ? 'lose' : 'gain'} <strong>{Math.abs(f.weightKg - f.targetWeight).toFixed(1)} kg</strong>.
+                    We'll calculate the safest pace for you.
+                  </p>
+                </motion.div>
+              )}
             </motion.div>
-            {!valid && f.targetWeight > 0 && (
-              <div className="flex items-start gap-2 bg-destructive/5 border border-destructive/20 rounded-xl p-3">
-                <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
-                <p className="text-xs text-destructive/80">
-                  {isLosing ? 'Target must be less than current weight.' : 'Target must be greater than current weight.'}
-                </p>
-              </div>
-            )}
-            {valid && diff > 0 && (
-              <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
-                className="bg-card border border-border rounded-2xl p-5 text-center">
-                <p className="text-3xl font-mono font-bold text-foreground">{f.targetWeight} kg</p>
-                <p className="text-xs text-muted-foreground mt-1.5">{diff.toFixed(1)} kg to {isLosing ? 'lose' : 'gain'}</p>
-              </motion.div>
-            )}
           </div>
         );
       }
 
-      // ── Phase 6: Final Output ──
-      case 14: {
+      // ── Step 14: SUMMARY SCREEN ──
+      case 14:
+        return renderSummary();
+
+      // ── Step 15: Final Plan Output ──
+      case 15: {
         const g = goalResult;
-        if (!g) return null;
-        const cueConfig = {
-          sustainable: { emoji: '🟢', label: 'Sustainable', color: 'text-primary' },
-          moderate: { emoji: '🟡', label: 'Moderate deficit', color: 'text-accent' },
-          aggressive: { emoji: '🔴', label: 'Aggressive', color: 'text-destructive' },
+        if (!g) return <div className="text-center text-muted-foreground">Calculating...</div>;
+        const calorieCueColors = { sustainable: 'text-primary', moderate: 'text-accent', aggressive: 'text-destructive' };
+        const calorieCueEmoji = { sustainable: '🟢', moderate: '🟡', aggressive: '🔴' };
+        const adherenceColors: Record<string, { color: string; emoji: string; label: string }> = {
+          easy: { color: 'text-primary', emoji: '🟢', label: 'Easy to follow' },
+          moderate: { color: 'text-accent', emoji: '🟡', label: 'Moderately challenging' },
+          hard: { color: 'text-destructive', emoji: '🔴', label: 'Challenging — stay committed' },
         };
-        const cue = cueConfig[g.calorieCue];
-        const adhConfig = {
-          easy: { emoji: '🟢', label: 'Easy to follow', color: 'text-primary' },
-          moderate: { emoji: '🟡', label: 'Moderate challenge', color: 'text-accent' },
-          hard: { emoji: '🔴', label: 'Hard – consider adjustments', color: 'text-destructive' },
-        };
-        const adh = adhConfig[g.adherenceLabel];
+        const adh = adherenceColors[g.adherenceLabel] || adherenceColors.moderate;
         const proteinHint = getProteinTranslation(g.protein, f.diet || 'noRestrictions');
-        const calorieGap = Math.abs(g.tdee - g.targetCalories);
+        const conditionInsights = f.conditions
+          .filter(c => CONDITION_INSIGHTS[c])
+          .map(c => `${CONDITION_LABELS[c] || c}: ${CONDITION_INSIGHTS[c]}`);
+        const multiplier = getActivityMultiplier(f.work || 'sitting', f.exercise || 'none');
+        const waterGoal = calculateWaterGoal(f.weightKg, multiplier);
+
         return (
           <div className="space-y-4">
-            <StepHeader title="Your Personalized Plan" subtitle="This is your starting plan. You can adjust this anytime." />
-            {/* TDEE → Target */}
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            <StepHeader title="Your Personalized Plan" subtitle="Based on your profile, here's what we recommend." />
+            {/* TDEE + Target */}
+            <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
               className="bg-card border border-border rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-3">
-                <div className="text-center flex-1">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Maintenance</p>
-                  <p className="text-2xl font-mono font-bold text-muted-foreground">{g.tdee}</p>
-                  <p className="text-[9px] text-muted-foreground">kcal/day</p>
-                </div>
-                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3 }}>
-                  <ArrowRight className="w-5 h-5 text-primary" />
-                </motion.div>
-                <div className="text-center flex-1">
-                  <p className="text-[10px] font-semibold text-primary uppercase tracking-wider mb-1">Your Target</p>
-                  <motion.p initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.5, type: 'spring' }}
-                    className="text-2xl font-mono font-bold text-primary">{g.targetCalories}</motion.p>
-                  <p className="text-[9px] text-muted-foreground">kcal/day</p>
-                </div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Maintenance</span>
+                <span className="text-sm font-mono font-semibold text-muted-foreground">{g.tdee} kcal</span>
               </div>
-              {g.goalType !== 'maintain' && (
-                <p className="text-[10px] text-muted-foreground text-center mb-2">
-                  {g.goalType === 'lose' ? `${calorieGap} kcal deficit` : `${calorieGap} kcal surplus`} per day
+              <div className="flex items-baseline gap-2">
+                <p className="text-4xl font-mono font-bold text-foreground tracking-tighter">{g.targetCalories}</p>
+                <span className="text-sm text-muted-foreground">kcal/day</span>
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <span className={`text-sm ${calorieCueColors[g.calorieCue]}`}>{calorieCueEmoji[g.calorieCue]}</span>
+                <span className={`text-xs font-semibold ${calorieCueColors[g.calorieCue]}`}>
+                  {g.calorieCue === 'sustainable' ? 'Sustainable deficit' : g.calorieCue === 'moderate' ? 'Moderate deficit' : 'Aggressive deficit'}
+                </span>
+              </div>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
+                className="mt-3 bg-muted/50 rounded-lg px-3 py-2">
+                <p className="text-[11px] text-muted-foreground">
+                  {g.goalType === 'lose' ? `${g.tdee - g.targetCalories} kcal daily deficit` :
+                   g.goalType === 'gain' ? `${g.targetCalories - g.tdee} kcal daily surplus` :
+                   'Eating at maintenance'}
                 </p>
-              )}
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
-                className="flex items-center justify-center gap-1.5 pt-2 border-t border-border">
-                <span className="text-xs">{cue.emoji}</span>
-                <span className={`text-[11px] font-semibold ${cue.color}`}>{cue.label}</span>
               </motion.div>
             </motion.div>
             {/* Macros */}
@@ -943,6 +1111,16 @@ export default function Onboarding() {
               </div>
               <p className="text-2xl font-mono font-bold text-foreground">{g.adherenceScore}</p>
             </motion.div>
+            {/* Condition insights */}
+            {conditionInsights.length > 0 && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.58 }}
+                className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+                <p className="text-xs text-foreground font-medium mb-2">💡 Condition-based adjustments:</p>
+                {conditionInsights.map((insight, i) => (
+                  <p key={i} className="text-xs text-muted-foreground leading-relaxed">• {insight}</p>
+                ))}
+              </motion.div>
+            )}
             {/* Goal insight */}
             {g.goalInsight && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
@@ -957,6 +1135,15 @@ export default function Onboarding() {
                 <p className="text-xs text-foreground leading-relaxed">🦋 {g.thyroidNote}</p>
               </motion.div>
             )}
+            {/* Water */}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.68 }}
+              className="bg-card border border-border rounded-xl p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Droplets className="w-4 h-4 text-primary" />
+                <p className="text-xs font-semibold text-foreground">Daily Water</p>
+              </div>
+              <p className="text-sm font-mono font-bold text-primary">{waterGoal}L</p>
+            </motion.div>
             {/* Trust + plateau */}
             {g.goalType !== 'maintain' && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}
@@ -978,7 +1165,7 @@ export default function Onboarding() {
       }
 
       // ── Phase 7: Lifestyle ──
-      case 15:
+      case 16:
         return (
           <div className="space-y-5">
             <StepHeader title="Want to personalise more?" subtitle="Diet preferences, supplements, budget, and cooking habits." />
@@ -991,7 +1178,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 16:
+      case 17:
         return (
           <div className="space-y-5">
             <StepHeader title="Dietary preference" subtitle="Your plan will be tailored accordingly." />
@@ -1008,7 +1195,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 17: {
+      case 18: {
         const multiplier = getActivityMultiplier(f.work || 'sitting', f.exercise || 'none');
         const recommended = calculateWaterGoal(f.weightKg, multiplier);
         return (
@@ -1030,7 +1217,7 @@ export default function Onboarding() {
         );
       }
 
-      case 18: {
+      case 19: {
         const suppOptions = [
           { value: 'vitaminD', label: '☀️ Vitamin D' },
           { value: 'omega3', label: '🐟 Omega-3' },
@@ -1061,8 +1248,8 @@ export default function Onboarding() {
         );
       }
 
-      // ── Budget Step (NEW) ──
-      case 19:
+      // ── Budget Step ──
+      case 20:
         return (
           <div className="space-y-5">
             <StepHeader title="Daily food budget" subtitle="Set a budget to get cost-aware meal suggestions." />
@@ -1116,7 +1303,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 20: {
+      case 21: {
         const equipmentOpts = [
           { value: 'basic', label: '🍳 Basic (Pan/Pot)' },
           { value: 'microwave', label: '📡 Microwave' },
@@ -1164,15 +1351,14 @@ export default function Onboarding() {
         );
       }
 
-      // ── Intelligence Demo (NEW) ──
-      case 21: {
+      // ── Intelligence Demo ──
+      case 22: {
         const meal = getDemoMeal(f.diet || 'noRestrictions', f.conditions);
         const warnings = getCameraWarnings(f.conditions);
         const budgetFits = !f.budgetEnabled || meal.cost <= (f.budgetAmount * 0.35);
         return (
           <div className="space-y-5">
             <StepHeader title="See your AI in action" subtitle="Here's how NutriLens AI will work for you in real time." />
-            {/* Mock meal suggestion */}
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
               className="bg-card border border-border rounded-2xl p-5 space-y-3">
               <div className="flex items-center gap-2 mb-1">
@@ -1211,7 +1397,6 @@ export default function Onboarding() {
               </p>
             </motion.div>
 
-            {/* Mock camera warning */}
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
               className="bg-card border border-border rounded-2xl p-5 space-y-3">
               <div className="flex items-center gap-2 mb-1">
@@ -1232,7 +1417,6 @@ export default function Onboarding() {
               </p>
             </motion.div>
 
-            {/* Explanation */}
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
               className="bg-primary/5 border border-primary/20 rounded-xl p-4">
               <p className="text-xs text-foreground leading-relaxed">
@@ -1244,7 +1428,7 @@ export default function Onboarding() {
       }
 
       // ── Finish ──
-      case 22:
+      case 23:
         return (
           <div className="space-y-6">
             <StepHeader title="All set! 🎉" subtitle="Your personalized nutrition plan is ready." />
@@ -1320,7 +1504,18 @@ export default function Onboarding() {
   }
 
   // ── Wizard phase ──
-  const isFinishStep = step === 22;
+  const isFinishStep = step === 23;
+  const isSummaryStep = step === 14;
+
+  // Button label logic
+  let buttonLabel = <>Continue <ArrowRight className="w-4 h-4" /></>;
+  if (isFinishStep) {
+    buttonLabel = <><Check className="w-4 h-4" /> Finish</>;
+  } else if (isSummaryStep) {
+    buttonLabel = <><Sparkles className="w-4 h-4" /> Confirm & Generate Plan</>;
+  } else if (editReturnStep !== null) {
+    buttonLabel = <><Check className="w-4 h-4" /> Save & Return to Summary</>;
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -1342,8 +1537,14 @@ export default function Onboarding() {
 
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
         className="max-w-lg mx-auto w-full px-6 pb-6 flex gap-3">
-        {currentVisibleIdx > 0 && (
+        {currentVisibleIdx > 0 && editReturnStep === null && (
           <motion.button whileTap={{ scale: 0.95 }} onClick={goBack}
+            className="px-4 py-3.5 rounded-full bg-card border border-border font-semibold text-sm hover:bg-muted transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+          </motion.button>
+        )}
+        {editReturnStep !== null && (
+          <motion.button whileTap={{ scale: 0.95 }} onClick={handleEditDone}
             className="px-4 py-3.5 rounded-full bg-card border border-border font-semibold text-sm hover:bg-muted transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </motion.button>
@@ -1354,7 +1555,7 @@ export default function Onboarding() {
           className={`flex-1 py-3.5 rounded-full font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200 ${
             canContinue() ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground cursor-not-allowed'
           }`}>
-          {isFinishStep ? <><Check className="w-4 h-4" /> Finish</> : <>Continue <ArrowRight className="w-4 h-4" /></>}
+          {buttonLabel}
         </motion.button>
       </motion.div>
     </div>
