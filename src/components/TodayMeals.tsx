@@ -89,9 +89,13 @@ export default function TodayMeals({ log, onRefresh, dayState }: Props) {
               ? scoreUnifiedMeal(meals.flatMap(m => m.items), totalCarbs, totalProtein, totalFat, totalCal, profile)
               : null;
 
-            const target = profile ? getAdjustedMealTarget(profile, mc.type, todayKey) : null;
+            // Use engine-computed target from dayState
+            const slotName = mc.type === 'snack' ? 'snacks' : mc.type;
+            const engineSlot = dayState.slots.find(s => s.name === slotName);
+            const target = engineSlot ? { calories: engineSlot.targetKcal, protein: 0, carbs: 0, fat: 0 } : null;
             const calPct = target && target.calories > 0 ? Math.min(200, Math.round((totalCal / target.calories) * 100)) : 0;
-            const isMissed = missedMeals.includes(mc.type);
+            const engineStatus = engineSlot?.status || 'pending';
+            const isMissed = engineStatus === 'missed';
             const mealRedistributed = isRedistributed(todayKey, mc.type);
 
             // Visual state
