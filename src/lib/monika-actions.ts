@@ -199,7 +199,43 @@ export function buildMonikaContext() {
   const weatherSummary = getWeatherSummary();
   const weatherNudge = getDashboardWeatherNudge();
 
+  // Budget context
+  const budgetSettings = getBudgetSettings();
+  const todayMeals = log.meals || [];
+  const todaySpending = todayMeals.reduce((sum: number, m: any) => {
+    const cost = m.cost || m.items?.reduce((s: number, i: any) => s + (i.cost || 0), 0) || 0;
+    return sum + cost;
+  }, 0);
+
+  // Skin concerns from onboarding data
+  let skinConcerns: string | null = null;
+  try {
+    const onboardingData = localStorage.getItem('nutrilens_user');
+    if (onboardingData) {
+      const parsed = JSON.parse(onboardingData);
+      skinConcerns = parsed?.health?.skin || null;
+    }
+  } catch { /* ok */ }
+
+  // Supplement data from today's log
+  const todaySupplements = log.supplements || [];
+
+  // Liked/disliked foods from learning data
+  let foodPreferences: any = null;
+  try {
+    const learning = localStorage.getItem('nutrilens_learning');
+    if (learning) {
+      const parsed = JSON.parse(learning);
+      foodPreferences = {
+        liked: parsed?.likedFoods || [],
+        disliked: parsed?.dislikedFoods || [],
+        frequent: parsed?.frequentFoods || [],
+      };
+    }
+  } catch { /* ok */ }
+
   return {
+    currentHour: new Date().getHours(),
     profile: profile ? {
       name: profile.name, age: profile.age, gender: profile.gender,
       occupation: profile.occupation, jobType: profile.jobType,
@@ -217,8 +253,22 @@ export function buildMonikaContext() {
       medications: profile.medications, activityLevel: profile.activityLevel,
       waterGoal: profile.waterGoal,
       mealTimes: profile.mealTimes,
+      skinConcerns,
+      conditions: profile.conditions,
+      budget: profile.budget,
     } : null,
     today: formatLogForContext(log),
+    todaySupplements: todaySupplements.map((s: any) => ({
+      name: s.name, dosage: s.dosage, unit: s.unit, taken: s.taken,
+    })),
+    budgetSettings: {
+      dailyBudget: Math.round(budgetSettings.weeklyBudget / 7),
+      weeklyBudget: budgetSettings.weeklyBudget,
+      monthlyBudget: budgetSettings.monthlyBudget,
+      currency: budgetSettings.currency,
+    },
+    todaySpending,
+    foodPreferences,
     history, // last 30 days
     weightHistory,
     streaks,
