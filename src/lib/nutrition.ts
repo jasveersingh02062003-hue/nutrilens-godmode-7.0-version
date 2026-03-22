@@ -36,11 +36,24 @@ export function calculateTDEE(bmr: number, activityLevel: string): number {
   return bmr * (activityMultipliers[activityLevel] || 1.55);
 }
 
-export function calculateDailyTargets(tdee: number, goal: string, healthConditions?: string[], womenHealth?: string[]) {
-  let calories = tdee;
-  if (goal === 'lose') calories -= 500;
-  if (goal === 'gain') calories += 500;
-  calories = Math.round(calories);
+/**
+ * Calculate macro targets for a given calorie budget.
+ * NOTE: This function no longer applies deficit/surplus — that logic
+ * lives in the Goal Engine (src/lib/goal-engine.ts). Pass the
+ * already-adjusted calorie target here for correct macro splits.
+ *
+ * For backward-compat, if `calories` is omitted the function falls
+ * back to using `tdee` directly (maintenance).
+ */
+export function calculateDailyTargets(
+  tdee: number,
+  goal: string,
+  healthConditions?: string[],
+  womenHealth?: string[],
+  calories?: number
+) {
+  // Use provided calorie target; fall back to TDEE (maintenance)
+  const cal = Math.round(calories ?? tdee);
 
   // Default macro split: 40% carbs, 30% protein, 30% fat
   let proteinPct = 0.3;
@@ -61,11 +74,11 @@ export function calculateDailyTargets(tdee: number, goal: string, healthConditio
     fatPct = 0.35;
   }
 
-  const protein = Math.round((calories * proteinPct) / 4);
-  const carbs = Math.round((calories * carbsPct) / 4);
-  const fat = Math.round((calories * fatPct) / 9);
+  const protein = Math.round((cal * proteinPct) / 4);
+  const carbs = Math.round((cal * carbsPct) / 4);
+  const fat = Math.round((cal * fatPct) / 9);
 
-  return { calories, protein, carbs, fat };
+  return { calories: cal, protein, carbs, fat };
 }
 
 export function getGreeting(): string {

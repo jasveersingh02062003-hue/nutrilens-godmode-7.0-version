@@ -130,12 +130,11 @@ export function determineGoalAndTargets(
   targetCalories = Math.round(targetCalories);
 
   // ── Calculate macros using existing logic (respects health conditions) ──
-  const macros = calculateDailyTargets(tdee, effectiveGoal, healthConditions, womenHealth);
-  // Scale macros to match our adjusted calorie target
-  const calorieRatio = targetCalories / macros.calories;
-  const targetProtein = Math.round(macros.protein * calorieRatio);
-  const targetCarbs = Math.round(macros.carbs * calorieRatio);
-  const targetFat = Math.round(macros.fat * calorieRatio);
+  // Pass the adjusted targetCalories so calculateDailyTargets uses them directly
+  const macros = calculateDailyTargets(tdee, effectiveGoal, healthConditions, womenHealth, targetCalories);
+  const targetProtein = macros.protein;
+  const targetCarbs = macros.carbs;
+  const targetFat = macros.fat;
 
   // ── Expected weekly change ──
   const weeklyDeficit = (tdee - targetCalories) * 7;

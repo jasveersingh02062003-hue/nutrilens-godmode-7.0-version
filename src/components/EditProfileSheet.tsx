@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Camera, User, Ruler, Scale, Target, Activity, Heart, Apple, ChefHat, Save } from 'lucide-react';
 import { useUserProfile } from '@/contexts/UserProfileContext';
-import { calculateBMI, calculateBMR, calculateTDEE, calculateDailyTargets } from '@/lib/nutrition';
+import { calculateBMI, calculateBMR, calculateTDEE } from '@/lib/nutrition';
+import { determineGoalAndTargets } from '@/lib/goal-engine';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
 import { fileToDataUrl } from '@/lib/photo-store';
@@ -105,10 +106,9 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
     }
 
     const age = calculateAge(dob);
-    const bmi = calculateBMI(weightKg, heightCm);
-    const bmr = calculateBMR(weightKg, heightCm, age, gender);
-    const tdee = calculateTDEE(bmr, activityLevel);
-    const targets = calculateDailyTargets(tdee, goal, healthConditions);
+    const decision = determineGoalAndTargets(
+      weightKg, heightCm, age, gender, activityLevel, goal, healthConditions
+    );
 
     updateProfile({
       name: name.trim(),
@@ -119,19 +119,19 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
       weightKg,
       targetWeight,
       activityLevel,
-      goal,
+      goal: decision.effectiveGoal,
       goalSpeed,
       healthConditions,
       dietaryPrefs,
       waterGoal,
       occupation,
-      bmi,
-      bmr,
-      tdee,
-      dailyCalories: targets.calories,
-      dailyProtein: targets.protein,
-      dailyCarbs: targets.carbs,
-      dailyFat: targets.fat,
+      bmi: decision.bmi,
+      bmr: calculateBMR(weightKg, heightCm, age, gender),
+      tdee: calculateTDEE(calculateBMR(weightKg, heightCm, age, gender), activityLevel),
+      dailyCalories: decision.targetCalories,
+      dailyProtein: decision.targetProtein,
+      dailyCarbs: decision.targetCarbs,
+      dailyFat: decision.targetFat,
     });
 
     toast.success('Profile updated! All targets recalculated.');
