@@ -13,6 +13,7 @@ import SupplementLogSheet from '@/components/SupplementLogSheet';
 import SupplementEditModal from '@/components/SupplementEditModal';
 import CaloriesBurnedCard from '@/components/CaloriesBurnedCard';
 import { getDailyLog, getDailyTotals, addWater, DailyLog, SupplementEntry, getTodayKey, getProfile as getStoredProfile, saveProfile as saveStoredProfile } from '@/lib/store';
+import { recalculateDay } from '@/lib/calorie-engine';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { getGreeting } from '@/lib/nutrition';
 import MonikaFab from '@/components/MonikaFab';
