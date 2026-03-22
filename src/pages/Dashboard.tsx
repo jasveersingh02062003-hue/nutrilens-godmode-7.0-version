@@ -143,6 +143,9 @@ export default function Dashboard() {
   return (
     <>
     {showTutorial && <PostOnboardingTutorial onDismiss={() => setShowTutorial(false)} />}
+    {showPESExplanation && profile?.onboardingComplete && !showTutorial && (
+      <PESExplanationCard onDismiss={() => setShowPESExplanation(false)} />
+    )}
     <div className="min-h-screen pb-24 bg-background">
       <div className="max-w-lg mx-auto px-4 pt-5 space-y-4">
         {/* 1. Header */}
