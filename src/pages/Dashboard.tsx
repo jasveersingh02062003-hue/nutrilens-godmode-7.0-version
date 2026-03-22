@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import PostOnboardingTutorial from '@/components/PostOnboardingTutorial';
 import { runWeeklyAdaptation as runGoalAdaptation, applyAdaptation } from '@/lib/goal-engine';
-import { Bell, ClipboardList, X } from 'lucide-react';
-import { updateDailyBehaviorStats, runWeeklyAdaptation } from '@/lib/behavior-stats';
+import { Bell, ClipboardList, X, ShieldAlert } from 'lucide-react';
+import { updateDailyBehaviorStats, runWeeklyAdaptation, isSurvivalModeActive } from '@/lib/behavior-stats';
 import { useNavigate } from 'react-router-dom';
 import CalorieRing from '@/components/CalorieRing';
 import MacroCard from '@/components/MacroCard';
@@ -32,6 +32,8 @@ import { applyCarryOver, getPendingCarryOver } from '@/lib/redistribution-servic
 import { applyOverageCarryOver } from '@/lib/smart-adjustment';
 import { applyCarryForwardToday } from '@/lib/exercise-adjustment';
 import RecoveryOptionsCard from '@/components/RecoveryOptionsCard';
+import OverspendDecisionSheet from '@/components/OverspendDecisionSheet';
+import { isRecoveryModeActive } from '@/lib/decision-engine';
 import { toast } from 'sonner';
 import { getWeather, fetchLiveWeather, type WeatherData } from '@/lib/weather-service';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
