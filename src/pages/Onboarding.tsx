@@ -923,11 +923,11 @@ export default function Onboarding() {
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
             className="text-xs text-muted-foreground">Next step: Log your first meal</motion.p>
           <div className="space-y-3">
-            <button onClick={() => navigate('/log-food')}
+            <button onClick={() => navigate('/')}
               className="w-full py-4 rounded-full bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2">
               <UtensilsCrossed className="w-4 h-4" /> Log Breakfast
             </button>
-            <button onClick={() => navigate('/')}
+            <button onClick={() => navigate('/dashboard')}
               className="w-full py-3 rounded-full bg-card border border-border text-foreground font-semibold text-sm hover:bg-muted transition-colors">
               Go to Dashboard
             </button>
