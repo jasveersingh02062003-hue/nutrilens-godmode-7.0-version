@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import PostOnboardingTutorial from '@/components/PostOnboardingTutorial';
 import { runWeeklyAdaptation as runGoalAdaptation, applyAdaptation } from '@/lib/goal-engine';
-import { Bell } from 'lucide-react';
+import { Bell, ClipboardList, X } from 'lucide-react';
 import { updateDailyBehaviorStats, runWeeklyAdaptation } from '@/lib/behavior-stats';
 import { useNavigate } from 'react-router-dom';
 import CalorieRing from '@/components/CalorieRing';
@@ -36,6 +36,9 @@ import { toast } from 'sonner';
 import { getWeather, fetchLiveWeather, type WeatherData } from '@/lib/weather-service';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
 import UpgradeBanner from '@/components/UpgradeBanner';
+import { getMealPlannerProfile } from '@/lib/meal-planner-store';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -50,6 +53,13 @@ export default function Dashboard() {
   const [selectedSupplement, setSelectedSupplement] = useState<SupplementEntry | null>(null);
   const [editingSupplement, setEditingSupplement] = useState<SupplementEntry | null>(null);
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('tutorial_seen'));
+
+  const plannerProfile = getMealPlannerProfile();
+  const plannerIncomplete = !plannerProfile || !plannerProfile.onboardingComplete;
+  const [showPlannerModal, setShowPlannerModal] = useState(() =>
+    plannerIncomplete && !localStorage.getItem('planner_modal_dismissed')
+  );
+  const showPlannerBanner = plannerIncomplete && !showPlannerModal;
 
   useEffect(() => {
     if (!profile?.onboardingComplete) navigate('/onboarding');
@@ -150,6 +160,21 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
+
+        {/* Planner setup banner (persistent until completed) */}
+        {showPlannerBanner && (
+          <div className="animate-fade-in">
+            <div className="flex items-center gap-3 rounded-2xl bg-primary/10 border border-primary/20 px-4 py-3">
+              <ClipboardList className="w-5 h-5 text-primary shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-foreground">Complete your plan for accurate tracking</p>
+              </div>
+              <Button size="sm" className="shrink-0 text-xs h-8" onClick={() => navigate('/planner')}>
+                Set Plan
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Upgrade Banner (free users only) */}
         <div className="animate-fade-in">
@@ -261,6 +286,34 @@ export default function Dashboard() {
         onDeleted={refreshLog}
       />
     </div>
+
+    {/* One-time planner setup modal */}
+    <Dialog open={showPlannerModal} onOpenChange={(open) => {
+      if (!open) {
+        localStorage.setItem('planner_modal_dismissed', 'true');
+        setShowPlannerModal(false);
+      }
+    }}>
+      <DialogContent className="max-w-sm rounded-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-lg">Set up your daily plan</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
+            To get accurate meals, budget tracking, and calorie guidance — set your budget and meal plan.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-2 pt-2">
+          <Button onClick={() => { setShowPlannerModal(false); navigate('/planner'); }}>
+            Set My Plan
+          </Button>
+          <Button variant="ghost" onClick={() => {
+            localStorage.setItem('planner_modal_dismissed', 'true');
+            setShowPlannerModal(false);
+          }}>
+            Do it later
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
     </>
   );
 }
