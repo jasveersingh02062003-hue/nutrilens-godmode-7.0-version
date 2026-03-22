@@ -1,48 +1,67 @@
 
 
-## Onboarding Wizard – Final Fixes & Enhancements
+## Onboarding Wizard – Expanded Health, Gender-Specific, Budget & Intelligence Demo
 
 ### Summary
-Add adherence scoring, timeline ranges, visual calorie cues, refined macro constraints, and updated wording to the existing onboarding wizard. No structural rewrite needed — these are targeted additions to 4 files.
+Add missing features to the existing onboarding wizard: expanded health conditions (7 total), expanded skin options (9 total), gender-specific branching questions, a budget step in lifestyle, and an intelligence demo phase before finish.
 
-### Changes
+### What's New (not already implemented)
 
-**1. `src/lib/goal-engine.ts` — Refined macro logic + adherence score**
+**1. Expanded Health Conditions** (step 6)
+- Add: Hypertension, High Cholesterol, IBS, Anemia (currently only Diabetes, Thyroid, PCOS)
+- Show aggregated insight after selection: "Your plan will focus on: low-GI for diabetes, iron-rich for anemia..."
 
-- Add goal-specific protein caps: lose → max 2.0 (if weight < 50kg → 1.8), maintain → max 1.8, gain → max 2.2
-- After computing base protein/fat/carbs with health adjustments, **scale all macros** to match target calories exactly:
-  - `scaleFactor = target / (protein*4 + fat*9 + carbs*4)`
-  - Apply scale, then enforce constraints in order: protein cap → fat minimum (20%) → carbs floor (50g)
-- Add `weeksMin`/`weeksMax` to `OnboardingGoalResult`:
-  - `minWeeks = Math.floor(weightDiff / weeklyRate)`
-  - `maxWeeks = Math.ceil(weightDiff / (weeklyRate * 0.8))`
-- Add adherence score calculation function:
-  - Start 100, subtract penalties (high protein, veg+high protein, low cooking time+gain, aggressive deficit, low calories, fast loss rate)
-  - Return score (0-100) and label (easy/moderate/hard)
-- Add water calculation with activity bonus (+0.5 if multiplier ≥ 1.55, +1.0 if ≥ 1.725), capped 0.5–5.0
+**2. Expanded Skin Options** (step 7)
+- Add: Eczema, Rosacea, Psoriasis
+- Add insights for new options (eczema → omega-3, rosacea → anti-inflammatory, psoriasis → vitamin D)
 
-**2. `src/lib/onboarding-store.ts` — Extended data structure**
+**3. Gender-Specific Questions** (new step 8, shifts subsequent steps)
+- Female: PCOS severity slider (1-5, if PCOS selected), Pregnant Y/N, Breastfeeding Y/N, Menstrual phase dropdown
+- Male: Prostate concerns Y/N, Testosterone concerns Y/N
+- Store in `health.genderSpecific` field
 
-- Add to `goals` interface: `weeksMin: number | null`, `weeksMax: number | null`
-- Add to `meta` interface: `adherenceScore: number`, `adherenceLabel: string`, `expectedAdaptation: boolean`, `plateauCounter: number`, `lastWeightEntry: string | null`
+**4. Budget Step** (new step in lifestyle phase)
+- Ask "Set a daily food budget?" → if yes, slider ₹100-2000, optional meal split sliders
+- Store in `lifestyle.budget`
 
-**3. `src/pages/Onboarding.tsx` — UI enhancements on Phase 6 (Final Output)**
+**5. Intelligence Demo Phase** (new phase before Finish)
+- Mock meal suggestion based on profile (diet, conditions, budget)
+- Mock camera warning: simulate scanning "Sweet Lassi" using the existing `logic-engine.ts` rule engine
+- Explanation text: "This is how NutriLens AI will work in real time"
 
-- Visual calorie cue: green/yellow/red indicator based on target vs TDEE ratio
-- Timeline range: "Estimated timeline: X–Y weeks" (for lose/gain goals)
-- Adherence score display with colored label
-- Goal-linked insight text (lose+high protein, gain+high protein, veg+high protein)
-- Plateau warning text
-- Update skin insight wording: "Your plan will focus on…" instead of "We'll recommend…"
-- Update cooking summary wording similarly
-- Water slider: use activity-adjusted recommendation
+### Files to Modify
 
-**4. `src/pages/Onboarding.tsx` — handleFinish updates**
+**`src/pages/Onboarding.tsx`**
+- Add `genderSpecific` fields to FormState (pcosSeverity, pregnant, breastfeeding, menstrualPhase, prostate, testosterone)
+- Add `budgetEnabled`, `budgetAmount` to FormState
+- Expand condition options array (add 4 more)
+- Expand skin options array (add 3 more)
+- Insert gender-specific step after skin (new step 8)
+- Insert budget step in lifestyle section
+- Insert intelligence demo step before finish
+- Update step numbering in `getVisibleSteps()`, `canContinue()`, and all case references
+- Update `handleFinish` to include genderSpecific and budget data
 
-- Pass new fields (weeksMin, weeksMax, adherenceScore, adherenceLabel, etc.) into the saved data structure
+**`src/lib/onboarding-store.ts`**
+- Add `genderSpecific` to health interface
+- Add `budget` to lifestyle interface
+- Update `saveOnboardingData` to map new fields to legacy profile
 
-### Files Modified
-- `src/lib/goal-engine.ts`
-- `src/lib/onboarding-store.ts`
-- `src/pages/Onboarding.tsx`
+**`src/lib/goal-engine.ts`**
+- No changes needed (conditions already flow through correctly)
+
+### Step Renumbering
+Current: 0-19 (20 steps). New steps inserted:
+- Step 8 → Gender-specific questions (new)
+- Steps 9+ shift by 1
+- Budget step added in lifestyle block
+- Intelligence demo step added before finish
+
+Total visible step count increases by 2-3 depending on user choices.
+
+### Edge Cases
+- Gender-specific step auto-adapts content based on gender
+- PCOS severity only shows if PCOS was selected in conditions
+- Budget step only expands if user enables it
+- Intelligence demo uses existing `conditionRules` from `logic-engine.ts` for camera warnings
 
