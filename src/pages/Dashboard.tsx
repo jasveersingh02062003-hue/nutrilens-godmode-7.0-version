@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import PostOnboardingTutorial from '@/components/PostOnboardingTutorial';
 import { runWeeklyAdaptation as runGoalAdaptation, applyAdaptation } from '@/lib/goal-engine';
-import { Bell } from 'lucide-react';
+import { Bell, ClipboardList, X } from 'lucide-react';
 import { updateDailyBehaviorStats, runWeeklyAdaptation } from '@/lib/behavior-stats';
 import { useNavigate } from 'react-router-dom';
 import CalorieRing from '@/components/CalorieRing';
@@ -36,6 +36,9 @@ import { toast } from 'sonner';
 import { getWeather, fetchLiveWeather, type WeatherData } from '@/lib/weather-service';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
 import UpgradeBanner from '@/components/UpgradeBanner';
+import { getMealPlannerProfile } from '@/lib/meal-planner-store';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 export default function Dashboard() {
   const navigate = useNavigate();
