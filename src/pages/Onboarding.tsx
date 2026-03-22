@@ -1,663 +1,361 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, Mail, Sparkles, Leaf, Heart, Zap, Moon, Sun, User, Briefcase, Dumbbell, Coffee, ChefHat, UtensilsCrossed, Gauge, Ruler, Calendar, Target, TrendingDown, Scale, Apple, ShieldCheck, Clock, Droplets, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Sparkles, Heart, User, Dumbbell, Ruler, Scale, Target, TrendingDown, Droplets, AlertTriangle, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { saveProfile, UserProfile } from '@/lib/store';
-import { calculateBMI, calculateBMR, calculateTDEE, calculateDailyTargets, getBMICategory } from '@/lib/nutrition';
-import { determineGoalAndTargets, type GoalDecision } from '@/lib/goal-engine';
+import { calculateBMI, calculateBMR, getBMICategory, getActivityMultiplier } from '@/lib/nutrition';
+import { calculateOnboardingGoals, type OnboardingGoalResult } from '@/lib/goal-engine';
+import { saveOnboardingData, saveOnboardingProgress, getOnboardingProgress, clearOnboardingProgress, type OnboardingData } from '@/lib/onboarding-store';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { useAuth } from '@/contexts/AuthContext';
-import heroImg from '@/assets/hero-nutrition.jpg';
-import MonikaGuide, { MONIKA_MESSAGES } from '@/components/onboarding/MonikaGuide';
+import { saveProfile } from '@/lib/store';
 import WelcomeScreen from '@/components/onboarding/WelcomeScreen';
 import ScannerOnboardingScreen from '@/components/onboarding/ScannerOnboardingScreen';
-import OnboardingProgress from '@/components/onboarding/OnboardingProgress';
-import CompletionScreen from '@/components/onboarding/CompletionScreen';
-import ProfileSummaryScreen from '@/components/onboarding/ProfileSummaryScreen';
-import CalculatingScreen from '@/components/onboarding/CalculatingScreen';
-import MealBreakdownScreen, { type MealSplits } from '@/components/onboarding/MealBreakdownScreen';
-import MotivationalScreen from '@/components/onboarding/MotivationalScreen';
-import SubscriptionScreen from '@/components/SubscriptionScreen';
-import RetentionOfferScreen from '@/components/RetentionOfferScreen';
-import { getPlan } from '@/lib/subscription-service';
 
-import { Pill, Baby } from 'lucide-react';
-
-const ALL_STEPS = [
-  'welcome', 'name', 'gender', 'occupation', 'jobType', 'workActivity',
-  'exercise', 'sleep', 'stress', 'cooking', 'eatingOut', 'caffeine',
-  'activity', 'measurements', 'dob', 'goal', 'targetWeight', 'goalSpeed',
-  'dietary', 'health', 'diabetesDetails', 'womenHealth', 'pcosDetails',
-  'hypertensionDetails', 'lactoseDetails', 'healthGoals', 'skinConcerns',
-  'menHealth', 'medications', 'mealTimes', 'water'
-];
-
-const STEP_LABELS: Record<string, string> = {
-  welcome: 'Welcome', name: 'Your Name', gender: 'Gender', occupation: 'Occupation',
-  jobType: 'Job Type', workActivity: 'Work Activity', exercise: 'Exercise',
-  sleep: 'Sleep', stress: 'Stress', cooking: 'Cooking', eatingOut: 'Eating Out',
-  caffeine: 'Caffeine', activity: 'Activity', measurements: 'Body Stats',
-  dob: 'Age', goal: 'Goal', targetWeight: 'Target', goalSpeed: 'Pace',
-  dietary: 'Diet', health: 'Health', diabetesDetails: 'Diabetes',
-  womenHealth: "Women's Health", pcosDetails: 'PCOS', hypertensionDetails: 'Blood Pressure',
-  lactoseDetails: 'Lactose', healthGoals: 'Goals', skinConcerns: 'Skin Health',
-  menHealth: "Men's Health",
-  medications: 'Medications', mealTimes: 'Meal Times', water: 'Water', summary: 'Your Plan',
-};
-
-const STEP_ICONS: Record<string, any> = {
-  name: User, gender: User, occupation: Briefcase, jobType: Briefcase,
-  workActivity: Zap, exercise: Dumbbell, sleep: Moon, stress: Heart,
-  cooking: ChefHat, eatingOut: UtensilsCrossed, caffeine: Coffee,
-  activity: Gauge, measurements: Ruler, dob: Calendar, goal: Target,
-  targetWeight: Scale, goalSpeed: TrendingDown, dietary: Apple,
-  health: ShieldCheck, skinConcerns: Sparkles, womenHealth: Baby, menHealth: ShieldCheck,
-  medications: Pill, mealTimes: Clock, water: Droplets, summary: Sparkles,
-};
-
-type FormData = Partial<UserProfile> & Record<string, any>;
-
+// ── Animation variants ──
 const pageVariants = {
-  enter: (direction: number) => ({
-    x: direction > 0 ? 60 : -60,
-    opacity: 0,
-  }),
-  center: {
-    x: 0,
-    opacity: 1,
-    transition: { type: 'spring' as const, stiffness: 400, damping: 35 },
-  },
-  exit: (direction: number) => ({
-    x: direction < 0 ? 60 : -60,
-    opacity: 0,
-    transition: { duration: 0.2 },
-  }),
+  enter: (d: number) => ({ x: d > 0 ? 60 : -60, opacity: 0 }),
+  center: { x: 0, opacity: 1, transition: { type: 'spring' as const, stiffness: 400, damping: 35 } },
+  exit: (d: number) => ({ x: d < 0 ? 60 : -60, opacity: 0, transition: { duration: 0.2 } }),
 };
-
 const stagger = {
   hidden: { opacity: 0, y: 12 },
-  visible: (i: number) => ({
-    opacity: 1, y: 0,
-    transition: { delay: i * 0.05, type: 'spring' as const, stiffness: 500, damping: 35 },
-  }),
+  visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.05, type: 'spring' as const, stiffness: 500, damping: 35 } }),
 };
+
+// ── Reusable UI ──
+const Option = ({ value, current, label, sub, onSelect, idx }: { value: string; current: string; label: string; sub?: string; onSelect: (v: string) => void; idx?: number }) => (
+  <motion.button custom={idx || 0} variants={stagger} initial="hidden" animate="visible" onClick={() => onSelect(value)} whileTap={{ scale: 0.98 }}
+    className={`w-full px-4 py-3.5 rounded-2xl text-left transition-all duration-200 border ${current === value ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:border-primary/20'}`}>
+    <span className="text-sm font-semibold">{label}</span>
+    {sub && <p className={`text-[11px] mt-0.5 leading-snug ${current === value ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{sub}</p>}
+  </motion.button>
+);
+
+const ChipSelect = ({ options, selected, onToggle }: { options: { value: string; label: string }[]; selected: string[]; onToggle: (v: string) => void }) => (
+  <motion.div className="flex flex-wrap gap-2" initial="hidden" animate="visible">
+    {options.map((o, i) => (
+      <motion.button key={o.value} custom={i} variants={stagger} whileTap={{ scale: 0.95 }} onClick={() => onToggle(o.value)}
+        className={`px-4 py-2.5 rounded-full text-xs font-semibold transition-all border ${selected.includes(o.value) ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:border-primary/20'}`}>
+        {o.label}
+      </motion.button>
+    ))}
+  </motion.div>
+);
+
+const StepHeader = ({ title, subtitle }: { title: string; subtitle: string }) => (
+  <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.03 }}>
+    <h2 className="text-xl font-display font-bold text-foreground tracking-tight">{title}</h2>
+    <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{subtitle}</p>
+  </motion.div>
+);
+
+// ── Skin insights ──
+const SKIN_INSIGHTS: Record<string, string> = {
+  'acne-prone': "We'll recommend pumpkin seeds and lentils (zinc) and suggest limiting dairy.",
+  dry: "Healthy fats like avocado and nuts will be highlighted, plus extra water reminders.",
+  oily: "Zinc-rich foods like chickpeas and seeds will help regulate oil production.",
+  combination: "We'll balance omega-3 fats and zinc-rich foods for your combination skin.",
+  sensitive: "Anti-inflammatory foods like turmeric, berries and leafy greens will be prioritized.",
+};
+
+// ── Supplement insights ──
+function getSupplementInsight(supp: string, protein: number): string {
+  const map: Record<string, string> = {
+    vitaminD: "Vitamin D supports calcium absorption and immune health.",
+    omega3: "Omega-3 reduces inflammation and supports heart health.",
+    proteinPowder: `Protein powder will help you hit your daily protein target of ${protein}g.`,
+    collagen: "Collagen supports skin elasticity and joint health.",
+    multivitamin: "A multivitamin fills potential nutrient gaps in your diet.",
+    iron: "Iron is essential for oxygen transport, especially for women.",
+    magnesium: "Magnesium supports sleep quality and muscle recovery.",
+  };
+  return map[supp] || '';
+}
+
+type Phase = 'welcome' | 'scanner' | 'wizard' | 'success';
+
+interface FormState {
+  // Phase 1 – Core Identity
+  name: string;
+  gender: string;
+  age: number;
+  heightCm: number;
+  weightKg: number;
+  // Phase 3 – Health
+  conditions: string[];
+  skin: string;
+  // Phase 4 – Activity
+  work: string;
+  exercise: string;
+  // Phase 5 – Goal
+  goalType: string;
+  goalSpeed: string;
+  targetWeight: number;
+  // Phase 7 – Lifestyle
+  wantLifestyle: boolean | null;
+  diet: string;
+  water: number;
+  supplements: string[];
+  cookingSkill: string;
+  cookingTime: number;
+  cookingEquipment: string[];
+}
+
+const TOTAL_STEPS = 18; // rough count for progress bar
 
 export default function Onboarding() {
   const navigate = useNavigate();
   const { refreshProfile } = useUserProfile();
   const { syncProfileToCloud } = useAuth();
-  const [phase, setPhase] = useState<'welcome' | 'scanner' | 'onboarding' | 'profileReview' | 'calculating' | 'mealBreakdown' | 'motivation' | 'complete' | 'subscription' | 'retention'>('welcome');
-  const [calculatedTargets, setCalculatedTargets] = useState<{ calories: number; protein: number; carbs: number; fat: number } | null>(null);
-  const [goalDecision, setGoalDecision] = useState<GoalDecision | null>(null);
-  const [stepIdx, setStepIdx] = useState(0);
+  const [phase, setPhase] = useState<Phase>('welcome');
+  const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
-  const [form, setForm] = useState<FormData>({
-    name: '', gender: '', occupation: '', jobType: '', workActivity: '',
-    exerciseRoutine: '', sleepHours: '', stressLevel: '', cookingHabits: '',
-    eatingOut: '', caffeine: '', alcohol: '', activityLevel: '', heightCm: 170,
-    weightKg: 70, dob: '', age: 25, goal: '', targetWeight: 65, goalSpeed: 0.5,
-    dietaryPrefs: [], healthConditions: [], womenHealth: [], menHealth: {},
-    medications: '',
-    mealTimes: { breakfast: '08:00', lunch: '13:00', dinner: '19:00', snacks: '16:00' },
-    waterGoal: 2000,
+  const [goalResult, setGoalResult] = useState<OnboardingGoalResult | null>(null);
+
+  const [f, setF] = useState<FormState>({
+    name: '', gender: '', age: 25, heightCm: 170, weightKg: 70,
+    conditions: [], skin: '',
+    work: '', exercise: '',
+    goalType: '', goalSpeed: 'balanced', targetWeight: 65,
+    wantLifestyle: null,
+    diet: '', water: 2.5, supplements: [], cookingSkill: '', cookingTime: 30, cookingEquipment: [],
   });
 
-  const STEPS = ALL_STEPS.filter(s => {
-    if (s === 'womenHealth') return form.gender === 'female';
-    if (s === 'pcosDetails') return form.gender === 'female' && (form.womenHealth || []).includes('pcos');
-    if (s === 'menHealth') return form.gender === 'male';
-    if (s === 'diabetesDetails') return (form.healthConditions || []).includes('diabetes');
-    if (s === 'hypertensionDetails') return (form.healthConditions || []).includes('hypertension');
-    if (s === 'lactoseDetails') return (form.healthConditions || []).includes('lactose_intolerance');
-    return true;
-  });
+  const set = useCallback(<K extends keyof FormState>(key: K, val: FormState[K]) => setF(prev => ({ ...prev, [key]: val })), []);
 
-  const step = STEPS[stepIdx];
-  const progress = ((stepIdx) / (STEPS.length - 1)) * 100;
-  const set = useCallback((key: string, val: any) => setForm(prev => ({ ...prev, [key]: val })), []);
+  // Phase 1 steps: 0=name, 1=gender, 2=age, 3=height, 4=weight
+  // Phase 2: 5=bmi display
+  // Phase 3: 6=conditions, 7=skin
+  // Phase 4: 8=work, 9=exercise
+  // Phase 5: 10=goal, 11=speed (conditional), 12=targetWeight (conditional)
+  // Phase 6: 13=final output
+  // Phase 7: 14=askLifestyle, 15=diet, 16=water, 17=supplements, 18=cooking
+  // Phase 8: 19=finish
+
+  const getVisibleSteps = (): number[] => {
+    const steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    if (f.goalType === 'lose' || f.goalType === 'gain') {
+      steps.push(11); // speed
+      steps.push(12); // target weight
+    }
+    steps.push(13); // final output
+    steps.push(14); // ask lifestyle
+    if (f.wantLifestyle === true) {
+      steps.push(15, 16, 17, 18); // diet, water, supplements, cooking
+    }
+    steps.push(19); // finish
+    return steps;
+  };
+
+  const visibleSteps = getVisibleSteps();
+  const currentVisibleIdx = visibleSteps.indexOf(step);
+  const progress = currentVisibleIdx >= 0 ? (currentVisibleIdx / (visibleSteps.length - 1)) * 100 : 0;
+
+  const goNext = () => {
+    setDirection(1);
+    const vs = getVisibleSteps();
+    const curIdx = vs.indexOf(step);
+    if (curIdx < vs.length - 1) {
+      const nextStep = vs[curIdx + 1];
+      // Calculate goals when entering step 13 (final output)
+      if (nextStep === 13 && !goalResult) {
+        computeGoals();
+      }
+      setStep(nextStep);
+      saveOnboardingProgress(nextStep, f);
+    }
+  };
+
+  const goBack = () => {
+    setDirection(-1);
+    const vs = getVisibleSteps();
+    const curIdx = vs.indexOf(step);
+    if (curIdx > 0) setStep(vs[curIdx - 1]);
+  };
+
+  const computeGoals = () => {
+    const result = calculateOnboardingGoals({
+      gender: f.gender,
+      age: f.age,
+      heightCm: f.heightCm,
+      weightKg: f.weightKg,
+      work: f.work || 'sitting',
+      exercise: f.exercise || 'none',
+      goalType: (f.goalType || 'maintain') as any,
+      goalSpeed: (f.goalSpeed || 'balanced') as any,
+      healthConditions: f.conditions,
+    });
+    setGoalResult(result);
+    // Update water recommendation
+    const recommendedWater = +(f.weightKg * 0.035).toFixed(1);
+    set('water', recommendedWater);
+  };
 
   const canContinue = (): boolean => {
     switch (step) {
-      case 'welcome': return true;
-      case 'name': return (form.name || '').trim().length >= 2;
-      case 'gender': return !!form.gender;
-      case 'occupation': return !!form.occupation;
-      case 'jobType': return !!form.jobType;
-      case 'workActivity': return !!form.workActivity;
-      case 'exercise': return !!form.exerciseRoutine;
-      case 'sleep': return !!form.sleepHours;
-      case 'stress': return !!form.stressLevel;
-      case 'cooking': return !!form.cookingHabits;
-      case 'eatingOut': return !!form.eatingOut;
-      case 'caffeine': return !!form.caffeine;
-      case 'activity': return !!form.activityLevel;
-      case 'measurements': return form.heightCm! > 100 && form.weightKg! > 20;
-      case 'dob': return !!form.dob;
-      case 'goal': return !!form.goal;
-      case 'targetWeight': return form.targetWeight! > 20;
+      case 0: return f.name.trim().length >= 2;
+      case 1: return !!f.gender;
+      case 2: return f.age >= 13 && f.age <= 80;
+      case 3: return f.heightCm >= 120 && f.heightCm <= 230;
+      case 4: return f.weightKg >= 30 && f.weightKg <= 300;
+      case 5: return true; // BMI display
+      case 6: return true; // conditions optional
+      case 7: return !!f.skin;
+      case 8: return !!f.work;
+      case 9: return !!f.exercise;
+      case 10: return !!f.goalType;
+      case 11: return !!f.goalSpeed;
+      case 12: {
+        if (f.goalType === 'lose') return f.targetWeight > 20 && f.targetWeight < f.weightKg;
+        if (f.goalType === 'gain') return f.targetWeight > f.weightKg && f.targetWeight < 300;
+        return true;
+      }
+      case 13: return true;
+      case 14: return f.wantLifestyle !== null;
+      case 15: return !!f.diet;
+      case 16: return f.water >= 0.5 && f.water <= 5.0;
+      case 17: return true;
+      case 18: return !!f.cookingSkill;
+      case 19: return true;
       default: return true;
     }
   };
 
-  const goNext = () => {
-    setDirection(1);
-    if (stepIdx < STEPS.length - 1) {
-      setStepIdx(i => i + 1);
-    } else {
-      setPhase('profileReview');
-    }
-  };
-  const goBack = () => { setDirection(-1); setStepIdx(i => Math.max(0, i - 1)); };
-
-  const handleEditSection = (section: string) => {
-    const stepMap: Record<string, string> = {
-      name: 'name', measurements: 'measurements', goal: 'goal',
-      health: 'health', dietary: 'dietary', budget: 'water',
-    };
-    const targetStep = stepMap[section] || 'name';
-    const idx = STEPS.indexOf(targetStep);
-    if (idx >= 0) {
-      setStepIdx(idx);
-      setDirection(-1);
-      setPhase('onboarding');
-    }
-  };
-
-  const handleProfileReviewContinue = () => setPhase('calculating');
-
-  const handleCalculationComplete = useCallback(() => {
-    // Use the intelligent goal engine for BMI-based overrides and safety caps
-    const decision = determineGoalAndTargets(
-      form.weightKg!, form.heightCm!, form.age!, form.gender!,
-      form.activityLevel!, form.goal!, form.healthConditions, form.womenHealth
-    );
-    setGoalDecision(decision);
-    setCalculatedTargets({
-      calories: decision.targetCalories,
-      protein: decision.targetProtein,
-      carbs: decision.targetCarbs,
-      fat: decision.targetFat,
+  const handleFinish = async () => {
+    const goals = goalResult || calculateOnboardingGoals({
+      gender: f.gender, age: f.age, heightCm: f.heightCm, weightKg: f.weightKg,
+      work: f.work || 'sitting', exercise: f.exercise || 'none',
+      goalType: (f.goalType || 'maintain') as any, goalSpeed: (f.goalSpeed || 'balanced') as any,
+      healthConditions: f.conditions,
     });
-    // If goal was overridden, update form so downstream screens reflect it
-    if (decision.wasOverridden) {
-      setForm(prev => ({ ...prev, goal: decision.effectiveGoal }));
-    }
-    setPhase('mealBreakdown');
-  }, [form]);
 
-  const handleMealBreakdownContinue = (_splits: MealSplits) => setPhase('motivation');
-
-  const handleMotivationDismiss = async () => {
-    // Use goal engine for final target calculation with BMI overrides
-    const decision = goalDecision || determineGoalAndTargets(
-      form.weightKg!, form.heightCm!, form.age!, form.gender!,
-      form.activityLevel!, form.goal!, form.healthConditions, form.womenHealth
-    );
-    const targets = calculatedTargets || {
-      calories: decision.targetCalories,
-      protein: decision.targetProtein,
-      carbs: decision.targetCarbs,
-      fat: decision.targetFat,
+    const data: OnboardingData = {
+      basic: { name: f.name, gender: f.gender, age: f.age, heightCm: f.heightCm, weightKg: f.weightKg },
+      health: { conditions: f.conditions, skin: f.skin || 'none' },
+      activity: { work: f.work, exercise: f.exercise },
+      goals: {
+        type: goals.goalType, speed: f.goalSpeed,
+        targetWeight: f.goalType !== 'maintain' ? f.targetWeight : null,
+        calories: goals.targetCalories,
+        macros: { protein: goals.protein, carbs: goals.carbs, fat: goals.fat },
+        expectedRate: goals.expectedRate,
+      },
+      lifestyle: {
+        diet: f.diet || 'noRestrictions',
+        water: f.water,
+        supplements: f.supplements,
+        cooking: { skill: f.cookingSkill || 'beginner', time: f.cookingTime, equipment: f.cookingEquipment },
+      },
+      meta: { createdAt: new Date().toISOString(), lastUpdated: new Date().toISOString(), weeklyAdjustments: [] },
     };
 
-    const conditions: any = {};
-    if ((form.womenHealth || []).includes('pcos')) {
-      conditions.pcos = {
-        has: true, type: form.pcosType || 'unknown',
-        severity: form.pcosSeverity || 3, diagnosed: form.pcosDiagnosed ?? false,
-      };
-    }
-    if ((form.healthConditions || []).includes('diabetes')) {
-      conditions.diabetes = {
-        has: true, type: form.diabetesType || 'type2',
-        diagnosed: form.diabetesDiagnosed ?? true, hba1c: form.diabetesHba1c || undefined,
-      };
-    }
-    if ((form.healthConditions || []).includes('hypertension')) {
-      conditions.hypertension = { has: true, diagnosed: form.hypertensionDiagnosed ?? true };
-    }
-    if ((form.healthConditions || []).includes('lactose_intolerance')) {
-      conditions.lactoseIntolerance = { has: true, severity: form.lactoseSeverity || 3 };
-    }
-
-    const profile: UserProfile = {
-      ...form as any,
-      goal: decision.effectiveGoal, // Use the engine's effective goal (may be overridden)
-      conditions, healthGoals: form.healthGoals || [],
-      onboardingComplete: true,
-      bmi: decision.bmi,
-      bmr: calculateBMR(form.weightKg!, form.heightCm!, form.age!, form.gender!),
-      tdee: calculateTDEE(calculateBMR(form.weightKg!, form.heightCm!, form.age!, form.gender!), form.activityLevel!),
-      dailyCalories: targets.calories, dailyProtein: targets.protein,
-      dailyCarbs: targets.carbs, dailyFat: targets.fat,
-    };
-
-    saveProfile(profile);
+    saveOnboardingData(data);
+    clearOnboardingProgress();
     refreshProfile();
 
     try {
-      await syncProfileToCloud(profile);
-      setPhase('complete');
+      const { getProfile } = await import('@/lib/store');
+      const profile = getProfile();
+      if (profile) await syncProfileToCloud(profile);
     } catch (e) {
-      console.error('Failed to save onboarding profile to cloud:', e);
+      console.error('Failed to sync profile to cloud:', e);
     }
+
+    setPhase('success');
   };
 
-  const calcAge = (dobStr: string) => {
-    const dob = new Date(dobStr);
-    const today = new Date();
-    let age = today.getFullYear() - dob.getFullYear();
-    const m = today.getMonth() - dob.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
-    return age;
-  };
-
-  const bmi = calculateBMI(form.weightKg!, form.heightCm!);
-
-  // Premium option button
-  const Option = ({ value, current, label, sub, onSelect, idx }: { value: string; current: string; label: string; sub?: string; onSelect: (v: string) => void; idx?: number }) => (
-    <motion.button
-      custom={idx || 0}
-      variants={stagger}
-      initial="hidden"
-      animate="visible"
-      onClick={() => onSelect(value)}
-      whileTap={{ scale: 0.98 }}
-      className={`w-full px-4 py-3.5 rounded-2xl text-left transition-all duration-200 border ${
-        current === value
-          ? 'bg-primary text-primary-foreground border-primary'
-          : 'bg-card border-border hover:border-primary/20'
-      }`}
-    >
-      <span className="text-sm font-semibold">{label}</span>
-      {sub && <p className={`text-[11px] mt-0.5 leading-snug ${current === value ? 'text-background/70' : 'text-muted-foreground'}`}>{sub}</p>}
-    </motion.button>
-  );
-
-  // Premium chip select
-  const ChipSelect = ({ options, selected, onToggle }: { options: { value: string; label: string }[]; selected: string[]; onToggle: (v: string) => void }) => (
-    <motion.div className="flex flex-wrap gap-2" initial="hidden" animate="visible">
-      {options.map((o, i) => (
-        <motion.button
-          key={o.value}
-          custom={i}
-          variants={stagger}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => onToggle(o.value)}
-          className={`px-4 py-2.5 rounded-full text-xs font-semibold transition-all border ${
-            selected.includes(o.value)
-              ? 'bg-primary text-primary-foreground border-primary'
-              : 'bg-card border-border hover:border-primary/20'
-          }`}
-        >
-          {o.label}
-        </motion.button>
-      ))}
-    </motion.div>
-  );
-
-  const StepHeader = ({ title, subtitle }: { title: string; subtitle: string }) => {
-    return (
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.03 }}>
-        <h2 className="text-xl font-display font-bold text-foreground tracking-tight">{title}</h2>
-        <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{subtitle}</p>
-      </motion.div>
-    );
-  };
-
-  const monikaData = MONIKA_MESSAGES[step] || { message: "You're doing great! Keep going.", mood: 'happy' as const };
+  const bmi = calculateBMI(f.weightKg, f.heightCm);
+  const bmr = calculateBMR(f.weightKg, f.heightCm, f.age, f.gender || 'male');
 
   const renderStep = () => {
     switch (step) {
-      case 'welcome':
-        return (
-          <div className="flex flex-col items-center justify-center min-h-[70vh] px-2">
-            <MonikaGuide message="Ready to begin your wellness journey?" mood="excited" />
-
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-              className="relative mb-10"
-            >
-              <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-border">
-                <img src={heroImg} alt="NutriLens" className="w-full h-full object-cover" />
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-              className="text-center mb-12"
-            >
-              <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">NutriLens AI</h1>
-              <p className="text-sm text-muted-foreground mt-3 max-w-[260px] mx-auto leading-relaxed">
-                Your intelligent nutrition companion. Snap, speak, or scan — we handle the rest.
-              </p>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="w-full max-w-sm space-y-3"
-            >
-              <button
-                onClick={goNext}
-                className="w-full py-4 rounded-full bg-primary text-primary-foreground text-base font-semibold flex items-center justify-center gap-2"
-              >
-                Get Started <ArrowRight className="w-4 h-4" />
-              </button>
-
-              <button
-                onClick={() => {}}
-                className="w-full py-3.5 rounded-full bg-card border border-border text-sm font-semibold flex items-center justify-center gap-3 hover:bg-muted transition-all active:scale-[0.98]"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 0 0 1 12c0 1.77.42 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-                Continue with Google
-              </button>
-
-              <button
-                onClick={goNext}
-                className="w-full py-3.5 rounded-full bg-card border border-border text-sm font-semibold flex items-center justify-center gap-3 hover:bg-muted transition-all active:scale-[0.98]"
-              >
-                <Mail className="w-4 h-4 text-muted-foreground" />
-                Continue with Email
-              </button>
-
-              <p className="text-xs text-center text-muted-foreground pt-2">
-                Already a user?{' '}
-                <button onClick={goNext} className="text-foreground font-semibold hover:underline">Sign In</button>
-              </p>
-            </motion.div>
-          </div>
-        );
-
-      case 'name':
+      // ── Phase 1: Core Identity ──
+      case 0:
         return (
           <div className="space-y-6">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
             <StepHeader title="What should we call you?" subtitle="We'll personalize your entire experience." />
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
-              <input
-                value={form.name}
-                onChange={e => set('name', e.target.value)}
-                placeholder="Your name"
-                autoFocus
-                className="w-full px-5 py-4 rounded-2xl bg-card border border-border text-base font-medium outline-none focus:border-primary/30 transition-all placeholder:text-muted-foreground/40"
-              />
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              <input value={f.name} onChange={e => set('name', e.target.value)} placeholder="Your name" autoFocus
+                className="w-full px-5 py-4 rounded-2xl bg-card border border-border text-base font-medium outline-none focus:border-primary/30 transition-all placeholder:text-muted-foreground/40" />
             </motion.div>
-            {form.name && form.name.length >= 2 && (
-              <motion.p
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="text-sm text-muted-foreground font-medium text-center"
-              >
-                Hey {form.name} — let's build your plan
-              </motion.p>
-            )}
           </div>
         );
 
-      case 'gender':
+      case 1:
         return (
           <div className="space-y-5">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="What's your biological sex?" subtitle="Used for accurate metabolic calculations." />
+            <StepHeader title="What's your gender?" subtitle="Used for accurate BMR calculation." />
             <div className="space-y-2.5">
-              {[{ v: 'female', l: 'Female', e: '♀️' }, { v: 'male', l: 'Male', e: '♂️' }, { v: 'other', l: 'Other', e: '⚧️' }, { v: 'prefer_not', l: 'Prefer not to say', e: '—' }].map((o, i) => (
-                <Option key={o.v} value={o.v} current={form.gender!} label={`${o.e} ${o.l}`} onSelect={v => set('gender', v)} idx={i} />
+              {[{ v: 'male', l: '👨 Male' }, { v: 'female', l: '👩 Female' }].map((o, i) => (
+                <Option key={o.v} value={o.v} current={f.gender} label={o.l} onSelect={v => set('gender', v)} idx={i} />
               ))}
             </div>
           </div>
         );
 
-      case 'occupation':
-        return (
-          <div className="space-y-5">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="What do you do?" subtitle="Your occupation type affects daily energy expenditure." />
-            <div className="space-y-2.5">
-              {[
-                { v: 'student', l: '📚 Student', s: 'School, college, or university' },
-                { v: 'employed', l: '💼 Working Professional', s: 'Full-time employment' },
-                { v: 'self_employed', l: '🏢 Self-Employed', s: 'Own business or freelance' },
-                { v: 'homemaker', l: '🏠 Homemaker', s: 'Managing household & family' },
-                { v: 'retired', l: '🌅 Retired', s: 'No longer working' },
-                { v: 'freelancer', l: '💻 Freelancer', s: 'Project-based work' },
-              ].map((o, i) => (
-                <Option key={o.v} value={o.v} current={form.occupation!} label={o.l} sub={o.s} onSelect={v => set('occupation', v)} idx={i} />
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'jobType':
-        return (
-          <div className="space-y-5">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="What type of work?" subtitle="Physical demands affect calorie calculations." />
-            <div className="space-y-2.5">
-              {[
-                { v: 'desk_job', l: '🖥️ Desk / Office', s: 'Mostly sitting' },
-                { v: 'field_work', l: '🚗 Field Work', s: 'Sales, delivery, site visits' },
-                { v: 'manual_labor', l: '🏗️ Manual Labor', s: 'Construction, farming' },
-                { v: 'healthcare', l: '🏥 Healthcare', s: 'Nursing, medical' },
-                { v: 'teaching', l: '🎓 Teaching', s: 'Classroom or training' },
-                { v: 'retail', l: '🛍️ Retail', s: 'Standing, walking' },
-                { v: 'creative', l: '🎨 Creative', s: 'Art, writing, music' },
-                { v: 'na', l: '➖ Not Applicable', s: 'Student or retired' },
-              ].map((o, i) => (
-                <Option key={o.v} value={o.v} current={form.jobType!} label={o.l} sub={o.s} onSelect={v => set('jobType', v)} idx={i} />
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'workActivity':
-        return (
-          <div className="space-y-5">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="How active is your workday?" subtitle="How physically demanding is a typical day?" />
-            <div className="space-y-2.5">
-              {[
-                { v: 'mostly_sitting', l: '🪑 Mostly Sitting', s: 'Desk-bound, minimal movement' },
-                { v: 'sitting_standing', l: '🔄 Mixed', s: 'Alternating throughout the day' },
-                { v: 'mostly_standing', l: '🧍 On Your Feet', s: 'Walking and standing regularly' },
-                { v: 'physically_demanding', l: '💪 Physically Demanding', s: 'Heavy lifting, manual work' },
-              ].map((o, i) => (
-                <Option key={o.v} value={o.v} current={form.workActivity!} label={o.l} sub={o.s} onSelect={v => set('workActivity', v)} idx={i} />
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'exercise':
-        return (
-          <div className="space-y-5">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="How often do you exercise?" subtitle="Gym, sports, running, yoga — any structured exercise." />
-            <div className="space-y-2.5">
-              {[
-                { v: 'none', l: '🛋️ No Exercise', s: 'No structured workouts' },
-                { v: 'light_walking', l: '🚶 Light Activity', s: 'Walking 15-30 min/day' },
-                { v: '1_3_week', l: '🏃 1-3 Days/Week', s: 'Moderate gym or classes' },
-                { v: '4_5_week', l: '🏋️ 4-5 Days/Week', s: 'Consistent training' },
-                { v: 'daily', l: '⚡ Daily Training', s: 'Intense daily workouts' },
-                { v: 'athlete', l: '🏆 Competitive Athlete', s: 'Multiple sessions per day' },
-              ].map((o, i) => (
-                <Option key={o.v} value={o.v} current={form.exerciseRoutine!} label={o.l} sub={o.s} onSelect={v => set('exerciseRoutine', v)} idx={i} />
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'sleep':
-        return (
-          <div className="space-y-5">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="How much do you sleep?" subtitle="Sleep quality affects metabolism and hunger." />
-            <div className="space-y-2.5">
-              {[
-                { v: 'less_5', l: '😫 Under 5 Hours', s: 'Chronic sleep deprivation' },
-                { v: '5_6', l: '😐 5-6 Hours', s: 'Below recommended' },
-                { v: '7_8', l: '😊 7-8 Hours', s: 'Optimal range' },
-                { v: '9_plus', l: '😴 9+ Hours', s: 'Extended rest' },
-              ].map((o, i) => (
-                <Option key={o.v} value={o.v} current={form.sleepHours!} label={o.l} sub={o.s} onSelect={v => set('sleepHours', v)} idx={i} />
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'stress':
-        return (
-          <div className="space-y-5">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="How's your stress level?" subtitle="Stress increases cortisol and affects appetite." />
-            <div className="space-y-2.5">
-              {[
-                { v: 'low', l: '😌 Low', s: 'Generally relaxed and balanced' },
-                { v: 'moderate', l: '😐 Moderate', s: 'Manageable stress from work/life' },
-                { v: 'high', l: '😰 High', s: 'Frequent stress and anxiety' },
-              ].map((o, i) => (
-                <Option key={o.v} value={o.v} current={form.stressLevel!} label={o.l} sub={o.s} onSelect={v => set('stressLevel', v)} idx={i} />
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'cooking':
-        return (
-          <div className="space-y-5">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="Do you cook at home?" subtitle="Home cooking gives better control over nutrition." />
-            <div className="space-y-2.5">
-              {[
-                { v: 'rarely', l: '🍕 Rarely Cook', s: 'Mostly order or eat out' },
-                { v: 'sometimes', l: '🍳 Sometimes', s: 'Cook a few times per week' },
-                { v: 'most_days', l: '👨‍🍳 Most Days', s: 'Regular home cooking' },
-                { v: 'always', l: '🏠 Always', s: 'Prepare all meals at home' },
-              ].map((o, i) => (
-                <Option key={o.v} value={o.v} current={form.cookingHabits!} label={o.l} sub={o.s} onSelect={v => set('cookingHabits', v)} idx={i} />
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'eatingOut':
-        return (
-          <div className="space-y-5">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="How often do you eat out?" subtitle="Restaurant meals typically have more calories." />
-            <div className="space-y-2.5">
-              {[
-                { v: 'rarely', l: 'Rarely', s: 'A few times a month' },
-                { v: '1_2_week', l: '1-2 Times/Week', s: 'Occasional dining out' },
-                { v: '3_4_week', l: '3-4 Times/Week', s: 'Frequent dining out' },
-                { v: 'daily', l: 'Almost Daily', s: 'Most meals from restaurants' },
-              ].map((o, i) => (
-                <Option key={o.v} value={o.v} current={form.eatingOut!} label={o.l} sub={o.s} onSelect={v => set('eatingOut', v)} idx={i} />
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'caffeine':
+      case 2:
         return (
           <div className="space-y-6">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="Caffeine & Alcohol" subtitle="Both affect hydration and metabolism." />
-            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">☕ Daily Caffeine</p>
-              <div className="space-y-2">
-                {[
-                  { v: 'none', l: 'None' },
-                  { v: '1_2_cups', l: '1-2 Cups/Day' },
-                  { v: '3_plus', l: '3+ Cups/Day' },
-                ].map((o, i) => (
-                  <Option key={o.v} value={o.v} current={form.caffeine!} label={o.l} onSelect={v => set('caffeine', v)} idx={i} />
-                ))}
-              </div>
-            </motion.div>
-            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">🍷 Alcohol</p>
-              <div className="space-y-2">
-                {[
-                  { v: 'never', l: 'Never' },
-                  { v: 'occasionally', l: 'Occasionally' },
-                  { v: '1_2_week', l: '1-2 Times/Week' },
-                  { v: '3_plus_week', l: '3+ Times/Week' },
-                ].map((o, i) => (
-                  <Option key={o.v} value={o.v} current={form.alcohol || ''} label={o.l} onSelect={v => set('alcohol', v)} idx={i} />
-                ))}
-              </div>
-            </motion.div>
-          </div>
-        );
-
-      case 'activity':
-        return (
-          <div className="space-y-5">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="Overall activity level" subtitle="Combining work, exercise, and daily movement." />
-            <div className="space-y-2.5">
-              {[
-                { v: 'sedentary', l: '🪑 Sedentary', s: 'Little to no exercise (1.2×)' },
-                { v: 'light', l: '🚶 Lightly Active', s: 'Light exercise 1-3 days/week (1.375×)' },
-                { v: 'moderate', l: '🏃 Moderately Active', s: 'Moderate exercise 3-5 days/week (1.55×)' },
-                { v: 'active', l: '🏋️ Very Active', s: 'Hard exercise 6-7 days/week (1.725×)' },
-                { v: 'athlete', l: '🏆 Athlete', s: 'Intense daily training (1.9×)' },
-              ].map((o, i) => (
-                <Option key={o.v} value={o.v} current={form.activityLevel!} label={o.l} sub={o.s} onSelect={v => set('activityLevel', v)} idx={i} />
-              ))}
+            <StepHeader title="How old are you?" subtitle="Age is a key factor in BMR calculation." />
+            <div className="flex flex-col items-center gap-4">
+              <motion.p key={f.age} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                className="text-6xl font-mono font-bold text-foreground tracking-tighter">{f.age}</motion.p>
+              <p className="text-sm text-muted-foreground">years old</p>
+              <input type="range" min={13} max={80} value={f.age} onChange={e => set('age', Number(e.target.value))}
+                className="w-full accent-primary" />
+              <div className="flex justify-between w-full text-[10px] text-muted-foreground font-mono"><span>13</span><span>80</span></div>
             </div>
           </div>
         );
 
-      case 'measurements': {
-        const liveBmr = form.heightCm! > 100 && form.weightKg! > 20 && form.age! > 0
-          ? calculateBMR(form.weightKg!, form.heightCm!, form.age!, form.gender || 'male')
-          : 0;
-        const liveTdee = liveBmr > 0 ? calculateTDEE(liveBmr, form.activityLevel || 'moderate') : 0;
-        const liveGoalCal = liveTdee > 0
-          ? (form.goal === 'lose' ? liveTdee - 500 : form.goal === 'gain' ? liveTdee + 500 : liveTdee)
-          : 0;
+      case 3:
         return (
           <div className="space-y-6">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="Body measurements" subtitle="Used to calculate BMR and personalized targets." />
-            <motion.div className="space-y-4" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 }}>
-              <div>
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Height (cm)</label>
-                <div className="relative mt-1.5">
-                  <Ruler className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input type="number" value={form.heightCm} onChange={e => set('heightCm', Number(e.target.value))}
-                    className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-card border border-border text-sm font-semibold outline-none focus:border-primary/30 transition-all" />
-                </div>
+            <StepHeader title="Your height" subtitle="Used with weight to calculate BMI." />
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Height (cm)</label>
+              <div className="relative mt-1.5">
+                <Ruler className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input type="number" value={f.heightCm} onChange={e => set('heightCm', parseFloat(e.target.value) || 0)}
+                  className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-card border border-border text-sm font-semibold outline-none focus:border-primary/30 transition-all" />
               </div>
-              <div>
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Weight (kg)</label>
-                <div className="relative mt-1.5">
-                  <Scale className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input type="number" value={form.weightKg} onChange={e => set('weightKg', Number(e.target.value))}
-                    className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-card border border-border text-sm font-semibold outline-none focus:border-primary/30 transition-all" />
-                </div>
-              </div>
+              {(f.heightCm < 120 || f.heightCm > 230) && f.heightCm > 0 && (
+                <p className="text-xs text-destructive mt-1.5">Height must be between 120–230 cm.</p>
+              )}
             </motion.div>
-            {/* BMI Card */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.97 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.15 }}
-              className="bg-card border border-border rounded-2xl p-5"
-            >
+          </div>
+        );
+
+      case 4:
+        return (
+          <div className="space-y-6">
+            <StepHeader title="Your weight" subtitle="Used for BMR, BMI, and calorie calculations." />
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Weight (kg)</label>
+              <div className="relative mt-1.5">
+                <Scale className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input type="number" value={f.weightKg} onChange={e => set('weightKg', parseFloat(e.target.value) || 0)}
+                  className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-card border border-border text-sm font-semibold outline-none focus:border-primary/30 transition-all" />
+              </div>
+              {(f.weightKg < 30 || f.weightKg > 300) && f.weightKg > 0 && (
+                <p className="text-xs text-destructive mt-1.5">Weight must be between 30–300 kg.</p>
+              )}
+            </motion.div>
+          </div>
+        );
+
+      // ── Phase 2: Value Drop (BMI + BMR) ──
+      case 5: {
+        const bmiCat = getBMICategory(bmi);
+        return (
+          <div className="space-y-6">
+            <StepHeader title={`Hey ${f.name} 👋`} subtitle="Here's what your body numbers tell us." />
+            <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="bg-card border border-border rounded-2xl p-5">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Body Mass Index</span>
                 <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${
-                  bmi < 18.5 ? 'bg-muted text-muted-foreground' : bmi < 25 ? 'bg-primary/10 text-primary' : bmi < 30 ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'
-                }`}>{getBMICategory(bmi)}</span>
+                  bmi < 18.5 ? 'bg-muted text-muted-foreground' : bmi < 23 ? 'bg-primary/10 text-primary' : bmi < 27.5 ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'
+                }`}>{bmiCat}</span>
               </div>
               <p className="text-4xl font-mono font-bold text-foreground tracking-tighter">{bmi.toFixed(1)}</p>
               <div className="mt-3 h-2 rounded-full overflow-hidden bg-muted relative">
@@ -667,614 +365,389 @@ export default function Onboarding() {
                   <div className="flex-1 bg-accent/40" />
                   <div className="flex-1 bg-destructive/40 rounded-r-full" />
                 </div>
-                <motion.div
-                  className="absolute top-0 w-0.5 h-full bg-primary rounded-full"
-                  initial={{ left: '50%' }}
-                  animate={{ left: `${Math.min(100, Math.max(0, ((bmi - 15) / 25) * 100))}%` }}
-                  transition={{ type: 'spring', stiffness: 200, damping: 25 }}
-                />
+                <motion.div className="absolute top-0 w-0.5 h-full bg-primary rounded-full"
+                  initial={{ left: '50%' }} animate={{ left: `${Math.min(100, Math.max(0, ((bmi - 15) / 25) * 100))}%` }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 25 }} />
               </div>
               <div className="flex justify-between mt-1.5 text-[9px] text-muted-foreground font-mono font-medium">
                 <span>15</span><span>18.5</span><span>25</span><span>30</span><span>40</span>
               </div>
             </motion.div>
-            {/* Live Metabolic Stats */}
-            {liveBmr > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25 }}
-                className="grid grid-cols-3 gap-2"
-              >
-                <div className="bg-card border border-border rounded-2xl p-3.5 text-center">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">BMR</p>
-                  <motion.p
-                    key={Math.round(liveBmr)}
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="text-lg font-mono font-bold text-foreground"
-                  >{Math.round(liveBmr)}</motion.p>
-                  <p className="text-[9px] text-muted-foreground">kcal/day</p>
-                </div>
-                <div className="bg-card border border-border rounded-2xl p-3.5 text-center">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">TDEE</p>
-                  <motion.p
-                    key={Math.round(liveTdee)}
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="text-lg font-mono font-bold text-foreground"
-                  >{Math.round(liveTdee)}</motion.p>
-                  <p className="text-[9px] text-muted-foreground">kcal/day</p>
-                </div>
-                <div className="bg-card border border-primary/20 rounded-2xl p-3.5 text-center">
-                  <p className="text-[10px] font-semibold text-primary uppercase tracking-wider mb-1">Target</p>
-                  <motion.p
-                    key={Math.round(liveGoalCal)}
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="text-lg font-mono font-bold text-primary"
-                  >{Math.round(liveGoalCal)}</motion.p>
-                  <p className="text-[9px] text-muted-foreground">kcal/day</p>
-                </div>
-              </motion.div>
-            )}
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+              className="bg-card border border-border rounded-2xl p-5 text-center">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Basal Metabolic Rate</p>
+              <p className="text-3xl font-mono font-bold text-foreground tracking-tighter">{Math.round(bmr)}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">kcal burned at rest per day</p>
+            </motion.div>
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}
+              className="text-sm text-muted-foreground leading-relaxed bg-muted/50 rounded-xl p-4">
+              Your BMI is <strong>{bmi.toFixed(1)}</strong> ({bmiCat}). Your body burns about <strong>{Math.round(bmr)} kcal</strong> at rest.
+            </motion.p>
           </div>
         );
       }
 
-      case 'dob':
+      // ── Phase 3: Health ──
+      case 6: {
+        const conditionOpts = [
+          { value: 'diabetes', label: '🩸 Diabetes' },
+          { value: 'thyroid', label: '🦋 Thyroid' },
+          ...(f.gender === 'female' ? [{ value: 'pcos', label: '🌸 PCOS' }] : []),
+        ];
         return (
-          <div className="space-y-6">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="When were you born?" subtitle="Age is a key factor in BMR calculation." />
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 }}>
-              <div className="relative">
-                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  type="date"
-                  value={form.dob}
-                  onChange={e => { set('dob', e.target.value); set('age', calcAge(e.target.value)); }}
-                  className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-card border border-border text-sm font-semibold outline-none focus:border-primary/30 transition-all"
-                />
-              </div>
-            </motion.div>
-            {form.dob && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.97 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-card border border-border rounded-2xl p-6 text-center"
-              >
-                <motion.p
-                  key={form.dob}
-                  initial={{ scale: 0.5, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                  className="text-5xl font-mono font-bold text-foreground tracking-tighter"
-                >
-                  {calcAge(form.dob!)}
-                </motion.p>
-                <p className="text-sm text-muted-foreground mt-1 font-medium">years old</p>
+          <div className="space-y-5">
+            <StepHeader title="Any health conditions?" subtitle="Helps us adjust macros and recommendations." />
+            <ChipSelect options={conditionOpts} selected={f.conditions}
+              onToggle={v => {
+                const curr = f.conditions;
+                set('conditions', curr.includes(v) ? curr.filter(x => x !== v) : [...curr, v]);
+              }} />
+            <motion.button whileTap={{ scale: 0.98 }} onClick={() => set('conditions', [])}
+              className={`w-full px-4 py-3 rounded-2xl text-sm font-semibold transition-all border ${f.conditions.length === 0 ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border'}`}>
+              ✅ None of the above
+            </motion.button>
+          </div>
+        );
+      }
+
+      case 7:
+        return (
+          <div className="space-y-5">
+            <StepHeader title="Skin type" subtitle="We'll recommend foods that support your skin health." />
+            <div className="space-y-2.5">
+              {[
+                { v: 'oily', l: '💧 Oily' },
+                { v: 'dry', l: '🏜️ Dry' },
+                { v: 'combination', l: '🔄 Combination' },
+                { v: 'acne-prone', l: '🔴 Acne-Prone' },
+                { v: 'sensitive', l: '🌡️ Sensitive' },
+                { v: 'none', l: '✅ No concerns' },
+              ].map((o, i) => (
+                <Option key={o.v} value={o.v} current={f.skin} label={o.l} onSelect={v => set('skin', v)} idx={i} />
+              ))}
+            </div>
+            {f.skin && f.skin !== 'none' && SKIN_INSIGHTS[f.skin] && (
+              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+                <p className="text-xs text-foreground leading-relaxed">💡 {SKIN_INSIGHTS[f.skin]}</p>
               </motion.div>
             )}
           </div>
         );
 
-      case 'goal':
+      // ── Phase 4: Activity ──
+      case 8:
         return (
           <div className="space-y-5">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
+            <StepHeader title="What's your work like?" subtitle="Your daily work type affects calorie burn." />
+            <div className="space-y-2.5">
+              {[
+                { v: 'sitting', l: '🪑 Sitting / Desk Job', s: 'Most of the day seated' },
+                { v: 'mixed', l: '🚶 Mixed / Moderate', s: 'Some walking and standing' },
+                { v: 'physical', l: '🏗️ Physical / Labour', s: 'On your feet most of the day' },
+              ].map((o, i) => (
+                <Option key={o.v} value={o.v} current={f.work} label={o.l} sub={o.s} onSelect={v => set('work', v)} idx={i} />
+              ))}
+            </div>
+          </div>
+        );
+
+      case 9:
+        return (
+          <div className="space-y-5">
+            <StepHeader title="How often do you exercise?" subtitle="Combined with work type for accurate TDEE." />
+            <div className="space-y-2.5">
+              {[
+                { v: 'none', l: '😐 No Exercise', s: 'Rarely or never' },
+                { v: '1-3', l: '🚶 1–3 Days/Week', s: 'Light to moderate' },
+                { v: '4-5', l: '🏃 4–5 Days/Week', s: 'Regular training' },
+                { v: 'daily', l: '🏋️ Daily', s: 'Intense daily exercise' },
+              ].map((o, i) => (
+                <Option key={o.v} value={o.v} current={f.exercise} label={o.l} sub={o.s} onSelect={v => set('exercise', v)} idx={i} />
+              ))}
+            </div>
+          </div>
+        );
+
+      // ── Phase 5: Goal & Target ──
+      case 10:
+        return (
+          <div className="space-y-5">
             <StepHeader title="What's your goal?" subtitle="This determines your daily calorie target." />
             <div className="space-y-2.5">
               {[
-                { v: 'lose', l: '🔥 Lose Weight', s: 'Calorie deficit of ~500 kcal/day' },
-                { v: 'maintain', l: '⚖️ Maintain Weight', s: 'Eat at your TDEE level' },
-                { v: 'gain', l: '💪 Build Muscle / Gain', s: 'Calorie surplus of ~500 kcal/day' },
+                { v: 'lose', l: '🔥 Lose Weight', s: 'Calorie deficit for fat loss' },
+                { v: 'maintain', l: '⚖️ Maintain Weight', s: 'Eat at your maintenance level' },
+                { v: 'gain', l: '💪 Build Muscle / Gain', s: 'Calorie surplus for growth' },
               ].map((o, i) => (
-                <Option key={o.v} value={o.v} current={form.goal!} label={o.l} sub={o.s} onSelect={v => set('goal', v)} idx={i} />
+                <Option key={o.v} value={o.v} current={f.goalType} label={o.l} sub={o.s} onSelect={v => set('goalType', v)} idx={i} />
               ))}
             </div>
           </div>
         );
 
-      case 'targetWeight': {
-        const weightDiff = Math.abs(form.weightKg! - form.targetWeight!);
-        const pctChange = (weightDiff / form.weightKg!) * 100;
-        const weeksNeeded = form.goalSpeed! > 0 ? weightDiff / form.goalSpeed! : 0;
-        const goalWarnings: string[] = [];
-        if (pctChange > 25) goalWarnings.push(`This requires a ${pctChange.toFixed(0)}% change in body weight. Consider an intermediate goal.`);
-        if (weeksNeeded > 52) goalWarnings.push(`This would take ~${Math.round(weeksNeeded / 4)} months. Consider breaking into phases.`);
+      case 11:
+        return (
+          <div className="space-y-5">
+            <StepHeader title="Choose your pace" subtitle={f.goalType === 'lose' ? 'How fast do you want to lose weight?' : 'How fast do you want to gain?'} />
+            <div className="space-y-2.5">
+              {[
+                { v: 'balanced', l: '🐢 Balanced', s: f.goalType === 'lose' ? '20% deficit — sustainable and healthy' : '10% surplus — lean gains' },
+                { v: 'aggressive', l: '🐇 Aggressive', s: f.goalType === 'lose' ? '30% deficit — faster but harder' : '20% surplus — faster gains' },
+              ].map((o, i) => (
+                <Option key={o.v} value={o.v} current={f.goalSpeed} label={o.l} sub={o.s} onSelect={v => set('goalSpeed', v)} idx={i} />
+              ))}
+            </div>
+          </div>
+        );
+
+      case 12: {
+        const isLosing = f.goalType === 'lose';
+        const diff = isLosing ? f.weightKg - f.targetWeight : f.targetWeight - f.weightKg;
+        const valid = isLosing ? f.targetWeight < f.weightKg : f.targetWeight > f.weightKg;
         return (
           <div className="space-y-6">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="What's your target weight?" subtitle={`Current weight: ${form.weightKg} kg`} />
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 }}>
+            <StepHeader title="What's your target weight?" subtitle={`Current weight: ${f.weightKg} kg`} />
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               <div className="relative">
                 <Target className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input type="number" value={form.targetWeight} onChange={e => set('targetWeight', Number(e.target.value))}
+                <input type="number" value={f.targetWeight} onChange={e => set('targetWeight', parseFloat(e.target.value) || 0)}
                   className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-card border border-border text-sm font-semibold outline-none focus:border-primary/30 transition-all" />
               </div>
             </motion.div>
-            <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.12 }} className="bg-card border border-border rounded-2xl p-5 text-center">
-              <p className="text-3xl font-mono font-bold text-foreground tracking-tighter">{form.targetWeight} kg</p>
-              <p className="text-xs text-muted-foreground mt-1.5 font-medium">
-                {form.targetWeight! < form.weightKg! ? `${(form.weightKg! - form.targetWeight!).toFixed(1)} kg to lose` :
-                 form.targetWeight! > form.weightKg! ? `${(form.targetWeight! - form.weightKg!).toFixed(1)} kg to gain` : 'Maintain current weight'}
-              </p>
-              {weeksNeeded > 0 && (
-                <p className="text-[11px] text-muted-foreground mt-2">
-                  Est. {Math.round(weeksNeeded)} weeks at {form.goalSpeed} kg/week
+            {!valid && f.targetWeight > 0 && (
+              <div className="flex items-start gap-2 bg-destructive/5 border border-destructive/20 rounded-xl p-3">
+                <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+                <p className="text-xs text-destructive/80">
+                  {isLosing ? 'Target must be less than current weight.' : 'Target must be greater than current weight.'}
                 </p>
-              )}
-            </motion.div>
-            {goalWarnings.length > 0 && (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-                {goalWarnings.map((w, i) => (
-                  <div key={i} className="flex items-start gap-2 bg-destructive/5 border border-destructive/20 rounded-xl p-3 mb-2">
-                    <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
-                    <p className="text-xs text-destructive/80">{w}</p>
-                  </div>
-                ))}
+              </div>
+            )}
+            {valid && diff > 0 && (
+              <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
+                className="bg-card border border-border rounded-2xl p-5 text-center">
+                <p className="text-3xl font-mono font-bold text-foreground">{f.targetWeight} kg</p>
+                <p className="text-xs text-muted-foreground mt-1.5">{diff.toFixed(1)} kg to {isLosing ? 'lose' : 'gain'}</p>
               </motion.div>
             )}
           </div>
         );
       }
 
-      case 'goalSpeed':
+      // ── Phase 6: Final Output ──
+      case 13: {
+        const g = goalResult;
+        if (!g) return null;
         return (
           <div className="space-y-5">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="How fast do you want results?" subtitle="Slower rates are more sustainable." />
-            <div className="space-y-2.5">
-              {[
-                { v: 0.25, l: '🐢 Gentle — 0.25 kg/week', s: 'Most sustainable, minimal muscle loss' },
-                { v: 0.5, l: '⚖️ Balanced — 0.5 kg/week', s: 'Recommended by nutritionists' },
-                { v: 0.75, l: '🚀 Aggressive — 0.75 kg/week', s: 'Faster results, requires discipline' },
-              ].map((o, i) => (
-                <Option key={String(o.v)} value={String(o.v)} current={String(form.goalSpeed)} label={o.l} sub={o.s} onSelect={v => set('goalSpeed', Number(v))} idx={i} />
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'dietary':
-        return (
-          <div className="space-y-5">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="Dietary preferences" subtitle="Select all that apply, or skip." />
-            <ChipSelect
-              options={[
-                { value: 'vegetarian', label: '🥬 Vegetarian' }, { value: 'vegan', label: '🌱 Vegan' },
-                { value: 'keto', label: '🥑 Keto' }, { value: 'paleo', label: '🥩 Paleo' },
-                { value: 'gluten_free', label: '🌾 Gluten-Free' }, { value: 'dairy_free', label: '🥛 Dairy-Free' },
-                { value: 'mediterranean', label: '🫒 Mediterranean' }, { value: 'none', label: '✅ No restrictions' },
-              ]}
-              selected={form.dietaryPrefs || []}
-              onToggle={v => {
-                const curr = form.dietaryPrefs || [];
-                if (v === 'none') {
-                  set('dietaryPrefs', curr.includes('none') ? [] : ['none']);
-                } else {
-                  const without = curr.filter((x: string) => x !== 'none');
-                  set('dietaryPrefs', without.includes(v) ? without.filter((x: string) => x !== v) : [...without, v]);
-                }
-              }}
-            />
-          </div>
-        );
-
-      case 'health':
-        return (
-          <div className="space-y-5">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="Health conditions" subtitle="Select any conditions — we'll tailor your plan." />
-            <ChipSelect
-              options={[
-                { value: 'diabetes', label: '🩸 Diabetes' },
-                { value: 'hypertension', label: '🫀 Hypertension' },
-                { value: 'thyroid', label: '🦋 Thyroid' },
-                { value: 'cholesterol', label: '💊 High Cholesterol' },
-                { value: 'lactose_intolerance', label: '🥛 Lactose Intolerance' },
-                { value: 'none', label: '✅ None' },
-              ]}
-              selected={form.healthConditions || []}
-              onToggle={v => {
-                const curr = form.healthConditions || [];
-                if (v === 'none') {
-                  set('healthConditions', curr.includes('none') ? [] : ['none']);
-                } else {
-                  const without = curr.filter((x: string) => x !== 'none');
-                  set('healthConditions', without.includes(v) ? without.filter((x: string) => x !== v) : [...without, v]);
-                }
-              }}
-            />
-          </div>
-        );
-
-      case 'diabetesDetails':
-        return (
-          <div className="space-y-6">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="Tell us about your diabetes" subtitle="Helps fine-tune carb limits and meal timing." />
-            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Type</p>
-              <div className="flex gap-2.5">
-                {[
-                  { v: 'type1', l: 'Type 1' },
-                  { v: 'type2', l: 'Type 2' },
-                  { v: 'prediabetes', l: 'Pre-diabetes' },
-                ].map((o) => (
-                  <button
-                    key={o.v}
-                    onClick={() => set('diabetesType', o.v)}
-                    className={`flex-1 py-3 rounded-full text-sm font-semibold transition-all border ${
-                      form.diabetesType === o.v
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-card border-border hover:border-primary/20'
-                    }`}
-                  >
-                    {o.l}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Diagnosed by a doctor?</p>
-              <div className="flex gap-2.5">
-                {[
-                  { v: true, l: 'Yes — Diagnosed' },
-                  { v: false, l: 'No — Monitoring' },
-                ].map((o) => (
-                  <button
-                    key={String(o.v)}
-                    onClick={() => set('diabetesDiagnosed', o.v)}
-                    className={`flex-1 py-3 rounded-full text-sm font-semibold transition-all border ${
-                      form.diabetesDiagnosed === o.v
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-card border-border hover:border-primary/20'
-                    }`}
-                  >
-                    {o.l}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Latest HbA1c (optional)</p>
-              <input
-                type="number"
-                step="0.1"
-                value={form.diabetesHba1c || ''}
-                onChange={e => set('diabetesHba1c', e.target.value ? Number(e.target.value) : undefined)}
-                placeholder="e.g., 6.5"
-                className="w-full px-5 py-3.5 rounded-2xl bg-card border border-border text-sm font-medium outline-none focus:border-primary/30 transition-all placeholder:text-muted-foreground/40"
-              />
-              <p className="text-[10px] text-muted-foreground mt-1">Skip if you don't know</p>
-            </motion.div>
-          </div>
-        );
-
-      case 'hypertensionDetails':
-        return (
-          <div className="space-y-6">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="About your blood pressure" subtitle="Helps us flag high-sodium foods." />
-            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Diagnosed by a doctor?</p>
-              <div className="flex gap-2.5">
-                {[
-                  { v: true, l: 'Yes — Diagnosed' },
-                  { v: false, l: 'No — Monitoring' },
-                ].map((o) => (
-                  <button
-                    key={String(o.v)}
-                    onClick={() => set('hypertensionDiagnosed', o.v)}
-                    className={`flex-1 py-3 rounded-full text-sm font-semibold transition-all border ${
-                      form.hypertensionDiagnosed === o.v
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-card border-border hover:border-primary/20'
-                    }`}
-                  >
-                    {o.l}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          </div>
-        );
-
-      case 'lactoseDetails':
-        return (
-          <div className="space-y-6">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="Lactose intolerance" subtitle="We'll flag dairy and suggest alternatives." />
-            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Severity (1 = mild, 5 = severe)</p>
-              <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map(n => (
-                  <button
-                    key={n}
-                    onClick={() => set('lactoseSeverity', n)}
-                    className={`flex-1 py-3 rounded-full text-sm font-bold transition-all border ${
-                      form.lactoseSeverity === n
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-card border-border hover:border-primary/20'
-                    }`}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          </div>
-        );
-
-      case 'healthGoals':
-        return (
-          <div className="space-y-5">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="Health & fitness goals" subtitle="Select what matters most." />
-            <ChipSelect
-              options={[
-                { value: 'weight-loss', label: '🔥 Weight Loss' },
-                { value: 'high-protein', label: '💪 High Protein' },
-                { value: 'muscle-gain', label: '🏋️ Muscle Gain' },
-                { value: 'gut-health', label: '🦠 Gut Health' },
-                { value: 'hormone-balance', label: '⚖️ Hormone Balance' },
-                { value: 'low-sodium', label: '🧂 Low Sodium' },
-                { value: 'skin-health', label: '✨ Skin Health' },
-                { value: 'energy', label: '⚡ More Energy' },
-                { value: 'none', label: '✅ No specific goals' },
-              ]}
-              selected={form.healthGoals || []}
-              onToggle={v => {
-                const curr = form.healthGoals || [];
-                if (v === 'none') {
-                  set('healthGoals', curr.includes('none') ? [] : ['none']);
-                } else {
-                  const without = curr.filter((x: string) => x !== 'none');
-                  set('healthGoals', without.includes(v) ? without.filter((x: string) => x !== v) : [...without, v]);
-                }
-              }}
-            />
-          </div>
-        );
-
-      case 'skinConcerns': {
-        const SKIN_OPTIONS = [
-          { value: 'acne', label: '🔴 Acne / Breakouts', sub: 'Zinc & low-GI foods reduce breakouts' },
-          { value: 'oily', label: '💧 Oily Skin', sub: 'Zinc & vitamin B6 regulate sebum' },
-          { value: 'dry', label: '🏜️ Dry Skin', sub: 'Omega-3 & vitamin E restore moisture' },
-          { value: 'dull', label: '😶 Dullness', sub: 'Vitamin C boosts collagen & radiance' },
-          { value: 'pigmentation', label: '🟤 Pigmentation', sub: 'Antioxidants reduce dark spots' },
-          { value: 'sensitive', label: '🌡️ Sensitivity', sub: 'Anti-inflammatory foods soothe skin' },
-        ];
-        const skinData = form.skinConcerns || {};
-        const hasConcerns = SKIN_OPTIONS.some(o => skinData[o.value]);
-
-        return (
-          <div className="space-y-5">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="Any skin concerns?" subtitle="We'll recommend foods proven to support healthy skin. Optional — skip if none." />
-            <div className="space-y-2.5">
-              {SKIN_OPTIONS.map((o, i) => (
-                <motion.button
-                  key={o.value}
-                  custom={i}
-                  variants={stagger}
-                  initial="hidden"
-                  animate="visible"
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => {
-                    const prev = form.skinConcerns || {};
-                    set('skinConcerns', { ...prev, [o.value]: !prev[o.value] });
-                  }}
-                  className={`w-full px-4 py-3.5 rounded-2xl text-left transition-all duration-200 border ${
-                    skinData[o.value]
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-card border-border hover:border-primary/20'
-                  }`}
-                >
-                  <span className="text-sm font-semibold">{o.label}</span>
-                  <p className={`text-[11px] mt-0.5 leading-snug ${skinData[o.value] ? 'text-background/70' : 'text-muted-foreground'}`}>{o.sub}</p>
-                </motion.button>
-              ))}
-            </div>
-
-            {hasConcerns && (
-              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 pt-2">
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Seasonal changes</p>
-                <div className="flex gap-2.5">
-                  <button
-                    onClick={() => set('skinConcerns', { ...skinData, winterDry: !skinData.winterDry })}
-                    className={`flex-1 py-3 px-3 rounded-2xl text-center transition-all border ${
-                      skinData.winterDry ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border'
-                    }`}
-                  >
-                    <span className="text-sm">❄️</span>
-                    <p className={`text-[10px] font-medium mt-1 ${skinData.winterDry ? 'text-background/80' : 'text-foreground'}`}>Drier in winter</p>
-                  </button>
-                  <button
-                    onClick={() => set('skinConcerns', { ...skinData, summerOily: !skinData.summerOily })}
-                    className={`flex-1 py-3 px-3 rounded-2xl text-center transition-all border ${
-                      skinData.summerOily ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border'
-                    }`}
-                  >
-                    <span className="text-sm">☀️</span>
-                    <p className={`text-[10px] font-medium mt-1 ${skinData.summerOily ? 'text-background/80' : 'text-foreground'}`}>Oilier in summer</p>
-                  </button>
+            <StepHeader title="Your Personalized Plan" subtitle="Based on your body stats, activity, and goals." />
+            {/* TDEE → Target animation */}
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+              className="bg-card border border-border rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-center flex-1">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Maintenance</p>
+                  <p className="text-2xl font-mono font-bold text-muted-foreground">{g.tdee}</p>
+                  <p className="text-[9px] text-muted-foreground">kcal/day</p>
                 </div>
-              </motion.div>
-            )}
-          </div>
-        );
-      }
-        return (
-          <div className="space-y-5">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="Women's health" subtitle="Helps tailor your meal plan to hormonal needs." />
-            <ChipSelect
-              options={[
-                { value: 'pcos', label: '🌸 PCOS' },
-                { value: 'pregnancy', label: '🤰 Pregnancy / Breastfeeding' },
-                { value: 'menopause', label: '🌡️ Menopause' },
-                { value: 'irregular_periods', label: '📅 Irregular Periods' },
-                { value: 'none', label: '✅ None' },
-              ]}
-              selected={form.womenHealth || []}
-              onToggle={v => {
-                const curr = form.womenHealth || [];
-                if (v === 'none') {
-                  set('womenHealth', curr.includes('none') ? [] : ['none']);
-                } else {
-                  const without = curr.filter((x: string) => x !== 'none');
-                  set('womenHealth', without.includes(v) ? without.filter((x: string) => x !== v) : [...without, v]);
-                }
-              }}
-            />
-          </div>
-        );
-
-      case 'pcosDetails':
-        return (
-          <div className="space-y-6">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="Tell us about your PCOS" subtitle="Helps personalize meals for your specific type." />
-            
-            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">PCOS type</p>
-              <div className="space-y-2">
-                {[
-                  { v: 'insulin-resistant', l: 'Insulin-Resistant', s: 'Most common — blood sugar issues' },
-                  { v: 'inflammatory', l: 'Inflammatory', s: 'Chronic inflammation & skin issues' },
-                  { v: 'mixed', l: 'Mixed', s: 'Combination of both' },
-                  { v: 'unknown', l: 'Not Sure', s: 'General PCOS guidelines' },
-                ].map((o, i) => (
-                  <Option key={o.v} value={o.v} current={form.pcosType || ''} label={o.l} sub={o.s} onSelect={v => set('pcosType', v)} idx={i} />
-                ))}
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3 }}>
+                  <ArrowRight className="w-5 h-5 text-primary" />
+                </motion.div>
+                <div className="text-center flex-1">
+                  <p className="text-[10px] font-semibold text-primary uppercase tracking-wider mb-1">Your Target</p>
+                  <motion.p initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.5, type: 'spring' }}
+                    className="text-2xl font-mono font-bold text-primary">{g.targetCalories}</motion.p>
+                  <p className="text-[9px] text-muted-foreground">kcal/day</p>
+                </div>
               </div>
             </motion.div>
-
-            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Symptom severity (1 = mild, 5 = severe)</p>
-              <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map(n => (
-                  <button
-                    key={n}
-                    onClick={() => set('pcosSeverity', n)}
-                    className={`flex-1 py-3 rounded-full text-sm font-bold transition-all border ${
-                      form.pcosSeverity === n
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-card border-border hover:border-primary/20'
-                    }`}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Diagnosed by a doctor?</p>
-              <div className="flex gap-2.5">
-                {[
-                  { v: true, l: 'Yes' },
-                  { v: false, l: 'No / Self-suspected' },
-                ].map((o) => (
-                  <button
-                    key={String(o.v)}
-                    onClick={() => set('pcosDiagnosed', o.v)}
-                    className={`flex-1 py-3 rounded-full text-sm font-semibold transition-all border ${
-                      form.pcosDiagnosed === o.v
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-card border-border hover:border-primary/20'
-                    }`}
-                  >
-                    {o.l}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          </div>
-        );
-
-      case 'menHealth':
-        return (
-          <div className="space-y-5">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="Men's health" subtitle="Helps provide relevant nutritional guidance." />
-            <div className="space-y-2.5">
+            {/* Macros */}
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+              className="grid grid-cols-3 gap-2">
               {[
-                { v: 'yes', l: 'Yes, I have prostate concerns', s: 'We\'ll include supportive nutrients' },
-                { v: 'no', l: 'No concerns', s: 'No adjustments needed' },
-              ].map((o, i) => (
-                <Option key={o.v} value={o.v} current={form.menHealth?.prostateConcerns ? 'yes' : (form.menHealth?.prostateConcerns === false ? 'no' : '')} label={o.l} sub={o.s} onSelect={v => set('menHealth', { prostateConcerns: v === 'yes' })} idx={i} />
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'medications':
-        return (
-          <div className="space-y-6">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="Medications & supplements" subtitle="Optional — helps avoid nutrient interactions." />
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
-              <textarea
-                value={form.medications || ''}
-                onChange={e => set('medications', e.target.value)}
-                placeholder="e.g., Metformin, Vitamin D, Birth control..."
-                rows={3}
-                className="w-full px-5 py-4 rounded-2xl bg-card border border-border text-sm font-medium outline-none focus:border-primary/30 transition-all placeholder:text-muted-foreground/40 resize-none"
-              />
-              <p className="text-[11px] text-muted-foreground mt-2">You can skip this — it's completely optional.</p>
-            </motion.div>
-          </div>
-        );
-
-      case 'mealTimes':
-        return (
-          <div className="space-y-5">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="Your meal schedule" subtitle="When do you usually eat?" />
-            <motion.div className="space-y-2.5" initial="hidden" animate="visible">
-              {(['breakfast', 'lunch', 'dinner', 'snacks'] as const).map((meal, i) => (
-                <motion.div
-                  key={meal}
-                  custom={i}
-                  variants={stagger}
-                  className="flex items-center justify-between bg-card border border-border px-5 py-3.5 rounded-2xl"
-                >
-                  <span className="text-sm font-semibold capitalize text-foreground">
-                    {meal === 'breakfast' ? '🌅' : meal === 'lunch' ? '☀️' : meal === 'dinner' ? '🌙' : '🍿'} {meal}
-                  </span>
-                  <input
-                    type="time"
-                    value={form.mealTimes?.[meal] || '12:00'}
-                    onChange={e => set('mealTimes', { ...form.mealTimes, [meal]: e.target.value })}
-                    className="bg-transparent text-sm font-mono font-semibold text-foreground outline-none"
-                  />
+                { label: 'Protein', val: g.protein, color: 'text-primary', unit: 'g' },
+                { label: 'Carbs', val: g.carbs, color: 'text-accent', unit: 'g' },
+                { label: 'Fat', val: g.fat, color: 'text-coral', unit: 'g' },
+              ].map((m, i) => (
+                <motion.div key={m.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.1 }}
+                  className="bg-card border border-border rounded-2xl p-3.5 text-center">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{m.label}</p>
+                  <p className={`text-lg font-mono font-bold ${m.color}`}>{m.val}{m.unit}</p>
                 </motion.div>
               ))}
             </motion.div>
+            {/* Expected change */}
+            {g.goalType !== 'maintain' && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
+                className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center">
+                <p className="text-xs text-foreground font-medium">
+                  Expected {g.goalType === 'lose' ? 'fat loss' : 'weight gain'}: <strong>{g.expectedRate}</strong>
+                </p>
+              </motion.div>
+            )}
+            {/* Thyroid note */}
+            {g.thyroidNote && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}
+                className="bg-accent/5 border border-accent/20 rounded-xl p-4">
+                <p className="text-xs text-foreground leading-relaxed">🦋 {g.thyroidNote}</p>
+              </motion.div>
+            )}
+            {/* Safety warnings */}
+            {g.safetyWarnings.map((w, i) => (
+              <motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}
+                className="flex items-start gap-2 bg-destructive/5 border border-destructive/20 rounded-xl p-3">
+                <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+                <p className="text-xs text-destructive/80">{w}</p>
+              </motion.div>
+            ))}
+          </div>
+        );
+      }
+
+      // ── Phase 7: Lifestyle ──
+      case 14:
+        return (
+          <div className="space-y-5">
+            <StepHeader title="Want to personalise more?" subtitle="Diet preferences, supplements, and cooking habits." />
+            <div className="space-y-2.5">
+              <Option value="yes" current={f.wantLifestyle === true ? 'yes' : f.wantLifestyle === false ? 'no' : ''} label="✨ Yes, personalise my plan" sub="Takes about 1 minute"
+                onSelect={() => set('wantLifestyle', true)} idx={0} />
+              <Option value="no" current={f.wantLifestyle === false ? 'no' : f.wantLifestyle === true ? 'yes' : ''} label="⏭️ Skip for now" sub="You can set these later"
+                onSelect={() => set('wantLifestyle', false)} idx={1} />
+            </div>
           </div>
         );
 
-      case 'water':
+      case 15:
         return (
           <div className="space-y-5">
-            <MonikaGuide message={monikaData.message} mood={monikaData.mood} />
-            <StepHeader title="Daily water goal" subtitle="Proper hydration is essential for metabolism." />
+            <StepHeader title="Dietary preference" subtitle="We'll tailor meal suggestions accordingly." />
             <div className="space-y-2.5">
               {[
-                { v: 1500, l: '💧 1.5 Liters', s: '6 cups — minimum recommended' },
-                { v: 2000, l: '💧 2.0 Liters', s: '8 cups — standard recommendation' },
-                { v: 2500, l: '💧 2.5 Liters', s: '10 cups — active lifestyle' },
-                { v: 3000, l: '🌊 3.0 Liters', s: '12 cups — high activity' },
+                { v: 'veg', l: '🥬 Vegetarian' },
+                { v: 'vegan', l: '🌱 Vegan' },
+                { v: 'non-veg', l: '🍗 Non-Vegetarian' },
+                { v: 'noRestrictions', l: '🍽️ No Restrictions' },
               ].map((o, i) => (
-                <Option key={o.v} value={String(o.v)} current={String(form.waterGoal)} label={o.l} sub={o.s} onSelect={v => set('waterGoal', Number(v))} idx={i} />
+                <Option key={o.v} value={o.v} current={f.diet} label={o.l} onSelect={v => set('diet', v)} idx={i} />
               ))}
             </div>
+          </div>
+        );
+
+      case 16: {
+        const recommended = +(f.weightKg * 0.035).toFixed(1);
+        return (
+          <div className="space-y-6">
+            <StepHeader title="Daily water goal" subtitle={`Recommended: ${recommended}L based on your weight.`} />
+            <div className="flex flex-col items-center gap-4">
+              <motion.div key={f.water} initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                className="flex items-baseline gap-1">
+                <Droplets className="w-6 h-6 text-primary" />
+                <p className="text-5xl font-mono font-bold text-foreground tracking-tighter">{f.water.toFixed(1)}</p>
+                <p className="text-lg text-muted-foreground font-medium">L</p>
+              </motion.div>
+              <input type="range" min={0.5} max={5.0} step={0.1} value={f.water}
+                onChange={e => set('water', parseFloat(e.target.value))}
+                className="w-full accent-primary" />
+              <div className="flex justify-between w-full text-[10px] text-muted-foreground font-mono"><span>0.5L</span><span>5.0L</span></div>
+            </div>
+          </div>
+        );
+      }
+
+      case 17: {
+        const suppOptions = [
+          { value: 'vitaminD', label: '☀️ Vitamin D' },
+          { value: 'omega3', label: '🐟 Omega-3' },
+          { value: 'proteinPowder', label: '💪 Protein Powder' },
+          { value: 'collagen', label: '✨ Collagen' },
+          { value: 'multivitamin', label: '💊 Multivitamin' },
+          { value: 'iron', label: '🩸 Iron' },
+          { value: 'magnesium', label: '🧲 Magnesium' },
+        ];
+        return (
+          <div className="space-y-5">
+            <StepHeader title="Any supplements?" subtitle="Select what you currently take or plan to." />
+            <ChipSelect options={suppOptions} selected={f.supplements}
+              onToggle={v => {
+                const curr = f.supplements;
+                set('supplements', curr.includes(v) ? curr.filter(x => x !== v) : [...curr, v]);
+              }} />
+            {f.supplements.length > 0 && goalResult && (
+              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-2">
+                {f.supplements.map(s => {
+                  const insight = getSupplementInsight(s, goalResult.protein);
+                  return insight ? <p key={s} className="text-xs text-foreground leading-relaxed">💡 {insight}</p> : null;
+                })}
+              </motion.div>
+            )}
+          </div>
+        );
+      }
+
+      case 18: {
+        const equipmentOpts = [
+          { value: 'basic', label: '🍳 Basic (Pan/Pot)' },
+          { value: 'microwave', label: '📡 Microwave' },
+          { value: 'airfryer', label: '🌀 Air Fryer' },
+          { value: 'oven', label: '🔥 Oven' },
+        ];
+        const equipmentStr = f.cookingEquipment.length > 0 ? f.cookingEquipment.join(', ') : 'basic equipment';
+        return (
+          <div className="space-y-6">
+            <StepHeader title="Cooking habits" subtitle="We'll match recipes to your skill and time." />
+            <div className="space-y-2.5">
+              {[
+                { v: 'beginner', l: '🔰 Beginner', s: 'Simple recipes, minimal prep' },
+                { v: 'intermediate', l: '👩‍🍳 Intermediate', s: 'Comfortable with most recipes' },
+                { v: 'advanced', l: '👨‍🍳 Advanced', s: 'Enjoys complex cooking' },
+              ].map((o, i) => (
+                <Option key={o.v} value={o.v} current={f.cookingSkill} label={o.l} sub={o.s} onSelect={v => set('cookingSkill', v)} idx={i} />
+              ))}
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Cooking time (minutes)</label>
+              <div className="flex items-center gap-4 mt-2">
+                <input type="range" min={10} max={90} step={5} value={f.cookingTime}
+                  onChange={e => set('cookingTime', Number(e.target.value))} className="flex-1 accent-primary" />
+                <span className="text-sm font-mono font-bold text-foreground w-12 text-right">{f.cookingTime}m</span>
+              </div>
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">Kitchen equipment</label>
+              <ChipSelect options={equipmentOpts} selected={f.cookingEquipment}
+                onToggle={v => {
+                  const curr = f.cookingEquipment;
+                  set('cookingEquipment', curr.includes(v) ? curr.filter(x => x !== v) : [...curr, v]);
+                }} />
+            </div>
+            {f.cookingSkill && (
+              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+                <p className="text-xs text-foreground leading-relaxed">
+                  💡 With {f.cookingTime} minutes and {equipmentStr}, we'll suggest quick {f.cookingSkill === 'beginner' ? 'one-pan' : f.cookingSkill === 'intermediate' ? 'simple multi-step' : 'creative'} meals.
+                </p>
+              </motion.div>
+            )}
+          </div>
+        );
+      }
+
+      // ── Phase 8: Finish ──
+      case 19:
+        return (
+          <div className="space-y-6">
+            <StepHeader title="All set! 🎉" subtitle="Your personalized nutrition plan is ready." />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+              className="bg-card border border-border rounded-2xl p-6 text-center space-y-3">
+              <p className="text-4xl">🥗</p>
+              <p className="text-lg font-display font-bold text-foreground">Ready to go, {f.name}!</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Tap "Finish" to save your profile and start tracking.
+              </p>
+            </motion.div>
           </div>
         );
 
@@ -1282,179 +755,67 @@ export default function Onboarding() {
     }
   };
 
-  // === WELCOME PHASE ===
+  // ── Phase routing ──
   if (phase === 'welcome') {
-    return (
-      <WelcomeScreen
-        onGetStarted={() => setPhase('scanner')}
-        onSignIn={() => navigate('/auth')}
-      />
-    );
+    return <WelcomeScreen onGetStarted={() => setPhase('scanner')} onSignIn={() => navigate('/auth')} />;
   }
-
-  // === SCANNER PHASE ===
   if (phase === 'scanner') {
-    return (
-      <ScannerOnboardingScreen
-        onBack={() => setPhase('welcome')}
-        onContinue={() => {
-          setPhase('onboarding');
-          setStepIdx(1); // Skip old 'welcome' step, start at 'name'
-        }}
-      />
-    );
+    return <ScannerOnboardingScreen onBack={() => setPhase('welcome')} onContinue={() => { setPhase('wizard'); setStep(0); }} />;
   }
-
-  // === SUBSCRIPTION PHASE ===
-  if (phase === 'subscription') {
+  if (phase === 'success') {
     return (
-      <SubscriptionScreen
-        name={form.name || 'Friend'}
-        onUpgrade={() => navigate('/')}
-        onSkip={() => {
-          const hasSeenRetention = localStorage.getItem('retention_offer_shown');
-          if (!hasSeenRetention) {
-            setPhase('retention');
-          } else {
-            navigate('/');
-          }
-        }}
-      />
-    );
-  }
-
-  // === RETENTION OFFER PHASE ===
-  if (phase === 'retention') {
-    return (
-      <RetentionOfferScreen
-        onAccept={() => navigate('/')}
-        onDismiss={() => navigate('/')}
-      />
-    );
-  }
-
-  // === COMPLETION PHASE ===
-  if (phase === 'complete') {
-    return (
-      <div className="min-h-screen bg-background">
-        <CompletionScreen name={form.name || 'Friend'} onGoHome={() => setPhase('subscription')} />
+      <div className="min-h-screen bg-background flex items-center justify-center px-6">
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center space-y-6 max-w-sm">
+          <motion.p initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.2 }} className="text-6xl">✅</motion.p>
+          <h1 className="text-2xl font-display font-bold text-foreground">Onboarding complete!</h1>
+          <p className="text-sm text-muted-foreground">Your data is ready. Your personalized plan has been saved.</p>
+          <button onClick={() => navigate('/')} className="w-full py-4 rounded-full bg-primary text-primary-foreground font-semibold text-sm">
+            Go to Dashboard
+          </button>
+        </motion.div>
       </div>
     );
   }
 
-  // === PROFILE REVIEW PHASE ===
-  if (phase === 'profileReview') {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="max-w-lg mx-auto w-full px-5 py-5 overflow-y-auto">
-          <ProfileSummaryScreen
-            form={form}
-            onEdit={handleEditSection}
-            onContinue={handleProfileReviewContinue}
-          />
-        </div>
-      </div>
-    );
-  }
+  // ── Wizard phase ──
+  const isFinishStep = step === 19;
 
-  // === CALCULATING PHASE ===
-  if (phase === 'calculating') {
-    return (
-      <div className="min-h-screen bg-background relative">
-        <CalculatingScreen onComplete={handleCalculationComplete} />
-      </div>
-    );
-  }
-
-  // === MEAL BREAKDOWN PHASE ===
-  if (phase === 'mealBreakdown') {
-    const targets = calculatedTargets || { calories: 2000, protein: 75, carbs: 250, fat: 65 };
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="max-w-lg mx-auto w-full px-5 py-5 overflow-y-auto">
-          <MealBreakdownScreen
-            calories={targets.calories}
-            protein={targets.protein}
-            carbs={targets.carbs}
-            fat={targets.fat}
-            onContinue={handleMealBreakdownContinue}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  // === MOTIVATION PHASE ===
-  if (phase === 'motivation') {
-    return (
-      <div className="min-h-screen bg-background">
-        <MotivationalScreen
-          name={form.name || 'Friend'}
-          goal={form.goal || 'maintain'}
-          healthConditions={form.healthConditions || []}
-          onDismiss={() => void handleMotivationDismiss()}
-        />
-      </div>
-    );
-  }
-
-  // === ONBOARDING PHASE ===
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {step !== 'welcome' && (
-        <OnboardingProgress
-          current={stepIdx}
-          total={STEPS.length - 1}
-          stepName={STEP_LABELS[step] || step}
-        />
-      )}
+      {/* Progress bar */}
+      <div className="px-6 pt-4 pb-2">
+        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+          <motion.div className="h-full bg-primary rounded-full" animate={{ width: `${progress}%` }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }} />
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-1.5 text-right font-mono">{Math.round(progress)}%</p>
+      </div>
 
-      <div className="flex-1 max-w-lg mx-auto w-full px-6 py-5 overflow-y-auto">
+      <div className="flex-1 max-w-lg mx-auto w-full px-6 py-4 overflow-y-auto">
         <AnimatePresence mode="wait" custom={direction}>
-          <motion.div
-            key={stepIdx}
-            custom={direction}
-            variants={pageVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-          >
+          <motion.div key={step} custom={direction} variants={pageVariants} initial="enter" animate="center" exit="exit">
             {renderStep()}
           </motion.div>
         </AnimatePresence>
       </div>
 
-      {step !== 'welcome' && (
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-lg mx-auto w-full px-6 pb-6 flex gap-3"
-        >
-          {stepIdx > 0 && (
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={goBack}
-              className="px-4 py-3.5 rounded-full bg-card border border-border font-semibold text-sm hover:bg-muted transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </motion.button>
-          )}
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={goNext}
-            disabled={!canContinue()}
-            className={`flex-1 py-3.5 rounded-full font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200 ${
-              canContinue() ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground cursor-not-allowed'
-            }`}
-          >
-            {stepIdx === STEPS.length - 1 ? (
-              <><Check className="w-4 h-4" /> Review & Finish</>
-            ) : (
-              <>Continue <ArrowRight className="w-4 h-4" /></>
-            )}
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+        className="max-w-lg mx-auto w-full px-6 pb-6 flex gap-3">
+        {currentVisibleIdx > 0 && (
+          <motion.button whileTap={{ scale: 0.95 }} onClick={goBack}
+            className="px-4 py-3.5 rounded-full bg-card border border-border font-semibold text-sm hover:bg-muted transition-colors">
+            <ArrowLeft className="w-5 h-5" />
           </motion.button>
-        </motion.div>
-      )}
+        )}
+        <motion.button whileTap={{ scale: 0.98 }}
+          onClick={isFinishStep ? handleFinish : goNext}
+          disabled={!canContinue()}
+          className={`flex-1 py-3.5 rounded-full font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200 ${
+            canContinue() ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground cursor-not-allowed'
+          }`}>
+          {isFinishStep ? <><Check className="w-4 h-4" /> Finish</> : <>Continue <ArrowRight className="w-4 h-4" /></>}
+        </motion.button>
+      </motion.div>
     </div>
   );
 }
