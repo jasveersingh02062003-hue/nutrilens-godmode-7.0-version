@@ -40,6 +40,15 @@ export interface OnboardingGoalInput {
   targetWeight?: number | null;
   diet?: string;
   cookingTime?: number;
+  genderSpecific?: {
+    pregnancy?: boolean;
+    breastfeeding?: boolean;
+    pcos?: boolean;
+    pcosSeverity?: number | null;
+    menstrualPhase?: string | null;
+    prostate?: boolean;
+    testosterone?: boolean;
+  };
 }
 
 export interface OnboardingGoalResult {
