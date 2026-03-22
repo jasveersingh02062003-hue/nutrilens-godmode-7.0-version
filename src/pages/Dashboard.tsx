@@ -22,6 +22,7 @@ import ConsistencyCard from '@/components/ConsistencyCard';
 import CoachCard from '@/components/CoachCard';
 import WeeklyReportCard from '@/components/WeeklyReportCard';
 import BudgetSummaryCard from '@/components/BudgetSummaryCard';
+import DailyEfficiencyCard from '@/components/DailyEfficiencyCard';
 import NudgeBanner from '@/components/NudgeBanner';
 import WeatherNudgeCard from '@/components/WeatherNudgeCard';
 import SymptomReminderCard from '@/components/SymptomReminderCard';
@@ -267,6 +268,11 @@ export default function Dashboard() {
         {/* 3a. Budget Summary */}
         <div className="animate-slide-up" style={{ animationDelay: '0.05s' }}>
           <BudgetSummaryCard />
+        </div>
+
+        {/* Daily Food Efficiency */}
+        <div className="animate-slide-up" style={{ animationDelay: '0.055s' }}>
+          <DailyEfficiencyCard />
         </div>
 
         {/* 3b. Weekly Report (Mondays) */}

@@ -13,6 +13,7 @@ import { getWeightEntries } from '@/lib/weight-history';
 import { getStreaks } from '@/lib/streaks';
 import { getUnlockedBadges, computeAchievementStats } from '@/lib/achievements';
 import { getBudgetSettings } from '@/lib/expense-store';
+import { evaluateFood, compareFoods, bestUnderPrice, findFoodByName, dailyEfficiency } from '@/lib/pes-engine';
 
 // ─── Action types that Monica can propose ───
 
@@ -357,6 +358,14 @@ export function buildMonikaContext() {
     weather: {
       current: weatherSummary,
       nudge: weatherNudge ? weatherNudge.message : null,
+    },
+    pesEngine: {
+      dailyEfficiency: dailyEfficiency(),
+      capabilities: [
+        'Compare foods: "compare eggs vs paneer"',
+        'Best under price: "best protein under ₹50"',
+        'Evaluate food: "how good is chicken curry"',
+      ],
     },
   };
 }
