@@ -103,21 +103,22 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
   };
 
   const finish = () => {
-    const bmi = calculateBMI(form.currentWeight!, form.heightCm!);
-    const bmr = calculateBMR(form.currentWeight!, form.heightCm!, form.age!, form.gender || 'male');
-    const tdee = calculateTDEE(bmr, form.activityLevel || 'moderate');
+    const gender = form.gender || 'male';
     const goal = form.mainGoal === 'lose_weight' ? 'lose' : form.mainGoal === 'build_muscle' ? 'gain' : 'maintain';
-    const targets = calculateDailyTargets(tdee, goal);
+    const decision = determineGoalAndTargets(
+      form.currentWeight!, form.heightCm!, form.age!, gender,
+      form.activityLevel || 'moderate', goal, form.medicalRestrictions
+    );
 
     const profile: MealPlannerProfile = {
       name: form.name || '',
-      gender: form.gender || '',
+      gender,
       age: form.age || 25,
       currentWeight: form.currentWeight || 70,
       goalWeight: form.goalWeight || 65,
       heightCm: form.heightCm || 170,
       weightUnit: 'kg',
-      bmi,
+      bmi: decision.bmi,
       mainGoal: form.mainGoal || '',
       motivations: form.motivations || [],
       weeklyPace: form.weeklyPace || 0.5,
@@ -143,10 +144,10 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
       mealsPerDay: form.mealsPerDay || 3,
       dailyBudget: form.dailyBudget || 0,
       currency: 'INR',
-      dailyCalories: targets.calories,
-      dailyProtein: targets.protein,
-      dailyCarbs: targets.carbs,
-      dailyFat: targets.fat,
+      dailyCalories: decision.targetCalories,
+      dailyProtein: decision.targetProtein,
+      dailyCarbs: decision.targetCarbs,
+      dailyFat: decision.targetFat,
       onboardingComplete: true,
       createdAt: new Date().toISOString(),
     };
