@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, Sparkles, Heart, User, Dumbbell, Ruler, Scale, Target, TrendingDown, Droplets, AlertTriangle, ChevronDown, Clock, Loader2, UtensilsCrossed, Zap, Camera, ShieldAlert, Pencil } from 'lucide-react';
+import PESFeatureFlex from '@/components/PESFeatureFlex';
 import { motion, AnimatePresence } from 'framer-motion';
 import { calculateBMI, calculateBMR, getBMICategory, getActivityMultiplier } from '@/lib/nutrition';
 import { calculateOnboardingGoals, calculateWaterGoal, type OnboardingGoalResult } from '@/lib/goal-engine';
@@ -169,7 +170,7 @@ const CONDITION_LABELS: Record<string, string> = {
   highCholesterol: 'High Cholesterol', ibs: 'IBS', anemia: 'Anemia', pcos: 'PCOS',
 };
 
-type Phase = 'welcome' | 'scanner' | 'wizard' | 'calculating' | 'success';
+type Phase = 'featureFlex' | 'welcome' | 'scanner' | 'wizard' | 'calculating' | 'success';
 
 interface FormState {
   name: string;
@@ -241,7 +242,7 @@ export default function Onboarding() {
   const navigate = useNavigate();
   const { refreshProfile } = useUserProfile();
   const { syncProfileToCloud } = useAuth();
-  const [phase, setPhase] = useState<Phase>('welcome');
+  const [phase, setPhase] = useState<Phase>(() => !localStorage.getItem('pes_flex_seen') ? 'featureFlex' : 'welcome');
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
   const [goalResult, setGoalResult] = useState<OnboardingGoalResult | null>(null);
@@ -1449,6 +1450,10 @@ export default function Onboarding() {
   };
 
   // ── Phase routing ──
+  if (phase === 'featureFlex') {
+    return <PESFeatureFlex onDismiss={() => setPhase('welcome')} />;
+  }
+
   if (phase === 'welcome') {
     return <WelcomeScreen onGetStarted={() => setPhase('scanner')} onSignIn={() => navigate('/auth')} />;
   }

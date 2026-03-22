@@ -44,6 +44,7 @@ import UpgradeBanner from '@/components/UpgradeBanner';
 import { getMealPlannerProfile } from '@/lib/meal-planner-store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import PESExplanationCard from '@/components/PESExplanationCard';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -58,6 +59,7 @@ export default function Dashboard() {
   const [selectedSupplement, setSelectedSupplement] = useState<SupplementEntry | null>(null);
   const [editingSupplement, setEditingSupplement] = useState<SupplementEntry | null>(null);
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('tutorial_seen'));
+  const [showPESExplanation, setShowPESExplanation] = useState(() => !localStorage.getItem('pes_explanation_seen'));
 
   const plannerProfile = getMealPlannerProfile();
   const plannerIncomplete = !plannerProfile || !plannerProfile.onboardingComplete;
@@ -141,6 +143,9 @@ export default function Dashboard() {
   return (
     <>
     {showTutorial && <PostOnboardingTutorial onDismiss={() => setShowTutorial(false)} />}
+    {showPESExplanation && profile?.onboardingComplete && !showTutorial && (
+      <PESExplanationCard onDismiss={() => setShowPESExplanation(false)} />
+    )}
     <div className="min-h-screen pb-24 bg-background">
       <div className="max-w-lg mx-auto px-4 pt-5 space-y-4">
         {/* 1. Header */}

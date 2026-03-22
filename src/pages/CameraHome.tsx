@@ -23,6 +23,7 @@ import { canUseCameraScan, incrementCameraScan, getRemainingCameraScans, getPlan
 import UpgradePrompt from '@/components/UpgradePrompt';
 import FoodReplaceSheet from '@/components/FoodReplaceSheet';
 import { getUnitOptionsForFood, calculateNutrition, type UnitOption } from '@/lib/unit-conversion';
+import PESBreakdownModal from '@/components/PESBreakdownModal';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 type Step = 'camera' | 'confirm' | 'edit' | 'save';
@@ -90,6 +91,7 @@ export default function CameraHome() {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [replacingItemId, setReplacingItemId] = useState<string | null>(null);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [showPESBreakdown, setShowPESBreakdown] = useState(false);
   // Incoming meal type from URL
   useEffect(() => {
     const urlMeal = params.get('meal') as MealType;
@@ -471,9 +473,23 @@ export default function CameraHome() {
       return;
     }
 
+    // If there's a cost, show PES breakdown first
+    const itemCostTotal = items.reduce((s, i) => s + (i.itemCost || 0), 0);
+    const finalCostAmount = itemCostTotal > 0 ? itemCostTotal : (mealCost?.amount || 0);
+    if (finalCostAmount > 0 && !showPESBreakdown) {
+      setShowPESBreakdown(true);
+      return;
+    }
+
+    confirmSaveMeal();
+  };
+
+  const confirmSaveMeal = () => {
+    setShowPESBreakdown(false);
+    const items = activeItems;
+
     const source: MealSource | null = selectedSource ? { category: selectedSource } : null;
 
-    // Derive meal cost from per-item costs, fallback to mealCost
     const itemCostTotal = items.reduce((s, i) => s + (i.itemCost || 0), 0);
     const finalCost: MealCost | null = itemCostTotal > 0
       ? { amount: itemCostTotal, currency: '₹' }
@@ -501,7 +517,6 @@ export default function CameraHome() {
       duration: 5000,
     });
 
-    // Navigate to success briefly, then dashboard
     resetToCamera();
     navigate('/dashboard');
   };
@@ -1173,6 +1188,22 @@ export default function CameraHome() {
           <Check className="w-5 h-5" /> {validationResult.hasBlocks ? '⚠️ Fix issues first' : 'Save Meal'}
         </button>
       </div>
+
+      {/* PES Breakdown Modal */}
+      <PESBreakdownModal
+        open={showPESBreakdown}
+        food={{
+          name: mealName || activeItems.map(i => i.name).join(', '),
+          cost: activeItems.reduce((s, i) => s + (i.itemCost || 0), 0) || mealCost?.amount || 0,
+          protein: Math.round(totalProtein),
+          carbs: Math.round(totalCarbs),
+          fat: Math.round(totalFat),
+          calories: Math.round(totalCal),
+        }}
+        mealLabel={MEAL_LABELS[selectedMealType].label}
+        onConfirm={confirmSaveMeal}
+        onEdit={() => setShowPESBreakdown(false)}
+      />
     </div>
   );
 }
