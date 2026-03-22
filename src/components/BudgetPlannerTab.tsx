@@ -1424,8 +1424,46 @@ export default function BudgetPlannerTab() {
     );
   }
 
+  const [survivalOn, setSurvivalOn] = useState(isSurvivalModeManual);
+
+  const toggleSurvival = () => {
+    if (survivalOn) {
+      deactivateSurvivalMode();
+      setSurvivalOn(false);
+    } else {
+      activateSurvivalMode();
+      setSurvivalOn(true);
+    }
+    refresh();
+  };
+
   return (
     <div className="space-y-4 pb-4">
+      {/* ₹100/Day Survival Mode Toggle */}
+      <div className={`rounded-2xl border p-4 transition-colors ${survivalOn ? 'bg-destructive/10 border-destructive/20' : 'bg-card border-border'}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${survivalOn ? 'bg-destructive/20' : 'bg-muted'}`}>
+              <ShieldAlert className={`w-4.5 h-4.5 ${survivalOn ? 'text-destructive' : 'text-muted-foreground'}`} />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-foreground">₹100/Day Survival Mode</p>
+              <p className="text-[10px] text-muted-foreground">Cap all meals to ₹25 each. Maximum efficiency.</p>
+            </div>
+          </div>
+          <Switch checked={survivalOn} onCheckedChange={toggleSurvival} />
+        </div>
+        {survivalOn && (
+          <motion.p
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            className="text-[10px] text-destructive font-medium mt-2 pl-12"
+          >
+            Active: Budget capped at ₹100/day (₹25/meal). Only budget-friendly recipes shown.
+          </motion.p>
+        )}
+      </div>
+
       {/* Alerts */}
       <AlertsInline alerts={alerts} />
 
