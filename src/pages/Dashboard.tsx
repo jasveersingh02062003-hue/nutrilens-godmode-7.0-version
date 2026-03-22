@@ -44,6 +44,7 @@ import UpgradeBanner from '@/components/UpgradeBanner';
 import { getMealPlannerProfile } from '@/lib/meal-planner-store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import PESExplanationCard from '@/components/PESExplanationCard';
 
 export default function Dashboard() {
   const navigate = useNavigate();
