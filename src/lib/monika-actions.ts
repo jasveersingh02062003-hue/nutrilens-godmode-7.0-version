@@ -30,6 +30,7 @@ export interface MealAction {
   totalProtein: number;
   totalCarbs: number;
   totalFat: number;
+  cost?: number;
   date?: string; // defaults to today
 }
 
