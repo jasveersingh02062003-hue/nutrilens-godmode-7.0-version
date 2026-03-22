@@ -4,6 +4,7 @@ import {
   getRecentLogs, getWeightHistory, getAllLogDates,
   type MealEntry, type FoodItem, type ActivityEntry, type DailyLog
 } from '@/lib/store';
+import { validateFoodItem, validateMealTotals } from '@/lib/food-validation';
 import { calculateBurnBreakdown } from '@/lib/burn-service';
 import { getWeatherSummary } from '@/lib/weather-service';
 import { getDashboardWeatherNudge } from '@/lib/weather-nudge-service';
@@ -83,6 +84,46 @@ export function executeAction(action: MonikaAction): string {
 
   switch (action.type) {
     case 'log_meal': {
+      // Validate each item before logging
+      const allWarnings: string[] = [];
+      for (const item of action.items) {
+        const itemWarnings = validateFoodItem(
+          item.name,
+          item.calories * item.quantity,
+          item.carbs * item.quantity,
+          item.protein * item.quantity,
+          item.fat * item.quantity,
+          undefined,
+          item.quantity,
+          item.unit,
+        );
+        for (const w of itemWarnings) {
+          allWarnings.push(`⚠️ ${item.name}: ${w.message}`);
+        }
+      }
+
+      // Validate meal totals
+      const mealWarnings = validateMealTotals(
+        action.totalCalories, action.totalProtein, action.totalCarbs, action.totalFat,
+      );
+      for (const w of mealWarnings) {
+        allWarnings.push(`⚠️ ${w.message}`);
+      }
+
+      // If any errors (not just warnings), block the log
+      const hasErrors = action.items.some(item => {
+        const ws = validateFoodItem(
+          item.name, item.calories * item.quantity, item.carbs * item.quantity,
+          item.protein * item.quantity, item.fat * item.quantity,
+          undefined, item.quantity, item.unit,
+        );
+        return ws.some(w => w.severity === 'error');
+      });
+
+      if (hasErrors) {
+        return `❌ Meal NOT logged — validation errors:\n${allWarnings.join('\n')}\nPlease correct the values and try again.`;
+      }
+
       const meal: MealEntry = {
         id: crypto.randomUUID(),
         type: action.mealType,
@@ -106,7 +147,8 @@ export function executeAction(action: MonikaAction): string {
         addMealToLog(meal);
       }
 
-      return `✅ ${action.mealType.charAt(0).toUpperCase() + action.mealType.slice(1)} logged: ${action.totalCalories} kcal | ${action.totalProtein}g protein | ${action.totalCarbs}g carbs | ${action.totalFat}g fat`;
+      const warningText = allWarnings.length > 0 ? `\n${allWarnings.join('\n')}` : '';
+      return `✅ ${action.mealType.charAt(0).toUpperCase() + action.mealType.slice(1)} logged: ${action.totalCalories} kcal | ${action.totalProtein}g protein | ${action.totalCarbs}g carbs | ${action.totalFat}g fat${warningText}`;
     }
 
     case 'log_activity': {
@@ -114,6 +156,20 @@ export function executeAction(action: MonikaAction): string {
         a.name.toLowerCase().includes(action.activity.toLowerCase()) ||
         action.activity.toLowerCase().includes(a.name.toLowerCase())
       ) || ACTIVITY_TYPES.find(a => a.id === 'other')!;
+
+      // Duplicate detection: check if same activity type logged within 15 minutes
+      const log = getDailyLog(action.date);
+      const now = Date.now();
+      const recentDuplicate = (log.burned?.activities || []).find((a: ActivityEntry) => {
+        const isSameType = a.type.toLowerCase() === activityType.name.toLowerCase();
+        const timeDiff = Math.abs(now - new Date(a.time).getTime());
+        const within15Min = timeDiff < 15 * 60 * 1000;
+        return isSameType && within15Min;
+      });
+
+      if (recentDuplicate) {
+        return `⚠️ You already logged ${activityType.name} ${Math.round((now - new Date(recentDuplicate.time).getTime()) / 60000)} minutes ago (${recentDuplicate.calories} kcal). Are you sure you want to add another? Say "yes, log it" to confirm.`;
+      }
 
       const met = getMetForIntensity(activityType, action.intensity);
       const weightKg = profile?.weightKg || 70;
