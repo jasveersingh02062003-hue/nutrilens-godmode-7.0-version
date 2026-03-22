@@ -1,94 +1,46 @@
 
 
-## Surgical Upgrade: Real-Time Calorie Engine Patch
+## Audit: 10 Stress-Test Scenarios — Current System Status
 
 ### Summary
-Two targeted changes — no rewrites. Append a real-time calorie/budget engine section to Monica's system prompt and inject pre-computed real-time status into the context so Monica never does her own math.
+The user asked me to check (not change) whether the existing system handles 10 real-world edge cases. Here's the verdict for each.
 
-### Changes
+---
 
-**File 1: `src/lib/monika-actions.ts`**
+### Scenario-by-Scenario Assessment
 
-Add `realTimeStatus` to `buildMonikaContext()` return object (after line 269, before `foodPreferences`):
+| # | Scenario | Status | Explanation |
+|---|----------|--------|-------------|
+| 1 | User skips 2 meals | ✅ Covered | System prompt has "MISSED MEAL HANDLING" — asks user to add to next meal, spread, or ignore. `realTimeStatus.mealsLogged` tracks which meals were logged. |
+| 2 | User overeats early | ✅ Covered | `remainingCalories` is pre-computed. Prompt has "OVERCONSUMED" rule: "You're X kcal over target today. No stress — we'll adjust tomorrow." |
+| 3 | Workout after dinner | ✅ Covered | Prompt says "Burns affect TOTAL DAILY allowance, NOT a single meal." `totalAllowed = baseTarget + totalBurned`. After activity, suggests recovery meal. |
+| 4 | Multiple small snacks | ✅ Covered | All items logged via action blocks accumulate into `totalConsumed`. `mealsLogged` shows snack totals. Monica reports aggregate status after each log. |
+| 5 | User doesn't enter cost | ✅ Covered | Prompt rule: "ALWAYS ASK FOR COST if not provided… Do NOT generate the action block until you have the cost (or user says skip/don't know)." |
+| 6 | User enters wrong food values | ⚠️ Partial | `food-validation.ts` exists with calorie density checks and macro validation, BUT it's not called during Monica's `executeAction()`. The AI model is instructed to estimate nutrition accurately (IFCT2017), but there's **no programmatic validation** on the action block values before logging. The AI might catch obvious errors via its knowledge, but won't reliably flag "1 plate biryani = 300 kcal." |
+| 7 | Low budget + high protein | ✅ Covered | Context includes `remainingBudget` and `remainingProtein`. Prompt says "Food suggestions must align with BOTH remaining calories AND remaining budget." AI has Indian food knowledge to suggest eggs, soya, dal. |
+| 8 | User skips logging whole day | ✅ Covered | `mealsLogged` array shows all slots as `logged: false`. Prompt has "EXTREME REMAINING" rule for >800 kcal after 7PM, and missed meal handling. When user opens chat, Monica sees empty log and can proactively prompt. |
+| 9 | Under-eating | ✅ Covered | Prompt has "PARTIAL MEAL" rule. If remaining is high, it suggests balancing. No "good job" for under-eating — Monica is instructed to note gaps. |
+| 10 | Double activity bug | ⚠️ Partial | `totalBurned` is correctly computed as `sum(all activities)` via `calculateBurnBreakdown`. The weighted confidence system in `burn-service.ts` applies correctly. However, there's **no duplicate detection** — if a user logs "Gym 280 kcal" twice within 10 minutes, it's accepted without confirmation. |
 
-- Import `calculateBurnBreakdown` from `@/lib/burn-service`
-- Compute `effectiveBurn` from `log.burned` using `calculateBurnBreakdown`
-- Compute today's totals via `getDailyTotals(log)`
-- Add block:
-```typescript
-realTimeStatus: {
-  baseTarget: profile?.dailyCalories || 0,
-  totalConsumed: totals.eaten,
-  totalBurned: effectiveBurn,
-  totalAllowed: (profile?.dailyCalories || 0) + effectiveBurn,
-  remainingCalories: (profile?.dailyCalories || 0) + effectiveBurn - totals.eaten,
-  totalProteinConsumed: totals.protein,
-  remainingProtein: (profile?.dailyProtein || 0) - totals.protein,
-  dailyBudget: Math.round((budgetSettings.weeklyBudget || 0) / 7),
-  totalSpent: todaySpending,
-  remainingBudget: Math.round((budgetSettings.weeklyBudget || 0) / 7) - todaySpending,
-  mealsLogged: ['breakfast','lunch','dinner','snack'].map(type => ({
-    type,
-    logged: (log.meals || []).some((m: any) => m.type === type),
-    calories: (log.meals || []).filter((m: any) => m.type === type).reduce((s: number, m: any) => s + m.totalCalories, 0),
-  })),
-},
-```
+---
 
-**File 2: `supabase/functions/monika-chat/index.ts`**
+### Issues Found (2 items)
 
-Append the real-time engine patch to the system prompt (before the `User Context:` line at the end). Content:
+**Issue A: No validation on Monica's meal action blocks (Scenario 6)**
+- `food-validation.ts` has `validateFoodItem()` and `validateMealTotals()` but they're never called in `executeAction()` in `monika-actions.ts`
+- If the AI halluccinates "biryani = 300 kcal", it gets logged without any check
+- Fix: Call `validateFoodItem()` on each item in the `log_meal` action before saving, and surface warnings to the user
 
-```
-═══════════════════════════════════════
-REAL-TIME CALORIE ENGINE (CRITICAL – OVERRIDE)
-═══════════════════════════════════════
+**Issue B: No duplicate activity detection (Scenario 10)**  
+- `executeAction()` for `log_activity` just saves directly — no check for recent similar activities
+- Fix: Before saving, check if an activity with the same type was logged in the last 15 minutes, and if so, return a warning instead of auto-logging
 
-The context includes a "realTimeStatus" object with pre-calculated values.
-ALWAYS use these numbers. NEVER compute your own.
+---
 
-Key fields:
-- totalAllowed = baseTarget + totalBurned
-- remainingCalories = totalAllowed - totalConsumed
-- remainingBudget = dailyBudget - totalSpent
+### Verdict
+**8 of 10 scenarios are fully handled** by the current system prompt + `realTimeStatus` context. The 2 gaps are both in `executeAction()` in `monika-actions.ts` — missing validation on meal data and missing duplicate activity detection.
 
-After EVERY meal log, tell the user:
-"Consumed X kcal | Burned Y kcal | Z kcal remaining today"
-"₹A spent of ₹B"
+No changes needed to the system prompt. The prompt logic is solid for all 10 scenarios.
 
-MISSED MEAL HANDLING:
-When a meal slot has no entries and its time window has passed (check mealsLogged array):
-- Do NOT silently redistribute
-- Ask: "You missed [meal] (~X kcal). Want to: 1) Add to next meal 2) Spread across remaining 3) Ignore?"
-
-AFTER ACTIVITY:
-- Burns affect TOTAL DAILY allowance, NOT a single meal
-- Say: "You burned X kcal. You can eat Y more today. Want meal suggestions?"
-
-PARTIAL MEAL:
-If user ate significantly less than their meal target, note the gap and offer options.
-
-OVERCONSUMED:
-If remainingCalories < 0: "You're X kcal over target today. No stress — we'll adjust tomorrow."
-
-EXTREME REMAINING (>800 kcal after 7PM):
-Suggest realistic dinner/snack options that fit.
-
-PRIORITY ORDER (always):
-1. Real consumption data (highest)
-2. Remaining calories
-3. Budget constraints
-4. Meal plan targets (lowest — adapt to reality)
-
-BUDGET SYNC:
-Every calorie recalc must also reference remaining budget.
-Food suggestions must align with BOTH remaining calories AND remaining budget.
-```
-
-### Files Modified
-- `src/lib/monika-actions.ts` — add import + `realTimeStatus` block
-- `supabase/functions/monika-chat/index.ts` — append engine patch to system prompt
-
-### What Stays Unchanged
-Everything else: dashboard UI, redistribution service, burn service, chat UI, streaming, voice, image analysis, action parsing.
+Want me to fix the 2 issues (add validation to meal logging + duplicate activity detection)?
 
