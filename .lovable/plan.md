@@ -1,36 +1,54 @@
 
 
-## Monica AI – Assessment
+## Upgrade Monica AI System Prompt – Personal Nutrition Intelligence Agent
 
-### Already Implemented ✅
-The Monica AI chat system is **already fully functional**. It includes:
-- Full streaming chat via edge function with AI model (conversational, multi-turn)
-- Action blocks for meal logging (`log_meal`) with nutrition data
-- "Yes, log it" / "No" confirmation buttons
-- Dashboard refresh callback after logging
-- Image analysis via camera
-- Voice input
-- Chat history persistence in localStorage
-- Context-aware system prompt with user profile, health conditions, weather, history
-- Indian food nutrition knowledge (IFCT2017 standards)
-- Quick question chips for common actions
+### Summary
+Rewrite the Monica system prompt in the edge function to transform her from a friendly chatbot into a structured personal nutrition intelligence agent. Add budget/expense context, supplement data, meal plan data, and skin concerns to the context builder. Add cost tracking to meal action blocks.
 
-### What the Prompt Requests vs Reality
-The user's prompt describes building a Monica AI conversational meal logger — but this **already exists and works**. The AI model already:
-1. Asks follow-up questions about quantity, place, and sides when a user mentions food
-2. Estimates nutrition based on Indian food databases
-3. Presents estimates with an action block for confirmation
-4. Logs the meal and updates the dashboard on confirmation
+### Changes
 
-### Recommendation: No Changes Needed
-There is nothing material to add. The existing implementation already covers every feature described in the prompt:
-- Multi-step conversation ✅ (handled by the AI model's system prompt)
-- Nutrition estimation ✅ (AI uses IFCT2017 data)
-- Meal time detection ✅ (in the system prompt instructions)
-- Confirmation flow with buttons ✅
-- Dashboard update on confirmation ✅
-- Cost tracking ✅ (via context picker / meal source)
-- Chat persistence ✅
+**1. Edge Function – System Prompt Rewrite** (`supabase/functions/monika-chat/index.ts`)
 
-If you'd like to improve a **specific behavior** (e.g., Monica not asking about cost, or not detecting meal time correctly), let me know and I can tune the system prompt in the edge function accordingly.
+Replace the entire system prompt with a production-grade structured prompt that includes:
+
+- **Role definition**: Personal nutrition intelligence agent, not a generic chatbot
+- **Memory-first rule**: Always check user context before responding; never re-ask known info
+- **Meal logging rules**:
+  - Auto-detect meal time from current hour (5-10→breakfast, 11-15→lunch, 15-18→snack, 18+→dinner), confirm with user
+  - ALWAYS ask for cost/price if not provided
+  - Include `cost` field in `log_meal` action blocks
+  - Estimate nutrition using IFCT2017; ask for quantity if unclear
+- **Budget intelligence**: Track daily spend vs budget, warn on overspending, suggest adjustments
+- **Health-aware recommendations**: Cross-reference conditions (diabetes→low-GI, PCOS→anti-inflammatory, etc.) with every food suggestion
+- **Skin-aware advice**: Link skin concerns to nutrition (acne→zinc, eczema→omega-3, etc.)
+- **Supplement awareness**: Reference user's supplement stack; suggest timing, warn interactions
+- **Adaptation rules**: Notice patterns (skipping meals, overspending, favorite foods), reference them naturally
+- **Proactive behavior**: Suggest meals based on remaining budget/calories, nudge hydration, remind supplements
+- **Correction style**: Never block; gently suggest alternatives
+- **Response style**: Short, practical, data-backed, no fluff
+
+Keep all existing action block formats (log_meal, log_activity, log_water, generate_report) but add `cost` field to log_meal.
+
+**2. Context Builder Enhancement** (`src/lib/monika-actions.ts`)
+
+Expand `buildMonikaContext()` to include:
+- Budget settings and today's spending (from `expense-store.ts`)
+- Supplement log for today (already in daily log but ensure it's surfaced)
+- Skin concerns from profile/onboarding data
+- User's liked/disliked foods if stored
+- Meal plan data if available
+- Current hour (for meal time detection on backend)
+
+**3. Meal Action – Cost Field** (`src/lib/monika-actions.ts`)
+
+Update `MealAction` interface to include optional `cost` field. When executing, store cost alongside the meal entry (add to meal's notes or a dedicated field).
+
+### Files to Modify
+- `supabase/functions/monika-chat/index.ts` – Full system prompt rewrite
+- `src/lib/monika-actions.ts` – Expand context builder + add cost to MealAction
+
+### What Stays the Same
+- All existing action parsing, streaming, chat UI, voice input, image analysis
+- Edge function structure (CORS, error handling, streaming)
+- Chat history persistence
 
