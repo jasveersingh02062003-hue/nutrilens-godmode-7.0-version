@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, Sparkles, Heart, User, Dumbbell, Ruler, Scale, Target, TrendingDown, Droplets, AlertTriangle, ChevronDown, Clock } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Sparkles, Heart, User, Dumbbell, Ruler, Scale, Target, TrendingDown, Droplets, AlertTriangle, ChevronDown, Clock, Loader2, UtensilsCrossed } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { calculateBMI, calculateBMR, getBMICategory, getActivityMultiplier } from '@/lib/nutrition';
 import { calculateOnboardingGoals, calculateWaterGoal, type OnboardingGoalResult } from '@/lib/goal-engine';
@@ -49,6 +49,15 @@ const StepHeader = ({ title, subtitle }: { title: string; subtitle: string }) =>
   </motion.div>
 );
 
+// ── Unit toggle button ──
+const UnitToggle = ({ active, options, onToggle }: { active: string; options: [string, string]; onToggle: () => void }) => (
+  <button onClick={onToggle} className="flex items-center bg-muted rounded-full p-0.5 text-[10px] font-semibold">
+    {options.map(o => (
+      <span key={o} className={`px-3 py-1.5 rounded-full transition-all ${active === o ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>{o}</span>
+    ))}
+  </button>
+);
+
 // ── Skin insights ──
 const SKIN_INSIGHTS: Record<string, string> = {
   'acne-prone': "Your plan will focus on zinc-rich foods like pumpkin seeds and lentils, and limit dairy.",
@@ -57,6 +66,19 @@ const SKIN_INSIGHTS: Record<string, string> = {
   combination: "Your plan will balance omega-3 fats and zinc-rich foods for your combination skin.",
   sensitive: "Your plan will prioritize anti-inflammatory foods like turmeric, berries and leafy greens.",
 };
+
+// ── Macro food translations ──
+function getProteinTranslation(protein: number, diet: string): string {
+  if (diet === 'veg' || diet === 'vegan') {
+    const dal = Math.round(protein * 0.3 / 8); // ~8g per bowl dal
+    const paneer = Math.round(protein * 0.3 / 18); // ~18g per 100g
+    const tofu = Math.round(protein * 0.2 / 12);
+    return `~${dal} bowls dal + ${paneer}×100g paneer + ${tofu}×100g tofu daily`;
+  }
+  const eggs = Math.round(protein * 0.25 / 6);
+  const chicken = Math.round(protein * 0.4 / 25); // ~25g per 100g
+  return `~${eggs} eggs + ${chicken}×100g chicken + a bowl of dal daily`;
+}
 
 // ── Supplement insights ──
 function getSupplementInsight(supp: string, protein: number): string {
@@ -72,7 +94,7 @@ function getSupplementInsight(supp: string, protein: number): string {
   return map[supp] || '';
 }
 
-type Phase = 'welcome' | 'scanner' | 'wizard' | 'success';
+type Phase = 'welcome' | 'scanner' | 'wizard' | 'calculating' | 'success';
 
 interface FormState {
   name: string;
@@ -80,6 +102,10 @@ interface FormState {
   age: number;
   heightCm: number;
   weightKg: number;
+  heightUnit: 'cm' | 'ft';
+  weightUnit: 'kg' | 'lb';
+  heightFt: number;
+  heightIn: number;
   conditions: string[];
   skin: string;
   work: string;
@@ -96,8 +122,6 @@ interface FormState {
   cookingEquipment: string[];
 }
 
-const TOTAL_STEPS = 18;
-
 export default function Onboarding() {
   const navigate = useNavigate();
   const { refreshProfile } = useUserProfile();
@@ -109,6 +133,7 @@ export default function Onboarding() {
 
   const [f, setF] = useState<FormState>({
     name: '', gender: '', age: 25, heightCm: 170, weightKg: 70,
+    heightUnit: 'cm', weightUnit: 'kg', heightFt: 5, heightIn: 7,
     conditions: [], skin: '',
     work: '', exercise: '',
     goalType: '', goalSpeed: 'balanced', targetWeight: 65,
@@ -117,6 +142,32 @@ export default function Onboarding() {
   });
 
   const set = useCallback(<K extends keyof FormState>(key: K, val: FormState[K]) => setF(prev => ({ ...prev, [key]: val })), []);
+
+  // Unit conversion helpers
+  const setHeightFromFtIn = (ft: number, inches: number) => {
+    const cm = Math.round(ft * 30.48 + inches * 2.54);
+    setF(prev => ({ ...prev, heightFt: ft, heightIn: inches, heightCm: cm }));
+  };
+  const toggleHeightUnit = () => {
+    if (f.heightUnit === 'cm') {
+      const totalIn = f.heightCm / 2.54;
+      setF(prev => ({ ...prev, heightUnit: 'ft', heightFt: Math.floor(totalIn / 12), heightIn: Math.round(totalIn % 12) }));
+    } else {
+      setF(prev => ({ ...prev, heightUnit: 'cm' }));
+    }
+  };
+  const toggleWeightUnit = () => {
+    if (f.weightUnit === 'kg') {
+      setF(prev => ({ ...prev, weightUnit: 'lb' }));
+    } else {
+      setF(prev => ({ ...prev, weightUnit: 'kg' }));
+    }
+  };
+  const displayWeight = f.weightUnit === 'lb' ? Math.round(f.weightKg * 2.205) : f.weightKg;
+  const setWeightFromDisplay = (val: number) => {
+    const kg = f.weightUnit === 'lb' ? +(val / 2.205).toFixed(1) : val;
+    set('weightKg', kg);
+  };
 
   const getVisibleSteps = (): number[] => {
     const steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -141,7 +192,16 @@ export default function Onboarding() {
     const curIdx = vs.indexOf(step);
     if (curIdx < vs.length - 1) {
       const nextStep = vs[curIdx + 1];
-      if (nextStep === 13 && !goalResult) computeGoals();
+      // Show calculating animation before final output
+      if (nextStep === 13) {
+        computeGoals();
+        setPhase('calculating');
+        setTimeout(() => {
+          setPhase('wizard');
+          setStep(13);
+        }, 2500);
+        return;
+      }
       setStep(nextStep);
       saveOnboardingProgress(nextStep, f);
     }
@@ -297,13 +357,33 @@ export default function Onboarding() {
         return (
           <div className="space-y-6">
             <StepHeader title="Your height" subtitle="Used with weight to calculate BMI." />
+            <div className="flex justify-end">
+              <UnitToggle active={f.heightUnit} options={['cm', 'ft']} onToggle={toggleHeightUnit} />
+            </div>
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Height (cm)</label>
-              <div className="relative mt-1.5">
-                <Ruler className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input type="number" value={f.heightCm} onChange={e => set('heightCm', parseFloat(e.target.value) || 0)}
-                  className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-card border border-border text-sm font-semibold outline-none focus:border-primary/30 transition-all" />
-              </div>
+              {f.heightUnit === 'cm' ? (
+                <>
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Height (cm)</label>
+                  <div className="relative mt-1.5">
+                    <Ruler className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input type="number" value={f.heightCm} onChange={e => set('heightCm', parseFloat(e.target.value) || 0)}
+                      className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-card border border-border text-sm font-semibold outline-none focus:border-primary/30 transition-all" />
+                  </div>
+                </>
+              ) : (
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Feet</label>
+                    <input type="number" value={f.heightFt} onChange={e => setHeightFromFtIn(Number(e.target.value) || 0, f.heightIn)}
+                      className="w-full px-4 py-3.5 rounded-2xl bg-card border border-border text-sm font-semibold outline-none focus:border-primary/30 transition-all mt-1.5" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Inches</label>
+                    <input type="number" value={f.heightIn} onChange={e => setHeightFromFtIn(f.heightFt, Number(e.target.value) || 0)}
+                      className="w-full px-4 py-3.5 rounded-2xl bg-card border border-border text-sm font-semibold outline-none focus:border-primary/30 transition-all mt-1.5" />
+                  </div>
+                </div>
+              )}
               {(f.heightCm < 120 || f.heightCm > 230) && f.heightCm > 0 && (
                 <p className="text-xs text-destructive mt-1.5">Height must be between 120–230 cm.</p>
               )}
@@ -315,15 +395,18 @@ export default function Onboarding() {
         return (
           <div className="space-y-6">
             <StepHeader title="Your weight" subtitle="Used for BMR, BMI, and calorie calculations." />
+            <div className="flex justify-end">
+              <UnitToggle active={f.weightUnit} options={['kg', 'lb']} onToggle={toggleWeightUnit} />
+            </div>
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Weight (kg)</label>
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Weight ({f.weightUnit})</label>
               <div className="relative mt-1.5">
                 <Scale className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input type="number" value={f.weightKg} onChange={e => set('weightKg', parseFloat(e.target.value) || 0)}
+                <input type="number" value={displayWeight} onChange={e => setWeightFromDisplay(parseFloat(e.target.value) || 0)}
                   className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-card border border-border text-sm font-semibold outline-none focus:border-primary/30 transition-all" />
               </div>
               {(f.weightKg < 30 || f.weightKg > 300) && f.weightKg > 0 && (
-                <p className="text-xs text-destructive mt-1.5">Weight must be between 30–300 kg.</p>
+                <p className="text-xs text-destructive mt-1.5">Weight must be between 30–300 kg (66–661 lbs).</p>
               )}
             </motion.div>
           </div>
@@ -535,9 +618,11 @@ export default function Onboarding() {
           hard: { emoji: '🔴', label: 'Hard – consider adjustments', color: 'text-destructive' },
         };
         const adh = adhConfig[g.adherenceLabel];
+        const proteinHint = getProteinTranslation(g.protein, f.diet || 'noRestrictions');
+        const calorieGap = Math.abs(g.tdee - g.targetCalories);
         return (
           <div className="space-y-4">
-            <StepHeader title="Your Personalized Plan" subtitle="Based on your body stats, activity, and goals." />
+            <StepHeader title="Your Personalized Plan" subtitle="This is your starting plan. You can adjust this anytime." />
             {/* TDEE → Target */}
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
               className="bg-card border border-border rounded-2xl p-5">
@@ -557,6 +642,12 @@ export default function Onboarding() {
                   <p className="text-[9px] text-muted-foreground">kcal/day</p>
                 </div>
               </div>
+              {/* Calorie gap */}
+              {g.goalType !== 'maintain' && (
+                <p className="text-[10px] text-muted-foreground text-center mb-2">
+                  {g.goalType === 'lose' ? `${calorieGap} kcal deficit` : `${calorieGap} kcal surplus`} per day
+                </p>
+              )}
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
                 className="flex items-center justify-center gap-1.5 pt-2 border-t border-border">
                 <span className="text-xs">{cue.emoji}</span>
@@ -578,9 +669,14 @@ export default function Onboarding() {
                 </motion.div>
               ))}
             </motion.div>
+            {/* Protein translation */}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.45 }}
+              className="bg-muted/50 rounded-xl p-3">
+              <p className="text-[11px] text-muted-foreground leading-relaxed">🍳 {g.protein}g protein ≈ {proteinHint}</p>
+            </motion.div>
             {/* Expected change + Timeline */}
             {g.goalType !== 'maintain' && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
                 className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-2">
                 <p className="text-xs text-foreground font-medium text-center">
                   Expected {g.goalType === 'lose' ? 'fat loss' : 'weight gain'}: <strong>{g.expectedRate}</strong>
@@ -590,10 +686,11 @@ export default function Onboarding() {
                     <Clock className="w-3 h-3" /> Estimated timeline: {g.weeksMin}–{g.weeksMax} weeks
                   </p>
                 )}
+                <p className="text-[10px] text-muted-foreground text-center">You'll start seeing changes in 2–3 weeks</p>
               </motion.div>
             )}
             {/* Adherence score */}
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.65 }}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55 }}
               className="bg-card border border-border rounded-xl p-4 flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Adherence Score</p>
@@ -603,28 +700,29 @@ export default function Onboarding() {
             </motion.div>
             {/* Goal insight */}
             {g.goalInsight && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
                 className="bg-primary/5 border border-primary/20 rounded-xl p-4">
                 <p className="text-xs text-foreground leading-relaxed">💡 {g.goalInsight}</p>
               </motion.div>
             )}
             {/* Thyroid note */}
             {g.thyroidNote && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.75 }}
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.65 }}
                 className="bg-accent/5 border border-accent/20 rounded-xl p-4">
                 <p className="text-xs text-foreground leading-relaxed">🦋 {g.thyroidNote}</p>
               </motion.div>
             )}
-            {/* Plateau warning */}
+            {/* Trust + plateau */}
             {g.goalType !== 'maintain' && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}
-                className="bg-muted/50 rounded-xl p-3">
-                <p className="text-[11px] text-muted-foreground leading-relaxed">📉 Progress may slow over time. Adjustments will be made weekly.</p>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}
+                className="bg-muted/50 rounded-xl p-3 space-y-1.5">
+                <p className="text-[11px] text-muted-foreground leading-relaxed">📉 Progress may slow as your body adapts. Adjustments will be made weekly.</p>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">🔄 This is your starting plan — it evolves with you.</p>
               </motion.div>
             )}
             {/* Safety warnings */}
             {g.safetyWarnings.map((w, i) => (
-              <motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.85 }}
+              <motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.75 }}
                 className="flex items-start gap-2 bg-destructive/5 border border-destructive/20 rounded-xl p-3">
                 <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
                 <p className="text-xs text-destructive/80">{w}</p>
@@ -793,16 +891,47 @@ export default function Onboarding() {
   if (phase === 'scanner') {
     return <ScannerOnboardingScreen onBack={() => setPhase('welcome')} onContinue={() => { setPhase('wizard'); setStep(0); }} />;
   }
+  if (phase === 'calculating') {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-6">
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center space-y-8 max-w-sm">
+          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}>
+            <Sparkles className="w-12 h-12 text-primary mx-auto" />
+          </motion.div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-display font-bold text-foreground">Calculating your plan…</h2>
+            <p className="text-sm text-muted-foreground">Analyzing your body stats, activity level, and goals.</p>
+          </div>
+          <div className="flex justify-center gap-1.5">
+            {[0, 1, 2].map(i => (
+              <motion.div key={i} className="w-2 h-2 rounded-full bg-primary"
+                animate={{ scale: [1, 1.4, 1], opacity: [0.4, 1, 0.4] }}
+                transition={{ repeat: Infinity, duration: 1.2, delay: i * 0.2 }} />
+            ))}
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
   if (phase === 'success') {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-6">
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center space-y-6 max-w-sm">
           <motion.p initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.2 }} className="text-6xl">✅</motion.p>
           <h1 className="text-2xl font-display font-bold text-foreground">Onboarding complete!</h1>
-          <p className="text-sm text-muted-foreground">Your data is ready. Your personalized plan has been saved.</p>
-          <button onClick={() => navigate('/')} className="w-full py-4 rounded-full bg-primary text-primary-foreground font-semibold text-sm">
-            Go to Dashboard
-          </button>
+          <p className="text-sm text-muted-foreground">Your personalized plan has been saved. Let's get started!</p>
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
+            className="text-xs text-muted-foreground">Next step: Log your first meal</motion.p>
+          <div className="space-y-3">
+            <button onClick={() => navigate('/log-food')}
+              className="w-full py-4 rounded-full bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2">
+              <UtensilsCrossed className="w-4 h-4" /> Log Breakfast
+            </button>
+            <button onClick={() => navigate('/')}
+              className="w-full py-3 rounded-full bg-card border border-border text-foreground font-semibold text-sm hover:bg-muted transition-colors">
+              Go to Dashboard
+            </button>
+          </div>
         </motion.div>
       </div>
     );
