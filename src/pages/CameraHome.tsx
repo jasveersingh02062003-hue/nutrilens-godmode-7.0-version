@@ -473,9 +473,23 @@ export default function CameraHome() {
       return;
     }
 
+    // If there's a cost, show PES breakdown first
+    const itemCostTotal = items.reduce((s, i) => s + (i.itemCost || 0), 0);
+    const finalCostAmount = itemCostTotal > 0 ? itemCostTotal : (mealCost?.amount || 0);
+    if (finalCostAmount > 0 && !showPESBreakdown) {
+      setShowPESBreakdown(true);
+      return;
+    }
+
+    confirmSaveMeal();
+  };
+
+  const confirmSaveMeal = () => {
+    setShowPESBreakdown(false);
+    const items = activeItems;
+
     const source: MealSource | null = selectedSource ? { category: selectedSource } : null;
 
-    // Derive meal cost from per-item costs, fallback to mealCost
     const itemCostTotal = items.reduce((s, i) => s + (i.itemCost || 0), 0);
     const finalCost: MealCost | null = itemCostTotal > 0
       ? { amount: itemCostTotal, currency: '₹' }
@@ -503,7 +517,6 @@ export default function CameraHome() {
       duration: 5000,
     });
 
-    // Navigate to success briefly, then dashboard
     resetToCamera();
     navigate('/dashboard');
   };
