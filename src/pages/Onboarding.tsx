@@ -169,7 +169,7 @@ const CONDITION_LABELS: Record<string, string> = {
   highCholesterol: 'High Cholesterol', ibs: 'IBS', anemia: 'Anemia', pcos: 'PCOS',
 };
 
-type Phase = 'welcome' | 'scanner' | 'wizard' | 'calculating' | 'success';
+type Phase = 'featureFlex' | 'welcome' | 'scanner' | 'wizard' | 'calculating' | 'success';
 
 interface FormState {
   name: string;
