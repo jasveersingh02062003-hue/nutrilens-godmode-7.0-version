@@ -1253,6 +1253,7 @@ export default function Onboarding() {
         return (
           <div className="space-y-5">
             <StepHeader title="Daily food budget" subtitle="Set a budget to get cost-aware meal suggestions." />
+            <p className="text-xs text-muted-foreground bg-muted/50 rounded-xl px-3 py-2">👉 Head to <span className="font-semibold text-primary">Meal Planner</span> after onboarding to match your budget with meals.</p>
             <div className="space-y-2.5">
               <Option value="yes" current={f.budgetEnabled ? 'yes' : 'no'} label="💰 Yes, set a budget" sub="Get meals within your daily budget"
                 onSelect={() => set('budgetEnabled', true)} idx={0} />

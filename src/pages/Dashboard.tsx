@@ -286,6 +286,34 @@ export default function Dashboard() {
         onDeleted={refreshLog}
       />
     </div>
+
+    {/* One-time planner setup modal */}
+    <Dialog open={showPlannerModal} onOpenChange={(open) => {
+      if (!open) {
+        localStorage.setItem('planner_modal_dismissed', 'true');
+        setShowPlannerModal(false);
+      }
+    }}>
+      <DialogContent className="max-w-sm rounded-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-lg">Set up your daily plan</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
+            To get accurate meals, budget tracking, and calorie guidance — set your budget and meal plan.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-2 pt-2">
+          <Button onClick={() => { setShowPlannerModal(false); navigate('/planner'); }}>
+            Set My Plan
+          </Button>
+          <Button variant="ghost" onClick={() => {
+            localStorage.setItem('planner_modal_dismissed', 'true');
+            setShowPlannerModal(false);
+          }}>
+            Do it later
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
     </>
   );
 }
