@@ -157,6 +157,20 @@ export function executeAction(action: MonikaAction): string {
         action.activity.toLowerCase().includes(a.name.toLowerCase())
       ) || ACTIVITY_TYPES.find(a => a.id === 'other')!;
 
+      // Duplicate detection: check if same activity type logged within 15 minutes
+      const log = getDailyLog(action.date);
+      const now = Date.now();
+      const recentDuplicate = (log.burned?.activities || []).find((a: ActivityEntry) => {
+        const isSameType = a.type.toLowerCase() === activityType.name.toLowerCase();
+        const timeDiff = Math.abs(now - new Date(a.time).getTime());
+        const within15Min = timeDiff < 15 * 60 * 1000;
+        return isSameType && within15Min;
+      });
+
+      if (recentDuplicate) {
+        return `⚠️ You already logged ${activityType.name} ${Math.round((now - new Date(recentDuplicate.time).getTime()) / 60000)} minutes ago (${recentDuplicate.calories} kcal). Are you sure you want to add another? Say "yes, log it" to confirm.`;
+      }
+
       const met = getMetForIntensity(activityType, action.intensity);
       const weightKg = profile?.weightKg || 70;
       const calories = action.caloriesBurned || calculateCalories(met, weightKg, action.duration);
