@@ -139,9 +139,23 @@ export function calculateOnboardingGoals(input: OnboardingGoalInput): Onboarding
   } else {
     target = tdee;
   }
-  target = Math.max(1200, Math.min(target, Math.round(tdee * 1.3)));
-  if (target === 1200 && goalType === 'lose') {
-    warnings.push('Calorie target capped at 1200 kcal for safety. Never go below this.');
+
+  // 4a. Gender-specific calorie adjustments (pregnancy/breastfeeding)
+  const gs = input.genderSpecific;
+  if (gs?.pregnancy) {
+    target += 350;
+    warnings.push('Added +350 kcal for pregnancy. Never go below 1800 kcal during pregnancy.');
+  }
+  if (gs?.breastfeeding) {
+    target += 500;
+    warnings.push('Added +500 kcal for breastfeeding. Stay well-hydrated (+1L water recommended).');
+  }
+
+  // Safety floor (pregnancy has higher minimum)
+  const safetyFloor = gs?.pregnancy ? 1800 : 1200;
+  target = Math.max(safetyFloor, Math.min(target, Math.round(tdee * 1.3)));
+  if (target === safetyFloor && goalType === 'lose') {
+    warnings.push(`Calorie target capped at ${safetyFloor} kcal for safety. Never go below this.`);
   }
 
   // 5. Protein (weight-based with goal-specific caps)
