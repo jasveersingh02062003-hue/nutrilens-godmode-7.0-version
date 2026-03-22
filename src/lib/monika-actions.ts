@@ -10,6 +10,10 @@ import { ACTIVITY_TYPES, calculateCalories, getMetForIntensity } from '@/lib/act
 import { getWeightEntries } from '@/lib/weight-history';
 import { getStreaks } from '@/lib/streaks';
 import { getUnlockedBadges, computeAchievementStats } from '@/lib/achievements';
+import { getBudgetSettings } from '@/lib/expense-store';
+import { getWeightEntries } from '@/lib/weight-history';
+import { getStreaks } from '@/lib/streaks';
+import { getUnlockedBadges, computeAchievementStats } from '@/lib/achievements';
 
 // ─── Action types that Monica can propose ───
 
