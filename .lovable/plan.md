@@ -1,50 +1,50 @@
 
 
-## Surgical Upgrade: Real-Time Calorie Engine + Monica System Prompt Patch
+## Surgical Upgrade: Real-Time Calorie Engine Patch
 
 ### Summary
-Two changes: (1) Append a "real-time calorie/budget/redistribution" patch to Monica's system prompt so she gives accurate remaining-calorie math and handles missed meals / activity burns correctly. (2) Enhance the context builder to send computed real-time totals (total allowed, remaining, budget remaining) so Monica never calculates wrong.
-
-### Why This Is Enough
-The app's **frontend calorie math is already correct** — `CalorieRing` uses `eaten - effectiveBurn` with the burn service, `SmartAdjustmentCard` handles redistribution, and `RedistributionService` handles missed meals with user confirmation. The user's concern is about **Monica giving wrong numbers**, not the dashboard itself. The fix is to:
-1. Pre-compute the real-time totals in the context builder
-2. Tell Monica to USE those numbers, never compute her own
+Two targeted changes — no rewrites. Append a real-time calorie/budget engine section to Monica's system prompt and inject pre-computed real-time status into the context so Monica never does her own math.
 
 ### Changes
 
-**File 1: `src/lib/monika-actions.ts` – Add computed totals to context**
+**File 1: `src/lib/monika-actions.ts`**
 
-In `buildMonikaContext()`, after getting `totals`, add a new `realTimeStatus` block:
+Add `realTimeStatus` to `buildMonikaContext()` return object (after line 269, before `foodPreferences`):
 
+- Import `calculateBurnBreakdown` from `@/lib/burn-service`
+- Compute `effectiveBurn` from `log.burned` using `calculateBurnBreakdown`
+- Compute today's totals via `getDailyTotals(log)`
+- Add block:
 ```typescript
 realTimeStatus: {
-  baseTarget: profile.dailyCalories,
+  baseTarget: profile?.dailyCalories || 0,
   totalConsumed: totals.eaten,
-  totalBurned: effectiveBurn,  // from calculateBurnBreakdown
-  totalAllowed: profile.dailyCalories + effectiveBurn,
-  remainingCalories: profile.dailyCalories + effectiveBurn - totals.eaten,
-  remainingProtein: profile.dailyProtein - totals.protein,
-  remainingBudget: dailyBudget - todaySpending,
+  totalBurned: effectiveBurn,
+  totalAllowed: (profile?.dailyCalories || 0) + effectiveBurn,
+  remainingCalories: (profile?.dailyCalories || 0) + effectiveBurn - totals.eaten,
+  totalProteinConsumed: totals.protein,
+  remainingProtein: (profile?.dailyProtein || 0) - totals.protein,
+  dailyBudget: Math.round((budgetSettings.weeklyBudget || 0) / 7),
+  totalSpent: todaySpending,
+  remainingBudget: Math.round((budgetSettings.weeklyBudget || 0) / 7) - todaySpending,
   mealsLogged: ['breakfast','lunch','dinner','snack'].map(type => ({
     type,
-    logged: log.meals.some(m => m.type === type),
-    calories: log.meals.filter(m => m.type === type).reduce((s,m) => s + m.totalCalories, 0),
+    logged: (log.meals || []).some((m: any) => m.type === type),
+    calories: (log.meals || []).filter((m: any) => m.type === type).reduce((s: number, m: any) => s + m.totalCalories, 0),
   })),
-}
+},
 ```
 
-Import `calculateBurnBreakdown` from burn-service and compute effectiveBurn from `log.burned`.
+**File 2: `supabase/functions/monika-chat/index.ts`**
 
-**File 2: `supabase/functions/monika-chat/index.ts` – Append patch to system prompt**
-
-Add the following section at the end of the system prompt (before the User Context line):
+Append the real-time engine patch to the system prompt (before the `User Context:` line at the end). Content:
 
 ```
 ═══════════════════════════════════════
 REAL-TIME CALORIE ENGINE (CRITICAL – OVERRIDE)
 ═══════════════════════════════════════
 
-The context includes a `realTimeStatus` object with pre-calculated values.
+The context includes a "realTimeStatus" object with pre-calculated values.
 ALWAYS use these numbers. NEVER compute your own.
 
 Key fields:
@@ -53,11 +53,11 @@ Key fields:
 - remainingBudget = dailyBudget - totalSpent
 
 After EVERY meal log, tell the user:
-"You've consumed Xkcal | Burned Ykcal | Z kcal remaining today"
+"Consumed X kcal | Burned Y kcal | Z kcal remaining today"
 "₹A spent of ₹B"
 
 MISSED MEAL HANDLING:
-When a meal slot has no entries and its time has passed:
+When a meal slot has no entries and its time window has passed (check mealsLogged array):
 - Do NOT silently redistribute
 - Ask: "You missed [meal] (~X kcal). Want to: 1) Add to next meal 2) Spread across remaining 3) Ignore?"
 
@@ -66,23 +66,29 @@ AFTER ACTIVITY:
 - Say: "You burned X kcal. You can eat Y more today. Want meal suggestions?"
 
 PARTIAL MEAL:
-If user ate less than planned for a meal, note the gap and ask:
-"You have ~X kcal unused from [meal]. Move to snacks/dinner, or ignore?"
+If user ate significantly less than their meal target, note the gap and offer options.
 
 OVERCONSUMED:
-If remainingCalories < 0, say: "You're X kcal over target today. No stress — we'll adjust tomorrow."
+If remainingCalories < 0: "You're X kcal over target today. No stress — we'll adjust tomorrow."
 
-EXTREME REMAINING (>800 after 7PM):
-Suggest realistic options: "You still have X kcal left. Here are light dinner ideas that fit."
+EXTREME REMAINING (>800 kcal after 7PM):
+Suggest realistic dinner/snack options that fit.
+
+PRIORITY ORDER (always):
+1. Real consumption data (highest)
+2. Remaining calories
+3. Budget constraints
+4. Meal plan targets (lowest — adapt to reality)
+
+BUDGET SYNC:
+Every calorie recalc must also reference remaining budget.
+Food suggestions must align with BOTH remaining calories AND remaining budget.
 ```
 
 ### Files Modified
-- `src/lib/monika-actions.ts` – Add `realTimeStatus` block + import burn service
-- `supabase/functions/monika-chat/index.ts` – Append engine patch to system prompt
+- `src/lib/monika-actions.ts` — add import + `realTimeStatus` block
+- `supabase/functions/monika-chat/index.ts` — append engine patch to system prompt
 
 ### What Stays Unchanged
-- All dashboard UI (CalorieRing, MacroCard, SmartAdjustmentCard)
-- Redistribution service, burn service, meal targets
-- All existing action block formats
-- Chat UI, streaming, voice, image analysis
+Everything else: dashboard UI, redistribution service, burn service, chat UI, streaming, voice, image analysis, action parsing.
 
