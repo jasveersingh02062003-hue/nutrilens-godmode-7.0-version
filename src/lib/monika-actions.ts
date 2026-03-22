@@ -84,6 +84,46 @@ export function executeAction(action: MonikaAction): string {
 
   switch (action.type) {
     case 'log_meal': {
+      // Validate each item before logging
+      const allWarnings: string[] = [];
+      for (const item of action.items) {
+        const itemWarnings = validateFoodItem(
+          item.name,
+          item.calories * item.quantity,
+          item.carbs * item.quantity,
+          item.protein * item.quantity,
+          item.fat * item.quantity,
+          undefined,
+          item.quantity,
+          item.unit,
+        );
+        for (const w of itemWarnings) {
+          allWarnings.push(`⚠️ ${item.name}: ${w.message}`);
+        }
+      }
+
+      // Validate meal totals
+      const mealWarnings = validateMealTotals(
+        action.totalCalories, action.totalProtein, action.totalCarbs, action.totalFat,
+      );
+      for (const w of mealWarnings) {
+        allWarnings.push(`⚠️ ${w.message}`);
+      }
+
+      // If any errors (not just warnings), block the log
+      const hasErrors = action.items.some(item => {
+        const ws = validateFoodItem(
+          item.name, item.calories * item.quantity, item.carbs * item.quantity,
+          item.protein * item.quantity, item.fat * item.quantity,
+          undefined, item.quantity, item.unit,
+        );
+        return ws.some(w => w.severity === 'error');
+      });
+
+      if (hasErrors) {
+        return `❌ Meal NOT logged — validation errors:\n${allWarnings.join('\n')}\nPlease correct the values and try again.`;
+      }
+
       const meal: MealEntry = {
         id: crypto.randomUUID(),
         type: action.mealType,
@@ -107,7 +147,8 @@ export function executeAction(action: MonikaAction): string {
         addMealToLog(meal);
       }
 
-      return `✅ ${action.mealType.charAt(0).toUpperCase() + action.mealType.slice(1)} logged: ${action.totalCalories} kcal | ${action.totalProtein}g protein | ${action.totalCarbs}g carbs | ${action.totalFat}g fat`;
+      const warningText = allWarnings.length > 0 ? `\n${allWarnings.join('\n')}` : '';
+      return `✅ ${action.mealType.charAt(0).toUpperCase() + action.mealType.slice(1)} logged: ${action.totalCalories} kcal | ${action.totalProtein}g protein | ${action.totalCarbs}g carbs | ${action.totalFat}g fat${warningText}`;
     }
 
     case 'log_activity': {
