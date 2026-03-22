@@ -31,7 +31,7 @@ export default function PESBreakdownModal({ open, food, mealLabel, onConfirm, on
 
   const profile = getProfile();
   const budget = getBudgetSettings();
-  const dailyBudget = budget?.dailyBudget ?? 200;
+  const dailyBudget = budget.period === 'week' ? budget.weeklyBudget / 7 : budget.monthlyBudget / 30;
   const isVeg = profile?.dietaryPrefs?.includes('veg') ?? false;
 
   const pes = food.protein / food.cost;
@@ -41,7 +41,7 @@ export default function PESBreakdownModal({ open, food, mealLabel, onConfirm, on
 
   // Find a better alternative for insight
   const alternatives = findBetterAlternatives(
-    { id: '', name: food.name, price: food.cost, protein: food.protein, calories: food.calories, fat: food.fat, carbs: food.carbs, tags: [], mealType: ['lunch', 'dinner'], proteinPerRupee: pes },
+    { name: food.name, price: food.cost, protein: food.protein },
     isVeg ? 'veg' : 'non_veg',
     1
   );
