@@ -22,7 +22,7 @@ export interface UserProfile {
   dietaryPrefs: string[];
   healthConditions: string[];
   womenHealth: string[];
-  menHealth: { prostateConcerns?: boolean };
+  menHealth: { prostateConcerns?: boolean; testosteroneConcerns?: boolean };
   medications: string;
   mealTimes: { breakfast: string; lunch: string; dinner: string; snacks: string };
   waterGoal: number;
