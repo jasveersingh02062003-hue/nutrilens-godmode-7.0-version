@@ -149,6 +149,11 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Upgrade Banner (free users only) */}
+        <div className="animate-fade-in">
+          <UpgradeBanner />
+        </div>
+
         {/* Weather-Aware Nudge */}
         <div className="animate-fade-in">
           <WeatherNudgeCard />
