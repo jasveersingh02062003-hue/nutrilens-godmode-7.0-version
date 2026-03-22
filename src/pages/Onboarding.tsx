@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, Sparkles, Heart, User, Dumbbell, Ruler, Scale, Target, TrendingDown, Droplets, AlertTriangle, ChevronDown } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Sparkles, Heart, User, Dumbbell, Ruler, Scale, Target, TrendingDown, Droplets, AlertTriangle, ChevronDown, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { calculateBMI, calculateBMR, getBMICategory, getActivityMultiplier } from '@/lib/nutrition';
-import { calculateOnboardingGoals, type OnboardingGoalResult } from '@/lib/goal-engine';
+import { calculateOnboardingGoals, calculateWaterGoal, type OnboardingGoalResult } from '@/lib/goal-engine';
 import { saveOnboardingData, saveOnboardingProgress, getOnboardingProgress, clearOnboardingProgress, type OnboardingData } from '@/lib/onboarding-store';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -51,11 +51,11 @@ const StepHeader = ({ title, subtitle }: { title: string; subtitle: string }) =>
 
 // ── Skin insights ──
 const SKIN_INSIGHTS: Record<string, string> = {
-  'acne-prone': "We'll recommend pumpkin seeds and lentils (zinc) and suggest limiting dairy.",
-  dry: "Healthy fats like avocado and nuts will be highlighted, plus extra water reminders.",
-  oily: "Zinc-rich foods like chickpeas and seeds will help regulate oil production.",
-  combination: "We'll balance omega-3 fats and zinc-rich foods for your combination skin.",
-  sensitive: "Anti-inflammatory foods like turmeric, berries and leafy greens will be prioritized.",
+  'acne-prone': "Your plan will focus on zinc-rich foods like pumpkin seeds and lentils, and limit dairy.",
+  dry: "Your plan will focus on healthy fats like avocado and nuts, plus extra water reminders.",
+  oily: "Your plan will focus on zinc-rich foods like chickpeas and seeds to help regulate oil production.",
+  combination: "Your plan will balance omega-3 fats and zinc-rich foods for your combination skin.",
+  sensitive: "Your plan will prioritize anti-inflammatory foods like turmeric, berries and leafy greens.",
 };
 
 // ── Supplement insights ──
@@ -75,23 +75,18 @@ function getSupplementInsight(supp: string, protein: number): string {
 type Phase = 'welcome' | 'scanner' | 'wizard' | 'success';
 
 interface FormState {
-  // Phase 1 – Core Identity
   name: string;
   gender: string;
   age: number;
   heightCm: number;
   weightKg: number;
-  // Phase 3 – Health
   conditions: string[];
   skin: string;
-  // Phase 4 – Activity
   work: string;
   exercise: string;
-  // Phase 5 – Goal
   goalType: string;
   goalSpeed: string;
   targetWeight: number;
-  // Phase 7 – Lifestyle
   wantLifestyle: boolean | null;
   diet: string;
   water: number;
@@ -101,7 +96,7 @@ interface FormState {
   cookingEquipment: string[];
 }
 
-const TOTAL_STEPS = 18; // rough count for progress bar
+const TOTAL_STEPS = 18;
 
 export default function Onboarding() {
   const navigate = useNavigate();
@@ -123,27 +118,16 @@ export default function Onboarding() {
 
   const set = useCallback(<K extends keyof FormState>(key: K, val: FormState[K]) => setF(prev => ({ ...prev, [key]: val })), []);
 
-  // Phase 1 steps: 0=name, 1=gender, 2=age, 3=height, 4=weight
-  // Phase 2: 5=bmi display
-  // Phase 3: 6=conditions, 7=skin
-  // Phase 4: 8=work, 9=exercise
-  // Phase 5: 10=goal, 11=speed (conditional), 12=targetWeight (conditional)
-  // Phase 6: 13=final output
-  // Phase 7: 14=askLifestyle, 15=diet, 16=water, 17=supplements, 18=cooking
-  // Phase 8: 19=finish
-
   const getVisibleSteps = (): number[] => {
     const steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     if (f.goalType === 'lose' || f.goalType === 'gain') {
-      steps.push(11); // speed
-      steps.push(12); // target weight
+      steps.push(11, 12);
     }
-    steps.push(13); // final output
-    steps.push(14); // ask lifestyle
+    steps.push(13, 14);
     if (f.wantLifestyle === true) {
-      steps.push(15, 16, 17, 18); // diet, water, supplements, cooking
+      steps.push(15, 16, 17, 18);
     }
-    steps.push(19); // finish
+    steps.push(19);
     return steps;
   };
 
@@ -157,10 +141,7 @@ export default function Onboarding() {
     const curIdx = vs.indexOf(step);
     if (curIdx < vs.length - 1) {
       const nextStep = vs[curIdx + 1];
-      // Calculate goals when entering step 13 (final output)
-      if (nextStep === 13 && !goalResult) {
-        computeGoals();
-      }
+      if (nextStep === 13 && !goalResult) computeGoals();
       setStep(nextStep);
       saveOnboardingProgress(nextStep, f);
     }
@@ -175,19 +156,16 @@ export default function Onboarding() {
 
   const computeGoals = () => {
     const result = calculateOnboardingGoals({
-      gender: f.gender,
-      age: f.age,
-      heightCm: f.heightCm,
-      weightKg: f.weightKg,
-      work: f.work || 'sitting',
-      exercise: f.exercise || 'none',
-      goalType: (f.goalType || 'maintain') as any,
-      goalSpeed: (f.goalSpeed || 'balanced') as any,
+      gender: f.gender, age: f.age, heightCm: f.heightCm, weightKg: f.weightKg,
+      work: f.work || 'sitting', exercise: f.exercise || 'none',
+      goalType: (f.goalType || 'maintain') as any, goalSpeed: (f.goalSpeed || 'balanced') as any,
       healthConditions: f.conditions,
+      targetWeight: f.goalType !== 'maintain' ? f.targetWeight : null,
+      diet: f.diet, cookingTime: f.cookingTime,
     });
     setGoalResult(result);
-    // Update water recommendation
-    const recommendedWater = +(f.weightKg * 0.035).toFixed(1);
+    const multiplier = getActivityMultiplier(f.work || 'sitting', f.exercise || 'none');
+    const recommendedWater = calculateWaterGoal(f.weightKg, multiplier);
     set('water', recommendedWater);
   };
 
@@ -198,8 +176,8 @@ export default function Onboarding() {
       case 2: return f.age >= 13 && f.age <= 80;
       case 3: return f.heightCm >= 120 && f.heightCm <= 230;
       case 4: return f.weightKg >= 30 && f.weightKg <= 300;
-      case 5: return true; // BMI display
-      case 6: return true; // conditions optional
+      case 5: return true;
+      case 6: return true;
       case 7: return !!f.skin;
       case 8: return !!f.work;
       case 9: return !!f.exercise;
@@ -227,6 +205,8 @@ export default function Onboarding() {
       work: f.work || 'sitting', exercise: f.exercise || 'none',
       goalType: (f.goalType || 'maintain') as any, goalSpeed: (f.goalSpeed || 'balanced') as any,
       healthConditions: f.conditions,
+      targetWeight: f.goalType !== 'maintain' ? f.targetWeight : null,
+      diet: f.diet, cookingTime: f.cookingTime,
     });
 
     const data: OnboardingData = {
@@ -239,14 +219,19 @@ export default function Onboarding() {
         calories: goals.targetCalories,
         macros: { protein: goals.protein, carbs: goals.carbs, fat: goals.fat },
         expectedRate: goals.expectedRate,
+        weeksMin: goals.weeksMin,
+        weeksMax: goals.weeksMax,
       },
       lifestyle: {
-        diet: f.diet || 'noRestrictions',
-        water: f.water,
-        supplements: f.supplements,
+        diet: f.diet || 'noRestrictions', water: f.water, supplements: f.supplements,
         cooking: { skill: f.cookingSkill || 'beginner', time: f.cookingTime, equipment: f.cookingEquipment },
       },
-      meta: { createdAt: new Date().toISOString(), lastUpdated: new Date().toISOString(), weeklyAdjustments: [] },
+      meta: {
+        createdAt: new Date().toISOString(), lastUpdated: new Date().toISOString(),
+        adherenceScore: goals.adherenceScore, adherenceLabel: goals.adherenceLabel,
+        expectedAdaptation: true, plateauCounter: 0, lastWeightEntry: null,
+        weeklyAdjustments: [],
+      },
     };
 
     saveOnboardingData(data);
@@ -413,7 +398,7 @@ export default function Onboarding() {
       case 7:
         return (
           <div className="space-y-5">
-            <StepHeader title="Skin type" subtitle="We'll recommend foods that support your skin health." />
+            <StepHeader title="Skin type" subtitle="Your plan will include foods that support your skin health." />
             <div className="space-y-2.5">
               {[
                 { v: 'oily', l: '💧 Oily' },
@@ -538,13 +523,25 @@ export default function Onboarding() {
       case 13: {
         const g = goalResult;
         if (!g) return null;
+        const cueConfig = {
+          sustainable: { emoji: '🟢', label: 'Sustainable', color: 'text-primary' },
+          moderate: { emoji: '🟡', label: 'Moderate deficit', color: 'text-accent' },
+          aggressive: { emoji: '🔴', label: 'Aggressive', color: 'text-destructive' },
+        };
+        const cue = cueConfig[g.calorieCue];
+        const adhConfig = {
+          easy: { emoji: '🟢', label: 'Easy to follow', color: 'text-primary' },
+          moderate: { emoji: '🟡', label: 'Moderate challenge', color: 'text-accent' },
+          hard: { emoji: '🔴', label: 'Hard – consider adjustments', color: 'text-destructive' },
+        };
+        const adh = adhConfig[g.adherenceLabel];
         return (
-          <div className="space-y-5">
+          <div className="space-y-4">
             <StepHeader title="Your Personalized Plan" subtitle="Based on your body stats, activity, and goals." />
-            {/* TDEE → Target animation */}
+            {/* TDEE → Target */}
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
               className="bg-card border border-border rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-3">
                 <div className="text-center flex-1">
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Maintenance</p>
                   <p className="text-2xl font-mono font-bold text-muted-foreground">{g.tdee}</p>
@@ -560,6 +557,11 @@ export default function Onboarding() {
                   <p className="text-[9px] text-muted-foreground">kcal/day</p>
                 </div>
               </div>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
+                className="flex items-center justify-center gap-1.5 pt-2 border-t border-border">
+                <span className="text-xs">{cue.emoji}</span>
+                <span className={`text-[11px] font-semibold ${cue.color}`}>{cue.label}</span>
+              </motion.div>
             </motion.div>
             {/* Macros */}
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
@@ -576,25 +578,53 @@ export default function Onboarding() {
                 </motion.div>
               ))}
             </motion.div>
-            {/* Expected change */}
+            {/* Expected change + Timeline */}
             {g.goalType !== 'maintain' && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
-                className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center">
-                <p className="text-xs text-foreground font-medium">
+                className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-2">
+                <p className="text-xs text-foreground font-medium text-center">
                   Expected {g.goalType === 'lose' ? 'fat loss' : 'weight gain'}: <strong>{g.expectedRate}</strong>
                 </p>
+                {g.weeksMin != null && g.weeksMax != null && (
+                  <p className="text-[11px] text-muted-foreground text-center flex items-center justify-center gap-1">
+                    <Clock className="w-3 h-3" /> Estimated timeline: {g.weeksMin}–{g.weeksMax} weeks
+                  </p>
+                )}
+              </motion.div>
+            )}
+            {/* Adherence score */}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.65 }}
+              className="bg-card border border-border rounded-xl p-4 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Adherence Score</p>
+                <p className={`text-sm font-semibold ${adh.color} mt-0.5`}>{adh.emoji} {adh.label}</p>
+              </div>
+              <p className="text-2xl font-mono font-bold text-foreground">{g.adherenceScore}</p>
+            </motion.div>
+            {/* Goal insight */}
+            {g.goalInsight && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}
+                className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+                <p className="text-xs text-foreground leading-relaxed">💡 {g.goalInsight}</p>
               </motion.div>
             )}
             {/* Thyroid note */}
             {g.thyroidNote && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.75 }}
                 className="bg-accent/5 border border-accent/20 rounded-xl p-4">
                 <p className="text-xs text-foreground leading-relaxed">🦋 {g.thyroidNote}</p>
               </motion.div>
             )}
+            {/* Plateau warning */}
+            {g.goalType !== 'maintain' && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}
+                className="bg-muted/50 rounded-xl p-3">
+                <p className="text-[11px] text-muted-foreground leading-relaxed">📉 Progress may slow over time. Adjustments will be made weekly.</p>
+              </motion.div>
+            )}
             {/* Safety warnings */}
             {g.safetyWarnings.map((w, i) => (
-              <motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}
+              <motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.85 }}
                 className="flex items-start gap-2 bg-destructive/5 border border-destructive/20 rounded-xl p-3">
                 <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
                 <p className="text-xs text-destructive/80">{w}</p>
@@ -621,7 +651,7 @@ export default function Onboarding() {
       case 15:
         return (
           <div className="space-y-5">
-            <StepHeader title="Dietary preference" subtitle="We'll tailor meal suggestions accordingly." />
+            <StepHeader title="Dietary preference" subtitle="Your plan will be tailored accordingly." />
             <div className="space-y-2.5">
               {[
                 { v: 'veg', l: '🥬 Vegetarian' },
@@ -636,10 +666,11 @@ export default function Onboarding() {
         );
 
       case 16: {
-        const recommended = +(f.weightKg * 0.035).toFixed(1);
+        const multiplier = getActivityMultiplier(f.work || 'sitting', f.exercise || 'none');
+        const recommended = calculateWaterGoal(f.weightKg, multiplier);
         return (
           <div className="space-y-6">
-            <StepHeader title="Daily water goal" subtitle={`Recommended: ${recommended}L based on your weight.`} />
+            <StepHeader title="Daily water goal" subtitle={`Recommended: ${recommended}L based on your weight and activity.`} />
             <div className="flex flex-col items-center gap-4">
               <motion.div key={f.water} initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                 className="flex items-baseline gap-1">
@@ -697,7 +728,7 @@ export default function Onboarding() {
         const equipmentStr = f.cookingEquipment.length > 0 ? f.cookingEquipment.join(', ') : 'basic equipment';
         return (
           <div className="space-y-6">
-            <StepHeader title="Cooking habits" subtitle="We'll match recipes to your skill and time." />
+            <StepHeader title="Cooking habits" subtitle="Your plan will match recipes to your skill and time." />
             <div className="space-y-2.5">
               {[
                 { v: 'beginner', l: '🔰 Beginner', s: 'Simple recipes, minimal prep' },
@@ -727,7 +758,7 @@ export default function Onboarding() {
               <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                 className="bg-primary/5 border border-primary/20 rounded-xl p-4">
                 <p className="text-xs text-foreground leading-relaxed">
-                  💡 With {f.cookingTime} minutes and {equipmentStr}, we'll suggest quick {f.cookingSkill === 'beginner' ? 'one-pan' : f.cookingSkill === 'intermediate' ? 'simple multi-step' : 'creative'} meals.
+                  💡 With {f.cookingTime} minutes and {equipmentStr}, your plan will suggest quick {f.cookingSkill === 'beginner' ? 'one-pan' : f.cookingSkill === 'intermediate' ? 'simple multi-step' : 'creative'} meals.
                 </p>
               </motion.div>
             )}
@@ -782,7 +813,6 @@ export default function Onboarding() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Progress bar */}
       <div className="px-6 pt-4 pb-2">
         <div className="h-1.5 rounded-full bg-muted overflow-hidden">
           <motion.div className="h-full bg-primary rounded-full" animate={{ width: `${progress}%` }}
