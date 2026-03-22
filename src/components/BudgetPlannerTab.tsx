@@ -5,9 +5,10 @@ import {
   Package, ArrowRightLeft, ShoppingBag, Gift, ChevronRight,
   ChevronDown, ChevronUp, X, ScanLine, ArrowLeft, PieChart,
   Clock, Settings, BarChart3, Sparkles, Eye, Pencil, Trash2, Minus,
-  Brain, Edit3, Utensils, Home as HomeIcon
+  Brain, Edit3, Utensils, Home as HomeIcon, UtensilsCrossed
 } from 'lucide-react';
 import { getBudgetSummary, getNutritionalEconomics, CATEGORY_CONFIG, type BudgetSummary } from '@/lib/budget-service';
+import { getRecipesForMeal, getRemainingMealBudget, getUpcomingMealSlots, type SuggestedRecipe } from '@/lib/meal-suggestion-engine';
 import { getBudgetSettings, saveBudgetSettings, saveManualExpense, deleteManualExpense, updateManualExpense, getManualExpenses, type Expense } from '@/lib/expense-store';
 import { checkBudgetAlerts, getEnhancedBudgetSettings, saveEnhancedBudgetSettings, getSmartSwaps, getBurnRateProjection, type BudgetAlert, type EnhancedBudgetSettings, type PerMealBudget } from '@/lib/budget-alerts';
 import { getPantrySummary, getLowStockAlerts, getPantryItems, addPantryItem, updatePantryItem, deletePantryItem, type PantryItem } from '@/lib/pantry-store';
