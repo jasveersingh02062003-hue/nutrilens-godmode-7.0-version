@@ -1,8 +1,29 @@
 import { MealPlannerProfile, WeekPlan, DayPlan, PlannedMeal } from './meal-planner-store';
-import { filterRecipes, Recipe, recipes } from './recipes';
+import { filterRecipes, getEnrichedRecipe, Recipe, recipes } from './recipes';
+import { getBudgetCurveMultiplier, getAdjustedDailyBudget } from './budget-service';
+import { getEnhancedBudgetSettings } from './budget-alerts';
 
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+/** Score a recipe for meal plan ranking (higher = better) */
+function scoreRecipe(recipe: Recipe, maxCost?: number, targetProtein?: number): number {
+  const enriched = getEnrichedRecipe(recipe);
+  const ppr = Math.min(1, enriched.proteinPerRupee * 3);
+  const sat = Math.min(1, enriched.satietyScore / 5);
+  const nut = (enriched.nutritionScore || 5) / 10;
+  const costFit = maxCost && maxCost > 0 ? Math.max(0, 1 - (enriched.estimatedCost / maxCost)) : 0.5;
+  const protFit = targetProtein && targetProtein > 0 ? Math.min(1, enriched.protein / targetProtein) : 0.5;
+  return (ppr * 0.3) + (sat * 0.3) + (nut * 0.2) + (costFit * 0.1) + (protFit * 0.1);
+}
+
+/** Pick the best-scored recipe from an array */
+function pickBest(arr: Recipe[], maxCost?: number, targetProtein?: number): Recipe {
+  if (arr.length <= 1) return arr[0];
+  return arr.reduce((best, cur) =>
+    scoreRecipe(cur, maxCost, targetProtein) > scoreRecipe(best, maxCost, targetProtein) ? cur : best
+  );
 }
 
 function getMaxTime(cookingTime: string): number {
