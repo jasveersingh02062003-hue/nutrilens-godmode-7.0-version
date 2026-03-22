@@ -34,6 +34,7 @@ import RecoveryOptionsCard from '@/components/RecoveryOptionsCard';
 import { toast } from 'sonner';
 import { getWeather, fetchLiveWeather, type WeatherData } from '@/lib/weather-service';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
+import UpgradeBanner from '@/components/UpgradeBanner';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -146,6 +147,11 @@ export default function Dashboard() {
               <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-coral" />
             </button>
           </div>
+        </div>
+
+        {/* Upgrade Banner (free users only) */}
+        <div className="animate-fade-in">
+          <UpgradeBanner />
         </div>
 
         {/* Weather-Aware Nudge */}

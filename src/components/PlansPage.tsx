@@ -350,6 +350,39 @@ export default function PlansPage({ open, onClose, onPlanChanged }: Props) {
               ))}
             </div>
 
+            {/* Feature Comparison Table */}
+            <div className="mt-4 rounded-2xl border border-border bg-card overflow-hidden">
+              <div className="px-3 py-2.5 bg-muted/50 border-b border-border">
+                <p className="text-[10px] font-bold text-foreground uppercase tracking-wider">Feature Comparison</p>
+              </div>
+              <div className="divide-y divide-border">
+                {[
+                  { feature: 'Camera AI scans', free: '2/day', pro: '∞', ultra: '∞' },
+                  { feature: 'Voice logging', free: '3/day', pro: '∞', ultra: '∞' },
+                  { feature: 'Monica AI coach', free: '5 msgs/day', pro: '∞', ultra: '∞' },
+                  { feature: 'Personalised meal plans', free: '–', pro: '✓', ultra: '✓' },
+                  { feature: 'Auto-adjustment', free: '–', pro: '✓', ultra: '✓' },
+                  { feature: 'Full history & archive', free: '7 days', pro: '∞', ultra: '∞' },
+                  { feature: 'Export data', free: '–', pro: '✓', ultra: '✓' },
+                  { feature: 'Human coaching', free: '–', pro: '–', ultra: '1/month' },
+                  { feature: 'Priority support', free: '–', pro: '–', ultra: '✓' },
+                ].map((row, i) => (
+                  <div key={i} className="grid grid-cols-4 px-3 py-2 items-center">
+                    <span className="text-[10px] text-foreground font-medium col-span-1">{row.feature}</span>
+                    <span className="text-[10px] text-muted-foreground text-center">{row.free}</span>
+                    <span className={`text-[10px] text-center font-semibold ${row.pro === '✓' || row.pro === '∞' ? 'text-primary' : 'text-muted-foreground'}`}>{row.pro}</span>
+                    <span className={`text-[10px] text-center font-semibold ${row.ultra === '✓' || row.ultra === '∞' || row.ultra === '1/month' ? 'text-violet' : 'text-muted-foreground'}`}>{row.ultra}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-4 px-3 py-1.5 bg-muted/30">
+                <span className="text-[8px] text-muted-foreground font-bold uppercase"></span>
+                <span className="text-[8px] text-muted-foreground font-bold uppercase text-center">Free</span>
+                <span className="text-[8px] text-primary font-bold uppercase text-center">Pro</span>
+                <span className="text-[8px] text-violet font-bold uppercase text-center">Ultra</span>
+              </div>
+            </div>
+
             {/* Testimonials Carousel */}
             <div className="mt-4">
               <h3 className="text-sm font-bold text-foreground flex items-center gap-2 mb-3">
