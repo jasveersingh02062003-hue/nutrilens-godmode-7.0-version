@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, ChevronRight, AlertTriangle, Check, Dumbbell } from 'lucide-react';
+import { Plus, ChevronRight, AlertTriangle, Check, Dumbbell, SkipForward } from 'lucide-react';
 import { DailyLog, getTodayKey } from '@/lib/store';
 import { useNavigate } from 'react-router-dom';
 import { getMealHealthColor } from '@/lib/meal-feedback';
@@ -9,12 +9,13 @@ import { useUserProfile } from '@/contexts/UserProfileContext';
 import HealthBadge from '@/components/HealthBadge';
 import MealDetailSheet from '@/components/MealDetailSheet';
 import LoggingOptionsSheet from '@/components/LoggingOptionsSheet';
-import { getAdjustedMealTarget, getMissedMeals } from '@/lib/meal-targets';
+import { getMissedMeals } from '@/lib/meal-targets';
 import { Progress } from '@/components/ui/progress';
 import { isRedistributed, getAllRedistributionDetailsForDate } from '@/lib/redistribution-service';
 import { resolveMealVisualState } from '@/lib/meal-state-service';
 import { getExerciseAdjustmentSummary } from '@/lib/exercise-adjustment';
 import { motion } from 'framer-motion';
+import { DayState, skipMeal as engineSkipMeal } from '@/lib/calorie-engine';
 
 const mealIcons: Record<string, string> = {
   breakfast: '🌅',
