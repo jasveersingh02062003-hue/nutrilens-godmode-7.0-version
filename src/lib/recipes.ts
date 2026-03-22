@@ -25,15 +25,26 @@ export interface Recipe {
   suitableFor?: string[];
   avoidFor?: string[];
   nutritionScore?: number;
+  volumeFactor?: number; // 1-5 (1=low volume like chips, 5=high volume like soup)
 }
 
-/** Compute enriched metadata for a recipe (cost + nutrition score) */
-export function getEnrichedRecipe(recipe: Recipe): Recipe & { estimatedCost: number; nutritionScore: number } {
+export interface EnrichedRecipe extends Recipe {
+  estimatedCost: number;
+  nutritionScore: number;
+  satietyScore: number;
+  proteinPerRupee: number;
+}
+
+/** Compute enriched metadata for a recipe (cost + nutrition + satiety) */
+export function getEnrichedRecipe(recipe: Recipe): EnrichedRecipe {
   const estimatedCost = recipe.estimatedCost ?? estimateRecipeCost(recipe);
   const proteinPerCal = recipe.calories > 0 ? (recipe.protein / recipe.calories) * 100 : 0;
   const fiberBonus = Math.min(recipe.fiber || 0, 10);
   const nutritionScore = recipe.nutritionScore ?? Math.min(10, Math.round(proteinPerCal * 1.5 + fiberBonus * 0.3));
-  return { ...recipe, estimatedCost, nutritionScore };
+  const vf = recipe.volumeFactor ?? 2;
+  const satietyScore = (recipe.protein / 10) + ((recipe.fiber || 0) / 5) + (vf / 2);
+  const proteinPerRupee = estimatedCost > 0 ? recipe.protein / estimatedCost : 0;
+  return { ...recipe, estimatedCost, nutritionScore, satietyScore, proteinPerRupee };
 }
 
 export const recipes: Recipe[] = [
