@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { saveProfile } from '@/lib/store';
 import WelcomeScreen from '@/components/onboarding/WelcomeScreen';
 import ScannerOnboardingScreen from '@/components/onboarding/ScannerOnboardingScreen';
+import PlansPage from '@/components/PlansPage';
 
 // ── Animation variants ──
 const pageVariants = {
