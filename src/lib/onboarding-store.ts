@@ -96,7 +96,10 @@ export function saveOnboardingData(data: OnboardingData) {
     dietaryPrefs: data.lifestyle.diet !== 'noRestrictions' ? [data.lifestyle.diet] : [],
     healthConditions: data.health.conditions.filter(c => c !== 'pcos'),
     womenHealth: data.health.conditions.includes('pcos') ? ['pcos'] : [],
-    menHealth: {},
+    menHealth: {
+      prostateConcerns: data.health.genderSpecific?.prostate ?? false,
+      testosteroneConcerns: data.health.genderSpecific?.testosterone ?? false,
+    },
     medications: '',
     mealTimes: { breakfast: '08:00', lunch: '13:00', dinner: '19:00', snacks: '16:00' },
     waterGoal: Math.round(data.lifestyle.water * 1000),
