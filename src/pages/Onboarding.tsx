@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { saveProfile } from '@/lib/store';
 import WelcomeScreen from '@/components/onboarding/WelcomeScreen';
 import ScannerOnboardingScreen from '@/components/onboarding/ScannerOnboardingScreen';
+import PlansPage from '@/components/PlansPage';
 
 // ── Animation variants ──
 const pageVariants = {
@@ -130,6 +131,7 @@ export default function Onboarding() {
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
   const [goalResult, setGoalResult] = useState<OnboardingGoalResult | null>(null);
+  const [showPlansAfterOnboarding, setShowPlansAfterOnboarding] = useState(false);
 
   const [f, setF] = useState<FormState>({
     name: '', gender: '', age: 25, heightCm: 170, weightKg: 70,
@@ -307,6 +309,7 @@ export default function Onboarding() {
     }
 
     setPhase('success');
+    setShowPlansAfterOnboarding(true);
   };
 
   const bmi = calculateBMI(f.weightKg, f.heightCm);
@@ -915,25 +918,28 @@ export default function Onboarding() {
   }
   if (phase === 'success') {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-6">
-        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center space-y-6 max-w-sm">
-          <motion.p initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.2 }} className="text-6xl">✅</motion.p>
-          <h1 className="text-2xl font-display font-bold text-foreground">Onboarding complete!</h1>
-          <p className="text-sm text-muted-foreground">Your personalized plan has been saved. Let's get started!</p>
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
-            className="text-xs text-muted-foreground">Next step: Log your first meal</motion.p>
-          <div className="space-y-3">
-            <button onClick={() => navigate('/')}
-              className="w-full py-4 rounded-full bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2">
-              <UtensilsCrossed className="w-4 h-4" /> Log Breakfast
-            </button>
-            <button onClick={() => navigate('/dashboard')}
-              className="w-full py-3 rounded-full bg-card border border-border text-foreground font-semibold text-sm hover:bg-muted transition-colors">
-              Go to Dashboard
-            </button>
-          </div>
-        </motion.div>
-      </div>
+      <>
+        <div className="min-h-screen bg-background flex items-center justify-center px-6">
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center space-y-6 max-w-sm">
+            <motion.p initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.2 }} className="text-6xl">✅</motion.p>
+            <h1 className="text-2xl font-display font-bold text-foreground">Onboarding complete!</h1>
+            <p className="text-sm text-muted-foreground">Your personalized plan has been saved. Let's get started!</p>
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
+              className="text-xs text-muted-foreground">Next step: Log your first meal</motion.p>
+            <div className="space-y-3">
+              <button onClick={() => navigate('/')}
+                className="w-full py-4 rounded-full bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2">
+                <UtensilsCrossed className="w-4 h-4" /> Log Breakfast
+              </button>
+              <button onClick={() => navigate('/dashboard')}
+                className="w-full py-3 rounded-full bg-card border border-border text-foreground font-semibold text-sm hover:bg-muted transition-colors">
+                Go to Dashboard
+              </button>
+            </div>
+          </motion.div>
+        </div>
+        <PlansPage open={showPlansAfterOnboarding} onClose={() => setShowPlansAfterOnboarding(false)} onPlanChanged={() => {}} />
+      </>
     );
   }
 
