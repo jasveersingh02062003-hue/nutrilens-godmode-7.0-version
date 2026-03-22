@@ -13,6 +13,7 @@ import SupplementLogSheet from '@/components/SupplementLogSheet';
 import SupplementEditModal from '@/components/SupplementEditModal';
 import CaloriesBurnedCard from '@/components/CaloriesBurnedCard';
 import { getDailyLog, getDailyTotals, addWater, DailyLog, SupplementEntry, getTodayKey, getProfile as getStoredProfile, saveProfile as saveStoredProfile } from '@/lib/store';
+import { recalculateDay } from '@/lib/calorie-engine';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { getGreeting } from '@/lib/nutrition';
 import MonikaFab from '@/components/MonikaFab';
@@ -41,6 +42,7 @@ export default function Dashboard() {
   const { profile, refreshProfile } = useUserProfile();
   const [log, setLog] = useState<DailyLog>(getDailyLog());
   const totals = getDailyTotals(log);
+  const dayState = recalculateDay(profile, log);
   const [weather, setWeather] = useState<WeatherData>(getWeather());
 
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -186,7 +188,7 @@ export default function Dashboard() {
 
         {/* 2. Calorie Ring */}
         <div className="animate-scale-in">
-          <CalorieRing eaten={totals.eaten} burned={totals.burned} goal={profile.dailyCalories} burnedData={log.burned} />
+          <CalorieRing dayState={dayState} />
         </div>
 
         {/* 3. Macros */}
@@ -238,7 +240,7 @@ export default function Dashboard() {
 
         {/* 7. Today's Meals */}
         <div className="animate-slide-up" style={{ animationDelay: '0.18s' }}>
-          <TodayMeals log={log} onRefresh={refreshLog} />
+          <TodayMeals log={log} onRefresh={refreshLog} dayState={dayState} />
         </div>
       </div>
 

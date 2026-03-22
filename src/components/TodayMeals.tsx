@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, ChevronRight, AlertTriangle, Check, Dumbbell } from 'lucide-react';
+import { Plus, ChevronRight, AlertTriangle, Check, Dumbbell, SkipForward } from 'lucide-react';
 import { DailyLog, getTodayKey } from '@/lib/store';
 import { useNavigate } from 'react-router-dom';
 import { getMealHealthColor } from '@/lib/meal-feedback';
@@ -9,12 +9,13 @@ import { useUserProfile } from '@/contexts/UserProfileContext';
 import HealthBadge from '@/components/HealthBadge';
 import MealDetailSheet from '@/components/MealDetailSheet';
 import LoggingOptionsSheet from '@/components/LoggingOptionsSheet';
-import { getAdjustedMealTarget, getMissedMeals } from '@/lib/meal-targets';
+import { getMissedMeals } from '@/lib/meal-targets';
 import { Progress } from '@/components/ui/progress';
 import { isRedistributed, getAllRedistributionDetailsForDate } from '@/lib/redistribution-service';
 import { resolveMealVisualState } from '@/lib/meal-state-service';
 import { getExerciseAdjustmentSummary } from '@/lib/exercise-adjustment';
 import { motion } from 'framer-motion';
+import { DayState, skipMeal as engineSkipMeal } from '@/lib/calorie-engine';
 
 const mealIcons: Record<string, string> = {
   breakfast: '🌅',
@@ -33,9 +34,10 @@ const mealConfig = [
 interface Props {
   log: DailyLog;
   onRefresh?: () => void;
+  dayState: DayState;
 }
 
-export default function TodayMeals({ log, onRefresh }: Props) {
+export default function TodayMeals({ log, onRefresh, dayState }: Props) {
   const navigate = useNavigate();
   const { profile } = useUserProfile();
   const hasConditions = userHasHealthConditions(profile);
@@ -87,9 +89,13 @@ export default function TodayMeals({ log, onRefresh }: Props) {
               ? scoreUnifiedMeal(meals.flatMap(m => m.items), totalCarbs, totalProtein, totalFat, totalCal, profile)
               : null;
 
-            const target = profile ? getAdjustedMealTarget(profile, mc.type, todayKey) : null;
+            // Use engine-computed target from dayState
+            const slotName = mc.type === 'snack' ? 'snacks' : mc.type;
+            const engineSlot = dayState.slots.find(s => s.name === slotName);
+            const target = engineSlot ? { calories: engineSlot.targetKcal, protein: 0, carbs: 0, fat: 0 } : null;
             const calPct = target && target.calories > 0 ? Math.min(200, Math.round((totalCal / target.calories) * 100)) : 0;
-            const isMissed = missedMeals.includes(mc.type);
+            const engineStatus = engineSlot?.status || 'pending';
+            const isMissed = engineStatus === 'missed';
             const mealRedistributed = isRedistributed(todayKey, mc.type);
 
             // Visual state
@@ -232,8 +238,23 @@ export default function TodayMeals({ log, onRefresh }: Props) {
                     </div>
                   </div>
                 ) : (
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                    <Plus className="w-4 h-4 text-primary" />
+                  <div className="flex items-center gap-1.5">
+                    {engineStatus === 'pending' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          engineSkipMeal(todayKey, mc.type);
+                          onRefresh?.();
+                        }}
+                        className="w-7 h-7 rounded-lg bg-muted/60 flex items-center justify-center hover:bg-muted transition-colors"
+                        title="Skip this meal"
+                      >
+                        <SkipForward className="w-3.5 h-3.5 text-muted-foreground" />
+                      </button>
+                    )}
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                      <Plus className="w-4 h-4 text-primary" />
+                    </div>
                   </div>
                 )}
               </motion.button>
