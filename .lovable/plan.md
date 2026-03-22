@@ -1,68 +1,39 @@
 
 
-## Fill Remaining Gaps: Survival Toggle, Reality Shock, Dual-Sync Insights
+## Integrate 102-Recipe Database into Existing Recipe Engine
 
-### Already Implemented (No Changes Needed)
-- Budget engine with daily/weekly/monthly splits, meal-level budgets
-- Cash flow curve (day-of-month multiplier)
-- Overspend redistribution + decision engine (continue/recover/ignore)
-- Behavior engine with consistency score, eating pattern classification
-- Auto survival mode (consistency < 50) + recovery mode banners
-- Recipe database with satiety scores, proteinPerRupee, health filtering
-- Meal suggestion engine ranked by satiety + budget + health
-- Smart swaps, opportunity cost display, financial insights
+### Current State
+- `recipes.ts` already has ~100 recipes with **rich data** (ingredients list, cooking steps, descriptions, emoji)
+- ~40 of the user's 102 recipes overlap with existing entries (Poha, Idli Sambar, Dal Tadka, Rajma Chawal, etc.)
+- Existing recipes lack explicit `estimatedCost`, `suitableFor`, `avoidFor`, `nutritionScore`, and `volumeFactor` on most entries (computed at runtime via `getEnrichedRecipe`)
 
-### What's Actually Missing
+### Strategy
+Rather than duplicating recipes, we will:
+1. **Enrich existing recipes** with the user's metadata (`suitableFor`, `avoidFor`, `nutritionScore`, `volumeFactor`, `estimatedCost`)
+2. **Add ~60 new recipes** that don't already exist (Sattu Drink, Karela Fry, Sago Khichdi, Tamarind Rice, Baked Sweet Potato, Fish Fry, Kadhi Chawal, etc.)
+3. New recipes get minimal but valid `ingredients`/`steps` (1-3 items each) so existing UI doesn't break
 
-| Feature | Description |
-|---------|-------------|
-| Manual ₹100 Survival Mode | User-triggered hard cap at ₹100/day with toggle in Budget tab |
-| Reality Shock Alert | When meal cost > 1.5x daily budget, show "This = X days of food budget" |
-| Dual-Sync Insights | Detect Low-Cal+High-Spend and High-Cal+Low-Spend scenarios, show nudges |
-| Per-Meal Budget Cascade | When one meal overspends, reduce next meal's budget automatically |
-| Rolling Next-Meal Card | Prominent "Your Next Meal" suggestion on Dashboard using remaining cal/protein/budget |
+### Files Changed
 
-### Plan (4 files modified, 1 new component)
+**File 1: `src/lib/recipes.ts`**
+- Add metadata fields (`estimatedCost`, `suitableFor`, `avoidFor`, `nutritionScore`, `volumeFactor`) to all ~40 existing recipes that match user's database
+- Append ~60 new recipe objects for entries not already present, with:
+  - Mapped `difficulty` values (`easy` -> `beginner`, `medium` -> `intermediate`, `advanced` -> `advanced`)
+  - Mapped `mealType` (`snacks` -> `snack`)
+  - Minimal `ingredients` array (category-tagged for cost estimation)
+  - Minimal `steps` array
+  - Assigned `emoji` per recipe
 
-**File 1: `src/lib/budget-service.ts` — Add survival mode toggle + per-meal cascade + dual-sync**
+### What Stays Unchanged
+- Recipe interface (already has all needed optional fields)
+- `getEnrichedRecipe()` function (already computes satiety, proteinPerRupee)
+- `filterRecipes()`, `getRecipeById()`, `getRecipesByMealType()`
+- Meal suggestion engine, meal planner, all UI components
+- All other files
 
-- `activateSurvivalMode()` / `deactivateSurvivalMode()` / `isSurvivalModeManual()`: localStorage toggle that caps daily budget at ₹100 and per-meal at ₹25
-- `cascadeMealBudget(mealType, spent)`: if spent > allocated for that meal, reduce next meal's budget by the overage (min ₹10)
-- `getDualSyncInsight()`: compares calories-consumed% vs budget-spent%, returns scenario A/B nudge text or null
-
-**File 2: `src/lib/decision-engine.ts` — Add reality shock check**
-
-- `getRealityShock(mealCost)`: if cost > dailyBudget * 1.5, returns `{ daysEquivalent, message }` e.g. "₹600 = 3.6 days of your food budget"
-- Integrate into `shouldTriggerOverspendDecision` flow
-
-**File 3: `src/components/BudgetPlannerTab.tsx` — Add ₹100 Survival Mode toggle**
-
-- Add a toggle card at top of budget settings: "₹100/Day Survival Mode"
-- When active, override all budget displays to ₹100/day, ₹25/meal
-- Show only recipes ≤ ₹25 in suggestions
-
-**File 4: `src/components/NextMealCard.tsx` (NEW) — Rolling next-meal suggestion**
-
-- Compute: remaining calories, remaining protein, remaining budget for current meal slot
-- Call `getRecipesForMeal()` with those constraints
-- Display top suggestion: name, cost, calories, protein, satiety score
-- "Log This" button to one-tap log
-
-**File 5: `src/pages/Dashboard.tsx` — Wire NextMealCard + dual-sync insight + reality shock**
-
-- Add `NextMealCard` below the calorie ring
-- Show dual-sync insight as a contextual nudge banner when applicable
-- Show reality shock toast when logging expensive meals
-
-### Technical Details
-
-Dual-sync logic:
-```
-caloriePercent = consumed / target
-budgetPercent = spent / dailyBudget
-if budgetPercent > 0.8 && caloriePercent < 0.3 → "Low efficiency" nudge
-if caloriePercent > 0.9 && budgetPercent < 0.2 → "Check protein quality" nudge
-```
-
-Survival mode override: when active, `getAdjustedDailyBudget()` returns max ₹100 regardless of actual budget settings.
+### Technical Notes
+- The user's `cost` field maps to `estimatedCost` on the Recipe interface
+- `snacks` in user data maps to `snack` in existing mealType union type
+- `side` and `beverage` meal types from user data will be mapped to `snack`
+- Duplicate recipes (same dish) will be skipped; their metadata will be applied to existing entries instead
 
