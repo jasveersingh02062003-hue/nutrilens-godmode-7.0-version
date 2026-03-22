@@ -4,6 +4,7 @@ import {
   getRecentLogs, getWeightHistory, getAllLogDates,
   type MealEntry, type FoodItem, type ActivityEntry, type DailyLog
 } from '@/lib/store';
+import { calculateBurnBreakdown } from '@/lib/burn-service';
 import { getWeatherSummary } from '@/lib/weather-service';
 import { getDashboardWeatherNudge } from '@/lib/weather-nudge-service';
 import { ACTIVITY_TYPES, calculateCalories, getMetForIntensity } from '@/lib/activities';
