@@ -37,7 +37,7 @@ interface Props {
   dayState: DayState;
 }
 
-export default function TodayMeals({ log, onRefresh }: Props) {
+export default function TodayMeals({ log, onRefresh, dayState }: Props) {
   const navigate = useNavigate();
   const { profile } = useUserProfile();
   const hasConditions = userHasHealthConditions(profile);
