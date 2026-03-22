@@ -238,7 +238,7 @@ export function buildMonikaContext() {
 
   // Real-time calorie engine calculations
   const totals = getDailyTotals(log);
-  const burnBreakdown = calculateBurnBreakdown(log.burned || { steps: 0, activities: [] });
+  const burnBreakdown = calculateBurnBreakdown(log.burned || { steps: 0, stepsCount: 0, total: 0, activities: [] });
   const effectiveBurn = burnBreakdown.effectiveBurn;
   const baseTarget = profile?.dailyCalories || 0;
   const dailyBudget = Math.round((budgetSettings.weeklyBudget || 0) / 7);
