@@ -1,79 +1,87 @@
 
 
-# NutriLens AI – Editorial Welcome & Scanner-First Onboarding
+## NutriLens AI – Onboarding Wizard Rebuild
 
-## What We're Building
+### Summary
+Replace the existing onboarding wizard with a streamlined 8-phase flow matching the exact data structure, calculation logic, and step order specified. The current `Onboarding.tsx` (~1460 lines) will be rewritten, and the calculation engine updated.
 
-Replace the current tutorial slides + basic welcome step with two new high-end screens that demonstrate value immediately:
+### Data Structure
+Save to `localStorage` key `nutrilens_user` with the nested structure: `basic`, `health`, `activity`, `goals`, `lifestyle`, `meta`. A compatibility layer will also write the existing `nutrilens_profile` key so other app components don't break.
 
-1. **WelcomeScreen** — Full-screen editorial hero with gradient overlay, glassmorphism insight card, large typography, and two CTAs ("Get Started" / "I already have an account")
-2. **ScannerOnboardingScreen** — Interactive AI scanner demo that lets users upload or demo-scan a meal photo, see mock nutrition results, then proceed to the profile setup flow
+### Calculation Changes (`src/lib/nutrition.ts` + `src/lib/goal-engine.ts`)
 
-After these two screens, the existing onboarding questions (name, gender, health, etc.) continue unchanged with the same design system.
+**Activity multiplier** — derived from work + exercise combo (not a single dropdown):
+```text
+work\exercise  | none | 1-3  | 4-5  | daily
+sitting        | 1.2  | 1.375| 1.55 | 1.725
+mixed          | 1.375| 1.55 | 1.725| 1.9
+physical       | 1.55 | 1.725| 1.9  | 1.9
+```
 
----
+**Goal calories:**
+- Lose balanced: TDEE × 0.80, aggressive: TDEE × 0.70
+- Gain balanced: TDEE × 1.10, aggressive: TDEE × 1.20
+- Clamp: `Math.max(1200, Math.min(target, TDEE * 1.3))`
 
-## Files to Create
+**Macro formulas (weight-based protein):**
+- Protein factor: lose → 1.8, maintain → 1.4, gain → 1.6
+- Activity bonus: multiplier ≥ 1.55 → +0.2, ≥ 1.725 → another +0.2, cap at 2.2
+- Fat = (target × 0.25) / 9
+- Carbs = remaining calories / 4
 
-### 1. `src/components/onboarding/WelcomeScreen.tsx`
+**Health adjustments (non-stacking carb reduction):**
+- PCOS + diabetes → carbs × 0.75
+- PCOS only → carbs × 0.85, fats × 1.10
+- Diabetes only → carbs × 0.80
+- Thyroid → note only, no calorie change
+- Rebalance carbs from remaining calories; floor carbs at 50g
 
-Full-screen editorial layout:
-- **Background**: `hero-nutrition.jpg` covering full viewport with a dark gradient overlay (`from-black/70 via-black/40 to-transparent`)
-- **Top-left**: Small "NutriLens" wordmark in white
-- **Center-bottom area**: Large display heading "Your Food, Decoded by AI" + subtitle "Snap any meal. Get instant nutrition insights powered by AI."
-- **Glassmorphism insight card**: A frosted-glass card showing a sample insight — "Average Indian thali: 650 kcal" with a small chart icon, demonstrating the app's intelligence
-- **Two buttons**:
-  - "Get Started" (primary, full-width, rounded-full) → calls `onGetStarted()`
-  - "I already have an account" (ghost text link) → calls `onSignIn()`
-- Use framer-motion for staggered fade-in of elements
-- Props: `onGetStarted: () => void`, `onSignIn: () => void`
+**Expected weight change:**
+- Loss: `(deficit × 7) / 7700`, cap 1.0 kg/week
+- Gain: `(surplus × 7) / 7700`, cap 0.5 kg/week
 
-### 2. `src/components/onboarding/ScannerOnboardingScreen.tsx`
+**Water:** `weight × 0.035` litres, rounded to 0.1L
 
-Clean card-based scanner demo:
-- **Header**: Back arrow + "Try AI Scanner" title
-- **Scanner card** (card-elevated): 
-  - Image upload area with dashed border, camera icon, "Drop a meal photo or tap to upload" text
-  - File input (accept images) — on upload, shows the image preview
-  - "Try Demo Scan" button below — uses a hardcoded mock result
-- **Loading state**: When scanning (2-second simulated delay), show a pulsing animation with "Analyzing your meal..." text
-- **Results card**: After scan completes, show:
-  - Meal name: "Paneer Butter Masala with Naan"
-  - Calories: 580 kcal, Protein: 22g, Carbs: 48g, Fat: 32g
-  - Confidence badge: 94%
-  - Each macro as a colored pill
-- **CTA**: "Continue to Set Up Profile" button (primary, full-width) → calls `onContinue()`
-- Props: `onBack: () => void`, `onContinue: () => void`
+### Phase Flow (8 Phases)
 
----
+| Phase | Steps | Key UI |
+|-------|-------|--------|
+| 1 – Core Identity | Name, Gender, Age (slider 13–80), Height, Weight | Input validation, unit toggle |
+| 2 – Value Drop | BMI + BMR display | Personal translation text, Continue button |
+| 3 – Health | Conditions (checkboxes), Skin (single-select) | Specific food-based insights per skin type |
+| 4 – Activity | Work type, Exercise frequency | 3 + 4 options |
+| 5 – Goal & Target | Goal, Speed, Target weight | Validation (lose < current, gain > current) |
+| 6 – Final Output | TDEE, Target calories, Macros, Expected change | Arrow animation, thyroid note if applicable |
+| 7 – Lifestyle (optional) | Diet, Water slider, Supplements, Cooking | Contextual insights linking supplements to macro targets |
+| 8 – Finish | Save button | Save `nutrilens_user`, show success, clear wizard |
 
-## Files to Modify
+### Files to Modify
 
-### 3. `src/pages/Onboarding.tsx`
+1. **`src/pages/Onboarding.tsx`** — Full rewrite with 8-phase structure, ~800-1000 lines. Remove intermediate screens (calculating, motivation, subscription). Keep existing UI patterns (motion animations, Option/ChipSelect components, MonikaGuide).
 
-- Replace `'tutorial'` phase with `'welcome'` and `'scanner'` phases
-- Update phase type: `'welcome' | 'scanner' | 'onboarding' | 'profileReview' | ...`
-- Initial phase: `'welcome'` (instead of `'tutorial'`)
-- Phase transitions:
-  - `welcome` → "Get Started" → `'scanner'`
-  - `welcome` → "I already have an account" → navigate to Auth page (`navigate('/auth')` or trigger sign-in)
-  - `scanner` → "Continue" → `'onboarding'` (starts at step index 1, skipping the old 'welcome' step)
-  - `scanner` → "Back" → `'welcome'`
-- Remove the old `TutorialSlides` import and usage
-- The existing `'welcome'` step inside `renderStep()` (the old in-flow welcome with hero image) should be skipped — start onboarding steps from `'name'` (step index 1)
+2. **`src/lib/goal-engine.ts`** — Update `determineGoalAndTargets` to accept work+exercise instead of single activity level. Add the specified macro formula (weight-based protein, health carb adjustments with non-stacking logic, 50g carb floor).
 
-### 4. `src/pages/Auth.tsx`
+3. **`src/lib/nutrition.ts`** — Add `getActivityMultiplier(work, exercise)` function. Keep existing functions for backward compatibility.
 
-- No changes needed — the "I already have an account" flow from WelcomeScreen will navigate here via React Router
+4. **`src/lib/store.ts`** — Add `saveOnboardingData(data)` that writes both the new nested structure (`nutrilens_user`) and the legacy `nutrilens_profile` format. Add `getOnboardingProgress()` / `saveOnboardingProgress()` for step persistence.
 
----
+### Specific Insights (Hardcoded)
 
-## Technical Notes
+- **Acne-prone:** "We'll recommend pumpkin seeds and lentils (zinc) and suggest limiting dairy."
+- **Dry:** "Healthy fats like avocado and nuts will be highlighted, plus extra water reminders."
+- **Oily:** "Zinc-rich foods like chickpeas and seeds will help regulate oil production."
+- **Supplements:** Dynamic — e.g., "Protein powder will help you hit your daily protein target of {protein}g."
+- **Cooking:** Dynamic — e.g., "With {time} minutes and {equipment}, we'll suggest quick one-pan meals."
 
-- Reuses existing `hero-nutrition.jpg` asset for the editorial background
-- Mock scanner data is hardcoded (no API call) — matches existing analyze-food edge function response shape for future integration
-- The glassmorphism card uses `backdrop-blur-xl bg-white/10 border border-white/20` styling
-- All animations use framer-motion (already in project)
-- The existing onboarding step array starts with `'welcome'` at index 0 — the new flow skips this and starts at `'name'` (index 1) when entering from the scanner
-- No new dependencies needed
+### Edge Cases Handled
+- Calories < 1200 → clamp + warning banner
+- Carbs < 50g → reduce fat slightly, show warning
+- Target weight validation errors
+- Leading zeros stripped via `parseFloat`
+- Resume on page load from saved progress
+
+### What's NOT Changing
+- No dashboard or post-onboarding features
+- Existing sub-components (MonikaGuide, OnboardingProgress) reused where applicable
+- Tailwind CSS styling, mobile-first layout preserved
 
