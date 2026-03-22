@@ -1,4 +1,4 @@
-// ─── Decision Engine: Overspend Options + Recovery ───
+// ─── Decision Engine: Overspend Options + Recovery + Reality Shock ───
 
 import { getBudgetSummary, getDaysRemainingInPeriod, getAdjustedDailyBudget } from './budget-service';
 import { getBudgetSettings, saveBudgetSettings } from './expense-store';
@@ -12,9 +12,6 @@ export interface OverspendOption {
   emoji: string;
 }
 
-/**
- * Generate decision options when user overspends on a meal.
- */
 export function getOverspendOptions(mealCost: number): OverspendOption[] {
   const summary = getBudgetSummary();
   const { adjustedDailyBudget, daysRemaining } = getAdjustedDailyBudget();
@@ -49,9 +46,6 @@ export function getOverspendOptions(mealCost: number): OverspendOption[] {
   ];
 }
 
-/**
- * Apply the user's chosen decision.
- */
 export function applyDecision(choice: 'continue' | 'recover' | 'ignore'): string {
   if (choice === 'recover') {
     const recovery = {
@@ -70,16 +64,12 @@ export function applyDecision(choice: 'continue' | 'recover' | 'ignore'): string
   return 'Continuing with current budget plan.';
 }
 
-/**
- * Check if recovery mode is active.
- */
 export function isRecoveryModeActive(): boolean {
   try {
     const data = localStorage.getItem(RECOVERY_KEY);
     if (!data) return false;
     const recovery = JSON.parse(data);
     if (!recovery.active) return false;
-    // Check if recovery period has passed
     const start = new Date(recovery.startDate);
     const now = new Date();
     const daysPassed = Math.floor((now.getTime() - start.getTime()) / (86400000));
@@ -91,36 +81,45 @@ export function isRecoveryModeActive(): boolean {
   } catch { return false; }
 }
 
-/**
- * Check if a meal cost should trigger the overspend decision sheet.
- * Triggers when meal cost > 50% of daily budget.
- */
 export function shouldTriggerOverspendDecision(mealCost: number): boolean {
   const { adjustedDailyBudget } = getAdjustedDailyBudget();
   if (adjustedDailyBudget <= 0) return false;
   return mealCost > adjustedDailyBudget * 0.5;
 }
 
-/**
- * Get financial insight for a meal cost — opportunity cost display.
- */
+// ─── Reality Shock Protocol ───
+
+export interface RealityShock {
+  daysEquivalent: number;
+  message: string;
+}
+
+export function getRealityShock(mealCost: number): RealityShock | null {
+  const { adjustedDailyBudget } = getAdjustedDailyBudget();
+  if (adjustedDailyBudget <= 0) return null;
+  if (mealCost <= adjustedDailyBudget * 1.5) return null;
+
+  const daysEquivalent = Math.round((mealCost / adjustedDailyBudget) * 10) / 10;
+  return {
+    daysEquivalent,
+    message: `⚠️ ₹${mealCost} on a single meal = ${daysEquivalent} days of your food budget (₹${adjustedDailyBudget}/day).`,
+  };
+}
+
 export function getFinancialInsight(mealCost: number): string | null {
   if (mealCost < 80) return null;
-  const eggMeals = Math.floor(mealCost / 25); // ~₹25 per 2-egg meal
-  const dalRiceMeals = Math.floor(mealCost / 45); // ~₹45 per dal-rice
-  const proteinGrams = Math.round(eggMeals * 12); // 12g per egg meal
+  const eggMeals = Math.floor(mealCost / 25);
+  const dalRiceMeals = Math.floor(mealCost / 45);
+  const proteinGrams = Math.round(eggMeals * 12);
   return `₹${mealCost} = ${dalRiceMeals} dal-rice meals = ~${proteinGrams}g protein worth`;
 }
 
-/**
- * Get opportunity cost as structured data.
- */
 export function getOpportunityCost(amount: number) {
   return {
     eggMeals: Math.floor(amount / 25),
     dalRiceMeals: Math.floor(amount / 45),
     pohaMeals: Math.floor(amount / 20),
     proteinEquivalent: Math.round((amount / 25) * 12),
-    savingsPerWeek: Math.round(amount * 0.7), // if chose cheaper alternative
+    savingsPerWeek: Math.round(amount * 0.7),
   };
 }

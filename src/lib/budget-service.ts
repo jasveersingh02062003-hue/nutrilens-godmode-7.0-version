@@ -6,7 +6,8 @@ import {
   type Expense,
   type BudgetSettings,
 } from './expense-store';
-import { getDailyLog, getDailyTotals, getAllLogDates } from './store';
+import { getDailyLog, getDailyTotals, getAllLogDates, getTodayKey } from './store';
+import { getEnhancedBudgetSettings } from './budget-alerts';
 
 export interface BudgetSummary {
   budget: number;
@@ -52,7 +53,6 @@ export interface NutritionalEconomics {
 
 export function getNutritionalEconomics(period: 'week' | 'month' = 'week'): NutritionalEconomics {
   const range = period === 'week' ? getWeekDateRange() : getMonthDateRange();
-  
 
   const allDates = getAllLogDates() as string[];
   let totalCost = 0;
@@ -93,17 +93,11 @@ export const CATEGORY_CONFIG: Record<string, { label: string; emoji: string; col
 
 // ─── Overspend Redistribution ───
 
-/**
- * Calculate how much to reduce daily budget for remaining days after an overspend.
- */
 export function adjustBudgetAfterOverspend(overspend: number, daysRemaining: number): number {
   if (daysRemaining <= 0 || overspend <= 0) return 0;
   return Math.round(overspend / daysRemaining);
 }
 
-/**
- * Get days remaining in the current budget period.
- */
 export function getDaysRemainingInPeriod(period: 'week' | 'month' = 'week'): number {
   const now = new Date();
   if (period === 'week') {
@@ -116,21 +110,14 @@ export function getDaysRemainingInPeriod(period: 'week' | 'month' = 'week'): num
 
 // ─── Cash Flow Curve ───
 
-/**
- * Budget curve multiplier based on day of month.
- * People spend more early month and tighten later.
- */
 export function getBudgetCurveMultiplier(dayOfMonth?: number): number {
   const day = dayOfMonth ?? new Date().getDate();
-  if (day <= 5) return 1.2;   // relaxed
-  if (day <= 20) return 1.0;  // normal
-  if (day <= 25) return 0.9;  // tight
-  return 0.7;                 // survival
+  if (day <= 5) return 1.2;
+  if (day <= 20) return 1.0;
+  if (day <= 25) return 0.9;
+  return 0.7;
 }
 
-/**
- * Get the adjusted daily budget considering overspend + cash flow curve.
- */
 export function getAdjustedDailyBudget(): { dailyBudget: number; adjustedDailyBudget: number; overspend: number; daysRemaining: number; curveMultiplier: number } {
   const summary = getBudgetSummary();
   const daysRemaining = getDaysRemainingInPeriod(summary.period);
@@ -143,5 +130,89 @@ export function getAdjustedDailyBudget(): { dailyBudget: number; adjustedDailyBu
   const adjustedDailyBudget = Math.round(rawAdjusted * curveMultiplier);
   const overspend = Math.max(0, summary.spent - summary.budget);
 
-  return { dailyBudget, adjustedDailyBudget, overspend, daysRemaining, curveMultiplier };
+  // Apply manual survival mode override
+  const finalAdjusted = isSurvivalModeManual()
+    ? Math.min(adjustedDailyBudget, 100)
+    : adjustedDailyBudget;
+
+  return { dailyBudget, adjustedDailyBudget: finalAdjusted, overspend, daysRemaining, curveMultiplier };
+}
+
+// ─── Manual ₹100 Survival Mode ───
+
+const SURVIVAL_MODE_KEY = 'nutrilens_survival_manual';
+
+export function activateSurvivalMode(): void {
+  localStorage.setItem(SURVIVAL_MODE_KEY, 'true');
+}
+
+export function deactivateSurvivalMode(): void {
+  localStorage.removeItem(SURVIVAL_MODE_KEY);
+}
+
+export function isSurvivalModeManual(): boolean {
+  return localStorage.getItem(SURVIVAL_MODE_KEY) === 'true';
+}
+
+// ─── Per-Meal Budget Cascade ───
+
+const MEAL_ORDER = ['breakfast', 'lunch', 'snack', 'dinner'];
+
+export function cascadeMealBudget(mealType: string, spent: number): { nextMeal: string; reducedBudget: number } | null {
+  const enhanced = getEnhancedBudgetSettings();
+  const perMeal = enhanced.perMeal || { breakfast: 100, lunch: 150, dinner: 200, snacks: 50 };
+  const slotKey = mealType === 'snack' ? 'snacks' : mealType;
+  const allocated = (perMeal as any)[slotKey] || 0;
+  const overage = spent - allocated;
+
+  if (overage <= 0) return null;
+
+  const idx = MEAL_ORDER.indexOf(mealType);
+  if (idx < 0 || idx >= MEAL_ORDER.length - 1) return null;
+
+  const nextMeal = MEAL_ORDER[idx + 1];
+  const nextKey = nextMeal === 'snack' ? 'snacks' : nextMeal;
+  const nextBudget = (perMeal as any)[nextKey] || 0;
+  const reducedBudget = Math.max(10, nextBudget - overage);
+
+  return { nextMeal, reducedBudget };
+}
+
+// ─── Dual-Sync Insight Engine ───
+
+export interface DualSyncInsight {
+  type: 'low_efficiency' | 'check_quality';
+  emoji: string;
+  message: string;
+}
+
+export function getDualSyncInsight(targetCalories: number): DualSyncInsight | null {
+  const { adjustedDailyBudget } = getAdjustedDailyBudget();
+  if (adjustedDailyBudget <= 0 || targetCalories <= 0) return null;
+
+  const log = getDailyLog(getTodayKey());
+  const totals = getDailyTotals(log);
+  const totalSpent = log.meals.reduce((s, m) => s + (m.cost?.amount || 0), 0);
+
+  const calPercent = totals.eaten / targetCalories;
+  const budgetPercent = totalSpent / adjustedDailyBudget;
+
+  if (budgetPercent > 0.8 && calPercent < 0.3) {
+    const remaining = Math.round(targetCalories - totals.eaten);
+    return {
+      type: 'low_efficiency',
+      emoji: '⚠️',
+      message: `Spent ${Math.round(budgetPercent * 100)}% of budget but only ${Math.round(calPercent * 100)}% calories. Need ~${remaining} kcal — switch to home staples.`,
+    };
+  }
+
+  if (calPercent > 0.9 && budgetPercent < 0.2) {
+    return {
+      type: 'check_quality',
+      emoji: '🔍',
+      message: `Calorie target hit but only ${Math.round(budgetPercent * 100)}% budget used. Use surplus for protein-rich foods tomorrow.`,
+    };
+  }
+
+  return null;
 }

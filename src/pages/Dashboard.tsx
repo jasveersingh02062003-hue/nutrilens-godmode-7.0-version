@@ -37,6 +37,8 @@ import { isRecoveryModeActive } from '@/lib/decision-engine';
 import { toast } from 'sonner';
 import { getWeather, fetchLiveWeather, type WeatherData } from '@/lib/weather-service';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
+import NextMealCard from '@/components/NextMealCard';
+import { getDualSyncInsight, isSurvivalModeManual } from '@/lib/budget-service';
 import UpgradeBanner from '@/components/UpgradeBanner';
 import { getMealPlannerProfile } from '@/lib/meal-planner-store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -131,8 +133,9 @@ export default function Dashboard() {
     setSheetOpen(true);
   };
 
-  const survivalMode = isSurvivalModeActive();
+  const survivalMode = isSurvivalModeActive() || isSurvivalModeManual();
   const recoveryMode = isRecoveryModeActive();
+  const dualSyncInsight = getDualSyncInsight(profile.dailyCalories);
 
   return (
     <>
@@ -232,9 +235,26 @@ export default function Dashboard() {
           <SkinHealthCard />
         </div>
 
+        {/* Dual-Sync Insight */}
+        {dualSyncInsight && (
+          <div className="animate-fade-in">
+            <div className={`flex items-center gap-3 rounded-2xl px-4 py-3 border ${
+              dualSyncInsight.type === 'low_efficiency' ? 'bg-accent/10 border-accent/20' : 'bg-primary/10 border-primary/20'
+            }`}>
+              <span className="text-sm">{dualSyncInsight.emoji}</span>
+              <p className="text-[11px] font-medium text-foreground">{dualSyncInsight.message}</p>
+            </div>
+          </div>
+        )}
+
         {/* 2. Calorie Ring */}
         <div className="animate-scale-in">
           <CalorieRing dayState={dayState} />
+        </div>
+
+        {/* Next Meal Suggestion */}
+        <div className="animate-slide-up" style={{ animationDelay: '0.03s' }}>
+          <NextMealCard profile={profile} onRefresh={refreshLog} />
         </div>
 
         {/* 3. Macros */}
