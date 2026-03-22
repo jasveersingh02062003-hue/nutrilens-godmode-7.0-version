@@ -254,8 +254,6 @@ export function buildMonikaContext() {
       waterGoal: profile.waterGoal,
       mealTimes: profile.mealTimes,
       skinConcerns,
-      conditions: profile.conditions,
-      budget: profile.budget,
     } : null,
     today: formatLogForContext(log),
     todaySupplements: todaySupplements.map((s: any) => ({
