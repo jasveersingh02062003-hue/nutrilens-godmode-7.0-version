@@ -1450,6 +1450,10 @@ export default function Onboarding() {
   };
 
   // ── Phase routing ──
+  if (phase === 'featureFlex') {
+    return <PESFeatureFlex onDismiss={() => setPhase('welcome')} />;
+  }
+
   if (phase === 'welcome') {
     return <WelcomeScreen onGetStarted={() => setPhase('scanner')} onSignIn={() => navigate('/auth')} />;
   }
