@@ -270,6 +270,11 @@ export default function Dashboard() {
           <BudgetSummaryCard />
         </div>
 
+        {/* Daily Food Efficiency */}
+        <div className="animate-slide-up" style={{ animationDelay: '0.055s' }}>
+          <DailyEfficiencyCard />
+        </div>
+
         {/* 3b. Weekly Report (Mondays) */}
         <div className="animate-slide-up" style={{ animationDelay: '0.06s' }}>
           <WeeklyReportCard />

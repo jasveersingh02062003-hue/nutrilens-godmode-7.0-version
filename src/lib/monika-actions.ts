@@ -13,6 +13,7 @@ import { getWeightEntries } from '@/lib/weight-history';
 import { getStreaks } from '@/lib/streaks';
 import { getUnlockedBadges, computeAchievementStats } from '@/lib/achievements';
 import { getBudgetSettings } from '@/lib/expense-store';
+import { evaluateFood, compareFoods, bestUnderPrice, findFoodByName, dailyEfficiency } from '@/lib/pes-engine';
 
 // ─── Action types that Monica can propose ───
 

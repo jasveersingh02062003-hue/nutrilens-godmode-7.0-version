@@ -64,11 +64,14 @@ export default function NextMealCard({ profile }: Props) {
 
       <div className="rounded-xl bg-muted/50 p-3">
         <p className="text-sm font-bold text-foreground mb-1">{recipe.emoji || '🍽️'} {recipe.name}</p>
-        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+        <div className="flex items-center gap-3 text-[10px] text-muted-foreground flex-wrap">
           <span className="flex items-center gap-0.5"><Zap className="w-3 h-3" />{recipe.calories} kcal</span>
           <span className="flex items-center gap-0.5"><Beef className="w-3 h-3" />{recipe.protein}g protein</span>
           <span>₹{recipe.estimatedCost}</span>
-          <span className="text-primary font-semibold">Satiety {recipe.satietyScore.toFixed(1)}</span>
+          {recipe.estimatedCost > 0 && (() => {
+            const { pes, color } = getPESForMeal(recipe.estimatedCost, recipe.protein);
+            return <PESBadge pes={pes} color={color} />;
+          })()}
         </div>
       </div>
 

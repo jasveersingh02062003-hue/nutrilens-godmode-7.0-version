@@ -228,6 +228,14 @@ export default function TodayMeals({ log, onRefresh, dayState }: Props) {
                         {totalProtein > 0 && receivedFrom.length === 0 && (
                           <span className="text-[10px] font-semibold text-primary">{totalProtein}g protein</span>
                         )}
+                        {(() => {
+                          const mealCostForPES = meals.reduce((s, m) => s + (m.cost?.amount || 0) + m.items.reduce((is, i) => is + (i.itemCost || 0), 0), 0);
+                          if (mealCostForPES > 0 && totalProtein > 0) {
+                            const { pes, color } = getPESForMeal(mealCostForPES, totalProtein);
+                            return <PESBadge pes={pes} color={color} />;
+                          }
+                          return null;
+                        })()}
                         {healthScore && healthScore.conditionScores.length > 0 && (
                           <HealthBadge score={healthScore} />
                         )}
