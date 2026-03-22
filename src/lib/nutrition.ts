@@ -36,14 +36,24 @@ export function calculateTDEE(bmr: number, activityLevel: string): number {
   return bmr * (activityMultipliers[activityLevel] || 1.55);
 }
 
+// ── Work + Exercise Activity Multiplier Matrix ──
+const ACTIVITY_MATRIX: Record<string, Record<string, number>> = {
+  sitting:  { none: 1.2, '1-3': 1.375, '4-5': 1.55,  daily: 1.725 },
+  mixed:    { none: 1.375, '1-3': 1.55,  '4-5': 1.725, daily: 1.9   },
+  physical: { none: 1.55,  '1-3': 1.725, '4-5': 1.9,   daily: 1.9   },
+};
+
+export function getActivityMultiplier(work: string, exercise: string): number {
+  return ACTIVITY_MATRIX[work]?.[exercise] ?? 1.55;
+}
+
+export function calculateTDEEFromWorkExercise(bmr: number, work: string, exercise: string): number {
+  return bmr * getActivityMultiplier(work, exercise);
+}
+
 /**
  * Calculate macro targets for a given calorie budget.
- * NOTE: This function no longer applies deficit/surplus — that logic
- * lives in the Goal Engine (src/lib/goal-engine.ts). Pass the
- * already-adjusted calorie target here for correct macro splits.
- *
- * For backward-compat, if `calories` is omitted the function falls
- * back to using `tdee` directly (maintenance).
+ * Pass the already-adjusted calorie target here for correct macro splits.
  */
 export function calculateDailyTargets(
   tdee: number,
@@ -52,7 +62,6 @@ export function calculateDailyTargets(
   womenHealth?: string[],
   calories?: number
 ) {
-  // Use provided calorie target; fall back to TDEE (maintenance)
   const cal = Math.round(calories ?? tdee);
 
   // Default macro split: 40% carbs, 30% protein, 30% fat
