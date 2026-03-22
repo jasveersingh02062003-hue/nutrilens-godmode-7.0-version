@@ -240,7 +240,7 @@ export default function Dashboard() {
 
         {/* 7. Today's Meals */}
         <div className="animate-slide-up" style={{ animationDelay: '0.18s' }}>
-          <TodayMeals log={log} onRefresh={refreshLog} />
+          <TodayMeals log={log} onRefresh={refreshLog} dayState={dayState} />
         </div>
       </div>
 

@@ -1,24 +1,16 @@
 import { getRingGradientColors, getRingStatusLabel } from '@/lib/meal-state-service';
-import { calculateBurnBreakdown } from '@/lib/burn-service';
-import { BurnedData } from '@/lib/store';
+import { DayState } from '@/lib/calorie-engine';
 
 interface Props {
-  eaten: number;
-  burned: number;
-  goal: number;
-  burnedData?: BurnedData;
+  dayState: DayState;
 }
 
-export default function CalorieRing({ eaten, burned, goal, burnedData }: Props) {
-  // Use effective burn if burnedData is provided
-  const effectiveBurn = burnedData
-    ? calculateBurnBreakdown(burnedData).effectiveBurn
-    : burned;
+export default function CalorieRing({ dayState }: Props) {
+  const { totalConsumed, totalAllowed, totalBurned, remaining, baseTarget } = dayState;
 
-  const net = eaten - effectiveBurn;
-  const remaining = Math.max(0, goal - net);
-  const progress = Math.min(1, net / goal);
+  const progress = totalAllowed > 0 ? Math.min(1, totalConsumed / totalAllowed) : 0;
   const progressPct = Math.round(progress * 100);
+  const displayRemaining = Math.max(0, remaining);
   const size = 180;
   const stroke = 12;
   const radius = (size - stroke) / 2;
@@ -28,14 +20,13 @@ export default function CalorieRing({ eaten, burned, goal, burnedData }: Props) 
   const [gradStart, gradEnd] = getRingGradientColors(progressPct);
   const statusInfo = getRingStatusLabel(progressPct);
 
-  // Day status based on remaining
-  const dayRemaining = goal - net;
+  // Day status
   let dayLabel = 'On track';
   let dayColor = 'text-status-ontrack';
-  if (dayRemaining < -100) {
+  if (remaining < -100) {
     dayLabel = 'Over target';
     dayColor = 'text-status-danger';
-  } else if (dayRemaining < 100) {
+  } else if (remaining < 100) {
     dayLabel = 'Close to limit';
     dayColor = 'text-status-warning';
   }
@@ -63,7 +54,7 @@ export default function CalorieRing({ eaten, burned, goal, burnedData }: Props) 
             </defs>
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-3xl font-bold tracking-tight text-foreground">{remaining}</span>
+            <span className="text-3xl font-bold tracking-tight text-foreground">{displayRemaining}</span>
             <span className="text-[11px] text-muted-foreground font-medium mt-0.5">kcal remaining</span>
           </div>
         </div>
@@ -73,32 +64,31 @@ export default function CalorieRing({ eaten, burned, goal, burnedData }: Props) 
           <div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground font-medium">Eaten</span>
-              <span className="text-sm font-bold text-foreground">{eaten}</span>
+              <span className="text-sm font-bold text-foreground">{totalConsumed}</span>
             </div>
             <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
-              <div className="h-full rounded-full bg-coral transition-all duration-700" style={{ width: `${Math.min(100, (eaten / goal) * 100)}%` }} />
+              <div className="h-full rounded-full bg-coral transition-all duration-700" style={{ width: `${Math.min(100, totalAllowed > 0 ? (totalConsumed / totalAllowed) * 100 : 0)}%` }} />
             </div>
           </div>
           <div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground font-medium">Burned</span>
-              <div className="flex items-center gap-1">
-                <span className="text-sm font-bold text-foreground">{effectiveBurn}</span>
-                {burnedData && effectiveBurn !== burned && (
-                  <span className="text-[9px] text-muted-foreground line-through">{burned}</span>
-                )}
-              </div>
+              <span className="text-sm font-bold text-foreground">{totalBurned}</span>
             </div>
             <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
-              <div className="h-full rounded-full bg-mint transition-all duration-700" style={{ width: `${Math.min(100, (effectiveBurn / 500) * 100)}%` }} />
+              <div className="h-full rounded-full bg-mint transition-all duration-700" style={{ width: `${Math.min(100, (totalBurned / 500) * 100)}%` }} />
             </div>
           </div>
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">Goal</span>
-              <span className="text-sm font-bold text-primary">{goal}</span>
+              <span className="text-xs text-muted-foreground font-medium">Allowed</span>
+              <span className="text-sm font-bold text-primary">{totalAllowed}</span>
             </div>
-            {/* Day status label */}
+            {totalBurned > 0 && (
+              <p className="text-[9px] text-muted-foreground mt-0.5">
+                {baseTarget} base + {totalBurned} burned
+              </p>
+            )}
             <p className={`text-[10px] font-semibold mt-1 ${dayColor}`}>
               {dayLabel}
             </p>
