@@ -1,18 +1,16 @@
 import { useMemo } from 'react';
-import { Utensils, Zap, DollarSign, Beef } from 'lucide-react';
+import { Utensils, Zap, Beef } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { getCurrentMealSlot, getRecipesForMeal, getRemainingMealBudget, type SuggestedRecipe } from '@/lib/meal-suggestion-engine';
+import { getCurrentMealSlot, getRecipesForMeal, getRemainingMealBudget } from '@/lib/meal-suggestion-engine';
 import { getDailyLog, getDailyTotals, getTodayKey, type UserProfile } from '@/lib/store';
 import { useNavigate } from 'react-router-dom';
-import { addMealToLog } from '@/lib/daily-log-sync';
-import { toast } from 'sonner';
 
 interface Props {
   profile: UserProfile;
   onRefresh?: () => void;
 }
 
-export default function NextMealCard({ profile, onRefresh }: Props) {
+export default function NextMealCard({ profile }: Props) {
   const navigate = useNavigate();
 
   const suggestion = useMemo(() => {
@@ -21,11 +19,10 @@ export default function NextMealCard({ profile, onRefresh }: Props) {
     const log = getDailyLog(today);
     const totals = getDailyTotals(log);
 
-    // Check if slot already logged
     const alreadyLogged = log.meals.some(m => m.type === slot);
     if (alreadyLogged) return null;
 
-    const remainingCal = Math.max(0, profile.dailyCalories - totals.calories);
+    const remainingCal = Math.max(0, profile.dailyCalories - totals.eaten);
     const remainingProt = Math.max(0, profile.dailyProtein - totals.protein);
     const remainingBudget = getRemainingMealBudget(slot);
 
@@ -34,7 +31,7 @@ export default function NextMealCard({ profile, onRefresh }: Props) {
     const recipes = getRecipesForMeal(slot, remainingBudget, profile, remainingCal, remainingProt);
     if (recipes.length === 0) return null;
 
-    return { recipe: recipes[0], slot, remainingBudget, remainingCal, remainingProt };
+    return { recipe: recipes[0], slot, remainingBudget };
   }, [profile]);
 
   if (!suggestion) return null;
@@ -44,7 +41,6 @@ export default function NextMealCard({ profile, onRefresh }: Props) {
 
   const handleLog = () => {
     navigate('/log-food', { state: { prefill: { name: recipe.name, calories: recipe.calories, protein: recipe.protein, carbs: recipe.carbs, fat: recipe.fat, cost: recipe.estimatedCost, mealType: slot } } });
-    toast.success(`Logging ${recipe.name}`);
   };
 
   return (
@@ -69,7 +65,7 @@ export default function NextMealCard({ profile, onRefresh }: Props) {
         <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
           <span className="flex items-center gap-0.5"><Zap className="w-3 h-3" />{recipe.calories} kcal</span>
           <span className="flex items-center gap-0.5"><Beef className="w-3 h-3" />{recipe.protein}g protein</span>
-          <span className="flex items-center gap-0.5">₹{recipe.estimatedCost}</span>
+          <span>₹{recipe.estimatedCost}</span>
           <span className="text-primary font-semibold">Satiety {recipe.satietyScore.toFixed(1)}</span>
         </div>
       </div>
