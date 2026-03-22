@@ -28,6 +28,12 @@ export interface BehaviorStats {
   };
   daysTracked: number;
   lastUpdated: string;
+  // Budget-aware fields
+  eatingPattern: 'home_heavy' | 'outside_heavy' | 'balanced';
+  overspendTendency: 'low' | 'medium' | 'high';
+  outsideFrequency: number; // days per week with outside meals
+  mealSkipping: boolean;
+  impulsiveSpending: boolean;
 }
 
 const DEFAULT_STATS: BehaviorStats = {
