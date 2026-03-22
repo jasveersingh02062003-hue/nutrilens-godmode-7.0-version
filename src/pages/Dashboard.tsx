@@ -42,6 +42,7 @@ export default function Dashboard() {
   const { profile, refreshProfile } = useUserProfile();
   const [log, setLog] = useState<DailyLog>(getDailyLog());
   const totals = getDailyTotals(log);
+  const dayState = recalculateDay(profile, log);
   const [weather, setWeather] = useState<WeatherData>(getWeather());
 
   const [sheetOpen, setSheetOpen] = useState(false);
