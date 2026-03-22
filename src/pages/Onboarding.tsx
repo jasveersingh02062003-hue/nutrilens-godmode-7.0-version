@@ -131,6 +131,7 @@ export default function Onboarding() {
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
   const [goalResult, setGoalResult] = useState<OnboardingGoalResult | null>(null);
+  const [showPlansAfterOnboarding, setShowPlansAfterOnboarding] = useState(false);
 
   const [f, setF] = useState<FormState>({
     name: '', gender: '', age: 25, heightCm: 170, weightKg: 70,
