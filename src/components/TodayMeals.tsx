@@ -197,6 +197,19 @@ export default function TodayMeals({ log, onRefresh, dayState }: Props) {
                             <span className="text-[10px] text-muted-foreground">₹0/₹{mealBudget}</span>
                           ) : null;
                         })()}
+                        {(() => {
+                          // Financial insight for expensive meals
+                          const mealCost = meals.reduce((s, m) => s + (m.cost?.amount || 0) + m.items.reduce((is, i) => is + (i.itemCost || 0), 0), 0);
+                          if (mealCost >= 100) {
+                            const dalMeals = Math.floor(mealCost / 45);
+                            return dalMeals >= 2 ? (
+                              <span className="text-[9px] text-muted-foreground/60 italic">
+                                = {dalMeals} dal-rice meals
+                              </span>
+                            ) : null;
+                          }
+                          return null;
+                        })()}
                         <span className="text-[10px] text-muted-foreground">{totalCal}{target ? `/${target.calories}` : ''} kcal</span>
                         {receivedFrom.length > 0 && (
                           <span className="text-[10px] font-semibold text-primary">

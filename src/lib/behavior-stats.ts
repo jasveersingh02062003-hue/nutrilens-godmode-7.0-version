@@ -28,6 +28,12 @@ export interface BehaviorStats {
   };
   daysTracked: number;
   lastUpdated: string;
+  // Budget-aware fields
+  eatingPattern: 'home_heavy' | 'outside_heavy' | 'balanced';
+  overspendTendency: 'low' | 'medium' | 'high';
+  outsideFrequency: number; // days per week with outside meals
+  mealSkipping: boolean;
+  impulsiveSpending: boolean;
 }
 
 const DEFAULT_STATS: BehaviorStats = {
@@ -39,6 +45,11 @@ const DEFAULT_STATS: BehaviorStats = {
   loggingHabit: { missedLogsPerWeek: 0, lateNightEatingFrequency: 0 },
   daysTracked: 0,
   lastUpdated: '',
+  eatingPattern: 'balanced',
+  overspendTendency: 'low',
+  outsideFrequency: 0,
+  mealSkipping: false,
+  impulsiveSpending: false,
 };
 
 // ── Get / Save ──
@@ -164,8 +175,61 @@ export function updateDailyBehaviorStats() {
     );
   }
 
+  // ── Budget-aware scoring ──
+  const budgetSpent = log.meals.reduce((s, m) => s + (m.cost?.amount || 0), 0);
+  const budgetSettings = (() => { try { return JSON.parse(localStorage.getItem('nutrilens_budget') || '{}'); } catch { return {}; } })();
+  const dailyBudget = budgetSettings.dailyBudget || 0;
+
+  // Overspend penalty: -10 per overspend day
+  if (dailyBudget > 0 && budgetSpent > dailyBudget) {
+    stats.consistencyScore = Math.max(0, stats.consistencyScore - 10);
+  }
+
+  // Restaurant frequency tracking
+  const outsideMeals = log.meals.filter(m => {
+    const cat = m.source?.category || '';
+    return ['restaurant', 'street_food', 'street'].includes(cat);
+  }).length;
+  const alpha2 = 0.3;
+  stats.outsideFrequency = Math.round(stats.outsideFrequency * (1 - alpha2) + (outsideMeals > 0 ? 7 : 0) * alpha2);
+
+  // Penalty for >2 restaurant meals per week
+  if (stats.outsideFrequency > 2) {
+    stats.consistencyScore = Math.max(0, stats.consistencyScore - 5);
+  }
+
+  // Classify eating pattern
+  const homeMeals = log.meals.filter(m => !m.source?.category || m.source?.category === 'home').length;
+  if (outsideMeals > homeMeals) stats.eatingPattern = 'outside_heavy';
+  else if (homeMeals > outsideMeals * 2) stats.eatingPattern = 'home_heavy';
+  else stats.eatingPattern = 'balanced';
+
+  // Overspend tendency
+  if (dailyBudget > 0) {
+    const ratio = budgetSpent / dailyBudget;
+    stats.overspendTendency = ratio > 1.5 ? 'high' : ratio > 1.1 ? 'medium' : 'low';
+    stats.impulsiveSpending = ratio > 2;
+  }
+
+  // Meal skipping
+  stats.mealSkipping = mealsLogged < 3;
+
+  // Add +5 for days fully within budget and following plan
+  if (dailyBudget > 0 && budgetSpent <= dailyBudget && mealsLogged >= 3) {
+    stats.consistencyScore = Math.min(100, stats.consistencyScore + 5);
+  }
+
   stats.daysTracked++;
   saveBehaviorStats(stats);
+}
+
+/**
+ * Check if survival mode should be active (consistency < 50).
+ * In survival mode, the app prioritises cheap, filling meals.
+ */
+export function isSurvivalModeActive(): boolean {
+  const stats = getBehaviorStats();
+  return stats.consistencyScore < 50;
 }
 
 // ── Weekly Adaptation ──

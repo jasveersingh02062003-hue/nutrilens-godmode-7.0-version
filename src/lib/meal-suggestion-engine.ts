@@ -1,15 +1,14 @@
 // ─── Budget + Health-Aware Meal Suggestion Engine ───
 
-import { recipes, getEnrichedRecipe, type Recipe } from './recipes';
+import { recipes, getEnrichedRecipe, type Recipe, type EnrichedRecipe } from './recipes';
 import { getEffectiveRestrictions } from './logic-engine';
 import { getEnhancedBudgetSettings, type PerMealBudget } from './budget-alerts';
 import { getBudgetSettings, getExpensesForDate } from './expense-store';
 import { getDailyLog, getTodayKey, type UserProfile } from './store';
 
-export interface SuggestedRecipe extends Recipe {
-  estimatedCost: number;
-  nutritionScore: number;
+export interface SuggestedRecipe extends EnrichedRecipe {
   matchReason?: string;
+  rankScore: number;
 }
 
 /**
@@ -19,14 +18,12 @@ export function getRemainingMealBudget(mealType: string): number {
   const enhanced = getEnhancedBudgetSettings();
   const budgetSettings = getBudgetSettings();
 
-  // Per-meal budget from enhanced settings
   const perMeal: PerMealBudget = enhanced.perMeal || {
     breakfast: 100, lunch: 150, dinner: 200, snacks: 50,
   };
   const slotKey = mealType === 'snack' ? 'snacks' : mealType;
   const mealBudget = (perMeal as any)[slotKey] || 0;
   if (mealBudget <= 0) {
-    // Fallback: derive from daily budget
     const daily = budgetSettings.period === 'week'
       ? Math.round(budgetSettings.weeklyBudget / 7)
       : Math.round(budgetSettings.monthlyBudget / 30);
@@ -34,7 +31,6 @@ export function getRemainingMealBudget(mealType: string): number {
     return Math.round(daily * (splits[slotKey] || 0.25));
   }
 
-  // Subtract what's already spent on that meal today
   const today = getTodayKey();
   const log = getDailyLog(today);
   const spentOnSlot = log.meals
@@ -45,12 +41,14 @@ export function getRemainingMealBudget(mealType: string): number {
 }
 
 /**
- * Get recipe suggestions for a meal slot, filtered by budget + health + diet.
+ * Get recipe suggestions for a meal slot, ranked by satiety + budget + health.
  */
 export function getRecipesForMeal(
   mealType: string,
   maxCost: number,
   profile: UserProfile | null,
+  remainingCalories?: number,
+  remainingProtein?: number,
 ): SuggestedRecipe[] {
   const restrictions = getEffectiveRestrictions(profile);
   const dietPrefs = profile?.dietaryPrefs || [];
@@ -60,15 +58,11 @@ export function getRecipesForMeal(
     .map(r => getEnrichedRecipe(r));
 
   let filtered = enriched.filter(r => {
-    // Budget filter
     if (maxCost > 0 && r.estimatedCost > maxCost) return false;
 
-    // Health condition avoid filter (check recipe name + tags against avoid keywords)
-    const nameLower = r.name.toLowerCase();
-    const allText = [nameLower, ...r.tags.map(t => t.toLowerCase()), ...r.ingredients.map(i => i.name.toLowerCase())].join(' ');
+    const allText = [r.name.toLowerCase(), ...r.tags.map(t => t.toLowerCase()), ...r.ingredients.map(i => i.name.toLowerCase())].join(' ');
     if (restrictions.avoid.some(kw => allText.includes(kw.toLowerCase()))) return false;
 
-    // Diet filter
     if (dietPrefs.includes('vegetarian') || dietPrefs.includes('veg')) {
       if (!r.tags.some(t => ['vegetarian', 'veg'].includes(t.toLowerCase()))) return false;
     }
@@ -79,7 +73,6 @@ export function getRecipesForMeal(
       if (r.carbs > 20) return false;
     }
 
-    // Cooking difficulty filter
     if (profile?.cookingHabits === 'none' || profile?.cookingHabits === 'minimal') {
       if (r.difficulty === 'advanced') return false;
     }
@@ -87,18 +80,35 @@ export function getRecipesForMeal(
     return true;
   });
 
-  // Boost recipes that match preferred keywords
-  filtered = filtered.map(r => {
+  // Compute rank score using satiety + protein/rupee + remaining needs
+  const scored: SuggestedRecipe[] = filtered.map(r => {
     const allText = [r.name.toLowerCase(), ...r.tags, ...r.ingredients.map(i => i.name.toLowerCase())].join(' ');
     const prefMatches = restrictions.prefer.filter(kw => allText.includes(kw.toLowerCase()));
-    const boostedScore = r.nutritionScore + prefMatches.length;
-    return { ...r, nutritionScore: Math.min(10, boostedScore), matchReason: prefMatches.length > 0 ? `Has ${prefMatches.slice(0, 2).join(', ')}` : undefined };
+
+    const pprScore = Math.min(1, r.proteinPerRupee * 3); // normalize ~0.33 → 1
+    const satScore = Math.min(1, r.satietyScore / 5);     // normalize ~5 → 1
+    const nutScore = r.nutritionScore / 10;
+    let calFit = 0.5, protFit = 0.5;
+    if (remainingCalories && remainingCalories > 0) {
+      calFit = Math.min(1, r.calories / remainingCalories);
+    }
+    if (remainingProtein && remainingProtein > 0) {
+      protFit = Math.min(1, r.protein / remainingProtein);
+    }
+
+    const rankScore = (pprScore * 0.3) + (satScore * 0.3) + (nutScore * 0.2) + (calFit * 0.1) + (protFit * 0.1)
+      + (prefMatches.length * 0.05);
+
+    return {
+      ...r,
+      nutritionScore: Math.min(10, r.nutritionScore + prefMatches.length),
+      matchReason: prefMatches.length > 0 ? `Has ${prefMatches.slice(0, 2).join(', ')}` : undefined,
+      rankScore,
+    };
   });
 
-  // Sort by nutrition score desc
-  filtered.sort((a, b) => b.nutritionScore - a.nutritionScore);
-
-  return filtered.slice(0, 5) as SuggestedRecipe[];
+  scored.sort((a, b) => b.rankScore - a.rankScore);
+  return scored.slice(0, 5);
 }
 
 /**
