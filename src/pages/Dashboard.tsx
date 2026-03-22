@@ -131,6 +131,9 @@ export default function Dashboard() {
     setSheetOpen(true);
   };
 
+  const survivalMode = isSurvivalModeActive();
+  const recoveryMode = isRecoveryModeActive();
+
   return (
     <>
     {showTutorial && <PostOnboardingTutorial onDismiss={() => setShowTutorial(false)} />}
