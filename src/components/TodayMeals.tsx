@@ -34,6 +34,7 @@ const mealConfig = [
 interface Props {
   log: DailyLog;
   onRefresh?: () => void;
+  dayState: DayState;
 }
 
 export default function TodayMeals({ log, onRefresh }: Props) {
