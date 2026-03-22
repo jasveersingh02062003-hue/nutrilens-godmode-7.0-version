@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Plus, ChevronRight, AlertTriangle, Check, Dumbbell, SkipForward } from 'lucide-react';
 import { DailyLog, getTodayKey } from '@/lib/store';
 import { useNavigate } from 'react-router-dom';
@@ -16,6 +16,8 @@ import { resolveMealVisualState } from '@/lib/meal-state-service';
 import { getExerciseAdjustmentSummary } from '@/lib/exercise-adjustment';
 import { motion } from 'framer-motion';
 import { DayState, skipMeal as engineSkipMeal } from '@/lib/calorie-engine';
+import { getRemainingMealBudget } from '@/lib/meal-suggestion-engine';
+import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
 
 const mealIcons: Record<string, string> = {
   breakfast: '🌅',
