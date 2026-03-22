@@ -4,6 +4,7 @@ import {
   getRecentLogs, getWeightHistory, getAllLogDates,
   type MealEntry, type FoodItem, type ActivityEntry, type DailyLog
 } from '@/lib/store';
+import { calculateBurnBreakdown } from '@/lib/burn-service';
 import { getWeatherSummary } from '@/lib/weather-service';
 import { getDashboardWeatherNudge } from '@/lib/weather-nudge-service';
 import { ACTIVITY_TYPES, calculateCalories, getMetForIntensity } from '@/lib/activities';
@@ -235,6 +236,13 @@ export function buildMonikaContext() {
     }
   } catch { /* ok */ }
 
+  // Real-time calorie engine calculations
+  const totals = getDailyTotals(log);
+  const burnBreakdown = calculateBurnBreakdown(log.burned || { steps: 0, stepsCount: 0, total: 0, activities: [] });
+  const effectiveBurn = burnBreakdown.effectiveBurn;
+  const baseTarget = profile?.dailyCalories || 0;
+  const dailyBudget = Math.round((budgetSettings.weeklyBudget || 0) / 7);
+
   return {
     currentHour: new Date().getHours(),
     profile: profile ? {
@@ -256,19 +264,36 @@ export function buildMonikaContext() {
       mealTimes: profile.mealTimes,
       skinConcerns,
     } : null,
+    realTimeStatus: {
+      baseTarget,
+      totalConsumed: totals.eaten,
+      totalBurned: effectiveBurn,
+      totalAllowed: baseTarget + effectiveBurn,
+      remainingCalories: baseTarget + effectiveBurn - totals.eaten,
+      totalProteinConsumed: totals.protein,
+      remainingProtein: (profile?.dailyProtein || 0) - totals.protein,
+      dailyBudget,
+      totalSpent: todaySpending,
+      remainingBudget: dailyBudget - todaySpending,
+      mealsLogged: ['breakfast', 'lunch', 'dinner', 'snack'].map(type => ({
+        type,
+        logged: (log.meals || []).some((m: any) => m.type === type),
+        calories: (log.meals || []).filter((m: any) => m.type === type).reduce((s: number, m: any) => s + (m.totalCalories || 0), 0),
+      })),
+    },
     today: formatLogForContext(log),
     todaySupplements: todaySupplements.map((s: any) => ({
       name: s.name, dosage: s.dosage, unit: s.unit, taken: s.taken,
     })),
     budgetSettings: {
-      dailyBudget: Math.round(budgetSettings.weeklyBudget / 7),
+      dailyBudget,
       weeklyBudget: budgetSettings.weeklyBudget,
       monthlyBudget: budgetSettings.monthlyBudget,
       currency: budgetSettings.currency,
     },
     todaySpending,
     foodPreferences,
-    history, // last 30 days
+    history,
     weightHistory,
     streaks,
     achievements: { unlocked: badges, stats },
