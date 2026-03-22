@@ -90,3 +90,42 @@ export const CATEGORY_CONFIG: Record<string, { label: string; emoji: string; col
   home: { label: 'Home', emoji: '🏠', color: 'hsl(170, 35%, 48%)' },
   other: { label: 'Other', emoji: '💰', color: 'hsl(160, 8%, 48%)' },
 };
+
+// ─── Overspend Redistribution ───
+
+/**
+ * Calculate how much to reduce daily budget for remaining days after an overspend.
+ */
+export function adjustBudgetAfterOverspend(overspend: number, daysRemaining: number): number {
+  if (daysRemaining <= 0 || overspend <= 0) return 0;
+  return Math.round(overspend / daysRemaining);
+}
+
+/**
+ * Get days remaining in the current budget period.
+ */
+export function getDaysRemainingInPeriod(period: 'week' | 'month' = 'week'): number {
+  const now = new Date();
+  if (period === 'week') {
+    const day = now.getDay();
+    return day === 0 ? 0 : 7 - day;
+  }
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  return lastDay - now.getDate();
+}
+
+/**
+ * Get the adjusted daily budget considering overspend so far in the period.
+ */
+export function getAdjustedDailyBudget(): { dailyBudget: number; adjustedDailyBudget: number; overspend: number; daysRemaining: number } {
+  const summary = getBudgetSummary();
+  const daysRemaining = getDaysRemainingInPeriod(summary.period);
+  const dailyBudget = summary.budget > 0
+    ? Math.round(summary.budget / (summary.period === 'week' ? 7 : 30))
+    : 0;
+  const remaining = Math.max(0, summary.budget - summary.spent);
+  const adjustedDailyBudget = daysRemaining > 0 ? Math.round(remaining / daysRemaining) : remaining;
+  const overspend = Math.max(0, summary.spent - summary.budget);
+
+  return { dailyBudget, adjustedDailyBudget, overspend, daysRemaining };
+}

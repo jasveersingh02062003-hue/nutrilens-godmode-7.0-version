@@ -1,3 +1,5 @@
+import { estimateRecipeCost } from './recipe-cost';
+
 export interface Recipe {
   id: string;
   name: string;
@@ -18,6 +20,20 @@ export interface Recipe {
   steps: string[];
   tips?: string;
   emoji: string;
+  // Extended metadata
+  estimatedCost?: number;
+  suitableFor?: string[];
+  avoidFor?: string[];
+  nutritionScore?: number;
+}
+
+/** Compute enriched metadata for a recipe (cost + nutrition score) */
+export function getEnrichedRecipe(recipe: Recipe): Recipe & { estimatedCost: number; nutritionScore: number } {
+  const estimatedCost = recipe.estimatedCost ?? estimateRecipeCost(recipe);
+  const proteinPerCal = recipe.calories > 0 ? (recipe.protein / recipe.calories) * 100 : 0;
+  const fiberBonus = Math.min(recipe.fiber || 0, 10);
+  const nutritionScore = recipe.nutritionScore ?? Math.min(10, Math.round(proteinPerCal * 1.5 + fiberBonus * 0.3));
+  return { ...recipe, estimatedCost, nutritionScore };
 }
 
 export const recipes: Recipe[] = [
