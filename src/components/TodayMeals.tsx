@@ -238,8 +238,23 @@ export default function TodayMeals({ log, onRefresh, dayState }: Props) {
                     </div>
                   </div>
                 ) : (
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                    <Plus className="w-4 h-4 text-primary" />
+                  <div className="flex items-center gap-1.5">
+                    {engineStatus === 'pending' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          engineSkipMeal(todayKey, mc.type);
+                          onRefresh?.();
+                        }}
+                        className="w-7 h-7 rounded-lg bg-muted/60 flex items-center justify-center hover:bg-muted transition-colors"
+                        title="Skip this meal"
+                      >
+                        <SkipForward className="w-3.5 h-3.5 text-muted-foreground" />
+                      </button>
+                    )}
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                      <Plus className="w-4 h-4 text-primary" />
+                    </div>
                   </div>
                 )}
               </motion.button>
