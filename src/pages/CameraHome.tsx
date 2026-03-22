@@ -91,6 +91,7 @@ export default function CameraHome() {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [replacingItemId, setReplacingItemId] = useState<string | null>(null);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [showPESBreakdown, setShowPESBreakdown] = useState(false);
   // Incoming meal type from URL
   useEffect(() => {
     const urlMeal = params.get('meal') as MealType;
