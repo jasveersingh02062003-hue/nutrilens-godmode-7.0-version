@@ -133,8 +133,9 @@ export default function Dashboard() {
     setSheetOpen(true);
   };
 
-  const survivalMode = isSurvivalModeActive();
+  const survivalMode = isSurvivalModeActive() || isSurvivalModeManual();
   const recoveryMode = isRecoveryModeActive();
+  const dualSyncInsight = getDualSyncInsight(profile.dailyCalories);
 
   return (
     <>
