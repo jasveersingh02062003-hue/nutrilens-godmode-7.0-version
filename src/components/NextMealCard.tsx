@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { Utensils, Zap, Beef } from 'lucide-react';
+import { getPESForMeal } from '@/lib/pes-engine';
+import PESBadge from '@/components/PESBadge';
 import { motion } from 'framer-motion';
 import { getCurrentMealSlot, getRecipesForMeal, getRemainingMealBudget } from '@/lib/meal-suggestion-engine';
 import { getDailyLog, getDailyTotals, getTodayKey, type UserProfile } from '@/lib/store';
