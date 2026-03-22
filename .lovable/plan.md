@@ -1,75 +1,95 @@
 
 
-## Budget Engine & Meal Planner Enhancement
+## Upgrade to Adaptive Food + Money + Behavior OS
 
-### Current State
+### Current State Assessment
 
-The app already has **extensive** budget infrastructure:
-- ✅ `BudgetPlannerTab` (1496 lines) with onboarding, manual/AI budget setup, meal-level budgets, pantry tracking
-- ✅ `BudgetSummaryCard` on dashboard showing daily spend vs budget
-- ✅ `expense-store.ts` with per-meal cost tracking, categories, manual expenses
-- ✅ `budget-service.ts` with period summaries, nutritional economics
-- ✅ `budget-alerts.ts` with threshold alerts, overspend warnings
-- ✅ `recipe-cost.ts` with ingredient-based cost estimation
-- ✅ `TodayMeals` already shows ₹cost per meal slot
-- ✅ Meal entries already have `cost` and `source.category` fields
-- ✅ Recipe database with 1500+ lines of Indian recipes (but missing `cost`, `suitable_for`, `avoid_for`, `nutrition_score`)
+| Feature | Exists? | Gap |
+|---------|---------|-----|
+| Behavior stats + consistency score | ✅ `behavior-stats.ts` (299 lines) | Missing: budget-aware scoring (overspend penalty), eating pattern classification, survival mode trigger |
+| Weekly adaptation | ✅ Already runs on dashboard load | Missing: budget-linked adaptation |
+| Budget overspend redistribution | ✅ `budget-service.ts` has `adjustBudgetAfterOverspend` | Missing: budget curve (day-of-month multiplier), decision engine UI |
+| Recipe database | ✅ ~45 recipes in `recipes.ts` | Missing: `satietyScore`, `volumeFactor`, `proteinPerRupee`. Need 55+ more recipes to reach 100 |
+| Meal suggestion engine | ✅ `meal-suggestion-engine.ts` | Missing: satiety-based ranking, remaining-calorie/protein-aware scoring |
+| Decision engine | ❌ | No overspend decision modal with options (continue/recover/ignore) |
+| Financial insight engine | ❌ | No "opportunity cost" display (₹200 pizza = 4 eggs + dal) |
+| Cash flow curve | ❌ | No day-of-month budget multiplier |
 
-### Actual Gaps to Fill
+### Plan (6 files changed, 2 new files, 1 large recipe expansion)
 
-| Feature | Status | What's Missing |
-|---------|--------|----------------|
-| Recipe cost + health filtering | ❌ | Recipes lack `cost`, `suitable_for`, `avoid_for`, `nutrition_score` fields. No `getRecipesForMeal()` function |
-| Budget-aware meal suggestions | ❌ | BudgetPlannerTab doesn't suggest meals filtered by remaining budget + health conditions |
-| Per-meal budget display in TodayMeals | ⚠️ Partial | Shows ₹cost but not ₹cost/₹budget format |
-| Overspend redistribution | ❌ | No logic to reduce remaining days' budget after overspend |
-| Budget ring on dashboard | ❌ | Only a bar in BudgetSummaryCard, no circular ring |
+**File 1: `src/lib/recipes.ts` — Add satiety fields + 60 new recipes**
 
-### Plan
+- Add `volumeFactor` (1-5) field to Recipe interface
+- Add computed `satietyScore` and `proteinPerRupee` to `getEnrichedRecipe()`
+  - `satietyScore = (protein/10) + (fiber/5) + (volumeFactor/2)`
+  - `proteinPerRupee = protein / estimatedCost`
+- Add ~60 new recipes (mix of Indian + international, veg/non-veg/vegan, across all meal types) with realistic 2026 India costs and macros. Target: 100+ total recipes.
 
-**File 1: `src/lib/recipes.ts` — Add cost + health metadata to Recipe interface**
+**File 2: `src/lib/meal-suggestion-engine.ts` — Upgrade ranking to use satiety + remaining needs**
 
-- Add optional fields to `Recipe`: `estimatedCost?: number`, `suitableFor?: string[]`, `avoidFor?: string[]`, `nutritionScore?: number`
-- Add a `getEnrichedRecipe(recipe)` function that auto-computes `estimatedCost` using `estimateRecipeCost()` from `recipe-cost.ts` and assigns a `nutritionScore` (protein-per-calorie weighted)
+- Update `getRecipesForMeal()` ranking formula:
+  ```
+  rankScore = (proteinPerRupee * 0.3) + (satietyScore/10 * 0.3) + (nutritionScore/10 * 0.2)
+            + (min(cal, remainingCal)/remainingCal * 0.1) + (min(prot, remainingProt)/remainingProt * 0.1)
+  ```
+- Accept `remainingCalories` and `remainingProtein` as optional params
+- Sort by `rankScore` instead of plain `nutritionScore`
 
-**File 2: `src/lib/meal-suggestion-engine.ts` (NEW) — Budget + health aware recipe filtering**
+**File 3: `src/lib/budget-service.ts` — Add cash flow curve + financial insights**
 
-- `getRecipesForMeal(mealType, maxCost, profile)`:
-  - Filter recipes by `mealType`
-  - Filter by cost ≤ maxCost (using `estimateRecipeCost`)
-  - Filter by health conditions (check `avoidFor` and `evaluateFoodForUser` from logic-engine)
-  - Filter by diet preference (veg/vegan/non-veg from profile)
-  - Sort by nutrition score
-  - Return top 5
-- `getRemainingMealBudget(mealType)`: computes per-meal budget minus already-spent for that slot today
+- Add `getBudgetCurveMultiplier(dayOfMonth)`: returns 1.2 (days 1-5), 1.0 (6-20), 0.9 (21-25), 0.7 (26-31)
+- Update `getAdjustedDailyBudget()` to apply curve multiplier
+- Add `getOpportunityCost(amount, category)`: returns equivalent meals, protein grams, and savings estimate
+- Add `getFinancialInsight(mealCost)`: returns text like "₹200 = 4 egg meals = 40g protein lost"
 
-**File 3: `src/lib/budget-service.ts` — Add overspend redistribution**
+**File 4: `src/lib/behavior-stats.ts` — Add budget-aware scoring + pattern classification**
 
-- `adjustBudgetAfterOverspend(overspend, daysRemaining)` → returns daily reduction amount
-- `getDaysRemainingInPeriod()` → computes days left in current week/month
+- Add budget-related fields to `BehaviorStats`:
+  - `eatingPattern`: 'home_heavy' | 'outside_heavy' | 'balanced'
+  - `overspendTendency`: 'low' | 'medium' | 'high'
+  - `outsideFrequency`: number (days/week)
+  - `mealSkipping`: boolean
+  - `impulsiveSpending`: boolean
+- Update `updateDailyBehaviorStats()` to:
+  - Subtract 10 from consistency for overspend days
+  - Subtract 5 for restaurant meals > 2/week
+  - Classify eating pattern from meal source data
+- Add `isSurvivalModeActive()`: returns true if consistency < 50
 
-**File 4: `src/components/TodayMeals.tsx` — Show per-meal budget**
+**File 5: `src/lib/decision-engine.ts` (NEW) — Overspend decision options**
 
-- For each meal slot, compute per-meal budget from enhanced budget settings
-- Display as `₹{spent}/₹{budget}` next to the existing calorie display
-- If over budget for that meal, show orange/red text
+- `getOverspendOptions(overspendAmount, remainingBudget, daysRemaining)`: returns 3 options:
+  1. Continue as usual → projected monthly overshoot
+  2. Recovery mode → reduced budget for N days
+  3. Ignore today → reminder tomorrow
+- `applyDecision(choice)`: executes the chosen option (adjusts budget, sets recovery mode flag, or dismisses)
 
-**File 5: `src/components/BudgetSummaryCard.tsx` — Add circular ring**
+**File 6: `src/components/OverspendDecisionSheet.tsx` (NEW) — Decision UI**
 
-- Replace the existing progress bar with a small SVG circular ring (similar to CalorieRing but smaller)
-- Green < 80%, orange 80-100%, red > 100%
-- Show `₹spent / ₹daily` inside
+- Bottom sheet triggered when a logged meal causes overspend > 50% of daily budget
+- Shows the 3 options from decision engine with impact text
+- On selection, calls `applyDecision()` and shows confirmation toast
 
-**File 6: `src/components/BudgetPlannerTab.tsx` — Add meal suggestion section**
+**File 7: `src/components/TodayMeals.tsx` — Add financial insight after logging**
 
-- Add a "Suggested Meals" section after the budget settings
-- For each pending meal slot, call `getRecipesForMeal()` and show top 3 recipes
-- Each recipe card shows: name, emoji, calories, ₹cost, nutrition score
-- "Log This" button: logs the recipe as a meal with cost and category="home", triggers budget + calorie recalc
+- After a meal is logged with cost > ₹100, show a small "Reality check" note using `getFinancialInsight()`
+- Example: "₹200 = 4 home meals worth of protein"
+
+**File 8: `src/pages/Dashboard.tsx` — Wire up decision sheet + survival mode indicator**
+
+- Import and render `OverspendDecisionSheet` (triggered by overspend state)
+- If `isSurvivalModeActive()`, show a subtle banner: "🔴 Survival mode: focusing on filling, affordable meals"
 
 ### What Stays Unchanged
-- All existing onboarding, calorie engine, redistribution, activity tracking
-- Existing BudgetPlannerTab structure (only adding a section)
-- Store types (MealEntry already has cost/source)
-- BottomNav (Planner tab already exists)
+- All onboarding, calorie engine, redistribution, activity tracking
+- Existing dashboard layout and component order
+- Store types, auth, Monica chat
+- Budget planner tab structure
+
+### Recipe Expansion Strategy
+60 new recipes across: 15 breakfast, 15 lunch, 15 dinner, 15 snacks. Mix of:
+- Budget meals (₹15-50): poha, upma, dal variations, egg dishes
+- Mid-range (₹50-150): paneer, chicken, fish curry
+- Premium (₹150+): salmon, avocado toast, protein bowls
+- All with accurate fiber, volumeFactor for satiety scoring
 
