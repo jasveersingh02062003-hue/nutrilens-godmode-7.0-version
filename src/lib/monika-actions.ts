@@ -96,7 +96,7 @@ export function executeAction(action: MonikaAction): string {
         totalFat: action.totalFat,
         time: new Date().toISOString(),
         source: (action as any).source || undefined,
-        cost: action.cost || undefined,
+        cost: action.cost ? { amount: action.cost, currency: '₹' } : undefined,
       };
 
       if (action.date) {
