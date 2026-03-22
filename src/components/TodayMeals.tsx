@@ -185,8 +185,16 @@ export default function TodayMeals({ log, onRefresh, dayState }: Props) {
                             if (m.cost?.amount) return s + m.cost.amount;
                             return s + m.items.reduce((is, i) => is + (i.itemCost || 0), 0);
                           }, 0);
+                          const enhanced = getEnhancedBudgetSettings();
+                          const slotKey = mc.type === 'snack' ? 'snacks' : mc.type;
+                          const mealBudget = enhanced.perMeal ? (enhanced.perMeal as any)[slotKey] || 0 : 0;
+                          const overBudget = mealBudget > 0 && mealCost > mealBudget;
                           return mealCost > 0 ? (
-                            <span className="text-[10px] font-semibold text-accent">₹{mealCost}</span>
+                            <span className={`text-[10px] font-semibold ${overBudget ? 'text-destructive' : 'text-accent'}`}>
+                              ₹{mealCost}{mealBudget > 0 ? `/₹${mealBudget}` : ''}
+                            </span>
+                          ) : mealBudget > 0 ? (
+                            <span className="text-[10px] text-muted-foreground">₹0/₹{mealBudget}</span>
                           ) : null;
                         })()}
                         <span className="text-[10px] text-muted-foreground">{totalCal}{target ? `/${target.calories}` : ''} kcal</span>
