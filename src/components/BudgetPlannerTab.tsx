@@ -1425,7 +1425,6 @@ export default function BudgetPlannerTab() {
     );
   }
 
-  const [survivalOn, setSurvivalOn] = useState(isSurvivalModeManual);
 
   const toggleSurvival = () => {
     if (survivalOn) {
