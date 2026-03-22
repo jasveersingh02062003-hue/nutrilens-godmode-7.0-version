@@ -188,7 +188,7 @@ export default function Dashboard() {
 
         {/* 2. Calorie Ring */}
         <div className="animate-scale-in">
-          <CalorieRing eaten={totals.eaten} burned={totals.burned} goal={profile.dailyCalories} burnedData={log.burned} />
+          <CalorieRing dayState={dayState} />
         </div>
 
         {/* 3. Macros */}
