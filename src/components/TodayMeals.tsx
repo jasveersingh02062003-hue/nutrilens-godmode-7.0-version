@@ -18,6 +18,8 @@ import { motion } from 'framer-motion';
 import { DayState, skipMeal as engineSkipMeal } from '@/lib/calorie-engine';
 import { getRemainingMealBudget } from '@/lib/meal-suggestion-engine';
 import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
+import { getPESForMeal } from '@/lib/pes-engine';
+import PESBadge from '@/components/PESBadge';
 
 const mealIcons: Record<string, string> = {
   breakfast: '🌅',
