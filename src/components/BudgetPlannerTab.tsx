@@ -1434,6 +1434,9 @@ export default function BudgetPlannerTab() {
       {/* This Month Card */}
       <BudgetCard label="This Month" icon="📆" summary={monthlySummary} onClick={() => openDetails('month')} />
 
+      {/* Budget-Smart Meal Suggestions */}
+      <MealSuggestionsSection onRefresh={refresh} />
+
       {/* Burn Rate */}
       {(() => {
         const proj = getBurnRateProjection();
