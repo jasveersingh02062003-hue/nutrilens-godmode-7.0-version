@@ -1,39 +1,43 @@
 
 
-## Integrate 102-Recipe Database into Existing Recipe Engine
+## Upgrade Meal Generator with Budget-First Constraint Satisfaction
 
-### Current State
-- `recipes.ts` already has ~100 recipes with **rich data** (ingredients list, cooking steps, descriptions, emoji)
-- ~40 of the user's 102 recipes overlap with existing entries (Poha, Idli Sambar, Dal Tadka, Rajma Chawal, etc.)
-- Existing recipes lack explicit `estimatedCost`, `suitableFor`, `avoidFor`, `nutritionScore`, and `volumeFactor` on most entries (computed at runtime via `getEnrichedRecipe`)
+### Already Implemented
+Everything the user described is already present in the codebase:
 
-### Strategy
-Rather than duplicating recipes, we will:
-1. **Enrich existing recipes** with the user's metadata (`suitableFor`, `avoidFor`, `nutritionScore`, `volumeFactor`, `estimatedCost`)
-2. **Add ~60 new recipes** that don't already exist (Sattu Drink, Karela Fry, Sago Khichdi, Tamarind Rice, Baked Sweet Potato, Fish Fry, Kadhi Chawal, etc.)
-3. New recipes get minimal but valid `ingredients`/`steps` (1-3 items each) so existing UI doesn't break
+| Feature | Status | Location |
+|---------|--------|----------|
+| Recipe filtering by cost, health, diet, cooking skill | ✅ | `meal-suggestion-engine.ts` `getRecipesForMeal()` |
+| Scoring by proteinPerRupee + satiety + nutrition + remaining cal/protein | ✅ | `meal-suggestion-engine.ts` lines 84-110 |
+| Budget curve multiplier (day-of-month) | ✅ | `budget-service.ts` `getBudgetCurveMultiplier()` |
+| Adjusted daily budget with overspend correction | ✅ | `budget-service.ts` `getAdjustedDailyBudget()` |
+| Per-meal budget cascade | ✅ | `budget-service.ts` `cascadeMealBudget()` |
+| Survival mode (₹100/day cap) | ✅ | `budget-service.ts` `activateSurvivalMode()` |
+| Dual-sync insight (cal vs budget) | ✅ | `budget-service.ts` `getDualSyncInsight()` |
+| Rolling next-meal suggestion | ✅ | `NextMealCard.tsx` using `getRecipesForMeal()` |
+| Weekly plan generation with fallback relaxation | ✅ | `meal-plan-generator.ts` `generateWeekPlan()` |
+| Fallback recipe selection (progressive relaxation) | ✅ | `meal-plan-generator.ts` `findRecipeWithFallback()` |
+| 128 recipes with satiety, cost, health tags | ✅ | `recipes.ts` |
 
-### Files Changed
+### What's Missing
 
-**File 1: `src/lib/recipes.ts`**
-- Add metadata fields (`estimatedCost`, `suitableFor`, `avoidFor`, `nutritionScore`, `volumeFactor`) to all ~40 existing recipes that match user's database
-- Append ~60 new recipe objects for entries not already present, with:
-  - Mapped `difficulty` values (`easy` -> `beginner`, `medium` -> `intermediate`, `advanced` -> `advanced`)
-  - Mapped `mealType` (`snacks` -> `snack`)
-  - Minimal `ingredients` array (category-tagged for cost estimation)
-  - Minimal `steps` array
-  - Assigned `emoji` per recipe
+The only gap is that `generateWeekPlan()` in `meal-plan-generator.ts` doesn't apply the budget curve or use the satiety-based ranking. It uses random selection (`pickRandom`) instead of the scoring algorithm.
+
+### Plan (1 file changed)
+
+**File: `src/lib/meal-plan-generator.ts`**
+
+- Replace `pickRandom(results)` inside `findRecipeWithFallback` with a scored selection using the same ranking formula from `meal-suggestion-engine.ts`:
+  ```
+  rankScore = (proteinPerRupee * 0.3) + (satietyScore/5 * 0.3) + (nutritionScore/10 * 0.2) + cost_fit * 0.1 + protein_fit * 0.1
+  ```
+- In `generateWeekPlan()`, apply `getBudgetCurveMultiplier(dayOfMonth)` to per-meal calorie budgets
+- Add cost constraint: pass `maxCost` from per-meal budget into `findRecipeWithFallback`
+- Add protein post-optimization: after generating a day's meals, if total protein < target * 0.9, swap the lowest-protein meal for a higher-protein alternative (same logic as user's spec)
 
 ### What Stays Unchanged
-- Recipe interface (already has all needed optional fields)
-- `getEnrichedRecipe()` function (already computes satiety, proteinPerRupee)
-- `filterRecipes()`, `getRecipeById()`, `getRecipesByMealType()`
-- Meal suggestion engine, meal planner, all UI components
-- All other files
-
-### Technical Notes
-- The user's `cost` field maps to `estimatedCost` on the Recipe interface
-- `snacks` in user data maps to `snack` in existing mealType union type
-- `side` and `beverage` meal types from user data will be mapped to `snack`
-- Duplicate recipes (same dish) will be skipped; their metadata will be applied to existing entries instead
+- `meal-suggestion-engine.ts` (already complete)
+- `budget-service.ts` (already has curve, cascade, survival, dual-sync)
+- `NextMealCard.tsx`, Dashboard, BudgetPlannerTab
+- Recipe database, all UI components
 
