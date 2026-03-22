@@ -21,6 +21,8 @@ export interface OnboardingData {
     calories: number;
     macros: { protein: number; carbs: number; fat: number };
     expectedRate: string;
+    weeksMin: number | null;
+    weeksMax: number | null;
   };
   lifestyle: {
     diet: string;
@@ -28,7 +30,16 @@ export interface OnboardingData {
     supplements: string[];
     cooking: { skill: string; time: number; equipment: string[] };
   };
-  meta: { createdAt: string; lastUpdated: string; weeklyAdjustments: any[] };
+  meta: {
+    createdAt: string;
+    lastUpdated: string;
+    adherenceScore: number;
+    adherenceLabel: string;
+    expectedAdaptation: boolean;
+    plateauCounter: number;
+    lastWeightEntry: string | null;
+    weeklyAdjustments: any[];
+  };
 }
 
 export function saveOnboardingProgress(phase: number, data: any) {
@@ -86,7 +97,7 @@ export function saveOnboardingData(data: OnboardingData) {
     dailyFat: data.goals.macros.fat,
     bmi: +(data.basic.weightKg / ((data.basic.heightCm / 100) ** 2)).toFixed(1),
     bmr,
-    tdee: data.goals.calories, // Will be overwritten
+    tdee: data.goals.calories,
     skinConcerns: data.health.skin !== 'none' ? { [data.health.skin]: true } : undefined,
   };
   saveProfile(profile);

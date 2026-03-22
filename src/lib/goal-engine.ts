@@ -32,11 +32,14 @@ export interface OnboardingGoalInput {
   age: number;
   heightCm: number;
   weightKg: number;
-  work: string;       // 'sitting' | 'mixed' | 'physical'
-  exercise: string;    // 'none' | '1-3' | '4-5' | 'daily'
+  work: string;
+  exercise: string;
   goalType: 'lose' | 'maintain' | 'gain';
   goalSpeed: 'balanced' | 'aggressive';
-  healthConditions: string[];  // 'diabetes', 'thyroid', 'pcos'
+  healthConditions: string[];
+  targetWeight?: number | null;
+  diet?: string;
+  cookingTime?: number;
 }
 
 export interface OnboardingGoalResult {
@@ -48,9 +51,16 @@ export interface OnboardingGoalResult {
   carbs: number;
   fat: number;
   expectedRate: string;
+  weeklyRate: number;
   goalType: 'lose' | 'maintain' | 'gain';
   safetyWarnings: string[];
   thyroidNote: string | null;
+  weeksMin: number | null;
+  weeksMax: number | null;
+  adherenceScore: number;
+  adherenceLabel: 'easy' | 'moderate' | 'hard';
+  calorieCue: 'sustainable' | 'moderate' | 'aggressive';
+  goalInsight: string | null;
 }
 
 // ── BMI Categories (WHO Asian thresholds) ──
@@ -61,10 +71,42 @@ function getBmiCategory(bmi: number): string {
   return 'obese';
 }
 
-// ── New Onboarding Goal Engine (weight-based protein, work+exercise matrix) ──
+// ── Adherence Score ──
+function calculateAdherence(input: {
+  protein: number;
+  weightKg: number;
+  diet?: string;
+  goalType: string;
+  cookingTime?: number;
+  targetCalories: number;
+  tdee: number;
+  weeklyRate: number;
+}): { score: number; label: 'easy' | 'moderate' | 'hard' } {
+  let score = 100;
+  if (input.protein > 130) score -= 10;
+  if ((input.diet === 'veg' || input.diet === 'vegan') && input.protein > 110) score -= 15;
+  if (input.goalType === 'gain' && (input.cookingTime ?? 30) < 20) score -= 10;
+  if (input.goalType === 'lose' && input.protein > input.weightKg * 2.0) score -= 5;
+  if (input.goalType === 'lose' && input.targetCalories < input.tdee * 0.75) score -= 10;
+  if (input.targetCalories < 1400) score -= 10;
+  if (input.goalType === 'lose' && input.weeklyRate > 0.75) score -= 10;
+  score = Math.max(0, Math.min(100, score));
+  const label: 'easy' | 'moderate' | 'hard' = score >= 80 ? 'easy' : score >= 60 ? 'moderate' : 'hard';
+  return { score, label };
+}
+
+// ── Water with activity bonus ──
+export function calculateWaterGoal(weightKg: number, multiplier: number): number {
+  let water = weightKg * 0.035;
+  if (multiplier >= 1.725) water += 1.0;
+  else if (multiplier >= 1.55) water += 0.5;
+  return Math.min(5.0, Math.max(0.5, +water.toFixed(1)));
+}
+
+// ── New Onboarding Goal Engine ──
 
 export function calculateOnboardingGoals(input: OnboardingGoalInput): OnboardingGoalResult {
-  const { gender, age, heightCm, weightKg, work, exercise, goalType, goalSpeed, healthConditions } = input;
+  const { gender, age, heightCm, weightKg, work, exercise, goalType, goalSpeed, healthConditions, targetWeight, diet, cookingTime } = input;
 
   const warnings: string[] = [];
 
@@ -72,10 +114,10 @@ export function calculateOnboardingGoals(input: OnboardingGoalInput): Onboarding
   const heightM = heightCm / 100;
   const bmi = +(weightKg / (heightM * heightM)).toFixed(1);
 
-  // 2. BMR (Mifflin-St Jeor)
+  // 2. BMR
   const bmr = Math.round(calculateBMR(weightKg, heightCm, age, gender));
 
-  // 3. TDEE from work+exercise matrix
+  // 3. TDEE
   const multiplier = getActivityMultiplier(work, exercise);
   const tdee = Math.round(bmr * multiplier);
 
@@ -88,26 +130,33 @@ export function calculateOnboardingGoals(input: OnboardingGoalInput): Onboarding
   } else {
     target = tdee;
   }
-  // Clamp
   target = Math.max(1200, Math.min(target, Math.round(tdee * 1.3)));
   if (target === 1200 && goalType === 'lose') {
     warnings.push('Calorie target capped at 1200 kcal for safety. Never go below this.');
   }
 
-  // 5. Protein (weight-based)
+  // 5. Protein (weight-based with goal-specific caps)
   let proteinFactor: number;
-  if (goalType === 'lose') proteinFactor = 1.8;
-  else if (goalType === 'gain') proteinFactor = 1.6;
-  else proteinFactor = 1.4;
+  let maxProteinFactor: number;
+  if (goalType === 'lose') {
+    proteinFactor = 1.8;
+    maxProteinFactor = weightKg < 50 ? 1.8 : 2.0;
+  } else if (goalType === 'gain') {
+    proteinFactor = 1.6;
+    maxProteinFactor = 2.2;
+  } else {
+    proteinFactor = 1.4;
+    maxProteinFactor = 1.8;
+  }
 
   // Activity bonus
   if (multiplier >= 1.725) proteinFactor += 0.4;
   else if (multiplier >= 1.55) proteinFactor += 0.2;
-  proteinFactor = Math.min(proteinFactor, 2.2);
+  proteinFactor = Math.min(proteinFactor, maxProteinFactor);
 
   let protein = Math.round(weightKg * proteinFactor);
 
-  // 6. Fat = 25% of target calories
+  // 6. Fat = 25% of target
   let fat = Math.round((target * 0.25) / 9);
 
   // 7. Health adjustments (non-stacking carb reduction)
@@ -120,43 +169,93 @@ export function calculateOnboardingGoals(input: OnboardingGoalInput): Onboarding
   else if (hasPcos) carbFactor = 0.85;
   else if (hasDiabetes) carbFactor = 0.80;
 
-  if (hasPcos) fat = Math.round(fat * 1.10);
+  let fatFactor = hasPcos ? 1.10 : 1.0;
 
-  // 8. Carbs from remaining calories
-  let remainingCal = target - (protein * 4) - (fat * 9);
-  let carbs = Math.round((remainingCal / 4) * carbFactor);
+  // 8. Base carbs
+  let baseCarbs = Math.round(((target - (protein * 4) - (fat * 9)) / 4));
+  let adjCarbs = Math.round(baseCarbs * carbFactor);
+  let adjFat = Math.round(fat * fatFactor);
 
-  // Rebalance: recalculate carbs from true remaining after protein+fat
-  if (carbFactor < 1.0) {
-    // After carb reduction, rebalance from remaining
-    const usedCal = protein * 4 + fat * 9 + carbs * 4;
-    if (usedCal < target) {
-      // Leftover goes to carbs
-      carbs += Math.round((target - usedCal) / 4);
-    }
+  // 9. Scale macros to match target calories exactly
+  const totalCal = protein * 4 + adjFat * 9 + adjCarbs * 4;
+  if (totalCal > 0 && Math.abs(totalCal - target) > 5) {
+    const scale = target / totalCal;
+    protein = Math.round(protein * scale);
+    adjFat = Math.round(adjFat * scale);
+    adjCarbs = Math.round(adjCarbs * scale);
   }
 
-  // Floor carbs at 50g
-  if (carbs < 50) {
-    warnings.push('Carbs were below 50g minimum. Fat has been slightly reduced to maintain calorie target.');
-    carbs = 50;
-    // Adjust fat to maintain calorie target
-    const remainingForFat = target - (protein * 4) - (carbs * 4);
-    fat = Math.max(20, Math.round(remainingForFat / 9));
+  // 10. Constraint order: protein cap → fat min → carbs floor
+  // Cap protein
+  const maxProtein = Math.round(weightKg * maxProteinFactor);
+  if (protein > maxProtein) protein = maxProtein;
+
+  // Remaining after protein
+  let remaining = target - (protein * 4);
+
+  // Fat minimum = 20% of target
+  const minFatCal = target * 0.20;
+  if (adjFat * 9 < minFatCal) {
+    adjFat = Math.round(minFatCal / 9);
+  }
+  if (adjFat * 9 > remaining) {
+    adjFat = Math.floor(remaining / 9);
   }
 
-  // 9. Expected weight change
+  // Carbs from remaining
+  remaining = target - (protein * 4) - (adjFat * 9);
+  adjCarbs = Math.round(remaining / 4);
+
+  // Carbs floor at 50g
+  if (adjCarbs < 50) {
+    warnings.push('Carbs were below 50g minimum. Fat reduced slightly to maintain calorie target.');
+    const deficit = (50 - adjCarbs) * 4;
+    adjFat = Math.max(0, adjFat - Math.ceil(deficit / 9));
+    remaining = target - (protein * 4) - (adjFat * 9);
+    adjCarbs = Math.max(50, Math.round(remaining / 4));
+  }
+
+  // 11. Expected weight change + timeline
+  let weeklyRate = 0;
   let expectedRate = 'stable';
+  let weeksMin: number | null = null;
+  let weeksMax: number | null = null;
+
   if (goalType === 'lose') {
     const deficit = tdee - target;
-    let weeklyLoss = (deficit * 7) / 7700;
-    weeklyLoss = Math.min(weeklyLoss, 1.0);
-    expectedRate = `${weeklyLoss.toFixed(1)} kg per week`;
+    weeklyRate = Math.min((deficit * 7) / 7700, 1.0);
+    expectedRate = `${weeklyRate.toFixed(1)} kg per week`;
   } else if (goalType === 'gain') {
     const surplus = target - tdee;
-    let weeklyGain = (surplus * 7) / 7700;
-    weeklyGain = Math.min(weeklyGain, 0.5);
-    expectedRate = `${weeklyGain.toFixed(1)} kg per week`;
+    weeklyRate = Math.min((surplus * 7) / 7700, 0.5);
+    expectedRate = `${weeklyRate.toFixed(1)} kg per week`;
+  }
+
+  if ((goalType === 'lose' || goalType === 'gain') && targetWeight != null && weeklyRate > 0) {
+    const weightDiff = Math.abs(weightKg - targetWeight);
+    weeksMin = Math.floor(weightDiff / weeklyRate);
+    weeksMax = Math.ceil(weightDiff / (weeklyRate * 0.8));
+  }
+
+  // 12. Calorie cue
+  const ratio = target / tdee;
+  const calorieCue: 'sustainable' | 'moderate' | 'aggressive' =
+    ratio >= 0.95 ? 'sustainable' : ratio >= 0.80 ? 'moderate' : 'aggressive';
+
+  // 13. Adherence
+  const adherence = calculateAdherence({
+    protein, weightKg, diet, goalType, cookingTime, targetCalories: target, tdee, weeklyRate,
+  });
+
+  // 14. Goal insight
+  let goalInsight: string | null = null;
+  if (goalType === 'lose' && protein > 100) {
+    goalInsight = 'Your plan will prioritize lean proteins like chicken breast, tofu, and low-fat dairy.';
+  } else if (goalType === 'gain' && protein > 120) {
+    goalInsight = 'Your plan will prioritize calorie-dense proteins like eggs, full-fat dairy, and protein shakes.';
+  }
+  if ((diet === 'veg' || diet === 'vegan') && protein > 90) {
+    goalInsight = 'Your plan will use lentils, paneer, tofu, and protein powder to meet your protein goal.';
   }
 
   const thyroidNote = hasThyroid
@@ -164,21 +263,17 @@ export function calculateOnboardingGoals(input: OnboardingGoalInput): Onboarding
     : null;
 
   return {
-    bmi,
-    bmr,
-    tdee,
-    targetCalories: target,
-    protein,
-    carbs,
-    fat,
-    expectedRate,
-    goalType,
-    safetyWarnings: warnings,
-    thyroidNote,
+    bmi, bmr, tdee, targetCalories: target,
+    protein, carbs: adjCarbs, fat: adjFat,
+    expectedRate, weeklyRate, goalType,
+    safetyWarnings: warnings, thyroidNote,
+    weeksMin, weeksMax,
+    adherenceScore: adherence.score, adherenceLabel: adherence.label,
+    calorieCue, goalInsight,
   };
 }
 
-// ── Legacy Goal Decision Engine (for EditProfileSheet and other consumers) ──
+// ── Legacy Goal Decision Engine ──
 
 export interface AdaptiveResult {
   shouldAdjust: boolean;
@@ -190,14 +285,9 @@ export interface AdaptiveResult {
 }
 
 export function determineGoalAndTargets(
-  weightKg: number,
-  heightCm: number,
-  age: number,
-  gender: string,
-  activityLevel: string,
-  userGoal: string,
-  healthConditions?: string[],
-  womenHealth?: string[]
+  weightKg: number, heightCm: number, age: number, gender: string,
+  activityLevel: string, userGoal: string,
+  healthConditions?: string[], womenHealth?: string[]
 ): GoalDecision {
   const bmi = calculateBMI(weightKg, heightCm);
   const bmr = calculateBMR(weightKg, heightCm, age, gender);
@@ -213,27 +303,22 @@ export function determineGoalAndTargets(
 
   if (bmiCategory === 'obese') {
     if (userGoal !== 'lose') {
-      effectiveGoal = 'lose';
-      wasOverridden = true;
+      effectiveGoal = 'lose'; wasOverridden = true;
       overrideReason = `Your BMI (${bmi.toFixed(1)}) indicates obesity. We've set your goal to fat loss for health safety.`;
     }
     deficitPercent = 25;
   } else if (bmiCategory === 'overweight') {
     if (userGoal === 'gain') {
-      effectiveGoal = 'lose';
-      wasOverridden = true;
+      effectiveGoal = 'lose'; wasOverridden = true;
       overrideReason = `Your BMI (${bmi.toFixed(1)}) is in the overweight range. We recommend fat loss before gaining.`;
       deficitPercent = 20;
-    } else if (userGoal === 'lose') {
-      deficitPercent = 20;
-    }
+    } else if (userGoal === 'lose') { deficitPercent = 20; }
   } else if (bmiCategory === 'normal') {
     if (userGoal === 'lose') deficitPercent = 15;
     else if (userGoal === 'gain') surplusPercent = 10;
   } else if (bmiCategory === 'underweight') {
     if (userGoal !== 'gain') {
-      effectiveGoal = 'gain';
-      wasOverridden = true;
+      effectiveGoal = 'gain'; wasOverridden = true;
       overrideReason = `Your BMI (${bmi.toFixed(1)}) is underweight. We've set your goal to healthy weight gain.`;
     }
     surplusPercent = 20;
@@ -243,10 +328,7 @@ export function determineGoalAndTargets(
   if (effectiveGoal === 'lose') {
     targetCalories = tdee * (1 - deficitPercent / 100);
     const minCalories = gender === 'female' ? 1200 : 1500;
-    if (targetCalories < minCalories) {
-      targetCalories = minCalories;
-      safetyNote = `Calorie target capped at ${minCalories} kcal for safety.`;
-    }
+    if (targetCalories < minCalories) { targetCalories = minCalories; safetyNote = `Calorie target capped at ${minCalories} kcal for safety.`; }
   } else if (effectiveGoal === 'gain') {
     targetCalories = tdee * (1 + surplusPercent / 100);
     if (targetCalories < tdee + 250) targetCalories = tdee + 250;
@@ -258,32 +340,17 @@ export function determineGoalAndTargets(
   const weeklyDeficit = (tdee - targetCalories) * 7;
   const weeklyChange = weeklyDeficit / 7700;
   let expectedWeeklyChange: string;
-  if (effectiveGoal === 'lose') {
-    expectedWeeklyChange = `~${weeklyChange.toFixed(1)} kg/week loss`;
-  } else if (effectiveGoal === 'gain') {
+  if (effectiveGoal === 'lose') expectedWeeklyChange = `~${weeklyChange.toFixed(1)} kg/week loss`;
+  else if (effectiveGoal === 'gain') {
     const weeklyGain = ((targetCalories - tdee) * 7) / 7700;
     expectedWeeklyChange = `~${weeklyGain.toFixed(1)} kg/week gain`;
-  } else {
-    expectedWeeklyChange = 'Maintain current weight';
-  }
+  } else expectedWeeklyChange = 'Maintain current weight';
 
   return {
-    originalGoal: userGoal,
-    effectiveGoal,
-    wasOverridden,
-    overrideReason,
-    deficitPercent,
-    surplusPercent,
-    targetCalories,
-    targetProtein: macros.protein,
-    targetCarbs: macros.carbs,
-    targetFat: macros.fat,
-    bmi,
-    bmiCategory,
-    expectedWeeklyChange,
-    safetyNote,
-    tdee,
-    bmr,
+    originalGoal: userGoal, effectiveGoal, wasOverridden, overrideReason,
+    deficitPercent, surplusPercent, targetCalories,
+    targetProtein: macros.protein, targetCarbs: macros.carbs, targetFat: macros.fat,
+    bmi, bmiCategory, expectedWeeklyChange, safetyNote, tdee, bmr,
   };
 }
 
@@ -301,11 +368,7 @@ export function setLastAdaptationDate(date: string) {
 }
 
 interface AdaptationLogEntry {
-  date: string;
-  oldTarget: number;
-  newTarget: number;
-  reason: string;
-  weeklyWeightChange: number;
+  date: string; oldTarget: number; newTarget: number; reason: string; weeklyWeightChange: number;
 }
 
 function getAdaptationLog(): AdaptationLogEntry[] {
@@ -350,9 +413,7 @@ export function runWeeklyAdaptation(profile: UserProfile): AdaptiveResult | null
   const lastWeight = recentWeights[recentWeights.length - 1].weight;
   const daysBetween = (new Date(recentWeights[recentWeights.length - 1].date).getTime() -
     new Date(recentWeights[0].date).getTime()) / (1000 * 60 * 60 * 24);
-  const weeklyWeightChange = daysBetween > 0
-    ? ((lastWeight - firstWeight) / daysBetween) * 7
-    : 0;
+  const weeklyWeightChange = daysBetween > 0 ? ((lastWeight - firstWeight) / daysBetween) * 7 : 0;
 
   const currentTarget = profile.dailyCalories;
   const goal = profile.goal;
