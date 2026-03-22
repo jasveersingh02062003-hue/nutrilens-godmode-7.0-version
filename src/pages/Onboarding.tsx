@@ -309,6 +309,7 @@ export default function Onboarding() {
     }
 
     setPhase('success');
+    setShowPlansAfterOnboarding(true);
   };
 
   const bmi = calculateBMI(f.weightKg, f.heightCm);
