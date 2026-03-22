@@ -127,6 +127,11 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
   const difficulty = getDifficultyFilter(profile.cookingSkill);
   const mealsPerDay = profile.mealsPerDay || 3;
   const targetCal = profile.dailyCalories;
+  const targetProtein = profile.dailyCalories ? Math.round(profile.dailyCalories * 0.15 / 4) : 60;
+
+  // Get per-meal budget from budget settings
+  const enhanced = getEnhancedBudgetSettings();
+  const perMealBudget = enhanced.perMeal || { breakfast: 100, lunch: 150, dinner: 200, snacks: 50 };
 
   const calPerBreakfast = Math.round(targetCal * 0.25);
   const calPerLunch = Math.round(targetCal * 0.35);
@@ -136,34 +141,69 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
   const days: DayPlan[] = [];
   const usedRecipeIds: string[] = [];
 
-  const mealTypes: { type: 'breakfast' | 'lunch' | 'dinner' | 'snack'; cal: number }[] = [
-    { type: 'breakfast', cal: calPerBreakfast },
-    { type: 'lunch', cal: calPerLunch },
-    { type: 'dinner', cal: calPerDinner },
+  const mealTypes: { type: 'breakfast' | 'lunch' | 'dinner' | 'snack'; cal: number; budgetKey: string }[] = [
+    { type: 'breakfast', cal: calPerBreakfast, budgetKey: 'breakfast' },
+    { type: 'lunch', cal: calPerLunch, budgetKey: 'lunch' },
+    { type: 'dinner', cal: calPerDinner, budgetKey: 'dinner' },
   ];
 
-  // Add snack if needed
   if (mealsPerDay > 3) {
-    mealTypes.push({ type: 'snack', cal: calPerSnack });
+    mealTypes.push({ type: 'snack', cal: calPerSnack, budgetKey: 'snacks' });
   }
 
   for (let i = 0; i < 7; i++) {
     const date = new Date(weekStart);
     date.setDate(date.getDate() + i);
     const dateStr = date.toISOString().split('T')[0];
+    const dayOfMonth = date.getDate();
+
+    // Apply budget curve multiplier per day
+    const curveMultiplier = getBudgetCurveMultiplier(dayOfMonth);
 
     const meals: PlannedMeal[] = [];
     const baseOpts = { tags, maxPrepTime: maxTime, difficulty, cuisines: cuisines.length ? cuisines : undefined };
+    let dayProtein = 0;
 
-    for (const { type, cal } of mealTypes) {
+    for (const { type, cal, budgetKey } of mealTypes) {
+      const mealBudgetRaw = (perMealBudget as any)[budgetKey] || 100;
+      const mealBudget = Math.round(mealBudgetRaw * curveMultiplier);
+      const mealProteinTarget = Math.round(targetProtein / mealTypes.length);
+
       const recipe = findRecipeWithFallback(type, {
         ...baseOpts,
         maxCalories: cal + 150,
+        maxCost: mealBudget,
+        targetProtein: mealProteinTarget,
         excludeIds: usedRecipeIds.slice(-(type === 'breakfast' ? 7 : 5)),
       });
       if (recipe) {
         meals.push({ recipeId: recipe.id, mealType: type, cooked: false, logged: false });
         usedRecipeIds.push(recipe.id);
+        dayProtein += recipe.protein;
+      }
+    }
+
+    // Protein post-optimization: if daily protein < 90% target, swap weakest meal
+    if (dayProtein < targetProtein * 0.9 && meals.length > 0) {
+      let lowestIdx = 0;
+      let lowestProtein = Infinity;
+      for (let m = 0; m < meals.length; m++) {
+        const r = recipes.find(rx => rx.id === meals[m].recipeId);
+        if (r && r.protein < lowestProtein) {
+          lowestProtein = r.protein;
+          lowestIdx = m;
+        }
+      }
+      const slotType = meals[lowestIdx].mealType;
+      const slotBudgetKey = slotType === 'snack' ? 'snacks' : slotType;
+      const slotBudget = Math.round(((perMealBudget as any)[slotBudgetKey] || 100) * curveMultiplier);
+      const betterCandidates = filterRecipes({ mealType: slotType, tags })
+        .filter(r => r.protein > lowestProtein && getEnrichedRecipe(r).estimatedCost <= slotBudget);
+      if (betterCandidates.length) {
+        const best = betterCandidates.reduce((a, b) =>
+          getEnrichedRecipe(a).proteinPerRupee > getEnrichedRecipe(b).proteinPerRupee ? a : b
+        );
+        meals[lowestIdx] = { recipeId: best.id, mealType: slotType, cooked: false, logged: false };
       }
     }
 
