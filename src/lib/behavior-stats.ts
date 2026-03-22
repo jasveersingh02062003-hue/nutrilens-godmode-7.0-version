@@ -45,6 +45,11 @@ const DEFAULT_STATS: BehaviorStats = {
   loggingHabit: { missedLogsPerWeek: 0, lateNightEatingFrequency: 0 },
   daysTracked: 0,
   lastUpdated: '',
+  eatingPattern: 'balanced',
+  overspendTendency: 'low',
+  outsideFrequency: 0,
+  mealSkipping: false,
+  impulsiveSpending: false,
 };
 
 // ── Get / Save ──
