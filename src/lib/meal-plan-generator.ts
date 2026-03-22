@@ -70,35 +70,31 @@ function findRecipeWithFallback(
     difficulty?: string;
     cuisines?: string[];
     excludeIds?: string[];
+    maxCost?: number;
+    targetProtein?: number;
   }
 ): Recipe | null {
   const levels = [
-    // Level 1: All filters
     { ...opts, mealType },
-    // Level 2: Remove excludeIds
     { ...opts, mealType, excludeIds: undefined },
-    // Level 3: Remove difficulty
     { ...opts, mealType, excludeIds: undefined, difficulty: undefined },
-    // Level 4: Remove calorie cap
     { ...opts, mealType, excludeIds: undefined, difficulty: undefined, maxCalories: undefined },
-    // Level 5: Remove cuisine
     { ...opts, mealType, excludeIds: undefined, difficulty: undefined, maxCalories: undefined, cuisines: undefined },
-    // Level 6: Remove prep time
     { ...opts, mealType, excludeIds: undefined, difficulty: undefined, maxCalories: undefined, cuisines: undefined, maxPrepTime: undefined },
-    // Level 7: Only meal type, no dietary
     { mealType },
   ];
 
   for (const filter of levels) {
     const results = filterRecipes(filter);
-    if (results.length) return pickRandom(results);
+    // Apply cost filter if provided
+    const costed = opts.maxCost ? results.filter(r => getEnrichedRecipe(r).estimatedCost <= opts.maxCost!) : results;
+    if (costed.length) return pickBest(costed, opts.maxCost, opts.targetProtein);
+    if (results.length) return pickBest(results, opts.maxCost, opts.targetProtein);
   }
 
-  // Level 8: Any recipe that includes this meal type (bypass filterRecipes)
   const fallback = recipes.filter(r => r.mealType.includes(mealType as any));
-  if (fallback.length) return pickRandom(fallback);
+  if (fallback.length) return pickBest(fallback, opts.maxCost, opts.targetProtein);
 
-  // Level 9: Absolute fallback - pick ANY recipe
   if (recipes.length) return pickRandom(recipes);
 
   return null;
