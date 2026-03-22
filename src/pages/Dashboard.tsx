@@ -201,6 +201,22 @@ export default function Dashboard() {
           <NudgeBanner />
         </div>
 
+        {/* Survival / Recovery Mode Banner */}
+        {(survivalMode || recoveryMode) && (
+          <div className="animate-fade-in">
+            <div className={`flex items-center gap-3 rounded-2xl px-4 py-3 border ${
+              survivalMode ? 'bg-destructive/10 border-destructive/20' : 'bg-primary/10 border-primary/20'
+            }`}>
+              <ShieldAlert className={`w-4 h-4 shrink-0 ${survivalMode ? 'text-destructive' : 'text-primary'}`} />
+              <p className="text-xs font-medium text-foreground">
+                {survivalMode
+                  ? '🔴 Survival mode: focusing on filling, affordable meals'
+                  : '🔄 Recovery mode: budget-friendly meals for the next few days'}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Daily Adjustment Summary (from yesterday) */}
         <div className="animate-fade-in">
           <DailyAdjustmentSummary />

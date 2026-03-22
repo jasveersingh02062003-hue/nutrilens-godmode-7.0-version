@@ -114,18 +114,34 @@ export function getDaysRemainingInPeriod(period: 'week' | 'month' = 'week'): num
   return lastDay - now.getDate();
 }
 
+// ─── Cash Flow Curve ───
+
 /**
- * Get the adjusted daily budget considering overspend so far in the period.
+ * Budget curve multiplier based on day of month.
+ * People spend more early month and tighten later.
  */
-export function getAdjustedDailyBudget(): { dailyBudget: number; adjustedDailyBudget: number; overspend: number; daysRemaining: number } {
+export function getBudgetCurveMultiplier(dayOfMonth?: number): number {
+  const day = dayOfMonth ?? new Date().getDate();
+  if (day <= 5) return 1.2;   // relaxed
+  if (day <= 20) return 1.0;  // normal
+  if (day <= 25) return 0.9;  // tight
+  return 0.7;                 // survival
+}
+
+/**
+ * Get the adjusted daily budget considering overspend + cash flow curve.
+ */
+export function getAdjustedDailyBudget(): { dailyBudget: number; adjustedDailyBudget: number; overspend: number; daysRemaining: number; curveMultiplier: number } {
   const summary = getBudgetSummary();
   const daysRemaining = getDaysRemainingInPeriod(summary.period);
   const dailyBudget = summary.budget > 0
     ? Math.round(summary.budget / (summary.period === 'week' ? 7 : 30))
     : 0;
   const remaining = Math.max(0, summary.budget - summary.spent);
-  const adjustedDailyBudget = daysRemaining > 0 ? Math.round(remaining / daysRemaining) : remaining;
+  const rawAdjusted = daysRemaining > 0 ? Math.round(remaining / daysRemaining) : remaining;
+  const curveMultiplier = summary.period === 'month' ? getBudgetCurveMultiplier() : 1;
+  const adjustedDailyBudget = Math.round(rawAdjusted * curveMultiplier);
   const overspend = Math.max(0, summary.spent - summary.budget);
 
-  return { dailyBudget, adjustedDailyBudget, overspend, daysRemaining };
+  return { dailyBudget, adjustedDailyBudget, overspend, daysRemaining, curveMultiplier };
 }
