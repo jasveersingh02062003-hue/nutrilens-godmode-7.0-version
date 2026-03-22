@@ -23,6 +23,7 @@ import { canUseCameraScan, incrementCameraScan, getRemainingCameraScans, getPlan
 import UpgradePrompt from '@/components/UpgradePrompt';
 import FoodReplaceSheet from '@/components/FoodReplaceSheet';
 import { getUnitOptionsForFood, calculateNutrition, type UnitOption } from '@/lib/unit-conversion';
+import PESBreakdownModal from '@/components/PESBreakdownModal';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 type Step = 'camera' | 'confirm' | 'edit' | 'save';
