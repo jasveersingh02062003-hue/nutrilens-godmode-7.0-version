@@ -22,6 +22,7 @@ import ConsistencyCard from '@/components/ConsistencyCard';
 import CoachCard from '@/components/CoachCard';
 import WeeklyReportCard from '@/components/WeeklyReportCard';
 import BudgetSummaryCard from '@/components/BudgetSummaryCard';
+import DailyEfficiencyCard from '@/components/DailyEfficiencyCard';
 import NudgeBanner from '@/components/NudgeBanner';
 import WeatherNudgeCard from '@/components/WeatherNudgeCard';
 import SymptomReminderCard from '@/components/SymptomReminderCard';
