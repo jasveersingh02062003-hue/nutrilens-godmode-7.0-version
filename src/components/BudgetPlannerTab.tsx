@@ -1356,6 +1356,7 @@ export default function BudgetPlannerTab() {
   const [deleteConfirmExpense, setDeleteConfirmExpense] = useState<Expense | null>(null);
 
   const refresh = useCallback(() => setRefreshKey(k => k + 1), []);
+  const [survivalOn, setSurvivalOn] = useState(isSurvivalModeManual);
 
   const enhanced = useMemo(() => getEnhancedBudgetSettings(), [refreshKey]);
   const budgetSettings = useMemo(() => getBudgetSettings(), [refreshKey]);
