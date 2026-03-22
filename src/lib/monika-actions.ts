@@ -359,6 +359,14 @@ export function buildMonikaContext() {
       current: weatherSummary,
       nudge: weatherNudge ? weatherNudge.message : null,
     },
+    pesEngine: {
+      dailyEfficiency: dailyEfficiency(),
+      capabilities: [
+        'Compare foods: "compare eggs vs paneer"',
+        'Best under price: "best protein under ₹50"',
+        'Evaluate food: "how good is chicken curry"',
+      ],
+    },
   };
 }
 
