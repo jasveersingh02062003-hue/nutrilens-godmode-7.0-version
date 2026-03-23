@@ -1466,7 +1466,7 @@ export default function Onboarding() {
       }
 
       // ── Intelligence Demo ──
-      case 23: {
+      case 25: {
         const meal = getDemoMeal(f.diet || 'noRestrictions', f.conditions);
         const warnings = getCameraWarnings(f.conditions);
         const budgetFits = !f.budgetEnabled || meal.cost <= (f.budgetAmount * 0.35);
