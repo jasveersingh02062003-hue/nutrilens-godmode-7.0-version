@@ -1344,7 +1344,7 @@ function MealSuggestionsSection({ onRefresh }: { onRefresh: () => void }) {
 }
 
 // ─── Main Budget Planner Tab ───
-export default function BudgetPlannerTab() {
+export default function BudgetPlannerTab({ onOnboardingComplete }: { onOnboardingComplete?: () => void } = {}) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showSetBudget, setShowSetBudget] = useState(false);
