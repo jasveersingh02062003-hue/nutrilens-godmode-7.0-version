@@ -1630,7 +1630,7 @@ export default function Onboarding() {
   }
 
   // ── Wizard phase ──
-  const isFinishStep = step === 26;
+  const isFinishStep = step === 25;
   const isSummaryStep = step === 14;
 
   // Button label logic
