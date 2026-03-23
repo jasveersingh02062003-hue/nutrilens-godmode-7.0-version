@@ -15,7 +15,7 @@ const STEPS = [
   'activity', 'exercise', 'sleep', 'stress',
   'dietary', 'medical', 'allergies', 'cuisines',
   'cooking', 'cookTime', 'equipment', 'eatingOut', 'snacking',
-  'mealsPerDay', 'summary',
+  'mealsPerDay', 'budget', 'summary',
 ];
 
 const pageVariants = {
