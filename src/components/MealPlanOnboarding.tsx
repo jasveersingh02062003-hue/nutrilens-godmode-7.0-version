@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Check, Sparkles, Target, Dumbbell, Heart, Apple, ChefHat, UtensilsCrossed, Scale, User } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Sparkles, Target, Dumbbell, Heart, Apple, ChefHat, UtensilsCrossed, Scale, User, IndianRupee } from 'lucide-react';
 import { MealPlannerProfile, saveMealPlannerProfile } from '@/lib/meal-planner-store';
 import { calculateBMI, calculateBMR, calculateTDEE, getBMICategory } from '@/lib/nutrition';
 import { determineGoalAndTargets } from '@/lib/goal-engine';
