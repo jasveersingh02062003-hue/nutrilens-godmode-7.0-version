@@ -1542,7 +1542,7 @@ export default function Onboarding() {
       }
 
       // ── Finish ──
-      case 24:
+      case 26:
         return (
           <div className="space-y-6">
             <StepHeader title="All set! 🎉" subtitle="Your personalized nutrition plan is ready." />
