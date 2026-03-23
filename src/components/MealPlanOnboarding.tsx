@@ -100,7 +100,6 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
       case 'cookTime': return !!form.cookingTime;
       case 'mealsPerDay': return true;
       default: return true;
-      default: return true;
     }
   };
 
