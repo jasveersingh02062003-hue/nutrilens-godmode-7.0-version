@@ -1247,8 +1247,19 @@ export default function Onboarding() {
         );
       }
 
-      // ── Phase 7: Lifestyle ──
+      // ── Step 16: Prediction Summary ──
       case 16:
+        return goalResult ? (
+          <PredictionSummaryStep
+            goalResult={goalResult}
+            currentWeight={f.weightKg}
+            targetWeight={f.targetWeight}
+            goalType={f.goalType}
+          />
+        ) : <div className="text-center text-muted-foreground">Calculating...</div>;
+
+      // ── Phase 7: Lifestyle ──
+      case 17:
         return (
           <div className="space-y-5">
             <StepHeader title="Want to personalise more?" subtitle="Diet preferences, supplements, budget, and cooking habits." />
