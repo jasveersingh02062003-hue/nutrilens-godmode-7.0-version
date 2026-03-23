@@ -1261,8 +1261,24 @@ export default function Onboarding() {
           />
         ) : <div className="text-center text-muted-foreground">Calculating...</div>;
 
-      // ── Phase 7: Lifestyle ──
+      // ── Step 17: Food Intelligence ──
       case 17:
+        return (
+          <FoodIntelligenceStep
+            conditions={f.conditions}
+            skinConcern={f.skin}
+            goalType={f.goalType}
+            genderSpecific={{
+              pcos: f.conditions.includes('pcos'),
+              pregnancy: f.pregnant,
+              breastfeeding: f.breastfeeding,
+            }}
+            dietType={f.diet}
+          />
+        );
+
+      // ── Phase 7: Lifestyle ──
+      case 18:
         return (
           <div className="space-y-5">
             <StepHeader title="Want to personalise more?" subtitle="Diet preferences, supplements, budget, and cooking habits." />
