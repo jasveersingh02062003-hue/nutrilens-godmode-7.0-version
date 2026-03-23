@@ -492,8 +492,10 @@ export default function Onboarding() {
       case 11: return !!f.goalType;
       case 12: return !!f.goalSpeed;
       case 13: {
-        if (f.goalType === 'lose') return f.targetWeight > 20 && f.targetWeight < f.weightKg;
-        if (f.goalType === 'gain') return f.targetWeight > f.weightKg && f.targetWeight < 300;
+        if (f.targetWeight <= 0 || f.targetWeight > 300) return false;
+        if (f.goalType === 'lose' && f.targetWeight >= f.weightKg) return false;
+        if (f.goalType === 'gain' && f.targetWeight <= f.weightKg) return false;
+        // Allow amber warnings (user can override), block only direction errors
         return true;
       }
       case 14: return true; // summary - always can confirm
