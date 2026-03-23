@@ -493,7 +493,7 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
     challenges: 'Challenges', activity: 'Activity', exercise: 'Exercise', sleep: 'Sleep', stress: 'Stress',
     dietary: 'Diet', medical: 'Medical', allergies: 'Allergies', cuisines: 'Cuisines',
     cooking: 'Cooking', cookTime: 'Cook Time', equipment: 'Equipment', eatingOut: 'Eating Out',
-    snacking: 'Snacking', mealsPerDay: 'Meals/Day', budget: 'Budget', summary: 'Summary',
+    snacking: 'Snacking', mealsPerDay: 'Meals/Day', summary: 'Summary',
   };
 
   return (
