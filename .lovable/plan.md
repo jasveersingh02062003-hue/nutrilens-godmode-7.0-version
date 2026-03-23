@@ -1,46 +1,47 @@
 
 
-## Add Budget Setup Step to Meal Planner Onboarding
+## Sync Budget Planner & Meal Planner Flow
 
-### What it does
-Adds a budget setup step between "mealsPerDay" and "summary" in the meal planner onboarding wizard. The step collects monthly budget, computes daily budget, and lets the user set per-meal splits. On plan generation, this data is saved to the enhanced budget settings so `generateWeekPlan` picks it up automatically.
+### What changes
 
-### Current State
-- `MealPlanOnboarding.tsx` has 21 steps (welcome → summary), no budget step
-- `meal-plan-generator.ts` already reads per-meal budgets from `getEnhancedBudgetSettings()` (defaults to breakfast:100, lunch:150, dinner:200, snacks:50)
-- `BudgetPlannerTab.tsx` has a separate `BudgetOnboarding` component for standalone budget setup
-- The form already has `dailyBudget` and `currency` fields but they're never collected
+When the user taps "Create Meal Plan" and budget onboarding hasn't been completed, redirect them to the Budget tab first. After budget onboarding completes, auto-switch to the Meal Plan tab. Remove the duplicate budget step from MealPlanOnboarding and instead read budget data from the shared localStorage.
 
-### Plan (1 file: `src/components/MealPlanOnboarding.tsx`)
+### Changes (4 files)
 
-**Step 1: Add 'budget' to STEPS array** between 'mealsPerDay' and 'summary':
+**File 1: `src/components/BudgetPlannerTab.tsx`**
+- Add optional `onOnboardingComplete` prop to `BudgetPlannerTab`
+- On line 1400, where `BudgetOnboarding` renders, pass a wrapped callback that calls both `refresh()` and `onOnboardingComplete?.()`
+
+**File 2: `src/components/MealPlannerTabs.tsx`**
+- Add optional `onBudgetComplete?: () => void` prop to `MealPlannerTabsProps`
+- Pass it through to `<BudgetPlannerTab onOnboardingComplete={onBudgetComplete} />`
+
+**File 3: `src/pages/MealPlanner.tsx`**
+- Import `getEnhancedBudgetSettings` from `@/lib/budget-alerts`
+- In the "Create Meal Plan" button handler (line ~406), check `getEnhancedBudgetSettings().onboardingDone`. If false, set `activeTab` to `'Budget'` and show `toast('Set your budget first')` instead of proceeding to onboarding
+- Add `handleBudgetComplete` callback: sets `activeTab` to `'Meal Plan'`, sets `step` to `'onboarding'`, shows toast "Budget set! Now let's plan your meals"
+- Pass `onBudgetComplete={handleBudgetComplete}` to `MealPlannerTabs`
+
+**File 4: `src/components/MealPlanOnboarding.tsx`**
+- Remove `'budget'` from `STEPS` array (line 18)
+- Remove budget-related form fields (`monthlyBudget`, `mealSplitBreakfast`, etc.) from initial state
+- Remove the budget `renderStep` case
+- In `finish()`, read budget from `getEnhancedBudgetSettings()` instead of form fields — replace lines 122-140 with reading from the already-saved enhanced settings
+- In the `summary` step, show a read-only "Budget" row displaying the current per-meal budgets from `getEnhancedBudgetSettings()` with a note "Edit in Budget tab"
+
+### Flow after changes
+```text
+User opens Planner → sees tabs (Budget, Meal Plan, Groceries, Recipes)
+  ├─ Taps "Create Meal Plan" in Meal Plan tab
+  │   ├─ Budget NOT done → redirected to Budget tab → BudgetOnboarding
+  │   │   └─ Completes → auto-switch to Meal Plan tab → MealPlanOnboarding
+  │   └─ Budget done → MealPlanOnboarding (no budget step, reads existing budget)
+  └─ Both share same localStorage keys (expense-store + budget-alerts)
 ```
-const STEPS = [
-  ...existing steps...,
-  'mealsPerDay', 'budget', 'summary',
-];
-```
-
-**Step 2: Add form fields** for `monthlyBudget`, `mealSplitBreakfast`, `mealSplitLunch`, `mealSplitDinner`, `mealSplitSnacks` (default ₹100, ₹150, ₹200, ₹50).
-
-**Step 3: Add 'budget' case in renderStep():**
-- Header: "Set your food budget" with IndianRupee icon
-- Monthly budget input (₹) with computed daily budget shown below (monthly / 30)
-- Per-meal budget inputs: Breakfast, Lunch, Dinner, Snacks with ₹ prefix
-- Daily total shown at bottom for validation
-- "Skip" option for users who don't want budget constraints
-
-**Step 4: Update `finish()` function** to save budget data:
-- Call `saveBudgetSettings()` and `saveEnhancedBudgetSettings()` with the collected values
-- This ensures `generateWeekPlan` picks up the per-meal budgets instead of using defaults
-
-**Step 5: Add to stepNames map and canContinue** — budget step always allows continue (optional).
-
-**Step 6: Update MEAL_PLANNER_MONIKA** with a budget-step message.
 
 ### What stays unchanged
-- All existing steps and their content
-- `meal-plan-generator.ts` (already reads budget settings)
-- `BudgetPlannerTab.tsx` (standalone budget management)
-- `meal-planner-store.ts` types
+- `BudgetOnboarding` UI and logic (untouched)
+- `meal-plan-generator.ts` (already reads `getEnhancedBudgetSettings`)
+- All calculation engines
+- All other onboarding steps in MealPlanOnboarding
 
