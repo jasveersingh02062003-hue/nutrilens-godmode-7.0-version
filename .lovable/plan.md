@@ -1,37 +1,46 @@
 
 
-## Fix Forward-Only Meal Redistribution
+## Add Budget Setup Step to Meal Planner Onboarding
 
-### Problem
-When a meal is missed (e.g., lunch), `calculateProportionalDistribution` in `redistribution-service.ts` distributes calories to **all** other meals including past ones (breakfast). The correct behavior: redistribute only to meals **after** the missed one in the timeline: Breakfast → Lunch → Snacks → Dinner.
+### What it does
+Adds a budget setup step between "mealsPerDay" and "summary" in the meal planner onboarding wizard. The step collects monthly budget, computes daily budget, and lets the user set per-meal splits. On plan generation, this data is saved to the enhanced budget settings so `generateWeekPlan` picks it up automatically.
 
-### Root Cause
-Line 82 of `redistribution-service.ts`:
-```typescript
-const remainingMeals = ['breakfast', 'lunch', 'dinner', 'snack'].filter(m => m !== missedMealType);
+### Current State
+- `MealPlanOnboarding.tsx` has 21 steps (welcome → summary), no budget step
+- `meal-plan-generator.ts` already reads per-meal budgets from `getEnhancedBudgetSettings()` (defaults to breakfast:100, lunch:150, dinner:200, snacks:50)
+- `BudgetPlannerTab.tsx` has a separate `BudgetOnboarding` component for standalone budget setup
+- The form already has `dailyBudget` and `currency` fields but they're never collected
+
+### Plan (1 file: `src/components/MealPlanOnboarding.tsx`)
+
+**Step 1: Add 'budget' to STEPS array** between 'mealsPerDay' and 'summary':
 ```
-This includes meals before the missed one. It should only include meals that come **after** the missed meal in chronological order.
-
-### Fix (1 file: `src/lib/redistribution-service.ts`)
-
-**Change the `calculateProportionalDistribution` function** — replace the `remainingMeals` line with forward-only filtering:
-
-```typescript
-const MEAL_ORDER = ['breakfast', 'lunch', 'snack', 'dinner'];
-
-const missedIndex = MEAL_ORDER.indexOf(missedMealType);
-const remainingMeals = MEAL_ORDER.filter((m, i) => i > missedIndex);
+const STEPS = [
+  ...existing steps...,
+  'mealsPerDay', 'budget', 'summary',
+];
 ```
 
-This ensures:
-- Missed **breakfast** → redistributes to lunch, snacks, dinner
-- Missed **lunch** → redistributes to snacks, dinner
-- Missed **snacks** → redistributes to dinner only
-- Missed **dinner** → no redistribution (empty array)
+**Step 2: Add form fields** for `monthlyBudget`, `mealSplitBreakfast`, `mealSplitLunch`, `mealSplitDinner`, `mealSplitSnacks` (default ₹100, ₹150, ₹200, ₹50).
+
+**Step 3: Add 'budget' case in renderStep():**
+- Header: "Set your food budget" with IndianRupee icon
+- Monthly budget input (₹) with computed daily budget shown below (monthly / 30)
+- Per-meal budget inputs: Breakfast, Lunch, Dinner, Snacks with ₹ prefix
+- Daily total shown at bottom for validation
+- "Skip" option for users who don't want budget constraints
+
+**Step 4: Update `finish()` function** to save budget data:
+- Call `saveBudgetSettings()` and `saveEnhancedBudgetSettings()` with the collected values
+- This ensures `generateWeekPlan` picks up the per-meal budgets instead of using defaults
+
+**Step 5: Add to stepNames map and canContinue** — budget step always allows continue (optional).
+
+**Step 6: Update MEAL_PLANNER_MONIKA** with a budget-step message.
 
 ### What stays unchanged
-- `SmartRedistributionSheet` UI component (it just renders what `calculateProportionalDistribution` returns)
-- `applyRedistribution`, `markRedistributed`, carry-over logic
-- `calorie-engine.ts` (separate recalculation engine, already works correctly with pending slots)
-- `MealDetailSheet`, `TodayMeals` display logic
+- All existing steps and their content
+- `meal-plan-generator.ts` (already reads budget settings)
+- `BudgetPlannerTab.tsx` (standalone budget management)
+- `meal-planner-store.ts` types
 
