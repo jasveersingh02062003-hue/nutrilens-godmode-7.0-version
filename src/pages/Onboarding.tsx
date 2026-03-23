@@ -10,6 +10,7 @@ import { useUserProfile } from '@/contexts/UserProfileContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { saveProfile } from '@/lib/store';
 import WelcomeScreen from '@/components/onboarding/WelcomeScreen';
+import SplashScreen from '@/components/onboarding/SplashScreen';
 import ScannerOnboardingScreen from '@/components/onboarding/ScannerOnboardingScreen';
 import PlansPage from '@/components/PlansPage';
 
@@ -170,7 +171,7 @@ const CONDITION_LABELS: Record<string, string> = {
   highCholesterol: 'High Cholesterol', ibs: 'IBS', anemia: 'Anemia', pcos: 'PCOS',
 };
 
-type Phase = 'featureFlex' | 'welcome' | 'scanner' | 'wizard' | 'calculating' | 'success';
+type Phase = 'splash' | 'featureFlex' | 'welcome' | 'scanner' | 'wizard' | 'calculating' | 'success';
 
 interface FormState {
   name: string;
@@ -242,7 +243,7 @@ export default function Onboarding() {
   const navigate = useNavigate();
   const { refreshProfile } = useUserProfile();
   const { syncProfileToCloud } = useAuth();
-  const [phase, setPhase] = useState<Phase>(() => !localStorage.getItem('pes_flex_seen') ? 'featureFlex' : 'welcome');
+  const [phase, setPhase] = useState<Phase>('splash');
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
   const [goalResult, setGoalResult] = useState<OnboardingGoalResult | null>(null);
@@ -1450,6 +1451,14 @@ export default function Onboarding() {
   };
 
   // ── Phase routing ──
+  if (phase === 'splash') {
+    return (
+      <SplashScreen
+        onComplete={() => setPhase(!localStorage.getItem('pes_flex_seen') ? 'featureFlex' : 'welcome')}
+      />
+    );
+  }
+
   if (phase === 'featureFlex') {
     return <PESFeatureFlex onDismiss={() => setPhase('welcome')} />;
   }
