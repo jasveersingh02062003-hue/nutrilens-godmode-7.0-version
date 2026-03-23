@@ -412,11 +412,11 @@ export default function Onboarding() {
       steps.push(12, 13);
     }
     steps.push(14); // Summary screen
-    steps.push(15, 16); // Final plan, want lifestyle?
+    steps.push(15, 16, 17); // Final plan, Prediction summary, want lifestyle?
     if (f.wantLifestyle === true) {
-      steps.push(17, 18, 19, 20, 21);
+      steps.push(18, 19, 20, 21, 22);
     }
-    steps.push(22, 23);
+    steps.push(23, 24);
     return steps;
   };
 
