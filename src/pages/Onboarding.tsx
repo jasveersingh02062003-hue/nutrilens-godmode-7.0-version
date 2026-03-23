@@ -1272,7 +1272,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 17:
+      case 18:
         return (
           <div className="space-y-5">
             <StepHeader title="Dietary preference" subtitle="Your plan will be tailored accordingly." />
