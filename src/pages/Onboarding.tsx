@@ -1289,7 +1289,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 18: {
+      case 19: {
         const multiplier = getActivityMultiplier(f.work || 'sitting', f.exercise || 'none');
         const recommended = calculateWaterGoal(f.weightKg, multiplier);
         return (
