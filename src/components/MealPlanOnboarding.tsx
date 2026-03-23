@@ -460,87 +460,12 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
           </div>
         );
 
-      case 'mealsPerDay':
-        return (
-          <div className="space-y-4">
-            <Header title="Meals per day?" sub="Including snacks." />
-            <div className="flex gap-3 justify-center mt-4">
-              {[3, 4, 5, 6].map(n => (
-                <motion.button key={n} whileTap={{ scale: 0.9 }} onClick={() => set('mealsPerDay', n)}
-                  className={`w-16 h-16 rounded-2xl text-lg font-bold border transition-all ${form.mealsPerDay === n ? 'bg-primary text-primary-foreground border-primary shadow-fab' : 'bg-card border-border'}`}>
-                  {n}
-                </motion.button>
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'budget': {
-        const computedDaily = Math.round((form.monthlyBudget || 15000) / 30);
-        const perMealTotal = (form.mealSplitBreakfast || 0) + (form.mealSplitLunch || 0) + (form.mealSplitDinner || 0) + (form.mealSplitSnacks || 0);
-        return (
-          <div className="space-y-5">
-            <Header icon={IndianRupee} title="Set your food budget" sub="We'll plan meals within your budget." />
-            
-            {/* Monthly budget */}
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Monthly Budget</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">₹</span>
-                <input
-                  type="number"
-                  value={form.monthlyBudget || ''}
-                  onChange={e => set('monthlyBudget', parseInt(e.target.value) || 0)}
-                  placeholder="15000"
-                  className="w-full pl-8 pr-4 py-3 rounded-2xl border border-border bg-card text-foreground text-base font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">Daily budget: <span className="font-semibold text-foreground">₹{computedDaily}</span>/day</p>
-            </div>
-
-            {/* Per-meal splits */}
-            <div className="space-y-3">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Per-Meal Budget (₹/day)</label>
-              {[
-                { key: 'mealSplitBreakfast', label: '🌅 Breakfast', default: 100 },
-                { key: 'mealSplitLunch', label: '☀️ Lunch', default: 150 },
-                { key: 'mealSplitSnacks', label: '🍿 Snacks', default: 50 },
-                { key: 'mealSplitDinner', label: '🌙 Dinner', default: 200 },
-              ].map(({ key, label, default: def }) => (
-                <div key={key} className="flex items-center gap-3">
-                  <span className="text-sm font-medium w-28">{label}</span>
-                  <div className="relative flex-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₹</span>
-                    <input
-                      type="number"
-                      value={(form as any)[key] ?? def}
-                      onChange={e => set(key, parseInt(e.target.value) || 0)}
-                      className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-border bg-card text-foreground text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-                </div>
-              ))}
-              <div className="flex justify-between text-xs pt-1 px-1">
-                <span className="text-muted-foreground">Daily total</span>
-                <span className={`font-bold ${perMealTotal > computedDaily ? 'text-destructive' : 'text-primary'}`}>₹{perMealTotal}/day</span>
-              </div>
-            </div>
-
-            {/* Skip option */}
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={() => { set('monthlyBudget', 0); goNext(); }}
-              className="w-full text-center text-xs text-muted-foreground py-2 underline underline-offset-2"
-            >
-              Skip — no budget constraint
-            </motion.button>
-          </div>
-        );
-      }
-
-      case 'summary':
+      case 'summary': {
         const bmi = calculateBMI(form.currentWeight!, form.heightCm!);
         const cat = getBMICategory(bmi);
+        const budgetData = getEnhancedBudgetSettings();
+        const perMeal = budgetData.perMeal || { breakfast: 100, lunch: 150, dinner: 200, snacks: 50 };
+        const budgetDaily = (perMeal.breakfast || 0) + (perMeal.lunch || 0) + (perMeal.dinner || 0) + (perMeal.snacks || 0);
         return (
           <div className="space-y-4">
             <Header icon={Sparkles} title="Your Plan Summary" sub="Here's what we'll build for you." />
