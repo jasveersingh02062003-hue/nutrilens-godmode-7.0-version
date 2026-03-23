@@ -1362,7 +1362,7 @@ export default function Onboarding() {
       }
 
       // ── Budget Step ──
-      case 21:
+      case 23:
         return (
           <div className="space-y-5">
             <StepHeader title="Daily food budget" subtitle="Set a budget to get cost-aware meal suggestions." />
