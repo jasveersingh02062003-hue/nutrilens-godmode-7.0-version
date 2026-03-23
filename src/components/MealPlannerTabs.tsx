@@ -16,6 +16,7 @@ interface MealPlannerTabsProps {
   activeTab: TabName;
   onTabChange: (tab: TabName) => void;
   mealPlanContent: React.ReactNode;
+  onBudgetComplete?: () => void;
 }
 
 // ===== Groceries Sub-Tab =====
