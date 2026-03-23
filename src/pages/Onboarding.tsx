@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, Sparkles, Heart, User, Dumbbell, Ruler, Scale, Target, TrendingDown, Droplets, AlertTriangle, ChevronDown, Clock, Loader2, UtensilsCrossed, Zap, Camera, ShieldAlert, Pencil } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Sparkles, Heart, User, Dumbbell, Ruler, Scale, Target, TrendingDown, Droplets, AlertTriangle, ChevronDown, Clock, Loader2, UtensilsCrossed, Zap, Camera, ShieldAlert, Pencil, CheckCircle, Info, Lightbulb } from 'lucide-react';
 import PESFeatureFlex from '@/components/PESFeatureFlex';
 import MonikaGuide, { MONIKA_MESSAGES } from '@/components/onboarding/MonikaGuide';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -84,6 +84,91 @@ const CONDITION_INSIGHTS: Record<string, string> = {
   ibs: 'gut-friendly, low-FODMAP food choices',
   anemia: 'iron-rich foods like spinach, lentils and fortified cereals',
 };
+
+// ── Smart Target Weight Validation ──
+function getHealthyWeightRange(heightCm: number, age: number): { min: number; max: number } {
+  const hM = heightCm / 100;
+  const hSq = hM * hM;
+  const minBMI = age >= 65 ? 23.0 : 18.5;
+  return { min: +(minBMI * hSq).toFixed(1), max: +(24.9 * hSq).toFixed(1) };
+}
+
+function getTargetBMI(weight: number, heightCm: number): number {
+  const hM = heightCm / 100;
+  return +(weight / (hM * hM)).toFixed(1);
+}
+
+type InsightType = 'valid' | 'direction' | 'unsafe_low' | 'unsafe_high' | 'extreme' | 'underweight_losing';
+interface WeightInsight {
+  type: InsightType;
+  color: 'green' | 'amber' | 'red';
+  message: string;
+  suggestion?: number;
+  milestone?: number;
+}
+
+function getWeightInsight(currentWeight: number, targetWeight: number, heightCm: number, age: number, goal: string): WeightInsight {
+  const hM = heightCm / 100;
+  const hSq = hM * hM;
+  const { min: healthyMin, max: healthyMax } = getHealthyWeightRange(heightCm, age);
+  const targetBMI = getTargetBMI(targetWeight, heightCm);
+  const currentBMI = getTargetBMI(currentWeight, heightCm);
+  const percentChange = Math.abs(targetWeight - currentWeight) / currentWeight;
+
+  // Direction check
+  if (goal === 'lose' && targetWeight >= currentWeight) {
+    return { type: 'direction', color: 'red', message: `Target must be below your current weight (${currentWeight} kg).` };
+  }
+  if (goal === 'gain' && targetWeight <= currentWeight) {
+    return { type: 'direction', color: 'red', message: `Target must be above your current weight (${currentWeight} kg).` };
+  }
+
+  // Already underweight trying to lose
+  if (currentBMI < 18.5 && goal === 'lose') {
+    return {
+      type: 'underweight_losing', color: 'red',
+      message: `Your current BMI is ${currentBMI} (underweight). Losing more weight could affect your health and energy levels.`,
+      suggestion: healthyMin,
+    };
+  }
+
+  // Unsafe low
+  const minSafeBMI = age >= 65 ? 23.0 : 18.5;
+  if (targetBMI < minSafeBMI) {
+    return {
+      type: 'unsafe_low', color: 'amber',
+      message: `At your height (${(hM).toFixed(2)}m), a healthy weight range is ${healthyMin}–${healthyMax} kg. Your target of ${targetWeight} kg (BMI ${targetBMI}) is below the healthy minimum.`,
+      suggestion: Math.max(healthyMin, +(currentWeight * 0.95).toFixed(1)),
+    };
+  }
+
+  // Unsafe high (for gain goals mostly)
+  if (targetBMI > 24.9 && goal === 'gain') {
+    return {
+      type: 'unsafe_high', color: 'amber',
+      message: `Your target of ${targetWeight} kg would put your BMI at ${targetBMI}, above the healthy range. Consider aiming for ${healthyMax} kg (BMI 24.9) or less.`,
+      suggestion: Math.min(healthyMax, +(currentWeight * 1.05).toFixed(1)),
+    };
+  }
+
+  // Extreme change
+  if (percentChange > 0.15) {
+    const milestoneWeight = goal === 'lose'
+      ? +(currentWeight * 0.925).toFixed(1) // 7.5% loss
+      : +(currentWeight * 1.075).toFixed(1); // 7.5% gain
+    return {
+      type: 'extreme', color: 'amber',
+      message: `You want to ${goal === 'lose' ? 'lose' : 'gain'} ${Math.abs(currentWeight - targetWeight).toFixed(1)} kg (${(percentChange * 100).toFixed(0)}% change). Studies suggest a 5–10% initial milestone for sustainable results.`,
+      milestone: milestoneWeight,
+    };
+  }
+
+  // Valid
+  return {
+    type: 'valid', color: 'green',
+    message: `Great choice! Your target of ${targetWeight} kg (BMI ${targetBMI}) is within a healthy range.`,
+  };
+}
 
 // ── Macro food translations ──
 function getProteinTranslation(protein: number, diet: string): string {
@@ -407,8 +492,10 @@ export default function Onboarding() {
       case 11: return !!f.goalType;
       case 12: return !!f.goalSpeed;
       case 13: {
-        if (f.goalType === 'lose') return f.targetWeight > 20 && f.targetWeight < f.weightKg;
-        if (f.goalType === 'gain') return f.targetWeight > f.weightKg && f.targetWeight < 300;
+        if (f.targetWeight <= 0 || f.targetWeight > 300) return false;
+        if (f.goalType === 'lose' && f.targetWeight >= f.weightKg) return false;
+        if (f.goalType === 'gain' && f.targetWeight <= f.weightKg) return false;
+        // Allow amber warnings (user can override), block only direction errors
         return true;
       }
       case 14: return true; // summary - always can confirm
@@ -989,31 +1076,122 @@ export default function Onboarding() {
 
       case 13: {
         const isLose = f.goalType === 'lose';
+        const { min: healthyMin, max: healthyMax } = getHealthyWeightRange(f.heightCm, f.age);
+        const insight = f.targetWeight > 0 ? getWeightInsight(f.weightKg, f.targetWeight, f.heightCm, f.age, f.goalType) : null;
+        const targetBMI = f.targetWeight > 0 ? getTargetBMI(f.targetWeight, f.heightCm) : 0;
+
+        // Range bar positioning
+        const rangeMin = Math.min(healthyMin - 10, f.targetWeight - 5, 40);
+        const rangeMax = Math.max(healthyMax + 10, f.weightKg + 5, f.targetWeight + 5);
+        const healthyStartPct = ((healthyMin - rangeMin) / (rangeMax - rangeMin)) * 100;
+        const healthyWidthPct = ((healthyMax - healthyMin) / (rangeMax - rangeMin)) * 100;
+        const targetPct = f.targetWeight > 0 ? ((f.targetWeight - rangeMin) / (rangeMax - rangeMin)) * 100 : 0;
+        const currentPct = ((f.weightKg - rangeMin) / (rangeMax - rangeMin)) * 100;
+
+        const insightColors = {
+          green: { bg: 'bg-primary/5', border: 'border-primary/20', icon: 'text-primary' },
+          amber: { bg: 'bg-accent/5', border: 'border-accent/20', icon: 'text-accent' },
+          red: { bg: 'bg-destructive/5', border: 'border-destructive/20', icon: 'text-destructive' },
+        };
+
+        const borderColor = insight
+          ? insight.color === 'green' ? 'border-primary/30' : insight.color === 'amber' ? 'border-accent/30' : 'border-destructive/30'
+          : 'border-border';
+
         return (
-          <div className="space-y-6">
+          <div className="space-y-5">
             <StepHeader title="Target weight" subtitle={isLose ? 'Where do you want to reach?' : 'What weight are you aiming for?'} />
+
+            {/* Input */}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-              <div className="relative">
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Target Weight (kg)</label>
+              <div className="relative mt-1.5">
                 <Target className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input type="number" value={f.targetWeight} onChange={e => set('targetWeight', parseFloat(e.target.value) || 0)}
-                  className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-card border border-border text-sm font-semibold outline-none focus:border-primary/30 transition-all" />
+                  className={`w-full pl-11 pr-4 py-3.5 rounded-2xl bg-card border ${borderColor} text-sm font-semibold outline-none focus:border-primary/30 transition-all`} />
               </div>
-              {isLose && f.targetWeight >= f.weightKg && f.targetWeight > 0 && (
-                <p className="text-xs text-destructive mt-1.5">Target must be below current weight ({f.weightKg} kg).</p>
-              )}
-              {!isLose && f.targetWeight <= f.weightKg && f.targetWeight > 0 && (
-                <p className="text-xs text-destructive mt-1.5">Target must be above current weight ({f.weightKg} kg).</p>
-              )}
-              {f.targetWeight > 0 && ((isLose && f.targetWeight < f.weightKg) || (!isLose && f.targetWeight > f.weightKg)) && (
-                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                  className="bg-primary/5 border border-primary/20 rounded-xl p-4 mt-4">
-                  <p className="text-xs text-foreground leading-relaxed">
-                    💡 You want to {isLose ? 'lose' : 'gain'} <strong>{Math.abs(f.weightKg - f.targetWeight).toFixed(1)} kg</strong>.
-                    We'll calculate the safest pace for you.
-                  </p>
-                </motion.div>
+              {f.targetWeight > 0 && (
+                <p className="text-[10px] text-muted-foreground mt-1">BMI: {targetBMI} · Healthy range: {healthyMin}–{healthyMax} kg</p>
               )}
             </motion.div>
+
+            {/* Healthy range visual bar */}
+            {f.targetWeight > 0 && (
+              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-1.5">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Weight Range</p>
+                <div className="relative h-3 rounded-full bg-muted overflow-hidden">
+                  {/* Healthy zone */}
+                  <div className="absolute top-0 h-full bg-primary/20 rounded-full"
+                    style={{ left: `${healthyStartPct}%`, width: `${healthyWidthPct}%` }} />
+                  {/* Current weight marker */}
+                  <motion.div className="absolute top-0 w-0.5 h-full bg-muted-foreground/50"
+                    style={{ left: `${Math.min(100, Math.max(0, currentPct))}%` }} />
+                  {/* Target marker */}
+                  <motion.div
+                    className={`absolute top-0 w-1.5 h-full rounded-full ${insight?.color === 'green' ? 'bg-primary' : insight?.color === 'amber' ? 'bg-accent' : 'bg-destructive'}`}
+                    initial={{ left: '50%' }}
+                    animate={{ left: `${Math.min(98, Math.max(2, targetPct))}%` }}
+                    transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+                  />
+                </div>
+                <div className="flex justify-between text-[9px] text-muted-foreground font-mono">
+                  <span>{Math.round(rangeMin)}</span>
+                  <span className="text-primary font-semibold">{healthyMin}–{healthyMax}</span>
+                  <span>{Math.round(rangeMax)}</span>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Insight card */}
+            <AnimatePresence mode="wait">
+              {insight && f.targetWeight > 0 && (
+                <motion.div
+                  key={insight.type + insight.message}
+                  initial={{ opacity: 0, y: 10, height: 0 }}
+                  animate={{ opacity: 1, y: 0, height: 'auto' }}
+                  exit={{ opacity: 0, y: -6, height: 0 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                  className={`${insightColors[insight.color].bg} border ${insightColors[insight.color].border} rounded-xl p-4 space-y-3 overflow-hidden`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    {insight.color === 'green' && <CheckCircle className={`w-4 h-4 mt-0.5 shrink-0 ${insightColors.green.icon}`} />}
+                    {insight.color === 'amber' && <Info className={`w-4 h-4 mt-0.5 shrink-0 ${insightColors.amber.icon}`} />}
+                    {insight.color === 'red' && <AlertTriangle className={`w-4 h-4 mt-0.5 shrink-0 ${insightColors.red.icon}`} />}
+                    <p className="text-xs text-foreground leading-relaxed">{insight.message}</p>
+                  </div>
+
+                  {/* Suggestion button */}
+                  {insight.suggestion && (
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => set('targetWeight', insight.suggestion!)}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/15 transition-colors"
+                    >
+                      <Lightbulb className="w-3.5 h-3.5" />
+                      Suggest healthy weight: {insight.suggestion} kg
+                    </motion.button>
+                  )}
+
+                  {/* Milestone button */}
+                  {insight.milestone && (
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => set('targetWeight', insight.milestone!)}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-accent/10 text-accent text-xs font-semibold hover:bg-accent/15 transition-colors"
+                    >
+                      <Target className="w-3.5 h-3.5" />
+                      Set 7.5% milestone: {insight.milestone} kg
+                    </motion.button>
+                  )}
+
+                  {f.age < 20 && (
+                    <p className="text-[10px] text-muted-foreground italic">
+                      Teen growth rates vary — these ranges are general guidance. Consult a healthcare professional for personalized advice.
+                    </p>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         );
       }
