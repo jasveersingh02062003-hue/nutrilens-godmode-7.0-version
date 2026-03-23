@@ -13,6 +13,7 @@ import { saveProfile } from '@/lib/store';
 import WelcomeScreen from '@/components/onboarding/WelcomeScreen';
 import SplashScreen from '@/components/onboarding/SplashScreen';
 import ScannerOnboardingScreen from '@/components/onboarding/ScannerOnboardingScreen';
+import TargetWeightStep from '@/components/onboarding/TargetWeightStep';
 import PlansPage from '@/components/PlansPage';
 
 // ── Animation variants ──
@@ -1075,124 +1076,22 @@ export default function Onboarding() {
         );
 
       case 13: {
-        const isLose = f.goalType === 'lose';
         const { min: healthyMin, max: healthyMax } = getHealthyWeightRange(f.heightCm, f.age);
         const insight = f.targetWeight > 0 ? getWeightInsight(f.weightKg, f.targetWeight, f.heightCm, f.age, f.goalType) : null;
         const targetBMI = f.targetWeight > 0 ? getTargetBMI(f.targetWeight, f.heightCm) : 0;
-
-        // Range bar positioning
-        const rangeMin = Math.min(healthyMin - 10, f.targetWeight - 5, 40);
-        const rangeMax = Math.max(healthyMax + 10, f.weightKg + 5, f.targetWeight + 5);
-        const healthyStartPct = ((healthyMin - rangeMin) / (rangeMax - rangeMin)) * 100;
-        const healthyWidthPct = ((healthyMax - healthyMin) / (rangeMax - rangeMin)) * 100;
-        const targetPct = f.targetWeight > 0 ? ((f.targetWeight - rangeMin) / (rangeMax - rangeMin)) * 100 : 0;
-        const currentPct = ((f.weightKg - rangeMin) / (rangeMax - rangeMin)) * 100;
-
-        const insightColors = {
-          green: { bg: 'bg-primary/5', border: 'border-primary/20', icon: 'text-primary' },
-          amber: { bg: 'bg-accent/5', border: 'border-accent/20', icon: 'text-accent' },
-          red: { bg: 'bg-destructive/5', border: 'border-destructive/20', icon: 'text-destructive' },
-        };
-
-        const borderColor = insight
-          ? insight.color === 'green' ? 'border-primary/30' : insight.color === 'amber' ? 'border-accent/30' : 'border-destructive/30'
-          : 'border-border';
-
         return (
-          <div className="space-y-5">
-            <StepHeader title="Target weight" subtitle={isLose ? 'Where do you want to reach?' : 'What weight are you aiming for?'} />
-
-            {/* Input */}
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Target Weight (kg)</label>
-              <div className="relative mt-1.5">
-                <Target className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input type="number" value={f.targetWeight} onChange={e => set('targetWeight', parseFloat(e.target.value) || 0)}
-                  className={`w-full pl-11 pr-4 py-3.5 rounded-2xl bg-card border ${borderColor} text-sm font-semibold outline-none focus:border-primary/30 transition-all`} />
-              </div>
-              {f.targetWeight > 0 && (
-                <p className="text-[10px] text-muted-foreground mt-1">BMI: {targetBMI} · Healthy range: {healthyMin}–{healthyMax} kg</p>
-              )}
-            </motion.div>
-
-            {/* Healthy range visual bar */}
-            {f.targetWeight > 0 && (
-              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-1.5">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Weight Range</p>
-                <div className="relative h-3 rounded-full bg-muted overflow-hidden">
-                  {/* Healthy zone */}
-                  <div className="absolute top-0 h-full bg-primary/20 rounded-full"
-                    style={{ left: `${healthyStartPct}%`, width: `${healthyWidthPct}%` }} />
-                  {/* Current weight marker */}
-                  <motion.div className="absolute top-0 w-0.5 h-full bg-muted-foreground/50"
-                    style={{ left: `${Math.min(100, Math.max(0, currentPct))}%` }} />
-                  {/* Target marker */}
-                  <motion.div
-                    className={`absolute top-0 w-1.5 h-full rounded-full ${insight?.color === 'green' ? 'bg-primary' : insight?.color === 'amber' ? 'bg-accent' : 'bg-destructive'}`}
-                    initial={{ left: '50%' }}
-                    animate={{ left: `${Math.min(98, Math.max(2, targetPct))}%` }}
-                    transition={{ type: 'spring', stiffness: 200, damping: 25 }}
-                  />
-                </div>
-                <div className="flex justify-between text-[9px] text-muted-foreground font-mono">
-                  <span>{Math.round(rangeMin)}</span>
-                  <span className="text-primary font-semibold">{healthyMin}–{healthyMax}</span>
-                  <span>{Math.round(rangeMax)}</span>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Insight card */}
-            <AnimatePresence mode="wait">
-              {insight && f.targetWeight > 0 && (
-                <motion.div
-                  key={insight.type + insight.message}
-                  initial={{ opacity: 0, y: 10, height: 0 }}
-                  animate={{ opacity: 1, y: 0, height: 'auto' }}
-                  exit={{ opacity: 0, y: -6, height: 0 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                  className={`${insightColors[insight.color].bg} border ${insightColors[insight.color].border} rounded-xl p-4 space-y-3 overflow-hidden`}
-                >
-                  <div className="flex items-start gap-2.5">
-                    {insight.color === 'green' && <CheckCircle className={`w-4 h-4 mt-0.5 shrink-0 ${insightColors.green.icon}`} />}
-                    {insight.color === 'amber' && <Info className={`w-4 h-4 mt-0.5 shrink-0 ${insightColors.amber.icon}`} />}
-                    {insight.color === 'red' && <AlertTriangle className={`w-4 h-4 mt-0.5 shrink-0 ${insightColors.red.icon}`} />}
-                    <p className="text-xs text-foreground leading-relaxed">{insight.message}</p>
-                  </div>
-
-                  {/* Suggestion button */}
-                  {insight.suggestion && (
-                    <motion.button
-                      whileTap={{ scale: 0.97 }}
-                      onClick={() => set('targetWeight', insight.suggestion!)}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/15 transition-colors"
-                    >
-                      <Lightbulb className="w-3.5 h-3.5" />
-                      Suggest healthy weight: {insight.suggestion} kg
-                    </motion.button>
-                  )}
-
-                  {/* Milestone button */}
-                  {insight.milestone && (
-                    <motion.button
-                      whileTap={{ scale: 0.97 }}
-                      onClick={() => set('targetWeight', insight.milestone!)}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-accent/10 text-accent text-xs font-semibold hover:bg-accent/15 transition-colors"
-                    >
-                      <Target className="w-3.5 h-3.5" />
-                      Set 7.5% milestone: {insight.milestone} kg
-                    </motion.button>
-                  )}
-
-                  {f.age < 20 && (
-                    <p className="text-[10px] text-muted-foreground italic">
-                      Teen growth rates vary — these ranges are general guidance. Consult a healthcare professional for personalized advice.
-                    </p>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          <TargetWeightStep
+            currentWeight={f.weightKg}
+            heightCm={f.heightCm}
+            age={f.age}
+            goal={f.goalType}
+            targetWeight={f.targetWeight}
+            onChangeTarget={(v) => set('targetWeight', v)}
+            healthyMin={healthyMin}
+            healthyMax={healthyMax}
+            targetBMI={targetBMI}
+            insight={insight}
+          />
         );
       }
 
