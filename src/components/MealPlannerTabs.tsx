@@ -226,7 +226,7 @@ function RecipesTab() {
 }
 
 // ===== Main Tabs Component =====
-export default function MealPlannerTabs({ plan, activeTab, onTabChange, mealPlanContent }: MealPlannerTabsProps) {
+export default function MealPlannerTabs({ plan, activeTab, onTabChange, mealPlanContent, onBudgetComplete }: MealPlannerTabsProps) {
   const touchStart = useRef<number | null>(null);
   const touchDelta = useRef<number>(0);
 
