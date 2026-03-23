@@ -1330,7 +1330,7 @@ export default function Onboarding() {
         );
       }
 
-      case 22: {
+      case 21: {
         const suppOptions = [
           { value: 'vitaminD', label: '☀️ Vitamin D' },
           { value: 'omega3', label: '🐟 Omega-3' },
