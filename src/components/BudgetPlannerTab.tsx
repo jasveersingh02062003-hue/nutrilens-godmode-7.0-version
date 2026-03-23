@@ -1397,7 +1397,7 @@ export default function BudgetPlannerTab({ onOnboardingComplete }: { onOnboardin
 
   // Show onboarding if needed
   if (needsOnboarding) {
-    return <BudgetOnboarding onComplete={refresh} />;
+    return <BudgetOnboarding onComplete={() => { refresh(); onOnboardingComplete?.(); }} />;
   }
 
   if (!hasData && !showScanner) {

@@ -278,7 +278,7 @@ export default function MealPlannerTabs({ plan, activeTab, onTabChange, mealPlan
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.2 }}
           >
-            {activeTab === 'Budget' && <BudgetPlannerTab />}
+            {activeTab === 'Budget' && <BudgetPlannerTab onOnboardingComplete={onBudgetComplete} />}
             {activeTab === 'Meal Plan' && mealPlanContent}
             {activeTab === 'Groceries' && <GroceriesTab plan={plan} />}
             {activeTab === 'Recipes' && <RecipesTab />}
