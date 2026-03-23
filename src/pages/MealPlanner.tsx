@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ChefHat, CalendarDays, ArrowLeft, ArrowRight, Check, ShoppingCart, Repeat, X, Search, Target, Scale, Crown, Lock } from 'lucide-react';
 import { isPremium } from '@/lib/subscription-service';
@@ -14,6 +14,7 @@ import { generateWeekPlan, swapMeal } from '@/lib/meal-plan-generator';
 import { getRecipeById, getRecipesByMealType } from '@/lib/recipes';
 import { getProfile as getUserProfile } from '@/lib/store';
 import { getRecipeImage } from '@/lib/recipe-images';
+import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
 import type { WeekPlan } from '@/lib/meal-planner-store';
 import MonikaFab from '@/components/MonikaFab';
 import { useNavigate } from 'react-router-dom';
