@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, Sparkles, Heart, User, Dumbbell, Ruler, Scale, Target, TrendingDown, Droplets, AlertTriangle, ChevronDown, Clock, Loader2, UtensilsCrossed, Zap, Camera, ShieldAlert, Pencil } from 'lucide-react';
 import PESFeatureFlex from '@/components/PESFeatureFlex';
+import MonikaGuide, { MONIKA_MESSAGES } from '@/components/onboarding/MonikaGuide';
 import { motion, AnimatePresence } from 'framer-motion';
 import { calculateBMI, calculateBMR, getBMICategory, getActivityMultiplier } from '@/lib/nutrition';
 import { calculateOnboardingGoals, calculateWaterGoal, type OnboardingGoalResult } from '@/lib/goal-engine';
@@ -1543,6 +1544,18 @@ export default function Onboarding() {
       </div>
 
       <div className="flex-1 max-w-lg mx-auto w-full px-6 py-4 overflow-y-auto">
+        {(() => {
+          const STEP_MONIKA_KEY: Record<number, string> = {
+            0: 'name', 1: 'gender', 2: 'dob', 3: 'measurements', 4: 'measurements',
+            5: 'summary', 6: 'health', 7: 'skinConcerns', 8: f.gender === 'female' ? 'womenHealth' : 'menHealth',
+            9: 'occupation', 10: 'exercise', 11: 'goal', 12: 'goalSpeed', 13: 'targetWeight',
+            14: 'summary', 15: 'summary', 16: 'goal', 17: 'dietary', 18: 'water', 19: 'medications',
+            20: 'summary', 21: 'cooking', 22: 'summary', 23: 'summary',
+          };
+          const mKey = STEP_MONIKA_KEY[step];
+          const mData = mKey ? MONIKA_MESSAGES[mKey] : null;
+          return mData ? <MonikaGuide message={mData.message} mood={mData.mood} compact={step > 0} /> : null;
+        })()}
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div key={step} custom={direction} variants={pageVariants} initial="enter" animate="center" exit="exit">
             {renderStep()}
