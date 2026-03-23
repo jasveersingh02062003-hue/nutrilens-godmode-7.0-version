@@ -1,49 +1,28 @@
 
 
-## Add Splash Screen Animation Before Welcome
+## Add Monika Guide to Onboarding Wizard Steps
 
-### What Exists Now
-- Onboarding flow: `featureFlex` → `welcome` → `scanner` → `wizard` → ...
-- `WelcomeScreen.tsx` uses a dark hero image with glassmorphic design
-- The uploaded screenshot shows a different, cleaner welcome design: light background, vegetable hero image at top, "NutriLens AI" title, tagline, Get Started / Sign In buttons, Google/Phone social login options
+### Problem
+The `MonikaGuide` component exists with pre-written messages for every onboarding step (`MONIKA_MESSAGES` in `MonikaGuide.tsx`), but it's not imported or used in the main `Onboarding.tsx` wizard. The user wants the animated chat bubble (avatar + speech bubble) to appear at the top of each wizard step.
 
-### Plan
+### Plan (1 file modified)
 
-**New phase `'splash'` inserted before `featureFlex`/`welcome`**
+**File: `src/pages/Onboarding.tsx`**
 
-#### File 1: `src/components/onboarding/SplashScreen.tsx` (NEW)
+- Import `MonikaGuide` and `MONIKA_MESSAGES` from `@/components/onboarding/MonikaGuide`
+- Add `<MonikaGuide>` at the top of each wizard step's render block, before the `<StepHeader>` component
+- Map each step to its corresponding message key from `MONIKA_MESSAGES`:
+  - `name` → `name`, `gender` → `gender`, `age` → `dob`, `height`/`weight` → `measurements`
+  - `valueDrop` → `summary`, `conditions` → `health`, `skin` → `skinConcerns`
+  - `womenHealth` → `womenHealth`, `menHealth` → `menHealth`
+  - `work` → `occupation`, `exercise` → `exercise`, `goal` → `goal`
+  - `speed` → `goalSpeed`, `targetWeight` → `targetWeight`
+  - `diet` → `dietary`, `water` → `water`, `mealTimes` → `mealTimes`
+- Use `compact` prop on all steps except the first (`name`) for tighter spacing
+- The existing `StepHeader` stays below the Monika guide bubble
 
-- Full-screen centered animation with the app's surface background color
-- "NutriLens AI" text animates in: scale 0.9→1 + opacity 0→1 over 0.6s using framer-motion
-- Tagline "₹ → Protein → Insight" fades in with 0.3s delay
-- Smart timing via `localStorage.getItem('nutrilens_splash_shown')`:
-  - First launch: full 2s animation, then auto-transition
-  - Subsequent: 0.4s quick fade, then transition
-- On complete: sets localStorage flag, calls `onComplete` prop
-- Minimal design: primary color accent on "AI", no images
-
-#### File 2: `src/components/onboarding/WelcomeScreen.tsx` (REWRITE)
-
-Redesign to match the uploaded screenshot reference:
-- Light background (`bg-[#f9f9f8]`) instead of dark hero
-- Top half: vegetable/food hero image (use existing `hero-nutrition.jpg` with lighter treatment — no dark overlay, image sits at top with fade-to-white gradient at bottom)
-- "NutriLens AI" bold title + "Track smarter. Eat better. Live healthier." tagline
-- "Get Started" button: dark green rounded pill (primary color)
-- "Sign In" button: outlined/bordered pill
-- Divider: "or continue with"
-- Two social buttons: Google + Phone (icon + label, outlined style)
-- Keep existing `onGetStarted` and `onSignIn` props; social buttons call `onSignIn` for now
-
-#### File 3: `src/pages/Onboarding.tsx` (MODIFIED)
-
-- Import `SplashScreen`
-- Add `'splash'` to Phase type
-- Initial phase: always `'splash'`
-- Phase routing: `splash` → renders `SplashScreen`, on complete transitions to `featureFlex` (if not seen) or `welcome` (if already seen)
-- Rest of flow unchanged
-
-### Technical Notes
-- Splash uses framer-motion `animate` + `onAnimationComplete` for sequencing
-- Welcome screen keeps the same props interface, just visual redesign
-- No new dependencies
+### What stays unchanged
+- `MonikaGuide` component itself (already built with animations)
+- `MONIKA_MESSAGES` data (already has messages for all steps)
+- All wizard logic, navigation, and data flow
 
