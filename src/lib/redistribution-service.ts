@@ -79,7 +79,9 @@ export function calculateProportionalDistribution(
   customAllocations?: Record<string, number> // mealType -> percentage (0-100)
 ): RedistributionResult {
   const missedTarget = getMealTarget(profile, missedMealType);
-  const remainingMeals = ['breakfast', 'lunch', 'dinner', 'snack'].filter(m => m !== missedMealType);
+  const MEAL_ORDER = ['breakfast', 'lunch', 'snack', 'dinner'];
+  const missedIndex = MEAL_ORDER.indexOf(missedMealType);
+  const remainingMeals = MEAL_ORDER.filter((_, i) => i > missedIndex);
 
   // Get targets for remaining meals
   const remainingTargets = remainingMeals.map(m => ({
