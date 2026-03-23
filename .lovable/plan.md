@@ -1,28 +1,63 @@
 
 
-## Add Monika Guide to Onboarding Wizard Steps
+## Smart Target Weight Validation with Healthy Range Insight
 
 ### Problem
-The `MonikaGuide` component exists with pre-written messages for every onboarding step (`MONIKA_MESSAGES` in `MonikaGuide.tsx`), but it's not imported or used in the main `Onboarding.tsx` wizard. The user wants the animated chat bubble (avatar + speech bubble) to appear at the top of each wizard step.
+The current target weight step (case 13) only checks direction consistency. It doesn't validate against BMI-based healthy ranges, warn about extreme changes, or suggest healthy alternatives.
 
 ### Plan (1 file modified)
 
-**File: `src/pages/Onboarding.tsx`**
+**File: `src/pages/Onboarding.tsx` — Step 13 (target weight)**
 
-- Import `MonikaGuide` and `MONIKA_MESSAGES` from `@/components/onboarding/MonikaGuide`
-- Add `<MonikaGuide>` at the top of each wizard step's render block, before the `<StepHeader>` component
-- Map each step to its corresponding message key from `MONIKA_MESSAGES`:
-  - `name` → `name`, `gender` → `gender`, `age` → `dob`, `height`/`weight` → `measurements`
-  - `valueDrop` → `summary`, `conditions` → `health`, `skin` → `skinConcerns`
-  - `womenHealth` → `womenHealth`, `menHealth` → `menHealth`
-  - `work` → `occupation`, `exercise` → `exercise`, `goal` → `goal`
-  - `speed` → `goalSpeed`, `targetWeight` → `targetWeight`
-  - `diet` → `dietary`, `water` → `water`, `mealTimes` → `mealTimes`
-- Use `compact` prop on all steps except the first (`name`) for tighter spacing
-- The existing `StepHeader` stays below the Monika guide bubble
+Replace the simple input + basic validation with a comprehensive system:
+
+#### 1. Add helper functions (above the component)
+
+- `getHealthyWeightRange(heightCm, age)`: Returns `{min, max}` in kg
+  - Adults (≥20): min = 18.5 × h², max = 24.9 × h²
+  - Age ≥65: min = 23.0 × h² (sarcopenia adjustment)
+  - Teens (<20): use 18.5–24.9 but add disclaimer text
+- `getTargetBMI(weight, heightCm)`: Returns BMI rounded to 1 decimal
+- `getWeightInsight(currentWeight, targetWeight, heightCm, age, goal)`: Returns `{ type, color, message, suggestion }` where type is `'valid'|'direction'|'unsafe_low'|'unsafe_high'|'extreme'|'underweight_losing'`
+
+#### 2. Rewrite case 13 UI
+
+- Keep the number input field
+- Add a **healthy range indicator** bar below the input showing min–max with the target marked
+- Add an **animated insight card** (slide-down via framer-motion) that shows:
+  - Green card: "Your target is within a healthy range" + checkmark
+  - Amber card: extreme change warning (>15%) with "We suggest a 5–10% initial milestone of X kg" + "Apply milestone" button
+  - Red card: unsafe BMI warning with "At your height, healthy range is X–Y kg" + "Suggest healthy weight" button that auto-sets the nearest safe value
+  - Direction error: shown as red text (already exists, keep it)
+- The "Suggest healthy weight" / "Apply milestone" buttons update `targetWeight` via `set()` and re-trigger validation
+
+#### 3. Update validation in `canProceed` (case 13)
+
+- Keep direction check
+- Allow proceeding even with amber warnings (user can override)
+- Block only on direction mismatch or target ≤0 / >300
+
+#### 4. Validation logic summary
+
+```
+heightM = heightCm / 100
+targetBMI = targetWeight / (heightM²)
+healthyMin = (age >= 65 ? 23.0 : 18.5) * heightM²
+healthyMax = 24.9 * heightM²
+percentChange = |target - current| / current
+
+if goal=lose && target >= current → direction error (red, blocks)
+if goal=gain && target <= current → direction error (red, blocks)
+if targetBMI < 18.5 (or <23 for 65+) → unsafe low (amber, suggest healthyMin)
+if targetBMI > 24.9 → note but allow (soft amber)
+if percentChange > 0.15 → extreme change (amber, suggest 5-10% milestone)
+if current BMI < 18.5 && goal=lose → "already underweight" warning
+else → valid (green checkmark)
+```
 
 ### What stays unchanged
-- `MonikaGuide` component itself (already built with animations)
-- `MONIKA_MESSAGES` data (already has messages for all steps)
-- All wizard logic, navigation, and data flow
+- All other onboarding steps
+- Goal engine calculations
+- Navigation, progress bar, data persistence
+- The final plan screen still uses whatever target the user confirms
 
