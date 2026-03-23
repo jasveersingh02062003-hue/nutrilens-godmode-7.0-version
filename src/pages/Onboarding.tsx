@@ -85,6 +85,91 @@ const CONDITION_INSIGHTS: Record<string, string> = {
   anemia: 'iron-rich foods like spinach, lentils and fortified cereals',
 };
 
+// ── Smart Target Weight Validation ──
+function getHealthyWeightRange(heightCm: number, age: number): { min: number; max: number } {
+  const hM = heightCm / 100;
+  const hSq = hM * hM;
+  const minBMI = age >= 65 ? 23.0 : 18.5;
+  return { min: +(minBMI * hSq).toFixed(1), max: +(24.9 * hSq).toFixed(1) };
+}
+
+function getTargetBMI(weight: number, heightCm: number): number {
+  const hM = heightCm / 100;
+  return +(weight / (hM * hM)).toFixed(1);
+}
+
+type InsightType = 'valid' | 'direction' | 'unsafe_low' | 'unsafe_high' | 'extreme' | 'underweight_losing';
+interface WeightInsight {
+  type: InsightType;
+  color: 'green' | 'amber' | 'red';
+  message: string;
+  suggestion?: number;
+  milestone?: number;
+}
+
+function getWeightInsight(currentWeight: number, targetWeight: number, heightCm: number, age: number, goal: string): WeightInsight {
+  const hM = heightCm / 100;
+  const hSq = hM * hM;
+  const { min: healthyMin, max: healthyMax } = getHealthyWeightRange(heightCm, age);
+  const targetBMI = getTargetBMI(targetWeight, heightCm);
+  const currentBMI = getTargetBMI(currentWeight, heightCm);
+  const percentChange = Math.abs(targetWeight - currentWeight) / currentWeight;
+
+  // Direction check
+  if (goal === 'lose' && targetWeight >= currentWeight) {
+    return { type: 'direction', color: 'red', message: `Target must be below your current weight (${currentWeight} kg).` };
+  }
+  if (goal === 'gain' && targetWeight <= currentWeight) {
+    return { type: 'direction', color: 'red', message: `Target must be above your current weight (${currentWeight} kg).` };
+  }
+
+  // Already underweight trying to lose
+  if (currentBMI < 18.5 && goal === 'lose') {
+    return {
+      type: 'underweight_losing', color: 'red',
+      message: `Your current BMI is ${currentBMI} (underweight). Losing more weight could affect your health and energy levels.`,
+      suggestion: healthyMin,
+    };
+  }
+
+  // Unsafe low
+  const minSafeBMI = age >= 65 ? 23.0 : 18.5;
+  if (targetBMI < minSafeBMI) {
+    return {
+      type: 'unsafe_low', color: 'amber',
+      message: `At your height (${(hM).toFixed(2)}m), a healthy weight range is ${healthyMin}–${healthyMax} kg. Your target of ${targetWeight} kg (BMI ${targetBMI}) is below the healthy minimum.`,
+      suggestion: Math.max(healthyMin, +(currentWeight * 0.95).toFixed(1)),
+    };
+  }
+
+  // Unsafe high (for gain goals mostly)
+  if (targetBMI > 24.9 && goal === 'gain') {
+    return {
+      type: 'unsafe_high', color: 'amber',
+      message: `Your target of ${targetWeight} kg would put your BMI at ${targetBMI}, above the healthy range. Consider aiming for ${healthyMax} kg (BMI 24.9) or less.`,
+      suggestion: Math.min(healthyMax, +(currentWeight * 1.05).toFixed(1)),
+    };
+  }
+
+  // Extreme change
+  if (percentChange > 0.15) {
+    const milestoneWeight = goal === 'lose'
+      ? +(currentWeight * 0.925).toFixed(1) // 7.5% loss
+      : +(currentWeight * 1.075).toFixed(1); // 7.5% gain
+    return {
+      type: 'extreme', color: 'amber',
+      message: `You want to ${goal === 'lose' ? 'lose' : 'gain'} ${Math.abs(currentWeight - targetWeight).toFixed(1)} kg (${(percentChange * 100).toFixed(0)}% change). Studies suggest a 5–10% initial milestone for sustainable results.`,
+      milestone: milestoneWeight,
+    };
+  }
+
+  // Valid
+  return {
+    type: 'valid', color: 'green',
+    message: `Great choice! Your target of ${targetWeight} kg (BMI ${targetBMI}) is within a healthy range.`,
+  };
+}
+
 // ── Macro food translations ──
 function getProteinTranslation(protein: number, diet: string): string {
   if (diet === 'veg' || diet === 'vegan') {
