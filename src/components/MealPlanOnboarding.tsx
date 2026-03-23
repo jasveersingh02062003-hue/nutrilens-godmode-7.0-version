@@ -460,6 +460,21 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
           </div>
         );
 
+      case 'mealsPerDay':
+        return (
+          <div className="space-y-4">
+            <Header title="Meals per day?" sub="Including snacks." />
+            <div className="flex gap-3 justify-center mt-4">
+              {[3, 4, 5, 6].map(n => (
+                <motion.button key={n} whileTap={{ scale: 0.9 }} onClick={() => set('mealsPerDay', n)}
+                  className={`w-16 h-16 rounded-2xl text-lg font-bold border transition-all ${form.mealsPerDay === n ? 'bg-primary text-primary-foreground border-primary shadow-fab' : 'bg-card border-border'}`}>
+                  {n}
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        );
+
       case 'summary': {
         const bmi = calculateBMI(form.currentWeight!, form.heightCm!);
         const cat = getBMICategory(bmi);
@@ -474,13 +489,15 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">BMI</span><span className="font-semibold text-foreground">{bmi.toFixed(1)} ({cat})</span></div>
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">Weekly Pace</span><span className="font-semibold text-foreground">{form.weeklyPace} kg/week</span></div>
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">Meals/Day</span><span className="font-semibold text-foreground">{form.mealsPerDay}</span></div>
-              {(form.monthlyBudget || 0) > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Budget</span><span className="font-semibold text-foreground">₹{form.monthlyBudget}/month</span></div>}
+              <div className="flex justify-between text-sm"><span className="text-muted-foreground">Budget</span><span className="font-semibold text-foreground">₹{budgetDaily}/day</span></div>
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">Cooking Skill</span><span className="font-semibold text-foreground capitalize">{form.cookingSkill}</span></div>
               {form.dietaryPrefs?.length > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Diet</span><span className="font-semibold text-foreground capitalize">{form.dietaryPrefs.join(', ')}</span></div>}
               {form.cuisinePrefs?.length > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Cuisines</span><span className="font-semibold text-foreground capitalize">{form.cuisinePrefs.join(', ')}</span></div>}
             </div>
+            <p className="text-[10px] text-muted-foreground text-center">Budget from Budget tab · Edit in Budget tab</p>
           </div>
         );
+      }
 
       default:
         return null;
