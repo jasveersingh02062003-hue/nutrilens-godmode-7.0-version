@@ -1,47 +1,37 @@
 
 
-## Add Health-Aware Food Intelligence Screen (Step 17)
+## Fix Forward-Only Meal Redistribution
 
-### What it does
-A new onboarding step inserted after the Prediction Summary (current step 16) that shows a personalized summary of the user's food rules based on their health conditions, skin concerns, goal, and gender-specific factors. It gives users a "your food intelligence" overview before they proceed to lifestyle questions.
+### Problem
+When a meal is missed (e.g., lunch), `calculateProportionalDistribution` in `redistribution-service.ts` distributes calories to **all** other meals including past ones (breakfast). The correct behavior: redistribute only to meals **after** the missed one in the timeline: Breakfast → Lunch → Snacks → Dinner.
 
-### Current state
-- Step 16 = Prediction Summary, Step 17+ = lifestyle questions, Step 24 = Finish
-- `condition-coach.ts` already has comprehensive rule evaluators for diabetes, hypertension, IBS, thyroid, PCOS, anemia, cholesterol, etc.
-- `food-tags.ts` already has skin-based food tagging (acne, oily, dry, glow, etc.)
-- The intelligence demo (step 23) shows a sample meal warning but doesn't give a personalized avoid/prefer overview
+### Root Cause
+Line 82 of `redistribution-service.ts`:
+```typescript
+const remainingMeals = ['breakfast', 'lunch', 'dinner', 'snack'].filter(m => m !== missedMealType);
+```
+This includes meals before the missed one. It should only include meals that come **after** the missed meal in chronological order.
 
-### Plan (2 files)
+### Fix (1 file: `src/lib/redistribution-service.ts`)
 
-**File 1: `src/components/onboarding/FoodIntelligenceStep.tsx` (NEW)**
+**Change the `calculateProportionalDistribution` function** — replace the `remainingMeals` line with forward-only filtering:
 
-Receives props: `conditions[]`, `skinConcern`, `goal`, `genderSpecific`, `dietType`
+```typescript
+const MEAL_ORDER = ['breakfast', 'lunch', 'snack', 'dinner'];
 
-Renders:
-- Header: "Your Food Intelligence" with a brain/shield icon
-- For each active condition (diabetes, hypertension, PCOS, etc.), show a card with:
-  - Condition name + icon
-  - "Avoid" list (3-5 key foods/categories in red chips)
-  - "Prefer" list (3-5 foods in green chips)
-- Skin section: if skin concern selected, show foods good/bad for that skin type
-- Goal section: if lose/gain, show calorie-aware tips (e.g., "Prefer high-protein, low-calorie foods")
-- Gender section: if pregnant/breastfeeding, show key avoid/prefer items
-- If no conditions: show a green card "No specific restrictions — focus on balanced nutrition"
-- Monika tip at bottom: "I'll warn you in real-time when you log foods that conflict with your profile"
+const missedIndex = MEAL_ORDER.indexOf(missedMealType);
+const remainingMeals = MEAL_ORDER.filter((m, i) => i > missedIndex);
+```
 
-Uses a static rules map (derived from the keyword lists in `condition-coach.ts` and `food-tags.ts`) to display human-readable food names rather than raw keywords.
-
-**File 2: `src/pages/Onboarding.tsx` (MODIFIED)**
-
-- Import `FoodIntelligenceStep`
-- Shift steps 17–24 → 18–25
-- Insert new step 17 for the food intelligence screen
-- Update `getVisibleSteps`, `canContinue`, `STEP_MONIKA_KEY`, `isFinishStep` (→ 25), `isSummaryStep` (stays 14)
-- Pass `f.conditions`, `f.skinConcern`, `f.goalType`, `f.genderSpecific`, `f.diet` as props
+This ensures:
+- Missed **breakfast** → redistributes to lunch, snacks, dinner
+- Missed **lunch** → redistributes to snacks, dinner
+- Missed **snacks** → redistributes to dinner only
+- Missed **dinner** → no redistribution (empty array)
 
 ### What stays unchanged
-- All existing condition-coach logic (used at meal logging time)
-- All existing food-tags logic
-- All other onboarding steps content
-- The intelligence demo step (now step 24) still shows the live meal warning preview
+- `SmartRedistributionSheet` UI component (it just renders what `calculateProportionalDistribution` returns)
+- `applyRedistribution`, `markRedistributed`, carry-over logic
+- `calorie-engine.ts` (separate recalculation engine, already works correctly with pending slots)
+- `MealDetailSheet`, `TodayMeals` display logic
 
