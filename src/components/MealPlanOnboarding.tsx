@@ -71,11 +71,6 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
     mealsPerDay: 3,
     dailyBudget: 0,
     currency: 'INR',
-    monthlyBudget: 15000,
-    mealSplitBreakfast: 100,
-    mealSplitLunch: 150,
-    mealSplitDinner: 200,
-    mealSplitSnacks: 50,
   });
 
   const step = STEPS[stepIdx];
