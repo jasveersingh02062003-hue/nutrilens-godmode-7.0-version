@@ -506,14 +506,15 @@ export default function Onboarding() {
       case 14: return true; // summary - always can confirm
       case 15: return true;
       case 16: return true; // prediction summary
-      case 17: return f.wantLifestyle !== null;
-      case 18: return !!f.diet;
-      case 19: return f.water >= 0.5 && f.water <= 5.0;
-      case 20: return true;
+      case 17: return true; // food intelligence
+      case 18: return f.wantLifestyle !== null;
+      case 19: return !!f.diet;
+      case 20: return f.water >= 0.5 && f.water <= 5.0;
       case 21: return true;
-      case 22: return !!f.cookingSkill;
-      case 23: return true;
+      case 22: return true;
+      case 23: return !!f.cookingSkill;
       case 24: return true;
+      case 25: return true;
       default: return true;
     }
   };
