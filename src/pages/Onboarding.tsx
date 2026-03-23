@@ -1660,8 +1660,8 @@ export default function Onboarding() {
             5: 'summary', 6: 'health', 7: 'skinConcerns', 8: f.gender === 'female' ? 'womenHealth' : 'menHealth',
             9: 'occupation', 10: 'exercise', 11: 'goal', 12: 'goalSpeed', 13: 'targetWeight',
             14: 'summary', 15: 'summary', 16: 'summary', 17: 'health', 18: 'goal',
-            19: 'summary', 20: 'dietary', 21: 'water', 22: 'medications',
-            23: 'summary', 24: 'cooking', 25: 'summary', 26: 'summary',
+            19: 'dietary', 20: 'water', 21: 'medications',
+            22: 'summary', 23: 'cooking', 24: 'summary', 25: 'summary',
           };
           const mKey = STEP_MONIKA_KEY[step];
           const mData = mKey ? MONIKA_MESSAGES[mKey] : null;
