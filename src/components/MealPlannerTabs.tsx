@@ -16,6 +16,7 @@ interface MealPlannerTabsProps {
   activeTab: TabName;
   onTabChange: (tab: TabName) => void;
   mealPlanContent: React.ReactNode;
+  onBudgetComplete?: () => void;
 }
 
 // ===== Groceries Sub-Tab =====
@@ -225,7 +226,7 @@ function RecipesTab() {
 }
 
 // ===== Main Tabs Component =====
-export default function MealPlannerTabs({ plan, activeTab, onTabChange, mealPlanContent }: MealPlannerTabsProps) {
+export default function MealPlannerTabs({ plan, activeTab, onTabChange, mealPlanContent, onBudgetComplete }: MealPlannerTabsProps) {
   const touchStart = useRef<number | null>(null);
   const touchDelta = useRef<number>(0);
 
@@ -277,7 +278,7 @@ export default function MealPlannerTabs({ plan, activeTab, onTabChange, mealPlan
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.2 }}
           >
-            {activeTab === 'Budget' && <BudgetPlannerTab />}
+            {activeTab === 'Budget' && <BudgetPlannerTab onOnboardingComplete={onBudgetComplete} />}
             {activeTab === 'Meal Plan' && mealPlanContent}
             {activeTab === 'Groceries' && <GroceriesTab plan={plan} />}
             {activeTab === 'Recipes' && <RecipesTab />}

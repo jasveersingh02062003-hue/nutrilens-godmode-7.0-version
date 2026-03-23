@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ChefHat, CalendarDays, ArrowLeft, ArrowRight, Check, ShoppingCart, Repeat, X, Search, Target, Scale, Crown, Lock } from 'lucide-react';
 import { isPremium } from '@/lib/subscription-service';
@@ -14,6 +14,7 @@ import { generateWeekPlan, swapMeal } from '@/lib/meal-plan-generator';
 import { getRecipeById, getRecipesByMealType } from '@/lib/recipes';
 import { getProfile as getUserProfile } from '@/lib/store';
 import { getRecipeImage } from '@/lib/recipe-images';
+import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
 import type { WeekPlan } from '@/lib/meal-planner-store';
 import MonikaFab from '@/components/MonikaFab';
 import { useNavigate } from 'react-router-dom';
@@ -404,21 +405,18 @@ export default function MealPlanner() {
         <SeasonalPicksRow />
 
         <button onClick={() => {
-          if (!premium) {
-            // Free users skip onboarding, generate generic plan directly
-            if (!profile?.onboardingComplete) {
-              setStep('onboarding');
-              setActiveTab('Meal Plan');
-            } else {
-              setStep('dates');
-            }
+          // Check if budget onboarding is done first
+          const budgetSettings = getEnhancedBudgetSettings();
+          if (!budgetSettings.onboardingDone) {
+            setActiveTab('Budget');
+            toast('Set your budget first', { description: 'Complete budget setup before creating a meal plan' });
+            return;
+          }
+          if (!profile?.onboardingComplete) {
+            setStep('onboarding');
+            setActiveTab('Meal Plan');
           } else {
-            if (!profile?.onboardingComplete) {
-              setStep('onboarding');
-              setActiveTab('Meal Plan');
-            } else {
-              setStep('dates');
-            }
+            setStep('dates');
           }
         }}
           className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 shadow-fab active:scale-[0.98] transition-transform">
@@ -439,6 +437,13 @@ export default function MealPlanner() {
           activeTab={activeTab}
           onTabChange={setActiveTab}
           mealPlanContent={mealPlanContent}
+          onBudgetComplete={() => {
+            setActiveTab('Meal Plan');
+            if (!profile?.onboardingComplete) {
+              setStep('onboarding');
+            }
+            toast.success('Budget set! Now let\'s plan your meals');
+          }}
         />
       </div>
       <MonikaFab />
