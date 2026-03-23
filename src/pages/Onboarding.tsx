@@ -1417,7 +1417,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 22: {
+      case 24: {
         const equipmentOpts = [
           { value: 'basic', label: '🍳 Basic (Pan/Pot)' },
           { value: 'microwave', label: '📡 Microwave' },
