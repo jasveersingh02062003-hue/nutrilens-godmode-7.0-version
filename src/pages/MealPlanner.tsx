@@ -437,6 +437,13 @@ export default function MealPlanner() {
           activeTab={activeTab}
           onTabChange={setActiveTab}
           mealPlanContent={mealPlanContent}
+          onBudgetComplete={() => {
+            setActiveTab('Meal Plan');
+            if (!profile?.onboardingComplete) {
+              setStep('onboarding');
+            }
+            toast.success('Budget set! Now let\'s plan your meals');
+          }}
         />
       </div>
       <MonikaFab />

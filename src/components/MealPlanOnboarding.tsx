@@ -118,26 +118,10 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
       form.activityLevel || 'moderate', goal, form.medicalRestrictions
     );
 
-    // Save budget settings
-    const monthlyBudget = form.monthlyBudget || 15000;
-    const dailyBudget = Math.round(monthlyBudget / 30);
-    saveBudgetSettings({
-      weeklyBudget: Math.round(monthlyBudget / 4),
-      monthlyBudget,
-      period: 'month',
-      currency: '₹',
-    });
-    saveEnhancedBudgetSettings({
-      perMealBudget: dailyBudget,
-      perMeal: {
-        breakfast: form.mealSplitBreakfast || 100,
-        lunch: form.mealSplitLunch || 150,
-        dinner: form.mealSplitDinner || 200,
-        snacks: form.mealSplitSnacks || 50,
-      },
-      outsideFoodLimit: 0,
-      onboardingDone: true,
-    });
+    // Read budget from shared settings (set in Budget tab)
+    const budgetSettings = getEnhancedBudgetSettings();
+    const perMeal = budgetSettings.perMeal || { breakfast: 100, lunch: 150, dinner: 200, snacks: 50 };
+    const dailyBudget = (perMeal.breakfast || 100) + (perMeal.lunch || 150) + (perMeal.dinner || 200) + (perMeal.snacks || 50);
 
     const profile: MealPlannerProfile = {
       name: form.name || '',
