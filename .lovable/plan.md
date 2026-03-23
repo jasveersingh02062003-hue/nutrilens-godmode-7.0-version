@@ -1,53 +1,47 @@
 
 
-## Add Prediction Summary Screen After Personalized Plan
+## Add Health-Aware Food Intelligence Screen (Step 17)
 
 ### What it does
-A new step (inserted after the current step 15 — the final plan screen) that shows a visual, prediction-focused summary: plan speed options, total deficit/surplus, timeline in days/months, weekly/monthly rate, and a Monika coach tip. This gives the user a "real prediction" of their journey before proceeding.
+A new onboarding step inserted after the Prediction Summary (current step 16) that shows a personalized summary of the user's food rules based on their health conditions, skin concerns, goal, and gender-specific factors. It gives users a "your food intelligence" overview before they proceed to lifestyle questions.
+
+### Current state
+- Step 16 = Prediction Summary, Step 17+ = lifestyle questions, Step 24 = Finish
+- `condition-coach.ts` already has comprehensive rule evaluators for diabetes, hypertension, IBS, thyroid, PCOS, anemia, cholesterol, etc.
+- `food-tags.ts` already has skin-based food tagging (acne, oily, dry, glow, etc.)
+- The intelligence demo (step 23) shows a sample meal warning but doesn't give a personalized avoid/prefer overview
 
 ### Plan (2 files)
 
-**File 1: `src/components/onboarding/PredictionSummaryStep.tsx` (NEW)**
+**File 1: `src/components/onboarding/FoodIntelligenceStep.tsx` (NEW)**
 
-A dedicated component that receives `goalResult`, `currentWeight`, `targetWeight`, `goalType` as props and renders:
+Receives props: `conditions[]`, `skinConcern`, `goal`, `genderSpecific`, `dietType`
 
-- **Goal summary card**: "You want to lose/gain X kg" with total deficit/surplus needed (X × 7700 kcal)
-- **Three plan options** (Aggressive / Moderate / Slow) as selectable cards showing:
-  - Daily deficit/surplus (800 / 500 / 300 kcal)
-  - Estimated time in weeks and months
-  - Weekly rate (kg/week)
-  - The user's current plan highlighted as "recommended"
-- **Calorie intelligence section**: Maintenance TDEE → Target intake → Deficit/surplus → "1 kg = 7700 kcal" explanation line
-- **Dynamic timeline display**: "At current pace, you will reach your goal in X weeks (~Y months)"
-- **Monika coach tip card** at bottom based on goal magnitude
-- Count-up animation on numbers using framer-motion
-- For `maintain` goal: show a simpler card ("You're maintaining — no timeline needed") with TDEE and macro targets
+Renders:
+- Header: "Your Food Intelligence" with a brain/shield icon
+- For each active condition (diabetes, hypertension, PCOS, etc.), show a card with:
+  - Condition name + icon
+  - "Avoid" list (3-5 key foods/categories in red chips)
+  - "Prefer" list (3-5 foods in green chips)
+- Skin section: if skin concern selected, show foods good/bad for that skin type
+- Goal section: if lose/gain, show calorie-aware tips (e.g., "Prefer high-protein, low-calorie foods")
+- Gender section: if pregnant/breastfeeding, show key avoid/prefer items
+- If no conditions: show a green card "No specific restrictions — focus on balanced nutrition"
+- Monika tip at bottom: "I'll warn you in real-time when you log foods that conflict with your profile"
+
+Uses a static rules map (derived from the keyword lists in `condition-coach.ts` and `food-tags.ts`) to display human-readable food names rather than raw keywords.
 
 **File 2: `src/pages/Onboarding.tsx` (MODIFIED)**
 
-- Import `PredictionSummaryStep`
-- Shift step numbering: current steps 16–23 become 17–24
-- Insert new step 16 as the prediction summary screen
-- Update `getVisibleSteps()` to include step 16 after step 15
-- Update `STEP_MONIKA_KEY`, `canContinue`, and finish step references
-- The prediction step receives `goalResult`, `f.weightKg`, `f.targetWeight`, `f.goalType` as props
-- No new state needed — calculations derive from existing `goalResult`
-
-### Calculation logic (inside the new component)
-```
-KCAL_PER_KG = 7700
-weightDiff = |currentWeight - targetWeight|
-totalDeficit = weightDiff * 7700
-
-plans:
-  aggressive: { deficit: 800, days: totalDeficit/800, weeks: days/7 }
-  moderate:   { deficit: 500, days: totalDeficit/500, weeks: days/7 }
-  slow:       { deficit: 300, days: totalDeficit/300, weeks: days/7 }
-```
+- Import `FoodIntelligenceStep`
+- Shift steps 17–24 → 18–25
+- Insert new step 17 for the food intelligence screen
+- Update `getVisibleSteps`, `canContinue`, `STEP_MONIKA_KEY`, `isFinishStep` (→ 25), `isSummaryStep` (stays 14)
+- Pass `f.conditions`, `f.skinConcern`, `f.goalType`, `f.genderSpecific`, `f.diet` as props
 
 ### What stays unchanged
-- All existing steps and their content
-- Goal engine calculations
-- handleFinish, data persistence
-- All other phases (splash, welcome, etc.)
+- All existing condition-coach logic (used at meal logging time)
+- All existing food-tags logic
+- All other onboarding steps content
+- The intelligence demo step (now step 24) still shows the live meal warning preview
 
