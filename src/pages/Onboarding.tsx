@@ -317,14 +317,15 @@ interface FormState {
  * 13 Target weight (conditional: lose/gain)
  * 14 ★ SUMMARY SCREEN (review & edit before plan)
  * 15 Final output (calculating transition before this)
- * 16 Want lifestyle?
- * 17 Diet (conditional: wantLifestyle)
- * 18 Water (conditional)
- * 19 Supplements (conditional)
- * 20 Budget (conditional)
- * 21 Cooking (conditional)
- * 22 Intelligence demo
- * 23 Finish
+ * 16 ★ PREDICTION SUMMARY (timeline, pace options, calorie intelligence)
+ * 17 Want lifestyle?
+ * 18 Diet (conditional: wantLifestyle)
+ * 19 Water (conditional)
+ * 20 Supplements (conditional)
+ * 21 Budget (conditional)
+ * 22 Cooking (conditional)
+ * 23 Intelligence demo
+ * 24 Finish
  */
 
 export default function Onboarding() {
