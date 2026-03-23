@@ -14,6 +14,7 @@ import WelcomeScreen from '@/components/onboarding/WelcomeScreen';
 import SplashScreen from '@/components/onboarding/SplashScreen';
 import ScannerOnboardingScreen from '@/components/onboarding/ScannerOnboardingScreen';
 import TargetWeightStep from '@/components/onboarding/TargetWeightStep';
+import PredictionSummaryStep from '@/components/onboarding/PredictionSummaryStep';
 import PlansPage from '@/components/PlansPage';
 
 // ── Animation variants ──
