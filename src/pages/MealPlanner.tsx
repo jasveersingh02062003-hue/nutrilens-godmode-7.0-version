@@ -405,21 +405,18 @@ export default function MealPlanner() {
         <SeasonalPicksRow />
 
         <button onClick={() => {
-          if (!premium) {
-            // Free users skip onboarding, generate generic plan directly
-            if (!profile?.onboardingComplete) {
-              setStep('onboarding');
-              setActiveTab('Meal Plan');
-            } else {
-              setStep('dates');
-            }
+          // Check if budget onboarding is done first
+          const budgetSettings = getEnhancedBudgetSettings();
+          if (!budgetSettings.onboardingDone) {
+            setActiveTab('Budget');
+            toast('Set your budget first', { description: 'Complete budget setup before creating a meal plan' });
+            return;
+          }
+          if (!profile?.onboardingComplete) {
+            setStep('onboarding');
+            setActiveTab('Meal Plan');
           } else {
-            if (!profile?.onboardingComplete) {
-              setStep('onboarding');
-              setActiveTab('Meal Plan');
-            } else {
-              setStep('dates');
-            }
+            setStep('dates');
           }
         }}
           className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 shadow-fab active:scale-[0.98] transition-transform">
