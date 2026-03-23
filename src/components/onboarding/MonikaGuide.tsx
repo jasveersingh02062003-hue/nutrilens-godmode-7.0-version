@@ -125,6 +125,7 @@ export const MEAL_PLANNER_MONIKA: Record<string, { message: string; mood: Monika
   eatingOut: { message: "Eating out is fine — I'll plan around it.", mood: 'happy' },
   snacking: { message: "Snacking is normal! Let's make it smart.", mood: 'happy' },
   mealsPerDay: { message: "Almost there! How many meals should I plan?", mood: 'excited' },
+  budget: { message: "Set your food budget — I'll plan meals that fit your wallet! 💰", mood: 'thinking' },
   summary: { message: "Your meal plan profile is ready!", mood: 'celebrating' },
 };
 

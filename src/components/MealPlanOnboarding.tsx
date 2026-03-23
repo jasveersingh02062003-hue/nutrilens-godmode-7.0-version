@@ -1,10 +1,12 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Check, Sparkles, Target, Dumbbell, Heart, Apple, ChefHat, UtensilsCrossed, Scale, User } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Sparkles, Target, Dumbbell, Heart, Apple, ChefHat, UtensilsCrossed, Scale, User, IndianRupee } from 'lucide-react';
 import { MealPlannerProfile, saveMealPlannerProfile } from '@/lib/meal-planner-store';
 import { calculateBMI, calculateBMR, calculateTDEE, getBMICategory } from '@/lib/nutrition';
 import { determineGoalAndTargets } from '@/lib/goal-engine';
 import { getProfile } from '@/lib/store';
+import { saveBudgetSettings } from '@/lib/expense-store';
+import { saveEnhancedBudgetSettings } from '@/lib/budget-alerts';
 import MonikaGuide, { MEAL_PLANNER_MONIKA } from '@/components/onboarding/MonikaGuide';
 import OnboardingProgress from '@/components/onboarding/OnboardingProgress';
 
@@ -13,7 +15,7 @@ const STEPS = [
   'activity', 'exercise', 'sleep', 'stress',
   'dietary', 'medical', 'allergies', 'cuisines',
   'cooking', 'cookTime', 'equipment', 'eatingOut', 'snacking',
-  'mealsPerDay', 'summary',
+  'mealsPerDay', 'budget', 'summary',
 ];
 
 const pageVariants = {
@@ -70,6 +72,11 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
     mealsPerDay: 3,
     dailyBudget: 0,
     currency: 'INR',
+    monthlyBudget: 15000,
+    mealSplitBreakfast: 100,
+    mealSplitLunch: 150,
+    mealSplitDinner: 200,
+    mealSplitSnacks: 50,
   });
 
   const step = STEPS[stepIdx];
@@ -98,6 +105,7 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
       case 'cooking': return !!form.cookingSkill;
       case 'cookTime': return !!form.cookingTime;
       case 'mealsPerDay': return true;
+      case 'budget': return true;
       default: return true;
     }
   };
@@ -109,6 +117,27 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
       form.currentWeight!, form.heightCm!, form.age!, gender,
       form.activityLevel || 'moderate', goal, form.medicalRestrictions
     );
+
+    // Save budget settings
+    const monthlyBudget = form.monthlyBudget || 15000;
+    const dailyBudget = Math.round(monthlyBudget / 30);
+    saveBudgetSettings({
+      weeklyBudget: Math.round(monthlyBudget / 4),
+      monthlyBudget,
+      period: 'month',
+      currency: '₹',
+    });
+    saveEnhancedBudgetSettings({
+      perMealBudget: dailyBudget,
+      perMeal: {
+        breakfast: form.mealSplitBreakfast || 100,
+        lunch: form.mealSplitLunch || 150,
+        dinner: form.mealSplitDinner || 200,
+        snacks: form.mealSplitSnacks || 50,
+      },
+      outsideFoodLimit: 0,
+      onboardingDone: true,
+    });
 
     const profile: MealPlannerProfile = {
       name: form.name || '',
@@ -142,7 +171,7 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
       mealPrep: form.mealPrep || '',
       snackingHabits: form.snackingHabits || [],
       mealsPerDay: form.mealsPerDay || 3,
-      dailyBudget: form.dailyBudget || 0,
+      dailyBudget: dailyBudget,
       currency: 'INR',
       dailyCalories: decision.targetCalories,
       dailyProtein: decision.targetProtein,
@@ -468,6 +497,69 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
           </div>
         );
 
+      case 'budget': {
+        const computedDaily = Math.round((form.monthlyBudget || 15000) / 30);
+        const perMealTotal = (form.mealSplitBreakfast || 0) + (form.mealSplitLunch || 0) + (form.mealSplitDinner || 0) + (form.mealSplitSnacks || 0);
+        return (
+          <div className="space-y-5">
+            <Header icon={IndianRupee} title="Set your food budget" sub="We'll plan meals within your budget." />
+            
+            {/* Monthly budget */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Monthly Budget</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">₹</span>
+                <input
+                  type="number"
+                  value={form.monthlyBudget || ''}
+                  onChange={e => set('monthlyBudget', parseInt(e.target.value) || 0)}
+                  placeholder="15000"
+                  className="w-full pl-8 pr-4 py-3 rounded-2xl border border-border bg-card text-foreground text-base font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Daily budget: <span className="font-semibold text-foreground">₹{computedDaily}</span>/day</p>
+            </div>
+
+            {/* Per-meal splits */}
+            <div className="space-y-3">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Per-Meal Budget (₹/day)</label>
+              {[
+                { key: 'mealSplitBreakfast', label: '🌅 Breakfast', default: 100 },
+                { key: 'mealSplitLunch', label: '☀️ Lunch', default: 150 },
+                { key: 'mealSplitSnacks', label: '🍿 Snacks', default: 50 },
+                { key: 'mealSplitDinner', label: '🌙 Dinner', default: 200 },
+              ].map(({ key, label, default: def }) => (
+                <div key={key} className="flex items-center gap-3">
+                  <span className="text-sm font-medium w-28">{label}</span>
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₹</span>
+                    <input
+                      type="number"
+                      value={(form as any)[key] ?? def}
+                      onChange={e => set(key, parseInt(e.target.value) || 0)}
+                      className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-border bg-card text-foreground text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                </div>
+              ))}
+              <div className="flex justify-between text-xs pt-1 px-1">
+                <span className="text-muted-foreground">Daily total</span>
+                <span className={`font-bold ${perMealTotal > computedDaily ? 'text-destructive' : 'text-primary'}`}>₹{perMealTotal}/day</span>
+              </div>
+            </div>
+
+            {/* Skip option */}
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={() => { set('monthlyBudget', 0); goNext(); }}
+              className="w-full text-center text-xs text-muted-foreground py-2 underline underline-offset-2"
+            >
+              Skip — no budget constraint
+            </motion.button>
+          </div>
+        );
+      }
+
       case 'summary':
         const bmi = calculateBMI(form.currentWeight!, form.heightCm!);
         const cat = getBMICategory(bmi);
@@ -479,6 +571,7 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">BMI</span><span className="font-semibold text-foreground">{bmi.toFixed(1)} ({cat})</span></div>
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">Weekly Pace</span><span className="font-semibold text-foreground">{form.weeklyPace} kg/week</span></div>
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">Meals/Day</span><span className="font-semibold text-foreground">{form.mealsPerDay}</span></div>
+              {(form.monthlyBudget || 0) > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Budget</span><span className="font-semibold text-foreground">₹{form.monthlyBudget}/month</span></div>}
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">Cooking Skill</span><span className="font-semibold text-foreground capitalize">{form.cookingSkill}</span></div>
               {form.dietaryPrefs?.length > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Diet</span><span className="font-semibold text-foreground capitalize">{form.dietaryPrefs.join(', ')}</span></div>}
               {form.cuisinePrefs?.length > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Cuisines</span><span className="font-semibold text-foreground capitalize">{form.cuisinePrefs.join(', ')}</span></div>}
@@ -497,7 +590,7 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
     challenges: 'Challenges', activity: 'Activity', exercise: 'Exercise', sleep: 'Sleep', stress: 'Stress',
     dietary: 'Diet', medical: 'Medical', allergies: 'Allergies', cuisines: 'Cuisines',
     cooking: 'Cooking', cookTime: 'Cook Time', equipment: 'Equipment', eatingOut: 'Eating Out',
-    snacking: 'Snacking', mealsPerDay: 'Meals/Day', summary: 'Summary',
+    snacking: 'Snacking', mealsPerDay: 'Meals/Day', budget: 'Budget', summary: 'Summary',
   };
 
   return (
