@@ -118,6 +118,27 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
       form.activityLevel || 'moderate', goal, form.medicalRestrictions
     );
 
+    // Save budget settings
+    const monthlyBudget = form.monthlyBudget || 15000;
+    const dailyBudget = Math.round(monthlyBudget / 30);
+    saveBudgetSettings({
+      weeklyBudget: Math.round(monthlyBudget / 4),
+      monthlyBudget,
+      period: 'month',
+      currency: '₹',
+    });
+    saveEnhancedBudgetSettings({
+      perMealBudget: dailyBudget,
+      perMeal: {
+        breakfast: form.mealSplitBreakfast || 100,
+        lunch: form.mealSplitLunch || 150,
+        dinner: form.mealSplitDinner || 200,
+        snacks: form.mealSplitSnacks || 50,
+      },
+      outsideFoodLimit: 0,
+      onboardingDone: true,
+    });
+
     const profile: MealPlannerProfile = {
       name: form.name || '',
       gender,
@@ -150,7 +171,7 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
       mealPrep: form.mealPrep || '',
       snackingHabits: form.snackingHabits || [],
       mealsPerDay: form.mealsPerDay || 3,
-      dailyBudget: form.dailyBudget || 0,
+      dailyBudget: dailyBudget,
       currency: 'INR',
       dailyCalories: decision.targetCalories,
       dailyProtein: decision.targetProtein,
