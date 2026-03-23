@@ -99,7 +99,7 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
       case 'cooking': return !!form.cookingSkill;
       case 'cookTime': return !!form.cookingTime;
       case 'mealsPerDay': return true;
-      case 'budget': return true;
+      default: return true;
       default: return true;
     }
   };
