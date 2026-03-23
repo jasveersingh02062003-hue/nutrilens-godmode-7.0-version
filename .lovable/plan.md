@@ -1,78 +1,49 @@
 
 
-## Add PES Feature Flex, Post-Onboarding Explanation Card, and Meal Logging PES Breakdown
+## Add Splash Screen Animation Before Welcome
 
-### 3 New Components, 2 Files Modified
+### What Exists Now
+- Onboarding flow: `featureFlex` → `welcome` → `scanner` → `wizard` → ...
+- `WelcomeScreen.tsx` uses a dark hero image with glassmorphic design
+- The uploaded screenshot shows a different, cleaner welcome design: light background, vegetable hero image at top, "NutriLens AI" title, tagline, Get Started / Sign In buttons, Google/Phone social login options
 
----
+### Plan
 
-### File 1: `src/components/PESFeatureFlex.tsx` (NEW)
+**New phase `'splash'` inserted before `featureFlex`/`welcome`**
 
-Full-screen animated overlay shown on first app load (before onboarding).
+#### File 1: `src/components/onboarding/SplashScreen.tsx` (NEW)
 
-- Dark gradient background with backdrop blur
-- Animated circular PES meter that cycles through 3 examples every 3 seconds:
-  - Soya Chunks — PES 4.33 🟢 "Excellent Value"
-  - Paneer — PES 0.45 🟡 "Average Value"  
-  - Biryani — PES 0.13 🔴 "Poor Value"
-- Animated number counter, color transitions, pulsating glow on green
-- Tagline animates in: "We don't just track food – we tell you if it's worth your money."
-- Large CTA button: "Experience Food Value Intelligence"
-- Uses framer-motion (already in project) for all animations
-- Checks `localStorage.getItem('pes_flex_seen')` — renders nothing if already seen
-- On dismiss: sets flag, calls `onDismiss` prop
+- Full-screen centered animation with the app's surface background color
+- "NutriLens AI" text animates in: scale 0.9→1 + opacity 0→1 over 0.6s using framer-motion
+- Tagline "₹ → Protein → Insight" fades in with 0.3s delay
+- Smart timing via `localStorage.getItem('nutrilens_splash_shown')`:
+  - First launch: full 2s animation, then auto-transition
+  - Subsequent: 0.4s quick fade, then transition
+- On complete: sets localStorage flag, calls `onComplete` prop
+- Minimal design: primary color accent on "AI", no images
 
-### File 2: `src/components/PESExplanationCard.tsx` (NEW)
+#### File 2: `src/components/onboarding/WelcomeScreen.tsx` (REWRITE)
 
-Glassmorphic card that slides up from bottom after onboarding + budget setup complete. Shown once.
+Redesign to match the uploaded screenshot reference:
+- Light background (`bg-[#f9f9f8]`) instead of dark hero
+- Top half: vegetable/food hero image (use existing `hero-nutrition.jpg` with lighter treatment — no dark overlay, image sits at top with fade-to-white gradient at bottom)
+- "NutriLens AI" bold title + "Track smarter. Eat better. Live healthier." tagline
+- "Get Started" button: dark green rounded pill (primary color)
+- "Sign In" button: outlined/bordered pill
+- Divider: "or continue with"
+- Two social buttons: Google + Phone (icon + label, outlined style)
+- Keep existing `onGetStarted` and `onSignIn` props; social buttons call `onSignIn` for now
 
-- Title: "Food Value Intelligence – Your Secret Weapon"
-- PES explanation with threshold visuals (🟢 ≥ 0.8, 🟡 0.4–0.8, 🔴 < 0.4)
-- Animated carousel cycling through 3 food examples with PES + color
-- Testimonial: "I saved ₹2000 this month just by swapping paneer for soya..." – Priya, Delhi
-- CTA: "Got it, let's go!" — sets `localStorage.setItem('pes_explanation_seen', 'true')`
-- Uses framer-motion slide-in + AnimatePresence
+#### File 3: `src/pages/Onboarding.tsx` (MODIFIED)
 
-### File 3: `src/components/PESBreakdownModal.tsx` (NEW)
-
-Animated modal shown after user clicks "Save Meal" but before actual save.
-
-- Glassmorphic design with slide-up + bounce animation
-- Shows: food name, cost (₹X), protein/carbs/fat breakdown
-- Protein per Rupee with animated color circle (🟢/🟡/🔴)
-- Cost per gram of protein (₹X/g) with comparison text
-- Rating label: "Excellent Value" / "OK Value" / "Poor Value"
-- Insight text (e.g., "For ₹70 you get 12g protein. Try eggs for 1.0g/₹.")
-- Two buttons: "Log to [Meal]" (saves) and "Edit" (goes back)
-- Props: `food` data, `mealType`, `onConfirm`, `onEdit`, `open`
-- Uses `evaluateFood` from `pes-engine.ts` for calculations
-
-### File 4: `src/pages/CameraHome.tsx` (MODIFIED)
-
-- Add state `showPESBreakdown` (boolean)
-- In `saveMeal()`: instead of immediately saving, set `showPESBreakdown = true`
-- Render `PESBreakdownModal` at bottom of component
-- On modal confirm: run existing save logic (addMealToLog, toast, navigate)
-- On modal edit: set `showPESBreakdown = false`, return to edit step
-
-### File 5: `src/pages/Onboarding.tsx` (MODIFIED)
-
-- Import `PESFeatureFlex`
-- Add a new phase before `'welcome'`: `'featureFlex'`
-- In the phase check at top of component: if `!localStorage.getItem('pes_flex_seen')`, start at `'featureFlex'` phase
-- Render `PESFeatureFlex` when phase is `'featureFlex'`, on dismiss transition to `'welcome'`
-
-### File 6: `src/pages/Dashboard.tsx` (MODIFIED)
-
-- Import `PESExplanationCard`
-- Add state `showPESExplanation` initialized from `!localStorage.getItem('pes_explanation_seen')`
-- Render `PESExplanationCard` when `showPESExplanation && profile?.onboardingComplete`
-- On dismiss: set state false
+- Import `SplashScreen`
+- Add `'splash'` to Phase type
+- Initial phase: always `'splash'`
+- Phase routing: `splash` → renders `SplashScreen`, on complete transitions to `featureFlex` (if not seen) or `welcome` (if already seen)
+- Rest of flow unchanged
 
 ### Technical Notes
-
-- All animations use framer-motion (already installed)
-- PES thresholds use existing `getDynamicThreshold()` from `pes-engine.ts`
-- The PES breakdown modal intercepts the save flow in CameraHome — the existing `saveMeal()` function body moves into the modal's confirm handler
-- No new dependencies needed
+- Splash uses framer-motion `animate` + `onAnimationComplete` for sequencing
+- Welcome screen keeps the same props interface, just visual redesign
+- No new dependencies
 
