@@ -1451,6 +1451,14 @@ export default function Onboarding() {
   };
 
   // ── Phase routing ──
+  if (phase === 'splash') {
+    return (
+      <SplashScreen
+        onComplete={() => setPhase(!localStorage.getItem('pes_flex_seen') ? 'featureFlex' : 'welcome')}
+      />
+    );
+  }
+
   if (phase === 'featureFlex') {
     return <PESFeatureFlex onDismiss={() => setPhase('welcome')} />;
   }
