@@ -15,6 +15,7 @@ import SplashScreen from '@/components/onboarding/SplashScreen';
 import ScannerOnboardingScreen from '@/components/onboarding/ScannerOnboardingScreen';
 import TargetWeightStep from '@/components/onboarding/TargetWeightStep';
 import PredictionSummaryStep from '@/components/onboarding/PredictionSummaryStep';
+import FoodIntelligenceStep from '@/components/onboarding/FoodIntelligenceStep';
 import PlansPage from '@/components/PlansPage';
 
 // ── Animation variants ──
@@ -318,14 +319,15 @@ interface FormState {
  * 14 ★ SUMMARY SCREEN (review & edit before plan)
  * 15 Final output (calculating transition before this)
  * 16 ★ PREDICTION SUMMARY (timeline, pace options, calorie intelligence)
- * 17 Want lifestyle?
- * 18 Diet (conditional: wantLifestyle)
- * 19 Water (conditional)
- * 20 Supplements (conditional)
- * 21 Budget (conditional)
- * 22 Cooking (conditional)
- * 23 Intelligence demo
- * 24 Finish
+ * 17 ★ FOOD INTELLIGENCE (personalized avoid/prefer overview)
+ * 18 Want lifestyle?
+ * 19 Diet (conditional: wantLifestyle)
+ * 20 Water (conditional)
+ * 21 Supplements (conditional)
+ * 22 Budget (conditional)
+ * 23 Cooking (conditional)
+ * 24 Intelligence demo
+ * 25 Finish
  */
 
 export default function Onboarding() {
@@ -412,11 +414,11 @@ export default function Onboarding() {
       steps.push(12, 13);
     }
     steps.push(14); // Summary screen
-    steps.push(15, 16, 17); // Final plan, Prediction summary, want lifestyle?
+    steps.push(15, 16, 17, 18); // Final plan, Prediction summary, Food intelligence, want lifestyle?
     if (f.wantLifestyle === true) {
-      steps.push(18, 19, 20, 21, 22);
+      steps.push(19, 20, 21, 22, 23);
     }
-    steps.push(23, 24);
+    steps.push(24, 25);
     return steps;
   };
 
@@ -504,14 +506,15 @@ export default function Onboarding() {
       case 14: return true; // summary - always can confirm
       case 15: return true;
       case 16: return true; // prediction summary
-      case 17: return f.wantLifestyle !== null;
-      case 18: return !!f.diet;
-      case 19: return f.water >= 0.5 && f.water <= 5.0;
-      case 20: return true;
+      case 17: return true; // food intelligence
+      case 18: return f.wantLifestyle !== null;
+      case 19: return !!f.diet;
+      case 20: return f.water >= 0.5 && f.water <= 5.0;
       case 21: return true;
-      case 22: return !!f.cookingSkill;
-      case 23: return true;
+      case 22: return true;
+      case 23: return !!f.cookingSkill;
       case 24: return true;
+      case 25: return true;
       default: return true;
     }
   };
@@ -1258,8 +1261,24 @@ export default function Onboarding() {
           />
         ) : <div className="text-center text-muted-foreground">Calculating...</div>;
 
-      // ── Phase 7: Lifestyle ──
+      // ── Step 17: Food Intelligence ──
       case 17:
+        return (
+          <FoodIntelligenceStep
+            conditions={f.conditions}
+            skinConcern={f.skin}
+            goalType={f.goalType}
+            genderSpecific={{
+              pcos: f.conditions.includes('pcos'),
+              pregnancy: f.pregnant,
+              breastfeeding: f.breastfeeding,
+            }}
+            dietType={f.diet}
+          />
+        );
+
+      // ── Phase 7: Lifestyle ──
+      case 18:
         return (
           <div className="space-y-5">
             <StepHeader title="Want to personalise more?" subtitle="Diet preferences, supplements, budget, and cooking habits." />
@@ -1272,7 +1291,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 18:
+      case 19:
         return (
           <div className="space-y-5">
             <StepHeader title="Dietary preference" subtitle="Your plan will be tailored accordingly." />
@@ -1289,7 +1308,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 19: {
+      case 20: {
         const multiplier = getActivityMultiplier(f.work || 'sitting', f.exercise || 'none');
         const recommended = calculateWaterGoal(f.weightKg, multiplier);
         return (
@@ -1311,7 +1330,7 @@ export default function Onboarding() {
         );
       }
 
-      case 20: {
+      case 21: {
         const suppOptions = [
           { value: 'vitaminD', label: '☀️ Vitamin D' },
           { value: 'omega3', label: '🐟 Omega-3' },
@@ -1343,7 +1362,7 @@ export default function Onboarding() {
       }
 
       // ── Budget Step ──
-      case 21:
+      case 22:
         return (
           <div className="space-y-5">
             <StepHeader title="Daily food budget" subtitle="Set a budget to get cost-aware meal suggestions." />
@@ -1398,7 +1417,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 22: {
+      case 23: {
         const equipmentOpts = [
           { value: 'basic', label: '🍳 Basic (Pan/Pot)' },
           { value: 'microwave', label: '📡 Microwave' },
@@ -1447,7 +1466,7 @@ export default function Onboarding() {
       }
 
       // ── Intelligence Demo ──
-      case 23: {
+      case 24: {
         const meal = getDemoMeal(f.diet || 'noRestrictions', f.conditions);
         const warnings = getCameraWarnings(f.conditions);
         const budgetFits = !f.budgetEnabled || meal.cost <= (f.budgetAmount * 0.35);
@@ -1523,7 +1542,7 @@ export default function Onboarding() {
       }
 
       // ── Finish ──
-      case 24:
+      case 25:
         return (
           <div className="space-y-6">
             <StepHeader title="All set! 🎉" subtitle="Your personalized nutrition plan is ready." />
@@ -1611,7 +1630,7 @@ export default function Onboarding() {
   }
 
   // ── Wizard phase ──
-  const isFinishStep = step === 24;
+  const isFinishStep = step === 25;
   const isSummaryStep = step === 14;
 
   // Button label logic
@@ -1640,8 +1659,9 @@ export default function Onboarding() {
             0: 'name', 1: 'gender', 2: 'dob', 3: 'measurements', 4: 'measurements',
             5: 'summary', 6: 'health', 7: 'skinConcerns', 8: f.gender === 'female' ? 'womenHealth' : 'menHealth',
             9: 'occupation', 10: 'exercise', 11: 'goal', 12: 'goalSpeed', 13: 'targetWeight',
-            14: 'summary', 15: 'summary', 16: 'summary', 17: 'goal', 18: 'dietary', 19: 'water', 20: 'medications',
-            21: 'summary', 22: 'cooking', 23: 'summary', 24: 'summary',
+            14: 'summary', 15: 'summary', 16: 'summary', 17: 'health', 18: 'goal',
+            19: 'dietary', 20: 'water', 21: 'medications',
+            22: 'summary', 23: 'cooking', 24: 'summary', 25: 'summary',
           };
           const mKey = STEP_MONIKA_KEY[step];
           const mData = mKey ? MONIKA_MESSAGES[mKey] : null;
