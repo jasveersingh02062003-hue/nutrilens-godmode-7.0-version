@@ -387,7 +387,9 @@ export function computePES(
  */
 export function getMealTargetCalories(mealType: string, profile: any): number {
   const dailyTarget = profile?.dailyCalories ?? profile?.goals?.targetCalories ?? 2000;
-  const splits: Record<string, number> = { breakfast: 0.25, lunch: 0.35, snacks: 0.15, dinner: 0.25 };
   const key = mealType === 'snack' ? 'snacks' : mealType;
-  return Math.round(dailyTarget * (splits[key] ?? 0.25));
+  const defaultSplits: Record<string, number> = { breakfast: 25, lunch: 35, snacks: 15, dinner: 25 };
+  const customSplit = profile?.budget?.mealSplit?.[key];
+  const splitPct = (typeof customSplit === 'number' ? customSplit : defaultSplits[key] ?? 25) / 100;
+  return Math.round(dailyTarget * splitPct);
 }

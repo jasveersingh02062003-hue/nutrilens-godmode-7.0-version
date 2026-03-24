@@ -6,17 +6,18 @@ import { getMealMacroTargets, getRecipeComposition, shouldAvoidRecipe, validateW
 import { getFeedbackScoreModifier } from './meal-plan-feedback';
 import { getComplexityRecommendation, getAdherenceHistory } from './adherence-service';
 import { aggregateIngredients, formatGrams } from './portion-engine';
-import { computePES } from './pes-engine';
+import { computePES, getMealTargetCalories } from './pes-engine';
 
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
 /** Score a recipe for meal plan ranking (higher = better) — uses unified PES engine */
-function scoreRecipe(recipe: Recipe, maxCost?: number, targetProtein?: number): number {
+function scoreRecipe(recipe: Recipe, mealType: string, profile: any, maxCost?: number, targetProtein?: number): number {
   const enriched = getEnrichedRecipe(recipe);
+  const targetCalories = getMealTargetCalories(mealType, profile);
   const base = computePES(enriched, {
-    targetCalories: enriched.calories, // self-fit is neutral; calorie target comes from slot
+    targetCalories,
     budgetPerMeal: maxCost,
     originalProtein: targetProtein,
   });
@@ -25,10 +26,10 @@ function scoreRecipe(recipe: Recipe, maxCost?: number, targetProtein?: number): 
 }
 
 /** Pick the best-scored recipe from an array */
-function pickBest(arr: Recipe[], maxCost?: number, targetProtein?: number): Recipe {
+function pickBest(arr: Recipe[], mealType: string, profile: any, maxCost?: number, targetProtein?: number): Recipe {
   if (arr.length <= 1) return arr[0];
   return arr.reduce((best, cur) =>
-    scoreRecipe(cur, maxCost, targetProtein) > scoreRecipe(best, maxCost, targetProtein) ? cur : best
+    scoreRecipe(cur, mealType, profile, maxCost, targetProtein) > scoreRecipe(best, mealType, profile, maxCost, targetProtein) ? cur : best
   );
 }
 
