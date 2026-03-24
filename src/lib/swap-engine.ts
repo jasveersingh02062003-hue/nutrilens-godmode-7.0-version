@@ -7,6 +7,7 @@ import { getExpensesForDate } from './expense-store';
 import { getAdjustedDailyBudget } from './budget-service';
 import { getProfile } from './store';
 import { getTodayKey } from './store';
+import { computePES, getMealTargetCalories } from './pes-engine';
 
 export interface SwapAlternative {
   recipe: EnrichedRecipe;
