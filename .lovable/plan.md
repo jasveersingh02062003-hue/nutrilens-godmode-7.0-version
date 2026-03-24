@@ -1,100 +1,88 @@
 
 
-## Redesign: Budget-First Planner with Data Sync Animation
+## Add System Intelligence Layer to Meal Plan Engine
 
-### Current Problem
-The MealPlanOnboarding asks **21 questions**, many of which duplicate data already collected during the main app onboarding (activity, sleep, stress, health conditions, exercise). The budget onboarding doesn't separate home vs outside food. There's no "data sync" animation screen showing the user what the system already knows.
+### What's missing
+The meal plan generator picks recipes but lacks constraint validation, composition rules, macro distribution, swap logic, and feedback loops. This makes plans unreliable when budget and nutrition targets conflict.
 
-### What We'll Build
+### Priority 1 (Critical — 3 files)
 
-**Phase A: Enhance Budget Onboarding** (BudgetPlannerTab.tsx)
-- Add "outside food budget" as a separate field (restaurants, street food, packed food) — already has `outsideFoodLimit` field but needs clearer UX
-- Add "meals per day" question (3/4/5) to the budget flow since it determines per-meal split
-- Show computed daily budget (monthly / 30), weekly budget (daily × 7), and per-meal breakdown
-- This is partially done already — the manual flow has monthly + per-meal + outside limit
+**File 1: New `src/lib/plan-validator.ts`** — Impossible Plan Detection + Sync Validation
 
-**Phase B: Add Data Sync Animation Screen** (new step in MealPlanOnboarding)
-- Replace `welcome` step with a "data sync" animation screen
-- Pull all existing user data from `getProfile()` and `getEnhancedBudgetSettings()`
-- Show animated cards sliding in with: Name, Height/Weight, BMI, BMR, TDEE, Daily Calories, Protein/Carbs/Fat targets, Health conditions, Skin concerns, Budget (daily/weekly/monthly), Per-meal budgets
-- User taps "Continue" to proceed
+- `validatePlanFeasibility(profile, budgetSettings)` → checks if daily budget can realistically hit calorie + protein targets using the cheapest protein sources in the recipe database
+- Scans all recipes, finds minimum cost to hit protein target (sorts by `proteinPerRupee`)
+- Returns `{ feasible: boolean, warning?: string, suggestedBudget?: number, adjustedProtein?: number }`
+- Called before plan generation in `MealPlanOnboarding.tsx` finish step — if infeasible, show warning with adjusted targets or suggested budget increase
+- Also includes `validateDaySync(dayPlan, profile, budget)` — post-generation check that totals match constraints, flags mismatches
 
-**Phase C: Trim MealPlanOnboarding to ONLY missing questions** (MealPlanOnboarding.tsx)
-- **REMOVE** these steps (already known from main onboarding): `goal`, `motivations`, `pace`, `activity`, `exercise`, `sleep`, `stress`, `medical`, `mealsPerDay`
-- **KEEP** only steps that collect NEW meal-specific data:
-  1. `dataSyncScreen` (new — animated data display)
-  2. `dietary` (veg/non-veg/vegan — not asked in main onboarding)
-  3. `allergies` (food-specific allergies)
-  4. `cuisines` (cuisine preferences)
-  5. `cooking` (cooking skill)
-  6. `cookTime` (time per meal)
-  7. `summary` (final review with ALL data combined)
-- Remove `experience`, `challenges`, `equipment`, `eatingOut`, `snacking` — nice-to-have but user wants minimal questions
-- In `finish()`, pull goal/pace/activity/health/skin from `getProfile()` instead of form fields
+**File 2: Update `src/lib/meal-plan-generator.ts`** — Meal Composition Rules + Macro Distribution + Time Logic
 
-### Changes (2 files)
+- Add meal composition enforcement: each meal must have 1 carb base + 1 protein source (check recipe tags/ingredients for `carb`/`protein` categories)
+- Add per-meal macro targets: Breakfast 25% protein, Lunch 35%, Dinner 40% (instead of equal split on line 170)
+- Add per-meal time constraints: Breakfast max 15min prep, Lunch/Dinner use user's `cookingTime` setting
+- Add variety window: track `usedRecipeIds` per meal type separately, exclude last 3 breakfasts / last 2 lunches/dinners (currently uses flat list)
+- Add conflict resolution priority: if budget can't meet calories, prioritize calories first, then protein, then stay in budget (add `budgetFlexMultiplier = 1.15` fallback)
 
-**File 1: `src/components/MealPlanOnboarding.tsx`**
-- Reduce STEPS to: `['dataSync', 'dietary', 'allergies', 'cuisines', 'cooking', 'cookTime', 'summary']`
-- Add `dataSync` step: animated screen showing all user profile data + budget data with count-up numbers and slide-in cards
-- Remove all redundant steps and their form fields
-- Update `finish()` to read goal, activity, health, skin, sleep, stress from `getProfile()`
-- Update summary to show the complete combined data set
+**File 3: Update `src/components/MealPlanOnboarding.tsx`** — Show feasibility warning in summary step
 
-**File 2: `src/components/onboarding/MonikaGuide.tsx`**
-- Update MEAL_PLANNER_MONIKA messages for new reduced step set
+- Before generating plan, call `validatePlanFeasibility()`
+- If infeasible, show amber warning card: "Your budget of ₹X/day may not fully meet 120g protein. Adjusted target: 95g" with option to increase budget or accept adjusted macros
+- User chooses: "Stay in budget" vs "Hit nutrition targets"
 
-### Data Sync Animation Screen Design
-```text
-┌─────────────────────────┐
-│  Hi {Name}! 👋          │
-│  Here's your profile    │
-│                         │
-│  ┌─ Body ─────────────┐ │  ← slide in 0.1s
-│  │ 170cm · 70kg       │ │
-│  │ BMI: 24.2 (Normal) │ │
-│  └────────────────────┘ │
-│  ┌─ Metabolism ───────┐ │  ← slide in 0.2s
-│  │ BMR: 1650 kcal     │ │
-│  │ TDEE: 2558 kcal    │ │
-│  │ Target: 2046 kcal  │ │
-│  └────────────────────┘ │
-│  ┌─ Macros ───────────┐ │  ← slide in 0.3s
-│  │ P: 120g C: 230g    │ │
-│  │ F: 57g             │ │
-│  └────────────────────┘ │
-│  ┌─ Health ───────────┐ │  ← slide in 0.4s
-│  │ Conditions: None   │ │
-│  │ Skin: Acne support │ │
-│  └────────────────────┘ │
-│  ┌─ Budget ───────────┐ │  ← slide in 0.5s
-│  │ ₹7000/month        │ │
-│  │ ₹233/day · ₹1633/wk│ │
-│  │ BF:₹70 L:₹81 D:₹82│ │
-│  └────────────────────┘ │
-│                         │
-│  [ Continue →         ] │
-└─────────────────────────┘
-```
+### Priority 2 (Important — 3 files)
+
+**File 4: Update `src/lib/meal-plan-generator.ts`** — Enhanced Swap Engine
+
+- Update existing `swapMeal()` to respect: same calorie range (±15%), same budget, same macro distribution, same meal composition rules
+- Currently swapMeal only filters by dietary tags — add cost + calorie + protein constraints
+
+**File 5: New `src/lib/meal-feedback.ts` already exists** — check and extend
+
+- Add `saveMealPlanFeedback(recipeId, { eaten, liked, swapped })` 
+- Add `getMealPreferences()` → returns liked/disliked recipe IDs
+- Integrate into `scoreRecipe()` in meal-plan-generator: boost liked recipes, penalize disliked ones
+
+**File 6: Update `src/lib/budget-alerts.ts`** — Outside Food Integration
+
+- Add `outsideMealSlotsPerWeek` to `EnhancedBudgetSettings`
+- When generating week plan, mark X slots as "outside food" days — reduce home cooking calories for those days
+- Show in plan UI: "Outside food day — ₹{outsideBudgetPerDay} budget"
+
+### Priority 3 (Nice-to-have — 2 files)
+
+**File 7: Update `src/lib/meal-plan-generator.ts`** — Explanation Layer
+
+- Add `reason` field to each `PlannedMeal`: "High protein to meet your 120g goal" / "Budget-friendly at ₹65" / "Quick prep for busy mornings"
+- Generated during `findRecipeWithFallback` based on which scoring factor won
+
+**File 8: Update `src/lib/recipes.ts`** — Add composition tags
+
+- Add `compositionType` to Recipe interface: `'carb-base' | 'protein-heavy' | 'balanced' | 'light'`
+- Tag existing recipes (most already have enough info in `tags` array to derive this automatically via a helper function)
 
 ### Flow After Changes
 ```text
-Main Onboarding complete → user has all body/health/skin data
+User completes budget → Meal Plan onboarding
   ↓
-Planner page → Budget tab first (if not done)
+Data Sync screen (existing)
   ↓
-Budget Onboarding: monthly budget + outside food + per-meal split
+Dietary/Allergies/Cuisine/Cooking questions (existing)
   ↓
-Auto-switch to Meal Plan tab → MealPlanOnboarding
+Summary step:
+  → validatePlanFeasibility() runs
+  → If infeasible: show warning + user choice
+  → Generate plan with composition rules + macro distribution
   ↓
-Step 1: Data Sync Animation (shows everything system knows)
-Step 2: Veg/Non-veg/Vegan?
-Step 3: Food allergies?
-Step 4: Cuisines?
-Step 5: Cooking skill?
-Step 6: Cooking time?
-Step 7: Summary → Generate
+Plan displayed with per-meal reasons
+  ↓
+Swap respects all constraints
+  ↓
+Feedback loop tracks eaten/liked/skipped
 ```
 
-Total questions: **5 screens** (down from 21). Only asks what's NOT already known.
+### What stays unchanged
+- Budget onboarding flow (BudgetPlannerTab)
+- Recipe database content (just adds optional field)
+- All existing onboarding steps
+- Calorie engine, burn service, weight tracking
 
