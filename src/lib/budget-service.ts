@@ -206,13 +206,10 @@ export function checkBudgetAfterMeal(mealCost: number): BudgetAlertResult {
 }
 
 export function getCheapMealSuggestion(maxCost: number): { name: string; cost: number } | null {
-  try {
-    const { foodDatabase } = require('./pes-engine');
-    const cheap = (foodDatabase as any[])
-      .filter(f => f.price <= maxCost && !f.tags.includes('junk'))
-      .sort((a, b) => b.proteinPerRupee - a.proteinPerRupee);
-    if (cheap.length > 0) return { name: cheap[0].name, cost: cheap[0].price };
-  } catch {}
+  const cheap = foodDatabase
+    .filter(f => f.price <= maxCost && !f.tags.includes('junk'))
+    .sort((a, b) => b.proteinPerRupee - a.proteinPerRupee);
+  if (cheap.length > 0) return { name: cheap[0].name, cost: cheap[0].price };
   return { name: 'Egg Bhurji', cost: 20 };
 }
 
