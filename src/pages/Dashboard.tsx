@@ -277,6 +277,28 @@ export default function Dashboard() {
           <BudgetSummaryCard />
         </div>
 
+        {/* Budget Alert Banner */}
+        {budgetAlert && budgetAlert.level !== 'ok' && (
+          <div className="animate-fade-in">
+            <div className={`flex items-center gap-3 rounded-2xl px-4 py-3 border ${
+              budgetAlert.level === 'warning'
+                ? 'bg-accent/10 border-accent/20'
+                : 'bg-destructive/10 border-destructive/20'
+            }`}>
+              <span className="text-sm">
+                {budgetAlert.level === 'warning' ? '⚠️' : budgetAlert.level === 'overspend' ? '🚫' : '⛔'}
+              </span>
+              <p className="text-[11px] font-medium text-foreground flex-1">{budgetAlert.message}</p>
+              <button
+                onClick={() => { clearLatestBudgetAlert(); setBudgetAlert(null); }}
+                className="shrink-0"
+              >
+                <X className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Daily Food Efficiency */}
         <div className="animate-slide-up" style={{ animationDelay: '0.055s' }}>
           <DailyEfficiencyCard />

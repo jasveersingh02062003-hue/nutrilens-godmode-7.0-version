@@ -17,6 +17,7 @@ import { validateMeal, validateSingleItem, type ValidationResult, type Validatio
 import ValidationFeedback from '@/components/ValidationFeedback';
 import { searchIndianFoods, indianFoodToFoodItem, getFoodByName } from '@/lib/indian-foods';
 import { toast } from 'sonner';
+import { checkBudgetAfterMeal } from '@/lib/budget-service';
 import UnitPicker from '@/components/UnitPicker';
 import FoodEditModal from '@/components/FoodEditModal';
 import { canUseCameraScan, incrementCameraScan, getRemainingCameraScans, getPlan, hasUsedTrial, startFreeTrial } from '@/lib/subscription-service';

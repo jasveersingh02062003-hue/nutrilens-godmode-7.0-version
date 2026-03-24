@@ -13,6 +13,7 @@ import { validateMeal, validateSingleItem, type ValidationResult } from '@/lib/v
 import ValidationFeedback from '@/components/ValidationFeedback';
 import { getProfile } from '@/lib/store';
 import { toast } from 'sonner';
+import { checkBudgetAfterMeal } from '@/lib/budget-service';
 import UnitPicker from '@/components/UnitPicker';
 import { calculateNutrition, getUnitOptionsForFood } from '@/lib/unit-conversion';
 

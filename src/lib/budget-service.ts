@@ -138,6 +138,105 @@ export function getAdjustedDailyBudget(): { dailyBudget: number; adjustedDailyBu
   return { dailyBudget, adjustedDailyBudget: finalAdjusted, overspend, daysRemaining, curveMultiplier };
 }
 
+// ─── Real-Time Budget Intervention Engine ───
+
+export type BudgetAlertLevel = 'ok' | 'warning' | 'overspend' | 'overspend_severe';
+
+export interface BudgetAlertResult {
+  level: BudgetAlertLevel;
+  message: string;
+  suggestion?: { name: string; cost: number };
+  adjustedDailyBudget?: number;
+}
+
+const BUDGET_ALERT_KEY = 'nutrilens_budget_alert';
+
+export function checkBudgetAfterMeal(mealCost: number): BudgetAlertResult {
+  if (mealCost <= 0) return { level: 'ok', message: '' };
+
+  const today = new Date().toISOString().split('T')[0];
+  const todayExpenses = getExpensesForDate(today);
+  const spentToday = todayExpenses.reduce((s, e) => s + e.amount, 0);
+  const { adjustedDailyBudget, daysRemaining } = getAdjustedDailyBudget();
+
+  if (adjustedDailyBudget <= 0) return { level: 'ok', message: '' };
+
+  const ratio = spentToday / adjustedDailyBudget;
+  let result: BudgetAlertResult;
+
+  if (ratio >= 1.2) {
+    const overshoot = spentToday - adjustedDailyBudget;
+    const suggestion = getCheapMealSuggestion(Math.max(30, adjustedDailyBudget * 0.3));
+    const newDaily = daysRemaining > 0
+      ? Math.max(50, Math.round((getBudgetSummary().remaining) / daysRemaining))
+      : adjustedDailyBudget;
+    result = {
+      level: 'overspend_severe',
+      message: `⛔ Overspent by ₹${Math.round(overshoot)}! Remaining days: ₹${newDaily}/day.${suggestion ? ` Try ${suggestion.name} (₹${suggestion.cost})` : ''}`,
+      suggestion: suggestion || undefined,
+      adjustedDailyBudget: newDaily,
+    };
+  } else if (ratio >= 1.0) {
+    const overshoot = spentToday - adjustedDailyBudget;
+    const newDaily = daysRemaining > 0
+      ? Math.max(50, Math.round((getBudgetSummary().remaining) / daysRemaining))
+      : adjustedDailyBudget;
+    result = {
+      level: 'overspend',
+      message: `🚫 Daily budget reached. Remaining days adjusted to ₹${newDaily}/day.`,
+      adjustedDailyBudget: newDaily,
+    };
+  } else if (ratio >= 0.8) {
+    const remaining = Math.round(adjustedDailyBudget - spentToday);
+    result = {
+      level: 'warning',
+      message: `⚠️ 80% of today's budget used. Keep next meal under ₹${remaining}.`,
+    };
+  } else {
+    result = { level: 'ok', message: '' };
+  }
+
+  if (result.level !== 'ok') {
+    setLatestBudgetAlert(result);
+  }
+
+  return result;
+}
+
+export function getCheapMealSuggestion(maxCost: number): { name: string; cost: number } | null {
+  try {
+    const { foodDatabase } = require('./pes-engine');
+    const cheap = (foodDatabase as any[])
+      .filter(f => f.price <= maxCost && !f.tags.includes('junk'))
+      .sort((a, b) => b.proteinPerRupee - a.proteinPerRupee);
+    if (cheap.length > 0) return { name: cheap[0].name, cost: cheap[0].price };
+  } catch {}
+  return { name: 'Egg Bhurji', cost: 20 };
+}
+
+export function setLatestBudgetAlert(alert: BudgetAlertResult): void {
+  const data = { ...alert, timestamp: Date.now(), date: new Date().toISOString().split('T')[0] };
+  localStorage.setItem(BUDGET_ALERT_KEY, JSON.stringify(data));
+}
+
+export function getLatestBudgetAlert(): (BudgetAlertResult & { timestamp: number; date: string }) | null {
+  const raw = localStorage.getItem(BUDGET_ALERT_KEY);
+  if (!raw) return null;
+  try {
+    const data = JSON.parse(raw);
+    // Only show alerts from today
+    if (data.date !== new Date().toISOString().split('T')[0]) {
+      localStorage.removeItem(BUDGET_ALERT_KEY);
+      return null;
+    }
+    return data;
+  } catch { return null; }
+}
+
+export function clearLatestBudgetAlert(): void {
+  localStorage.removeItem(BUDGET_ALERT_KEY);
+}
+
 // ─── Manual ₹100 Survival Mode ───
 
 const SURVIVAL_MODE_KEY = 'nutrilens_survival_manual';
