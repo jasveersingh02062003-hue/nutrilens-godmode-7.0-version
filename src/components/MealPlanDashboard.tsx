@@ -3,10 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { RefreshCw, ShoppingCart, Clock, Flame, Beef, Wheat, Droplets, ArrowRight, Check, Repeat, IndianRupee, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
 import { WeekPlan, DayPlan, PlannedMeal } from '@/lib/meal-planner-store';
 import { MealPlannerProfile } from '@/lib/meal-planner-store';
-import { getRecipeById, Recipe } from '@/lib/recipes';
+import { getRecipeById, getEnrichedRecipe, Recipe } from '@/lib/recipes';
 import { generateShoppingList } from '@/lib/meal-plan-generator';
 import { getRecipeImage } from '@/lib/recipe-images';
 import { getRecipeCost } from '@/lib/recipe-cost';
+import { computePES, getMealTargetCalories } from '@/lib/pes-engine';
 import { getBudgetSummary } from '@/lib/budget-service';
 import { calculatePortions } from '@/lib/portion-engine';
 import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
@@ -317,8 +318,8 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
                       </div>
                     )}
 
-                    {/* Macro bars */}
-                    <div className="flex gap-3">
+                    {/* Macro bars + PES badge */}
+                    <div className="flex items-center gap-3">
                       {[
                         { label: 'Protein', val: recipe.protein, color: 'bg-coral' },
                         { label: 'Carbs', val: recipe.carbs, color: 'bg-primary' },
@@ -329,6 +330,17 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
                           <span className="text-muted-foreground">{m.label}: {m.val}g</span>
                         </div>
                       ))}
+                      {(() => {
+                        const enriched = getEnrichedRecipe(recipe);
+                        const targetCal = getMealTargetCalories(meal.mealType, profile);
+                        const pesScore = computePES(enriched, { targetCalories: targetCal, budgetPerMeal: getMealBudget(meal.mealType) });
+                        const pesEmoji = pesScore >= 0.65 ? '🟢' : pesScore >= 0.4 ? '🟡' : '🔴';
+                        return (
+                          <span className="ml-auto text-[10px] font-semibold text-muted-foreground" title={`PES: ${(pesScore * 100).toFixed(0)}`}>
+                            {pesEmoji} {(pesScore * 100).toFixed(0)}
+                          </span>
+                        );
+                      })()}
                     </div>
 
                     {/* Scaled portions */}
