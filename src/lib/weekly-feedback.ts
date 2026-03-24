@@ -123,7 +123,7 @@ export function generateWeeklySummary(): WeeklySummary {
   const weekWeights = weightEntries.filter(w => w.date >= start && w.date <= end);
   let weightChange: number | null = null;
   if (weekWeights.length >= 2) {
-    weightChange = Number((weekWeights[weekWeights.length - 1].weight - weightWeights[0].weight).toFixed(1));
+    weightChange = Number((weekWeights[weekWeights.length - 1].weight - weekWeights[0].weight).toFixed(1));
   }
 
   // Adherence components
