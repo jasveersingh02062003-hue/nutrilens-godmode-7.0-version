@@ -104,7 +104,9 @@ export function generateSurvivalKit(weeklyBudget: number): SurvivalKitResult {
   }
 
   // Sort by PES descending
-  eligible.sort((a, b) => b.proteinPerRupee - a.proteinPerRupee);
+  eligible.sort((a, b) =>
+    computePES(b, { targetCalories: 500 }) - computePES(a, { targetCalories: 500 })
+  );
 
   // In comfort mode, also allow moderate-PES items for variety
   if (mode === 'comfort') {
