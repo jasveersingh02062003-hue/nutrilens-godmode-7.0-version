@@ -12,6 +12,8 @@ import type { TabName } from '@/components/MealPlannerTabs';
 import { getMealPlannerProfile, MealPlannerProfile, getWeekPlan, saveWeekPlan, markMealCooked, getCurrentWeekStart } from '@/lib/meal-planner-store';
 import { generateWeekPlan, swapMeal } from '@/lib/meal-plan-generator';
 import { getRecipeById, getRecipesByMealType } from '@/lib/recipes';
+import SwapSimulatorSheet from '@/components/SwapSimulatorSheet';
+import type { SwapImpact } from '@/lib/swap-engine';
 import { getProfile as getUserProfile } from '@/lib/store';
 import { getRecipeImage } from '@/lib/recipe-images';
 import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
