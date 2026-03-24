@@ -1,44 +1,47 @@
 
 
-## Unified PES Engine — Single Source of Truth
+## Fix Unified PES Engine — 3 Issues
 
-### Problem
-4 separate scoring formulas produce inconsistent food rankings across modules.
+The unified PES engine is already implemented. Three issues need fixing based on the review.
 
-### Changes (5 files)
+### Issue 1: `meal-plan-generator.ts` — `targetCalories` is wrong
 
-**File 1: `src/lib/pes-engine.ts`** — Add `computePES()`, `inferCategory()`, `getMealTargetCalories()` at the bottom
+**Current** (line 19): `targetCalories: enriched.calories` (self-referential, always gives perfect calorie fit = neutral)
 
-- `QUALITY_MAP` constant mapping food categories to DIAAS quality factors (egg: 1.0, chicken: 1.0, dairy: 0.95, soy: 0.9, dal: 0.75, pulses: 0.75, cereal: 0.6, junk: 0.4)
-- `inferCategory(recipe)` — maps tags/name to category key
-- `computePES(recipe, context)` — unified scoring: `0.5 * min(1, ppr*3) + 0.3 * calorieFit + 0.2 * min(1, satiety/5)` with penalties for protein drop (-0.3), calorie excess (-0.2), budget exceed (-0.2). Returns clamped 0–1.
-- `getMealTargetCalories(mealType, profile)` — daily calories * split percentage (breakfast 25%, lunch 35%, snacks 15%, dinner 25%)
-- All existing functions untouched
+**Fix**: `scoreRecipe` needs a `mealType` parameter so it can call `getMealTargetCalories(mealType, profile)`. This requires threading `mealType` and a profile reference through `scoreRecipe` and `pickBest`. Where `scoreRecipe` is called during plan generation, the meal type is known.
 
-**File 2: `src/lib/swap-engine.ts`** — Line 64-65: replace inline scoring
+### Issue 2: `grocery-survival.ts` — Hardcoded 500 kcal
 
-- Import `computePES`, `getMealTargetCalories`
-- Replace `(e.proteinPerRupee * 0.6) + (calorieFit * 0.4)` with `computePES(e, { targetCalories, originalProtein: original.protein })`
-- Rest unchanged (sorting, highlights, protein drop flag)
+**Current** (line 108): `computePES(b, { targetCalories: 500 })`
 
-**File 3: `src/lib/meal-plan-generator.ts`** — Lines 15-23: replace `scoreRecipe()` body
+**Fix**: Use the user profile's daily target / 4 (average meal) if available. The `generateSurvivalKit` function already receives profile-like data or can read from store. If no profile context is available, use a reasonable default like `dailyTarget / 4`.
 
-- Import `computePES` from pes-engine
-- Replace the 6-factor formula with `computePES(enriched, { targetCalories: maxCost, budgetPerMeal: maxCost, originalProtein: targetProtein })` + `feedbackMod` additive
-- `pickBest()` unchanged
+### Issue 3: `getMealTargetCalories` — Ignores user's custom meal split
 
-**File 4: `src/lib/meal-suggestion-engine.ts`** — Lines 88-100: replace `rankScore`
+**Current** (line 390): Hardcoded splits `{ breakfast: 0.25, lunch: 0.35, snacks: 0.15, dinner: 0.25 }`
 
-- Import `computePES`
-- Replace 5-factor formula with `computePES(r, { targetCalories: remainingCalories, budgetPerMeal: maxCost })`
-- Keep `matchReason` bonus as +0.05 additive
+**Fix**: Read from `profile.budget?.mealSplit` first (which stores percentages as integers like 25, 35, 15, 25), fall back to hardcoded defaults.
 
-**File 5: `src/lib/grocery-survival.ts`** — Line 107: replace sort
+### Changes (3 files)
 
-- Import `computePES`
-- Replace `b.proteinPerRupee - a.proteinPerRupee` with `computePES(b, { targetCalories: 500 }) - computePES(a, { targetCalories: 500 })`
+**File 1: `src/lib/pes-engine.ts`** — Fix `getMealTargetCalories`
+- Read `profile.budget?.mealSplit?.[key]` first, dividing by 100
+- Fall back to hardcoded defaults if not set
+
+**File 2: `src/lib/meal-plan-generator.ts`** — Fix `scoreRecipe` to use proper target calories
+- Add `mealType` and `profile` parameters to `scoreRecipe`
+- Call `getMealTargetCalories(mealType, profile)` for `targetCalories`
+- Update all call sites of `scoreRecipe` and `pickBest` to pass `mealType` and profile
+- Keep `budgetPerMeal: maxCost` and `originalProtein: targetProtein` as-is
+
+**File 3: `src/lib/grocery-survival.ts`** — Use dynamic target calories
+- Read the user's daily calorie target from profile/store
+- Compute `targetCalories = dailyTarget / 4` for survival sorting
+- Fall back to 500 if no profile data available
 
 ### What stays unchanged
-- All existing display functions (`evaluateFood`, `getPESColor`, `dailyEfficiency`, `compareFoods`, `findBetterAlternatives`, `bestUnderPrice`)
-- `foodDatabase` array, all UI components, filtering logic, budget service, weekly feedback
+- `computePES` formula, `inferCategory`, `QUALITY_MAP`
+- Swap engine (already correctly uses `getMealTargetCalories`)
+- Suggestion engine (already correctly uses `remainingCalories`)
+- All display functions and UI components
 
