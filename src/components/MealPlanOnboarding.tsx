@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Check, Sparkles, Target, Dumbbell, Heart, Apple, ChefHat, UtensilsCrossed, Scale, User } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Sparkles, Apple, ChefHat, Heart, Activity, Scale, Flame, Droplets, Shield, Wallet } from 'lucide-react';
 import { MealPlannerProfile, saveMealPlannerProfile } from '@/lib/meal-planner-store';
 import { calculateBMI, calculateBMR, calculateTDEE, getBMICategory } from '@/lib/nutrition';
 import { determineGoalAndTargets } from '@/lib/goal-engine';
@@ -9,13 +9,7 @@ import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
 import MonikaGuide, { MEAL_PLANNER_MONIKA } from '@/components/onboarding/MonikaGuide';
 import OnboardingProgress from '@/components/onboarding/OnboardingProgress';
 
-const STEPS = [
-  'welcome', 'goal', 'motivations', 'pace', 'experience', 'challenges',
-  'activity', 'exercise', 'sleep', 'stress',
-  'dietary', 'medical', 'allergies', 'cuisines',
-  'cooking', 'cookTime', 'equipment', 'eatingOut', 'snacking',
-  'mealsPerDay', 'summary',
-];
+const STEPS = ['dataSync', 'dietary', 'allergies', 'cuisines', 'cooking', 'cookTime', 'summary'];
 
 const pageVariants = {
   enter: (dir: number) => ({ x: dir > 0 ? 60 : -60, opacity: 0 }),
@@ -32,45 +26,19 @@ interface Props {
   onComplete: (profile: MealPlannerProfile) => void;
 }
 
-type FormData = Partial<MealPlannerProfile> & Record<string, any>;
+type FormData = Record<string, any>;
 
 export default function MealPlanOnboarding({ onComplete }: Props) {
   const mainProfile = getProfile();
+  const budgetSettings = getEnhancedBudgetSettings();
   const [stepIdx, setStepIdx] = useState(0);
   const [dir, setDir] = useState(1);
   const [form, setForm] = useState<FormData>({
-    name: mainProfile?.name || '',
-    gender: mainProfile?.gender || '',
-    age: mainProfile?.age || 25,
-    currentWeight: mainProfile?.weightKg || 70,
-    goalWeight: mainProfile?.targetWeight || 65,
-    heightCm: mainProfile?.heightCm || 170,
-    weightUnit: 'kg',
-    mainGoal: '',
-    motivations: [],
-    weeklyPace: 0.5,
-    experienceLevel: '',
-    challenges: [],
-    activityLevel: mainProfile?.activityLevel || '',
-    exerciseFrequency: mainProfile?.exerciseRoutine || '',
-    exerciseTypes: [],
-    sleepHours: mainProfile?.sleepHours || '',
-    stressLevel: mainProfile?.stressLevel || '',
     dietaryPrefs: mainProfile?.dietaryPrefs || [],
-    medicalRestrictions: mainProfile?.healthConditions || [],
     allergies: [],
-    dislikedFoods: '',
-    religiousRestrictions: [],
     cuisinePrefs: [],
     cookingSkill: '',
     cookingTime: '',
-    equipment: [],
-    eatingOutFrequency: mainProfile?.eatingOut || '',
-    mealPrep: '',
-    snackingHabits: [],
-    mealsPerDay: 3,
-    dailyBudget: 0,
-    currency: 'INR',
   });
 
   const step = STEPS[stepIdx];
@@ -88,67 +56,62 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
 
   const canContinue = (): boolean => {
     switch (step) {
-      case 'welcome': return true;
-      case 'goal': return !!form.mainGoal;
-      case 'pace': return true;
-      case 'experience': return !!form.experienceLevel;
-      case 'activity': return !!form.activityLevel;
-      case 'exercise': return !!form.exerciseFrequency;
-      case 'sleep': return !!form.sleepHours;
-      case 'stress': return !!form.stressLevel;
+      case 'dataSync': return true;
       case 'cooking': return !!form.cookingSkill;
       case 'cookTime': return !!form.cookingTime;
-      case 'mealsPerDay': return true;
       default: return true;
     }
   };
 
+  // Pull all data from profile + budget for generation
   const finish = () => {
-    const gender = form.gender || 'male';
-    const goal = form.mainGoal === 'lose_weight' ? 'lose' : form.mainGoal === 'build_muscle' ? 'gain' : 'maintain';
-    const decision = determineGoalAndTargets(
-      form.currentWeight!, form.heightCm!, form.age!, gender,
-      form.activityLevel || 'moderate', goal, form.medicalRestrictions
-    );
+    const p = mainProfile;
+    const gender = p?.gender || 'male';
+    const goal = p?.goal === 'lose' ? 'lose' : p?.goal === 'gain' ? 'gain' : 'maintain';
+    const weight = p?.weightKg || 70;
+    const height = p?.heightCm || 170;
+    const age = p?.age || 25;
+    const activityLevel = p?.activityLevel || 'moderate';
+    const healthConditions = p?.healthConditions || [];
 
-    // Read budget from shared settings (set in Budget tab)
-    const budgetSettings = getEnhancedBudgetSettings();
+    const decision = determineGoalAndTargets(weight, height, age, gender, activityLevel, goal, healthConditions);
+
     const perMeal = budgetSettings.perMeal || { breakfast: 100, lunch: 150, dinner: 200, snacks: 50 };
-    const dailyBudget = (perMeal.breakfast || 100) + (perMeal.lunch || 150) + (perMeal.dinner || 200) + (perMeal.snacks || 50);
+    const dailyBudget = (perMeal.breakfast || 0) + (perMeal.lunch || 0) + (perMeal.dinner || 0) + (perMeal.snacks || 0);
 
     const profile: MealPlannerProfile = {
-      name: form.name || '',
+      name: p?.name || '',
       gender,
-      age: form.age || 25,
-      currentWeight: form.currentWeight || 70,
-      goalWeight: form.goalWeight || 65,
-      heightCm: form.heightCm || 170,
+      age,
+      currentWeight: weight,
+      goalWeight: p?.targetWeight || 65,
+      heightCm: height,
       weightUnit: 'kg',
       bmi: decision.bmi,
-      mainGoal: form.mainGoal || '',
-      motivations: form.motivations || [],
-      weeklyPace: form.weeklyPace || 0.5,
-      experienceLevel: form.experienceLevel || '',
-      challenges: form.challenges || [],
-      activityLevel: form.activityLevel || '',
-      exerciseFrequency: form.exerciseFrequency || '',
-      exerciseTypes: form.exerciseTypes || [],
-      sleepHours: form.sleepHours || '',
-      stressLevel: form.stressLevel || '',
+      mainGoal: p?.goal || 'maintain',
+      motivations: [],
+      weeklyPace: p?.goalSpeed || 0.5,
+      experienceLevel: '',
+      challenges: [],
+      activityLevel,
+      exerciseFrequency: p?.exerciseRoutine || '',
+      exerciseTypes: [],
+      sleepHours: p?.sleepHours || '',
+      stressLevel: p?.stressLevel || '',
       dietaryPrefs: form.dietaryPrefs || [],
-      medicalRestrictions: form.medicalRestrictions || [],
+      medicalRestrictions: healthConditions,
       allergies: form.allergies || [],
-      dislikedFoods: form.dislikedFoods || '',
-      religiousRestrictions: form.religiousRestrictions || [],
+      dislikedFoods: '',
+      religiousRestrictions: [],
       cuisinePrefs: form.cuisinePrefs || [],
       cookingSkill: form.cookingSkill || '',
       cookingTime: form.cookingTime || '',
-      equipment: form.equipment || [],
-      eatingOutFrequency: form.eatingOutFrequency || '',
-      mealPrep: form.mealPrep || '',
-      snackingHabits: form.snackingHabits || [],
-      mealsPerDay: form.mealsPerDay || 3,
-      dailyBudget: dailyBudget,
+      equipment: [],
+      eatingOutFrequency: p?.eatingOut || '',
+      mealPrep: '',
+      snackingHabits: [],
+      mealsPerDay: 3,
+      dailyBudget,
       currency: 'INR',
       dailyCalories: decision.targetCalories,
       dailyProtein: decision.targetProtein,
@@ -189,178 +152,118 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
     </motion.div>
   );
 
+  // ─── Data Sync Animation Screen ───
+  const DataSyncScreen = () => {
+    const p = mainProfile;
+    const name = p?.name || 'there';
+    const weight = p?.weightKg || 70;
+    const height = p?.heightCm || 170;
+    const age = p?.age || 25;
+    const bmi = p?.bmi || calculateBMI(weight, height);
+    const bmiCat = getBMICategory(bmi);
+    const bmr = p?.bmr || 0;
+    const tdee = p?.tdee || 0;
+    const targetCal = p?.dailyCalories || 0;
+    const protein = p?.dailyProtein || 0;
+    const carbs = p?.dailyCarbs || 0;
+    const fat = p?.dailyFat || 0;
+    const health = p?.healthConditions || [];
+    const skin = p?.skinConcerns;
+    const skinLabels: string[] = [];
+    if (skin?.acne) skinLabels.push('Acne');
+    if (skin?.oily) skinLabels.push('Oily');
+    if (skin?.dry) skinLabels.push('Dry');
+    if (skin?.dull) skinLabels.push('Dull');
+    if (skin?.pigmentation) skinLabels.push('Pigmentation');
+    if (skin?.sensitive) skinLabels.push('Sensitive');
+
+    const perMeal = budgetSettings.perMeal || { breakfast: 0, lunch: 0, dinner: 0, snacks: 0 };
+    const daily = (perMeal.breakfast || 0) + (perMeal.lunch || 0) + (perMeal.dinner || 0) + (perMeal.snacks || 0);
+    const weekly = daily * 7;
+    const monthly = daily * 30;
+
+    const cards = [
+      {
+        icon: Scale, label: 'Body', delay: 0.1,
+        rows: [`${height}cm · ${weight}kg · Age ${age}`, `BMI: ${bmi.toFixed(1)} (${bmiCat})`],
+      },
+      {
+        icon: Flame, label: 'Metabolism', delay: 0.2,
+        rows: [`BMR: ${bmr} kcal`, `TDEE: ${tdee} kcal`, `Target: ${targetCal} kcal/day`],
+      },
+      {
+        icon: Activity, label: 'Macros', delay: 0.3,
+        rows: [`Protein: ${protein}g · Carbs: ${carbs}g · Fat: ${fat}g`],
+      },
+      {
+        icon: Shield, label: 'Health', delay: 0.4,
+        rows: [
+          health.length > 0 ? health.join(', ') : 'No conditions',
+          skinLabels.length > 0 ? `Skin: ${skinLabels.join(', ')}` : 'No skin concerns',
+        ],
+      },
+      {
+        icon: Wallet, label: 'Budget', delay: 0.5,
+        rows: [
+          `₹${monthly}/month · ₹${daily}/day · ₹${weekly}/week`,
+          `BF: ₹${perMeal.breakfast} · L: ₹${perMeal.lunch} · D: ₹${perMeal.dinner} · S: ₹${perMeal.snacks}`,
+        ],
+      },
+    ];
+
+    return (
+      <div className="space-y-3">
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-4">
+          <h1 className="text-xl font-extrabold text-foreground">Hi {name}! 👋</h1>
+          <p className="text-sm text-muted-foreground mt-1">Here's your profile data</p>
+        </motion.div>
+
+        {cards.map((card, ci) => (
+          <motion.div
+            key={card.label}
+            initial={{ opacity: 0, x: -30, scale: 0.95 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            transition={{ delay: card.delay, type: 'spring', stiffness: 300, damping: 25 }}
+            className="bg-card border border-border rounded-2xl p-3.5"
+          >
+            <div className="flex items-center gap-2.5 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <card.icon className="w-4 h-4 text-primary" />
+              </div>
+              <span className="text-sm font-bold text-foreground">{card.label}</span>
+            </div>
+            {card.rows.map((row, ri) => (
+              <p key={ri} className="text-xs text-muted-foreground leading-relaxed">{row}</p>
+            ))}
+          </motion.div>
+        ))}
+
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.7 }}
+          className="text-[10px] text-muted-foreground text-center pt-2"
+        >
+          All data from your onboarding & budget setup
+        </motion.p>
+      </div>
+    );
+  };
+
   const renderStep = () => {
     switch (step) {
-      case 'welcome':
-        return (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] px-2 text-center">
-            <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 200 }}>
-              <div className="w-24 h-24 rounded-3xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
-                <ChefHat className="w-12 h-12 text-primary" />
-              </div>
-            </motion.div>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-              <h1 className="text-2xl font-extrabold text-foreground">Let's build your<br/>perfect meal plan</h1>
-              <p className="text-sm text-muted-foreground mt-3 max-w-xs mx-auto">Answer a few questions and we'll create a personalized weekly meal plan just for you.</p>
-            </motion.div>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="flex gap-4 mt-8 text-muted-foreground">
-              {[{ icon: Apple, l: 'Personalized' }, { icon: Sparkles, l: 'AI-Powered' }, { icon: Heart, l: 'Healthy' }].map(({ icon: I, l }) => (
-                <div key={l} className="flex items-center gap-1.5 text-[11px] font-medium"><I className="w-3.5 h-3.5" /> {l}</div>
-              ))}
-            </motion.div>
-          </div>
-        );
-
-      case 'goal':
-        return (
-          <div className="space-y-4">
-            <Header icon={Target} title="What's your main goal?" sub="This helps us tailor your meal plan." />
-            <div className="space-y-2.5">
-              {[
-                { v: 'lose_weight', l: 'Lose Weight', s: 'Create a calorie deficit plan' },
-                { v: 'eat_healthier', l: 'Eat Healthier', s: 'Balanced, nutritious meals' },
-                { v: 'build_muscle', l: 'Build Muscle', s: 'High-protein meal plan' },
-                { v: 'save_time', l: 'Save Time', s: 'Quick & easy recipes' },
-                { v: 'learn_cooking', l: 'Learn to Cook', s: 'Step-by-step beginner recipes' },
-                { v: 'try_recipes', l: 'Try New Recipes', s: 'Explore diverse cuisines' },
-              ].map((o, i) => (
-                <Option key={o.v} value={o.v} current={form.mainGoal} label={o.l} sub={o.s} onSelect={(v: string) => set('mainGoal', v)} idx={i} />
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'motivations':
-        return (
-          <div className="space-y-4">
-            <Header icon={Heart} title="Why do you want this?" sub="Select all that apply." />
-            <Chips field="motivations" selected={form.motivations || []} options={[
-              { value: 'feel_better', label: 'Feel Better' }, { value: 'confidence', label: 'Boost Confidence' },
-              { value: 'health', label: 'Improve Health' }, { value: 'fitness', label: 'Get Fit' },
-              { value: 'family', label: 'For Family' }, { value: 'medical', label: 'Medical Reasons' },
-            ]} />
-          </div>
-        );
-
-      case 'pace':
-        return (
-          <div className="space-y-4">
-            <Header icon={Scale} title="Preferred pace?" sub="How aggressively do you want to reach your goal?" />
-            <div className="space-y-2.5">
-              {[
-                { v: 0.25, l: 'Gentle', s: '0.25 kg/week – Sustainable and easy' },
-                { v: 0.5, l: 'Moderate', s: '0.5 kg/week – Recommended' },
-                { v: 1, l: 'Aggressive', s: '1 kg/week – Requires discipline' },
-              ].map((o, i) => (
-                <Option key={o.v} value={o.v} current={form.weeklyPace} label={o.l} sub={o.s} onSelect={(v: number) => set('weeklyPace', v)} idx={i} />
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'experience':
-        return (
-          <div className="space-y-4">
-            <Header title="Your nutrition experience?" sub="Helps us decide how detailed to make your plan." />
-            <div className="space-y-2.5">
-              {[
-                { v: 'beginner', l: 'Beginner', s: 'New to tracking and meal planning' },
-                { v: 'intermediate', l: 'Intermediate', s: 'I know the basics' },
-                { v: 'advanced', l: 'Advanced', s: 'Experienced with macros and meal prep' },
-              ].map((o, i) => <Option key={o.v} value={o.v} current={form.experienceLevel} label={o.l} sub={o.s} onSelect={(v: string) => set('experienceLevel', v)} idx={i} />)}
-            </div>
-          </div>
-        );
-
-      case 'challenges':
-        return (
-          <div className="space-y-4">
-            <Header title="What makes healthy eating hard?" sub="Select all that apply." />
-            <Chips field="challenges" selected={form.challenges || []} options={[
-              { value: 'motivation', label: 'Lack of Motivation' }, { value: 'cravings', label: 'Cravings' },
-              { value: 'busy', label: 'Busy Schedule' }, { value: 'eating_out', label: 'Eating Out' },
-              { value: 'emotional', label: 'Emotional Eating' }, { value: 'cooking', label: "Don't Know What to Cook" },
-            ]} />
-          </div>
-        );
-
-      case 'activity':
-        return (
-          <div className="space-y-4">
-            <Header icon={Dumbbell} title="How active are you?" sub="Your daily activity level." />
-            <div className="space-y-2.5">
-              {[
-                { v: 'sedentary', l: 'Sedentary', s: 'Desk job, minimal movement' },
-                { v: 'light', l: 'Lightly Active', s: 'Light exercise 1-3 days/week' },
-                { v: 'moderate', l: 'Moderately Active', s: 'Moderate exercise 3-5 days' },
-                { v: 'active', l: 'Very Active', s: 'Hard exercise 6-7 days' },
-                { v: 'athlete', l: 'Athlete', s: 'Intense training daily' },
-              ].map((o, i) => <Option key={o.v} value={o.v} current={form.activityLevel} label={o.l} sub={o.s} onSelect={(v: string) => set('activityLevel', v)} idx={i} />)}
-            </div>
-          </div>
-        );
-
-      case 'exercise':
-        return (
-          <div className="space-y-4">
-            <Header title="How often do you exercise?" sub="" />
-            <div className="space-y-2.5">
-              {[
-                { v: 'none', l: 'No Exercise' }, { v: '1_2_week', l: '1-2 times/week' },
-                { v: '3_4_week', l: '3-4 times/week' }, { v: '5_plus', l: '5+ times/week' },
-              ].map((o, i) => <Option key={o.v} value={o.v} current={form.exerciseFrequency} label={o.l} onSelect={(v: string) => set('exerciseFrequency', v)} idx={i} />)}
-            </div>
-          </div>
-        );
-
-      case 'sleep':
-        return (
-          <div className="space-y-4">
-            <Header title="Average sleep hours?" sub="" />
-            <div className="space-y-2.5">
-              {[
-                { v: 'less_5', l: 'Less than 5 hours' }, { v: '5_6', l: '5-6 hours' },
-                { v: '7_8', l: '7-8 hours' }, { v: '9_plus', l: '9+ hours' },
-              ].map((o, i) => <Option key={o.v} value={o.v} current={form.sleepHours} label={o.l} onSelect={(v: string) => set('sleepHours', v)} idx={i} />)}
-            </div>
-          </div>
-        );
-
-      case 'stress':
-        return (
-          <div className="space-y-4">
-            <Header title="Your typical stress level?" sub="" />
-            <div className="space-y-2.5">
-              {[{ v: 'low', l: 'Low' }, { v: 'moderate', l: 'Moderate' }, { v: 'high', l: 'High' }].map((o, i) =>
-                <Option key={o.v} value={o.v} current={form.stressLevel} label={o.l} onSelect={(v: string) => set('stressLevel', v)} idx={i} />)}
-            </div>
-          </div>
-        );
+      case 'dataSync':
+        return <DataSyncScreen />;
 
       case 'dietary':
         return (
           <div className="space-y-4">
             <Header icon={Apple} title="Dietary preferences?" sub="Select all that apply." />
             <Chips field="dietaryPrefs" selected={form.dietaryPrefs || []} options={[
-              { value: 'vegetarian', label: 'Vegetarian' }, { value: 'vegan', label: 'Vegan' },
+              { value: 'vegetarian', label: 'Vegetarian' }, { value: 'non_vegetarian', label: 'Non-Vegetarian' },
+              { value: 'vegan', label: 'Vegan' }, { value: 'eggetarian', label: 'Eggetarian' },
               { value: 'pescatarian', label: 'Pescatarian' }, { value: 'keto', label: 'Keto' },
-              { value: 'low_carb', label: 'Low Carb' }, { value: 'paleo', label: 'Paleo' },
-              { value: 'mediterranean', label: 'Mediterranean' }, { value: 'balanced', label: 'Balanced' },
-              { value: 'intermittent_fasting', label: 'Intermittent Fasting' },
-            ]} />
-          </div>
-        );
-
-      case 'medical':
-        return (
-          <div className="space-y-4">
-            <Header title="Any medical restrictions?" sub="Select all that apply." />
-            <Chips field="medicalRestrictions" selected={form.medicalRestrictions || []} options={[
-              { value: 'diabetes', label: 'Diabetes' }, { value: 'bp', label: 'High BP' },
-              { value: 'cholesterol', label: 'Cholesterol' }, { value: 'pcos', label: 'PCOS' },
-              { value: 'thyroid', label: 'Thyroid' }, { value: 'gerd', label: 'GERD' },
-              { value: 'celiac', label: 'Celiac' }, { value: 'lactose', label: 'Lactose Intolerance' },
-              { value: 'none', label: 'None' },
+              { value: 'low_carb', label: 'Low Carb' }, { value: 'balanced', label: 'Balanced' },
             ]} />
           </div>
         );
@@ -370,10 +273,11 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
           <div className="space-y-4">
             <Header title="Food allergies?" sub="Select all that apply." />
             <Chips field="allergies" selected={form.allergies || []} options={[
-              { value: 'nuts', label: 'Nuts' }, { value: 'dairy', label: 'Dairy' },
-              { value: 'eggs', label: 'Eggs' }, { value: 'soy', label: 'Soy' },
-              { value: 'wheat', label: 'Wheat/Gluten' }, { value: 'shellfish', label: 'Shellfish' },
-              { value: 'none', label: 'None' },
+              { value: 'milk', label: '🥛 Milk' }, { value: 'eggs', label: '🥚 Eggs' },
+              { value: 'nuts', label: '🥜 Nuts' }, { value: 'gluten', label: '🌾 Gluten' },
+              { value: 'soy', label: 'Soy' }, { value: 'shellfish', label: '🦐 Shellfish' },
+              { value: 'chicken', label: '🍗 Chicken' }, { value: 'fish', label: '🐟 Fish' },
+              { value: 'none', label: '✅ None' },
             ]} />
           </div>
         );
@@ -381,12 +285,12 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
       case 'cuisines':
         return (
           <div className="space-y-4">
-            <Header title="Cuisines you enjoy?" sub="We'll prioritize these in your plan." />
+            <Header title="Cuisines you enjoy?" sub="We'll prioritize these." />
             <Chips field="cuisinePrefs" selected={form.cuisinePrefs || []} options={[
-              { value: 'indian', label: '🇮🇳 Indian' }, { value: 'chinese', label: '🇨🇳 Chinese' },
-              { value: 'italian', label: '🇮🇹 Italian' }, { value: 'mexican', label: '🇲🇽 Mexican' },
-              { value: 'thai', label: '🇹🇭 Thai' }, { value: 'japanese', label: '🇯🇵 Japanese' },
-              { value: 'mediterranean', label: '🫒 Mediterranean' }, { value: 'american', label: '🇺🇸 American' },
+              { value: 'north_indian', label: '🇮🇳 North Indian' }, { value: 'south_indian', label: '🇮🇳 South Indian' },
+              { value: 'chinese', label: '🇨🇳 Chinese' }, { value: 'italian', label: '🇮🇹 Italian' },
+              { value: 'quick_meals', label: '⚡ Quick Meals' }, { value: 'street_food', label: '🍜 Street Food' },
+              { value: 'continental', label: '🍽️ Continental' }, { value: 'thai', label: '🇹🇭 Thai' },
             ]} />
           </div>
         );
@@ -412,88 +316,37 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
             <Header title="Time for cooking per meal?" sub="" />
             <div className="space-y-2.5">
               {[
-                { v: '15min', l: '15 minutes', s: 'Quick and easy' },
-                { v: '30min', l: '30 minutes', s: 'Most recipes' },
-                { v: '45min', l: '45 minutes', s: 'More elaborate dishes' },
-                { v: '60min', l: '1 hour+', s: 'I enjoy cooking' },
+                { v: '15min', l: '< 15 minutes', s: 'Quick and easy' },
+                { v: '30min', l: '15-30 minutes', s: 'Most recipes' },
+                { v: '45min', l: '30+ minutes', s: 'Elaborate dishes' },
               ].map((o, i) => <Option key={o.v} value={o.v} current={form.cookingTime} label={o.l} sub={o.s} onSelect={(v: string) => set('cookingTime', v)} idx={i} />)}
             </div>
           </div>
         );
 
-      case 'equipment':
-        return (
-          <div className="space-y-4">
-            <Header title="Kitchen equipment?" sub="Select what you have." />
-            <Chips field="equipment" selected={form.equipment || []} options={[
-              { value: 'stove', label: 'Stove' }, { value: 'oven', label: 'Oven' },
-              { value: 'microwave', label: 'Microwave' }, { value: 'air_fryer', label: 'Air Fryer' },
-              { value: 'blender', label: 'Blender' }, { value: 'pressure_cooker', label: 'Pressure Cooker' },
-              { value: 'instant_pot', label: 'Instant Pot' },
-            ]} />
-          </div>
-        );
-
-      case 'eatingOut':
-        return (
-          <div className="space-y-4">
-            <Header icon={UtensilsCrossed} title="How often do you eat out?" sub="" />
-            <div className="space-y-2.5">
-              {[
-                { v: 'rarely', l: 'Rarely' }, { v: '1_2_week', l: '1-2 times/week' },
-                { v: '3_4_week', l: '3-4 times/week' }, { v: 'daily', l: 'Almost Daily' },
-              ].map((o, i) => <Option key={o.v} value={o.v} current={form.eatingOutFrequency} label={o.l} onSelect={(v: string) => set('eatingOutFrequency', v)} idx={i} />)}
-            </div>
-          </div>
-        );
-
-      case 'snacking':
-        return (
-          <div className="space-y-4">
-            <Header title="When do you snack?" sub="Select all that apply." />
-            <Chips field="snackingHabits" selected={form.snackingHabits || []} options={[
-              { value: 'hungry', label: 'When Hungry' }, { value: 'stressed', label: 'When Stressed' },
-              { value: 'bored', label: 'When Bored' }, { value: 'late_night', label: 'Late Night' },
-              { value: 'tv', label: 'While Watching TV' }, { value: 'none', label: "I Don't Snack" },
-            ]} />
-          </div>
-        );
-
-      case 'mealsPerDay':
-        return (
-          <div className="space-y-4">
-            <Header title="Meals per day?" sub="Including snacks." />
-            <div className="flex gap-3 justify-center mt-4">
-              {[3, 4, 5, 6].map(n => (
-                <motion.button key={n} whileTap={{ scale: 0.9 }} onClick={() => set('mealsPerDay', n)}
-                  className={`w-16 h-16 rounded-2xl text-lg font-bold border transition-all ${form.mealsPerDay === n ? 'bg-primary text-primary-foreground border-primary shadow-fab' : 'bg-card border-border'}`}>
-                  {n}
-                </motion.button>
-              ))}
-            </div>
-          </div>
-        );
-
       case 'summary': {
-        const bmi = calculateBMI(form.currentWeight!, form.heightCm!);
+        const p = mainProfile;
+        const bmi = p?.bmi || calculateBMI(p?.weightKg || 70, p?.heightCm || 170);
         const cat = getBMICategory(bmi);
-        const budgetData = getEnhancedBudgetSettings();
-        const perMeal = budgetData.perMeal || { breakfast: 100, lunch: 150, dinner: 200, snacks: 50 };
+        const perMeal = budgetSettings.perMeal || { breakfast: 0, lunch: 0, dinner: 0, snacks: 0 };
         const budgetDaily = (perMeal.breakfast || 0) + (perMeal.lunch || 0) + (perMeal.dinner || 0) + (perMeal.snacks || 0);
+        const health = p?.healthConditions || [];
         return (
           <div className="space-y-4">
-            <Header icon={Sparkles} title="Your Plan Summary" sub="Here's what we'll build for you." />
-            <div className="card-elevated p-4 space-y-3">
-              <div className="flex justify-between text-sm"><span className="text-muted-foreground">Goal</span><span className="font-semibold text-foreground capitalize">{(form.mainGoal || '').replace(/_/g, ' ')}</span></div>
+            <Header icon={Sparkles} title="Ready to generate!" sub="Your complete plan profile." />
+            <div className="card-elevated p-4 space-y-2.5">
+              <div className="flex justify-between text-sm"><span className="text-muted-foreground">Goal</span><span className="font-semibold text-foreground capitalize">{(p?.goal || 'maintain').replace(/_/g, ' ')}</span></div>
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">BMI</span><span className="font-semibold text-foreground">{bmi.toFixed(1)} ({cat})</span></div>
-              <div className="flex justify-between text-sm"><span className="text-muted-foreground">Weekly Pace</span><span className="font-semibold text-foreground">{form.weeklyPace} kg/week</span></div>
-              <div className="flex justify-between text-sm"><span className="text-muted-foreground">Meals/Day</span><span className="font-semibold text-foreground">{form.mealsPerDay}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-muted-foreground">Calories</span><span className="font-semibold text-foreground">{p?.dailyCalories || 0} kcal/day</span></div>
+              <div className="flex justify-between text-sm"><span className="text-muted-foreground">Protein</span><span className="font-semibold text-foreground">{p?.dailyProtein || 0}g</span></div>
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">Budget</span><span className="font-semibold text-foreground">₹{budgetDaily}/day</span></div>
-              <div className="flex justify-between text-sm"><span className="text-muted-foreground">Cooking Skill</span><span className="font-semibold text-foreground capitalize">{form.cookingSkill}</span></div>
+              {health.length > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Health</span><span className="font-semibold text-foreground capitalize">{health.join(', ')}</span></div>}
               {form.dietaryPrefs?.length > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Diet</span><span className="font-semibold text-foreground capitalize">{form.dietaryPrefs.join(', ')}</span></div>}
+              {form.allergies?.length > 0 && form.allergies[0] !== 'none' && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Allergies</span><span className="font-semibold text-foreground capitalize">{form.allergies.join(', ')}</span></div>}
               {form.cuisinePrefs?.length > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Cuisines</span><span className="font-semibold text-foreground capitalize">{form.cuisinePrefs.join(', ')}</span></div>}
+              <div className="flex justify-between text-sm"><span className="text-muted-foreground">Cooking</span><span className="font-semibold text-foreground capitalize">{form.cookingSkill} · {form.cookingTime}</span></div>
             </div>
-            <p className="text-[10px] text-muted-foreground text-center">Budget from Budget tab · Edit in Budget tab</p>
+            <p className="text-[10px] text-muted-foreground text-center">Budget from Budget tab · Health from onboarding</p>
           </div>
         );
       }
@@ -505,17 +358,14 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
 
   const monikaMsg = MEAL_PLANNER_MONIKA[step] || { message: "You're doing great! Keep going 💪", mood: 'happy' as const };
   const stepNames: Record<string, string> = {
-    welcome: 'Welcome', goal: 'Goal', motivations: 'Motivation', pace: 'Pace', experience: 'Experience',
-    challenges: 'Challenges', activity: 'Activity', exercise: 'Exercise', sleep: 'Sleep', stress: 'Stress',
-    dietary: 'Diet', medical: 'Medical', allergies: 'Allergies', cuisines: 'Cuisines',
-    cooking: 'Cooking', cookTime: 'Cook Time', equipment: 'Equipment', eatingOut: 'Eating Out',
-    snacking: 'Snacking', mealsPerDay: 'Meals/Day', summary: 'Summary',
+    dataSync: 'Your Data', dietary: 'Diet', allergies: 'Allergies', cuisines: 'Cuisines',
+    cooking: 'Cooking', cookTime: 'Cook Time', summary: 'Summary',
   };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Progress */}
-      {step !== 'welcome' && (
+      {step !== 'dataSync' && (
         <div className="px-4 pt-4 pb-0">
           <div className="flex items-center gap-3 mb-1">
             <button onClick={goBack} className="w-9 h-9 rounded-xl bg-card border border-border flex items-center justify-center">
@@ -530,9 +380,8 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 pb-32">
-        {/* Monika Guide */}
         <div className="pt-3">
-          <MonikaGuide message={monikaMsg.message} mood={monikaMsg.mood} compact={step !== 'welcome'} />
+          <MonikaGuide message={monikaMsg.message} mood={monikaMsg.mood} compact={step !== 'dataSync'} />
         </div>
 
         <AnimatePresence mode="wait" custom={dir}>
@@ -546,7 +395,7 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border">
         <button onClick={goNext} disabled={!canContinue()}
           className={`w-full py-4 rounded-2xl text-base font-bold flex items-center justify-center gap-2 transition-all ${canContinue() ? 'btn-primary' : 'bg-muted text-muted-foreground cursor-not-allowed'}`}>
-          {step === 'summary' ? <><Sparkles className="w-4 h-4" /> Generate My Meal Plan</> : step === 'welcome' ? <><Sparkles className="w-4 h-4" /> Get Started</> : <>Continue <ArrowRight className="w-4 h-4" /></>}
+          {step === 'summary' ? <><Sparkles className="w-4 h-4" /> Generate My Meal Plan</> : step === 'dataSync' ? <>Looks Good! Continue <ArrowRight className="w-4 h-4" /></> : <>Continue <ArrowRight className="w-4 h-4" /></>}
         </button>
       </div>
     </div>
