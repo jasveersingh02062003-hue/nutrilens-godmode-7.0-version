@@ -59,6 +59,8 @@ export interface PlannedMeal {
   mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
   cooked: boolean;
   logged: boolean;
+  portionScale?: number;
+  batchGroup?: string;
 }
 
 export interface DayPlan {
