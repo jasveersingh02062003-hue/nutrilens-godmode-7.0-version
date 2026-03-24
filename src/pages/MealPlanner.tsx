@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ChefHat, CalendarDays, ArrowLeft, ArrowRight, Check, ShoppingCart, Repeat, X, Search, Target, Scale, Crown, Lock } from 'lucide-react';
+import { Sparkles, ChefHat, CalendarDays, ArrowLeft, ArrowRight, Check, ShoppingCart, Repeat, X, Search, Target, Scale, Crown, Lock, Zap } from 'lucide-react';
 import { isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
