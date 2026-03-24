@@ -110,6 +110,11 @@ export default function Dashboard() {
         }
       }
     }
+    // Weekly feedback engine
+    if (shouldGenerateSummary()) {
+      const summary = generateWeeklySummary();
+      if (hasBrowserPermission()) scheduleWeeklyNotification(summary);
+    }
   }, [profile, navigate]);
 
   useEffect(() => {
