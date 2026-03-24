@@ -112,6 +112,7 @@ export default function Dashboard() {
   useEffect(() => {
     const interval = setInterval(() => {
       setLog(getDailyLog());
+      setBudgetAlert(getLatestBudgetAlert());
       // Check streaks on each refresh
       const { milestones } = checkAndUpdateStreaks();
       for (const m of milestones) {
