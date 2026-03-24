@@ -8,6 +8,7 @@ import {
   autoFixNextWeek,
   type WeeklySummary,
 } from '@/lib/weekly-feedback';
+import { useUserProfile } from '@/contexts/UserProfileContext';
 
 const DISMISSED_KEY = 'nutrilens_weekly_feedback_dismissed';
 
