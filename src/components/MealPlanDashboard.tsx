@@ -319,8 +319,8 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
                       </div>
                     )}
 
-                    {/* Macro bars */}
-                    <div className="flex gap-3">
+                    {/* Macro bars + PES badge */}
+                    <div className="flex items-center gap-3">
                       {[
                         { label: 'Protein', val: recipe.protein, color: 'bg-coral' },
                         { label: 'Carbs', val: recipe.carbs, color: 'bg-primary' },
@@ -331,6 +331,17 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
                           <span className="text-muted-foreground">{m.label}: {m.val}g</span>
                         </div>
                       ))}
+                      {(() => {
+                        const enriched = getEnrichedRecipe(recipe);
+                        const targetCal = getMealTargetCalories(meal.mealType, profile);
+                        const pesScore = computePES(enriched, { targetCalories: targetCal, budgetPerMeal: getMealBudget(meal.mealType) });
+                        const pesEmoji = pesScore >= 0.65 ? '🟢' : pesScore >= 0.4 ? '🟡' : '🔴';
+                        return (
+                          <span className="ml-auto text-[10px] font-semibold text-muted-foreground" title={`PES: ${(pesScore * 100).toFixed(0)}`}>
+                            {pesEmoji} {(pesScore * 100).toFixed(0)}
+                          </span>
+                        );
+                      })()}
                     </div>
 
                     {/* Scaled portions */}
