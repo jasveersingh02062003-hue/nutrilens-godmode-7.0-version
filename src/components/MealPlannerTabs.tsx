@@ -1,13 +1,14 @@
 import { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Check, Plus, Search, Clock, Flame } from 'lucide-react';
+import { ShoppingCart, Check, Plus, Search, Clock, Flame, Zap, X } from 'lucide-react';
 import { getWeekPlan, getCurrentWeekStart } from '@/lib/meal-planner-store';
 import { generateShoppingList } from '@/lib/meal-plan-generator';
 import { recipes, getRecipeById } from '@/lib/recipes';
 import { getRecipeImage } from '@/lib/recipe-images';
 import type { WeekPlan } from '@/lib/meal-planner-store';
 import BudgetPlannerTab from './BudgetPlannerTab';
-
+import SurvivalKitSheet from './SurvivalKitSheet';
+import { getSavedSurvivalKit, clearSurvivalKit } from '@/lib/grocery-survival';
 const TAB_ITEMS = ['Budget', 'Meal Plan', 'Groceries', 'Recipes'] as const;
 type TabName = typeof TAB_ITEMS[number];
 
@@ -27,6 +28,8 @@ function GroceriesTab({ plan }: { plan: WeekPlan }) {
   const [addingItem, setAddingItem] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemQty, setNewItemQty] = useState('');
+  const [kitOpen, setKitOpen] = useState(false);
+  const [savedKit, setSavedKit] = useState(() => getSavedSurvivalKit());
 
   const toggleItem = (catIdx: number, itemIdx: number) => {
     setGroceryList(prev => prev.map((cat, ci) =>
@@ -61,6 +64,35 @@ function GroceriesTab({ plan }: { plan: WeekPlan }) {
 
   return (
     <div className="space-y-4">
+      {/* Survival Kit Button */}
+      <button
+        onClick={() => setKitOpen(true)}
+        className="w-full py-3.5 rounded-2xl bg-primary/10 border border-primary/20 text-sm font-bold text-primary flex items-center justify-center gap-2 hover:bg-primary/15 transition-colors"
+      >
+        <Zap className="w-4 h-4" /> Build Survival Kit — Max protein for your budget
+      </button>
+
+      {/* Active Kit Banner */}
+      {savedKit && (
+        <div className="rounded-xl bg-accent border border-border p-3 flex items-center gap-3">
+          <div className="flex-1">
+            <p className="text-xs font-bold text-foreground">🔒 Active Survival Kit</p>
+            <p className="text-[10px] text-muted-foreground">
+              ₹{savedKit.totalCost} · {savedKit.totalProtein}g protein · {savedKit.proteinCoverage}% coverage
+            </p>
+          </div>
+          <button onClick={() => setKitOpen(true)} className="text-[10px] font-semibold text-primary">View</button>
+          <button
+            onClick={() => { clearSurvivalKit(); setSavedKit(null); }}
+            className="w-6 h-6 rounded-full bg-muted flex items-center justify-center"
+          >
+            <X className="w-3 h-3 text-muted-foreground" />
+          </button>
+        </div>
+      )}
+
+      <SurvivalKitSheet open={kitOpen} onOpenChange={(o) => { setKitOpen(o); if (!o) setSavedKit(getSavedSurvivalKit()); }} />
+
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">Mark items you already have or purchased</p>
         <span className="text-xs font-bold text-primary">{checkedItems}/{totalItems}</span>
