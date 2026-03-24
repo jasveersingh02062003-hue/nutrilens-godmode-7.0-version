@@ -103,9 +103,11 @@ export function generateSurvivalKit(weeklyBudget: number): SurvivalKitResult {
     if (survivalFoods.length >= 3) eligible = survivalFoods;
   }
 
-  // Sort by PES descending
+  // Sort by PES descending — use user's average meal target
+  const dailyTarget = profile?.dailyCalories || 2000;
+  const avgMealCalories = Math.round(dailyTarget / 4);
   eligible.sort((a, b) =>
-    computePES(b, { targetCalories: 500 }) - computePES(a, { targetCalories: 500 })
+    computePES(b, { targetCalories: avgMealCalories }) - computePES(a, { targetCalories: avgMealCalories })
   );
 
   // In comfort mode, also allow moderate-PES items for variety

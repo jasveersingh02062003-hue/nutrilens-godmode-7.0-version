@@ -6,17 +6,18 @@ import { getMealMacroTargets, getRecipeComposition, shouldAvoidRecipe, validateW
 import { getFeedbackScoreModifier } from './meal-plan-feedback';
 import { getComplexityRecommendation, getAdherenceHistory } from './adherence-service';
 import { aggregateIngredients, formatGrams } from './portion-engine';
-import { computePES } from './pes-engine';
+import { computePES, getMealTargetCalories } from './pes-engine';
 
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
 /** Score a recipe for meal plan ranking (higher = better) — uses unified PES engine */
-function scoreRecipe(recipe: Recipe, maxCost?: number, targetProtein?: number): number {
+function scoreRecipe(recipe: Recipe, mealType: string, profile: any, maxCost?: number, targetProtein?: number): number {
   const enriched = getEnrichedRecipe(recipe);
+  const targetCalories = getMealTargetCalories(mealType, profile);
   const base = computePES(enriched, {
-    targetCalories: enriched.calories, // self-fit is neutral; calorie target comes from slot
+    targetCalories,
     budgetPerMeal: maxCost,
     originalProtein: targetProtein,
   });
@@ -25,10 +26,10 @@ function scoreRecipe(recipe: Recipe, maxCost?: number, targetProtein?: number): 
 }
 
 /** Pick the best-scored recipe from an array */
-function pickBest(arr: Recipe[], maxCost?: number, targetProtein?: number): Recipe {
+function pickBest(arr: Recipe[], mealType: string, profile: any, maxCost?: number, targetProtein?: number): Recipe {
   if (arr.length <= 1) return arr[0];
   return arr.reduce((best, cur) =>
-    scoreRecipe(cur, maxCost, targetProtein) > scoreRecipe(best, maxCost, targetProtein) ? cur : best
+    scoreRecipe(cur, mealType, profile, maxCost, targetProtein) > scoreRecipe(best, mealType, profile, maxCost, targetProtein) ? cur : best
   );
 }
 
@@ -104,7 +105,8 @@ function findRecipeWithFallback(
     maxCost?: number;
     targetProtein?: number;
     healthConditions?: string[];
-  }
+  },
+  profile?: any
 ): { recipe: Recipe; reason: string } | null {
   const levels = [
     { ...opts, mealType },
@@ -126,11 +128,11 @@ function findRecipeWithFallback(
     }
     const costed = opts.maxCost ? results.filter(r => getEnrichedRecipe(r).estimatedCost <= opts.maxCost! * 1.15) : results;
     if (costed.length) {
-      const recipe = pickBest(costed, opts.maxCost, opts.targetProtein);
+      const recipe = pickBest(costed, mealType, profile, opts.maxCost, opts.targetProtein);
       return { recipe, reason: generateMealReason(recipe, opts.maxCost, opts.targetProtein) };
     }
     if (results.length) {
-      const recipe = pickBest(results, opts.maxCost, opts.targetProtein);
+      const recipe = pickBest(results, mealType, profile, opts.maxCost, opts.targetProtein);
       return { recipe, reason: generateMealReason(recipe, opts.maxCost, opts.targetProtein) };
     }
   }
@@ -141,7 +143,7 @@ function findRecipeWithFallback(
     fallback = fallback.filter(r => !shouldAvoidRecipe(r, healthConds));
   }
   if (fallback.length) {
-    const recipe = pickBest(fallback, opts.maxCost, opts.targetProtein);
+    const recipe = pickBest(fallback, mealType, profile, opts.maxCost, opts.targetProtein);
     return { recipe, reason: generateMealReason(recipe, opts.maxCost, opts.targetProtein) };
   }
 
@@ -394,7 +396,7 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
         targetProtein: mealProteinTarget,
         excludeIds,
         healthConditions: allHealthConds,
-      });
+      }, profile);
 
       if (result) {
         const enriched = getEnrichedRecipe(result.recipe);
@@ -499,7 +501,7 @@ export function swapMeal(plan: WeekPlan, date: string, recipeId: string, profile
     targetProtein: currentRecipe ? currentRecipe.protein : undefined,
     maxPrepTime: getMaxTimeForMeal(meal.mealType, profile.cookingTime),
     healthConditions: healthConds,
-  });
+  }, profile);
 
   if (result) {
     day.meals[mealIdx] = {
