@@ -360,8 +360,29 @@ export default function ProgressPage() {
   );
 }
 
+function SummaryMetricBar({ label, value, detail, inverted }: { label: string; value: number; detail: string; inverted?: boolean }) {
+  const clamped = Math.min(100, Math.max(0, value));
+  const color = inverted
+    ? (value > 100 ? 'bg-destructive' : value > 80 ? 'bg-accent' : 'bg-primary')
+    : (value >= 80 ? 'bg-primary' : value >= 60 ? 'bg-accent' : 'bg-destructive');
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-semibold text-foreground">{detail}</span>
+      </div>
+      <div className="h-2 bg-secondary rounded-full overflow-hidden">
+        <div className={`h-full rounded-full transition-all duration-700 ease-out ${color}`} style={{ width: `${Math.min(100, clamped)}%` }} />
+      </div>
+    </div>
+  );
+}
+
 function WeeklySummariesSection() {
   const summaries = getWeeklySummaries();
+  const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
+
   if (summaries.length === 0) return null;
 
   const fmt = (d: string) => {
@@ -372,6 +393,8 @@ function WeeklySummariesSection() {
   const scoreColor = (s: number) =>
     s >= 80 ? 'bg-primary/10 text-primary' : s >= 60 ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive';
 
+  const scoreEmoji = (s: number) => s >= 80 ? '🟢' : s >= 60 ? '🟡' : '🔴';
+
   return (
     <div className="card-elevated p-4">
       <div className="flex items-center gap-2 mb-3">
@@ -379,17 +402,71 @@ function WeeklySummariesSection() {
         <h3 className="font-semibold text-sm text-foreground">Weekly Summaries</h3>
       </div>
       <div className="space-y-3">
-        {summaries.slice(0, 6).map((s) => (
-          <div key={s.weekStart} className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/30">
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${scoreColor(s.adherenceScore)}`}>
-              {s.adherenceScore}%
-            </span>
-            <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-medium text-foreground truncate">{s.insight}</p>
-              <p className="text-[10px] text-muted-foreground">{fmt(s.weekStart)} – {fmt(s.weekEnd)}</p>
+        {summaries.slice(0, 6).map((s) => {
+          const isExpanded = expandedWeek === s.weekStart;
+          const mealPct = s.mealsPlanned > 0 ? Math.round((s.mealsLogged / s.mealsPlanned) * 100) : 0;
+          const proteinPct = s.proteinTarget > 0 ? Math.round((s.proteinConsumed / s.proteinTarget) * 100) : 0;
+          const budgetPct = s.budget > 0 ? Math.round((s.spent / s.budget) * 100) : 0;
+
+          return (
+            <div key={s.weekStart} className="rounded-xl bg-muted/30 overflow-hidden">
+              <button
+                onClick={() => setExpandedWeek(isExpanded ? null : s.weekStart)}
+                className="flex items-center gap-3 p-2.5 w-full text-left"
+              >
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${scoreColor(s.adherenceScore)}`}>
+                  {s.adherenceScore}%
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-medium text-foreground truncate">{s.insight}</p>
+                  <p className="text-[10px] text-muted-foreground">{fmt(s.weekStart)} – {fmt(s.weekEnd)}</p>
+                </div>
+                <ChevronRight className={`w-3.5 h-3.5 text-muted-foreground shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
+              </button>
+
+              {isExpanded && (
+                <div className="px-3 pb-3 space-y-3 animate-fade-in">
+                  {/* Score header */}
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-xs text-muted-foreground font-medium">Adherence Score</span>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${scoreColor(s.adherenceScore)}`}>
+                      {scoreEmoji(s.adherenceScore)} {s.adherenceScore}%
+                    </span>
+                  </div>
+
+                  {/* Metric bars */}
+                  <div className="space-y-2.5">
+                    <SummaryMetricBar label="Meals logged" value={mealPct} detail={`${s.mealsLogged}/${s.mealsPlanned}`} />
+                    <SummaryMetricBar label="Protein target" value={proteinPct} detail={`${s.proteinConsumed}g / ${s.proteinTarget}g`} />
+                    <SummaryMetricBar label="Budget spent" value={budgetPct} detail={`₹${s.spent} / ₹${s.budget}`} inverted />
+                    {s.weightChange !== null && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Weight change</span>
+                        <span className={`font-semibold ${
+                          s.weightChange < 0 ? 'text-primary' : s.weightChange > 0 ? 'text-destructive' : 'text-foreground'
+                        }`}>
+                          {s.weightChange > 0 ? '+' : ''}{s.weightChange}kg
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Insight */}
+                  <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/10">
+                    <p className="text-xs font-medium text-foreground">💡 {s.insight}</p>
+                  </div>
+
+                  {/* Auto-fix status */}
+                  {s.autoFixApplied && (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary text-[11px] font-medium">
+                      <TrendingUp className="w-3.5 h-3.5" /> Plan was adjusted for the following week
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
