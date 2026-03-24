@@ -105,7 +105,8 @@ function findRecipeWithFallback(
     maxCost?: number;
     targetProtein?: number;
     healthConditions?: string[];
-  }
+  },
+  profile?: any
 ): { recipe: Recipe; reason: string } | null {
   const levels = [
     { ...opts, mealType },
@@ -127,11 +128,11 @@ function findRecipeWithFallback(
     }
     const costed = opts.maxCost ? results.filter(r => getEnrichedRecipe(r).estimatedCost <= opts.maxCost! * 1.15) : results;
     if (costed.length) {
-      const recipe = pickBest(costed, opts.maxCost, opts.targetProtein);
+      const recipe = pickBest(costed, mealType, profile, opts.maxCost, opts.targetProtein);
       return { recipe, reason: generateMealReason(recipe, opts.maxCost, opts.targetProtein) };
     }
     if (results.length) {
-      const recipe = pickBest(results, opts.maxCost, opts.targetProtein);
+      const recipe = pickBest(results, mealType, profile, opts.maxCost, opts.targetProtein);
       return { recipe, reason: generateMealReason(recipe, opts.maxCost, opts.targetProtein) };
     }
   }
@@ -142,7 +143,7 @@ function findRecipeWithFallback(
     fallback = fallback.filter(r => !shouldAvoidRecipe(r, healthConds));
   }
   if (fallback.length) {
-    const recipe = pickBest(fallback, opts.maxCost, opts.targetProtein);
+    const recipe = pickBest(fallback, mealType, profile, opts.maxCost, opts.targetProtein);
     return { recipe, reason: generateMealReason(recipe, opts.maxCost, opts.targetProtein) };
   }
 
