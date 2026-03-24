@@ -113,6 +113,14 @@ export default function Dashboard() {
         }
       }
     }
+    // Meal recovery from yesterday
+    if (profile) {
+      const { adjustedCal, adjustedProtein, recovery: rec } = getRecoveredTargets(profile.dailyCalories, profile.dailyProtein);
+      if (rec) {
+        setRecovery(rec);
+        setAdjustedTargets({ cal: adjustedCal, protein: adjustedProtein });
+      }
+    }
     // Weekly feedback engine
     if (shouldGenerateSummary()) {
       const summary = generateWeeklySummary();
