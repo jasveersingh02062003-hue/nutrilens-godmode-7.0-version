@@ -377,7 +377,7 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
       const mealProteinTarget = Math.round(targetProtein * macroTarget.proteinPct);
       const mealCalTarget = Math.round(targetCal * macroTarget.caloriePct);
       // Use adherence-adjusted prep time or user setting
-      const maxTime = Math.min(getMaxTimeForMeal(type, profile.cookingTime), complexity.maxPrepTime);
+      const maxTime = Math.min(Math.round(getMaxTimeForMeal(type, profile.cookingTime) * weekendTimeMult), complexity.maxPrepTime);
 
       // Variety window: exclude last 3 breakfasts, last 2 lunch/dinner
       const varietyWindow = type === 'breakfast' ? 3 : 2;
