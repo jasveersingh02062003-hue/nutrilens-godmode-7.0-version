@@ -104,7 +104,7 @@ export function generateSurvivalKit(weeklyBudget: number): SurvivalKitResult {
   }
 
   // Sort by PES descending — use user's average meal target
-  const dailyTarget = profile?.dailyCalories || profile?.goals?.targetCalories || 2000;
+  const dailyTarget = profile?.dailyCalories || profile?.daily_calories || 2000;
   const avgMealCalories = Math.round(dailyTarget / 4);
   eligible.sort((a, b) =>
     computePES(b, { targetCalories: avgMealCalories }) - computePES(a, { targetCalories: avgMealCalories })

@@ -501,7 +501,7 @@ export function swapMeal(plan: WeekPlan, date: string, recipeId: string, profile
     targetProtein: currentRecipe ? currentRecipe.protein : undefined,
     maxPrepTime: getMaxTimeForMeal(meal.mealType, profile.cookingTime),
     healthConditions: healthConds,
-  });
+  }, profile);
 
   if (result) {
     day.meals[mealIdx] = {
