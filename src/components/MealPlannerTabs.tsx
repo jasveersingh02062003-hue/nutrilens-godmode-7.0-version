@@ -67,6 +67,11 @@ function GroceriesTab({ plan }: { plan: WeekPlan }) {
   const [newItemName, setNewItemName] = useState('');
   const [newItemQty, setNewItemQty] = useState('');
 
+  // Re-sync grocery list when kit changes
+  useEffect(() => {
+    setGroceryList(initialList);
+  }, [initialList]);
+
   const toggleItem = (catIdx: number, itemIdx: number) => {
     setGroceryList(prev => prev.map((cat, ci) =>
       ci === catIdx ? {
