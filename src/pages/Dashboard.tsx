@@ -64,6 +64,8 @@ export default function Dashboard() {
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('tutorial_seen'));
   const [showPESExplanation, setShowPESExplanation] = useState(() => !localStorage.getItem('pes_explanation_seen'));
   const [budgetAlert, setBudgetAlert] = useState<(BudgetAlertResult & { timestamp: number; date: string }) | null>(getLatestBudgetAlert());
+  const [recovery, setRecovery] = useState<RecoveryAdjustment | null>(null);
+  const [adjustedTargets, setAdjustedTargets] = useState<{ cal: number; protein: number } | null>(null);
 
   const plannerProfile = getMealPlannerProfile();
   const plannerIncomplete = !plannerProfile || !plannerProfile.onboardingComplete;
