@@ -6,6 +6,7 @@ import { getMealMacroTargets, getRecipeComposition, shouldAvoidRecipe, validateW
 import { getFeedbackScoreModifier } from './meal-plan-feedback';
 import { getComplexityRecommendation, getAdherenceHistory } from './adherence-service';
 import { aggregateIngredients, formatGrams } from './portion-engine';
+import { computePES } from './pes-engine';
 
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
