@@ -8,6 +8,7 @@ import {
   autoFixNextWeek,
   type WeeklySummary,
 } from '@/lib/weekly-feedback';
+import { useUserProfile } from '@/contexts/UserProfileContext';
 
 const DISMISSED_KEY = 'nutrilens_weekly_feedback_dismissed';
 
@@ -41,6 +42,7 @@ function metricIcon(metric: string) {
 }
 
 export default function WeeklyFeedbackCard() {
+  const { refreshProfile } = useUserProfile();
   const [summary, setSummary] = useState<WeeklySummary | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -66,6 +68,7 @@ export default function WeeklyFeedbackCard() {
     if (result.applied) {
       result.changes.forEach(c => toast.success(`✅ ${c}`));
       setSummary({ ...summary, autoFixApplied: true });
+      refreshProfile(); // Sync profile context with updated targets
     } else {
       toast.info('No adjustments needed — you\'re on track!');
     }

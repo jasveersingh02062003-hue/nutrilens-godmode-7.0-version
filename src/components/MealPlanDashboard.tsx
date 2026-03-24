@@ -8,6 +8,7 @@ import { generateShoppingList } from '@/lib/meal-plan-generator';
 import { getRecipeImage } from '@/lib/recipe-images';
 import { getRecipeCost } from '@/lib/recipe-cost';
 import { getBudgetSummary } from '@/lib/budget-service';
+import { calculatePortions } from '@/lib/portion-engine';
 import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
 import { saveManualExpense } from '@/lib/expense-store';
 import { deductRecipeFromPantry } from '@/lib/pantry-deduction';
@@ -329,6 +330,20 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
                         </div>
                       ))}
                     </div>
+
+                    {/* Scaled portions */}
+                    {recipe.ingredients?.length > 0 && (() => {
+                      const mealCalSplit: Record<string, number> = { breakfast: 0.25, lunch: 0.35, dinner: 0.30, snack: 0.10 };
+                      const targetCal = Math.round(profile.dailyCalories * (mealCalSplit[meal.mealType] || 0.25));
+                      const portions = calculatePortions(recipe, targetCal);
+                      const topIngredients = portions.ingredients.filter(i => i.scaledGrams > 0).slice(0, 4);
+                      if (topIngredients.length === 0) return null;
+                      return (
+                        <p className="text-[10px] text-muted-foreground mt-1.5">
+                          {topIngredients.map(i => `${i.name}: ${i.displayQuantity}`).join(' · ')}
+                        </p>
+                      );
+                    })()}
 
                     {/* Actions */}
                     <div className="flex gap-2 mt-3">

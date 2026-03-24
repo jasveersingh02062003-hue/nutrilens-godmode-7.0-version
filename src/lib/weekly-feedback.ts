@@ -215,6 +215,7 @@ export function autoFixNextWeek(summary: WeeklySummary): { changes: string[]; ap
   const changes: string[] = [];
   const profile = getProfile();
   const plannerProfile = getMealPlannerProfile();
+  let profileChanged = false;
 
   switch (summary.dominantMetric) {
     case 'protein': {
@@ -226,9 +227,9 @@ export function autoFixNextWeek(summary: WeeklySummary): { changes: string[]; ap
         changes.push(`Protein target increased to ${plannerProfile.dailyProtein}g/day`);
       }
       if (deficit > 0 && profile) {
-        const storedProfile = { ...profile, dailyProtein: profile.dailyProtein + Math.ceil(deficit / 7) };
-        localStorage.setItem('nutrilens_profile', JSON.stringify(storedProfile));
-        changes.push(`Daily protein goal updated to ${storedProfile.dailyProtein}g`);
+        profile.dailyProtein = profile.dailyProtein + Math.ceil(deficit / 7);
+        profileChanged = true;
+        changes.push(`Daily protein goal updated to ${profile.dailyProtein}g`);
       }
       break;
     }
@@ -236,7 +237,6 @@ export function autoFixNextWeek(summary: WeeklySummary): { changes: string[]; ap
       const overshoot = summary.spent - summary.budget;
       if (overshoot > 0) {
         const bs = getBudgetSettings();
-        const reduction = Math.round(overshoot / 7);
         const newWeekly = Math.max(350, bs.weeklyBudget - overshoot);
         bs.weeklyBudget = newWeekly;
         bs.monthlyBudget = newWeekly * 4;
@@ -258,12 +258,30 @@ export function autoFixNextWeek(summary: WeeklySummary): { changes: string[]; ap
     }
     case 'weight': {
       if (profile && summary.weightChange !== null) {
-        const newCalories = Math.round(profile.dailyCalories * 0.95);
-        const storedProfile = { ...profile, dailyCalories: newCalories };
-        localStorage.setItem('nutrilens_profile', JSON.stringify(storedProfile));
-        changes.push(`Calories reduced to ${newCalories} kcal/day`);
+        profile.dailyCalories = Math.round(profile.dailyCalories * 0.95);
+        profileChanged = true;
+        changes.push(`Calories reduced to ${profile.dailyCalories} kcal/day`);
       }
       break;
+    }
+  }
+
+  // Save profile properly via store
+  if (profileChanged && profile) {
+    const { saveProfile } = require('./store');
+    saveProfile(profile);
+  }
+
+  // Regenerate meal plan with updated targets
+  if (changes.length > 0 && plannerProfile) {
+    try {
+      const { generateWeekPlan } = require('./meal-plan-generator');
+      const { saveWeekPlan } = require('./meal-planner-store');
+      const newPlan = generateWeekPlan(plannerProfile, profile?.healthConditions, profile?.womenHealth);
+      saveWeekPlan(newPlan);
+      changes.push('Meal plan regenerated for next week');
+    } catch (e) {
+      // Plan generation is best-effort
     }
   }
 
