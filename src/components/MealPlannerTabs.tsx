@@ -1,13 +1,14 @@
 import { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Check, Plus, Search, Clock, Flame } from 'lucide-react';
+import { ShoppingCart, Check, Plus, Search, Clock, Flame, Zap, X } from 'lucide-react';
 import { getWeekPlan, getCurrentWeekStart } from '@/lib/meal-planner-store';
 import { generateShoppingList } from '@/lib/meal-plan-generator';
 import { recipes, getRecipeById } from '@/lib/recipes';
 import { getRecipeImage } from '@/lib/recipe-images';
 import type { WeekPlan } from '@/lib/meal-planner-store';
 import BudgetPlannerTab from './BudgetPlannerTab';
-
+import SurvivalKitSheet from './SurvivalKitSheet';
+import { getSavedSurvivalKit, clearSurvivalKit } from '@/lib/grocery-survival';
 const TAB_ITEMS = ['Budget', 'Meal Plan', 'Groceries', 'Recipes'] as const;
 type TabName = typeof TAB_ITEMS[number];
 
