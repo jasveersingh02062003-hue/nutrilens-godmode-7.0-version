@@ -22,14 +22,50 @@ interface MealPlannerTabsProps {
 
 // ===== Groceries Sub-Tab =====
 function GroceriesTab({ plan }: { plan: WeekPlan }) {
-  const initialList = useMemo(() => generateShoppingList(plan), [plan]);
+  const [kitOpen, setKitOpen] = useState(false);
+  const [savedKit, setSavedKit] = useState(() => getSavedSurvivalKit());
+
+  const initialList = useMemo(() => {
+    const planList = generateShoppingList(plan);
+
+    if (!savedKit) return planList;
+
+    // Convert survival kit items into grocery format grouped by category
+    const kitByCategory: Record<string, { name: string; quantity: string; checked: boolean; isKit?: boolean }[]> = {};
+    for (const item of savedKit.items) {
+      const cat = item.category || 'Survival Kit';
+      if (!kitByCategory[cat]) kitByCategory[cat] = [];
+      kitByCategory[cat].push({
+        name: `⚡ ${item.name}`,
+        quantity: `${item.quantity} ${item.unit} (₹${Math.round(item.cost)})`,
+        checked: false,
+        isKit: true,
+      });
+    }
+
+    // Merge: kit categories first, then plan categories
+    const merged: typeof planList = [];
+    for (const [cat, items] of Object.entries(kitByCategory)) {
+      const existing = planList.find((c: any) => c.category === cat);
+      if (existing) {
+        merged.push({ category: cat, items: [...items, ...existing.items] });
+      } else {
+        merged.push({ category: cat, items });
+      }
+    }
+    // Add remaining plan categories not in kit
+    for (const cat of planList) {
+      if (!kitByCategory[cat.category]) {
+        merged.push(cat);
+      }
+    }
+    return merged;
+  }, [plan, savedKit]);
 
   const [groceryList, setGroceryList] = useState(initialList);
   const [addingItem, setAddingItem] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemQty, setNewItemQty] = useState('');
-  const [kitOpen, setKitOpen] = useState(false);
-  const [savedKit, setSavedKit] = useState(() => getSavedSurvivalKit());
 
   const toggleItem = (catIdx: number, itemIdx: number) => {
     setGroceryList(prev => prev.map((cat, ci) =>
