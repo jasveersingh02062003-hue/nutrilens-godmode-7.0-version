@@ -2,7 +2,7 @@
 // Generates an optimized shopping list maximizing protein efficiency (PES)
 // within the user's remaining budget.
 
-import { foodDatabase, getPESColor, type PESFood, type PESColor } from './pes-engine';
+import { foodDatabase, getPESColor, computePES, type PESFood, type PESColor } from './pes-engine';
 import { getProfile } from './store';
 import { getBudgetSettings } from './expense-store';
 
