@@ -39,7 +39,7 @@ import { toast } from 'sonner';
 import { getWeather, fetchLiveWeather, type WeatherData } from '@/lib/weather-service';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
 import NextMealCard from '@/components/NextMealCard';
-import { getDualSyncInsight, isSurvivalModeManual } from '@/lib/budget-service';
+import { getDualSyncInsight, isSurvivalModeManual, getLatestBudgetAlert, clearLatestBudgetAlert, type BudgetAlertResult } from '@/lib/budget-service';
 import UpgradeBanner from '@/components/UpgradeBanner';
 import { getMealPlannerProfile } from '@/lib/meal-planner-store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -60,6 +60,7 @@ export default function Dashboard() {
   const [editingSupplement, setEditingSupplement] = useState<SupplementEntry | null>(null);
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('tutorial_seen'));
   const [showPESExplanation, setShowPESExplanation] = useState(() => !localStorage.getItem('pes_explanation_seen'));
+  const [budgetAlert, setBudgetAlert] = useState<(BudgetAlertResult & { timestamp: number; date: string }) | null>(getLatestBudgetAlert());
 
   const plannerProfile = getMealPlannerProfile();
   const plannerIncomplete = !plannerProfile || !plannerProfile.onboardingComplete;
@@ -112,6 +113,7 @@ export default function Dashboard() {
   useEffect(() => {
     const interval = setInterval(() => {
       setLog(getDailyLog());
+      setBudgetAlert(getLatestBudgetAlert());
       // Check streaks on each refresh
       const { milestones } = checkAndUpdateStreaks();
       for (const m of milestones) {
@@ -274,6 +276,28 @@ export default function Dashboard() {
         <div className="animate-slide-up" style={{ animationDelay: '0.05s' }}>
           <BudgetSummaryCard />
         </div>
+
+        {/* Budget Alert Banner */}
+        {budgetAlert && budgetAlert.level !== 'ok' && (
+          <div className="animate-fade-in">
+            <div className={`flex items-center gap-3 rounded-2xl px-4 py-3 border ${
+              budgetAlert.level === 'warning'
+                ? 'bg-accent/10 border-accent/20'
+                : 'bg-destructive/10 border-destructive/20'
+            }`}>
+              <span className="text-sm">
+                {budgetAlert.level === 'warning' ? '⚠️' : budgetAlert.level === 'overspend' ? '🚫' : '⛔'}
+              </span>
+              <p className="text-[11px] font-medium text-foreground flex-1">{budgetAlert.message}</p>
+              <button
+                onClick={() => { clearLatestBudgetAlert(); setBudgetAlert(null); }}
+                className="shrink-0"
+              >
+                <X className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Daily Food Efficiency */}
         <div className="animate-slide-up" style={{ animationDelay: '0.055s' }}>

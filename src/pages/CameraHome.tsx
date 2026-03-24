@@ -17,6 +17,7 @@ import { validateMeal, validateSingleItem, type ValidationResult, type Validatio
 import ValidationFeedback from '@/components/ValidationFeedback';
 import { searchIndianFoods, indianFoodToFoodItem, getFoodByName } from '@/lib/indian-foods';
 import { toast } from 'sonner';
+import { checkBudgetAfterMeal } from '@/lib/budget-service';
 import UnitPicker from '@/components/UnitPicker';
 import FoodEditModal from '@/components/FoodEditModal';
 import { canUseCameraScan, incrementCameraScan, getRemainingCameraScans, getPlan, hasUsedTrial, startFreeTrial } from '@/lib/subscription-service';
@@ -516,6 +517,14 @@ export default function CameraHome() {
       action: { label: 'Undo', onClick: () => { deleteMealFromLog(dateKey, meal.id); toast.info('Meal removed'); } },
       duration: 5000,
     });
+
+    // Real-time budget check after logging
+    const mealCostAmount = finalCost?.amount || 0;
+    if (mealCostAmount > 0) {
+      const budgetAlert = checkBudgetAfterMeal(mealCostAmount);
+      if (budgetAlert.level === 'warning') toast.warning(budgetAlert.message);
+      else if (budgetAlert.level === 'overspend' || budgetAlert.level === 'overspend_severe') toast.error(budgetAlert.message);
+    }
 
     resetToCamera();
     navigate('/dashboard');

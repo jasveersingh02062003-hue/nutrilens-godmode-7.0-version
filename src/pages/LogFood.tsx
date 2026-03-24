@@ -13,6 +13,7 @@ import { validateMeal, validateSingleItem, type ValidationResult } from '@/lib/v
 import ValidationFeedback from '@/components/ValidationFeedback';
 import { getProfile } from '@/lib/store';
 import { toast } from 'sonner';
+import { checkBudgetAfterMeal } from '@/lib/budget-service';
 import UnitPicker from '@/components/UnitPicker';
 import { calculateNutrition, getUnitOptionsForFood } from '@/lib/unit-conversion';
 
@@ -147,6 +148,14 @@ export default function LogFood() {
         mealId: meal.id,
         type: 'meal',
       });
+    }
+
+    // Real-time budget check after logging
+    if (costAmount > 0) {
+      const alert = checkBudgetAfterMeal(costAmount);
+      if (alert.level === 'warning') toast.warning(alert.message);
+      else if (alert.level === 'overspend') toast.error(alert.message);
+      else if (alert.level === 'overspend_severe') toast.error(alert.message);
     }
 
     setContextPickerOpen(false);
