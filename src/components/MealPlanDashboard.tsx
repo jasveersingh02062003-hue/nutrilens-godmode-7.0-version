@@ -311,7 +311,7 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
                           onClick={() => onSwapMeal(currentDay.date, meal.recipeId)}
                           className="ml-auto text-[10px] font-bold text-primary"
                         >
-                          Find Cheaper →
+                          ⚡ Try Swap
                         </button>
                       </div>
                     )}
