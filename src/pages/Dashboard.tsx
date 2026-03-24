@@ -246,6 +246,19 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Meal Recovery Banner */}
+        {recovery && (
+          <div className="animate-fade-in">
+            <div className="flex items-center gap-3 rounded-2xl px-4 py-3 border bg-primary/10 border-primary/20">
+              <span className="text-sm">🔄</span>
+              <p className="text-[11px] font-medium text-foreground">{recovery.reason}</p>
+              <button onClick={() => setRecovery(null)} className="shrink-0">
+                <X className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Daily Adjustment Summary (from yesterday) */}
         <div className="animate-fade-in">
           <DailyAdjustmentSummary />
