@@ -352,9 +352,34 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
         };
         const feasibility = validatePlanFeasibility(tempProfile, budgetSettings);
 
+        // Adherence-based complexity
+        const adherenceHist = getAdherenceHistory();
+        const lastScore = adherenceHist.length > 0 ? adherenceHist[adherenceHist.length - 1].score : undefined;
+        const complexity = getComplexityRecommendation(lastScore);
+        const trend = getAdherenceTrend();
+        const hasAdherenceData = adherenceHist.length > 0;
+
         return (
           <div className="space-y-4">
             <Header icon={Sparkles} title="Ready to generate!" sub="Your complete plan profile." />
+
+            {/* Adherence-based complexity info */}
+            {hasAdherenceData && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                className="bg-primary/5 border border-primary/20 rounded-2xl p-3.5 flex gap-3"
+              >
+                <BarChart3 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-semibold text-foreground">
+                    Based on your history, we'll suggest {complexity.description} meals
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Adherence: {Math.round((lastScore || 0) * 100)}% · Trend: {trend.direction === 'rising' ? '📈 improving' : trend.direction === 'falling' ? '📉 declining' : '➡️ steady'}
+                  </p>
+                </div>
+              </motion.div>
+            )}
 
             {/* Feasibility warning */}
             {!feasibility.feasible && feasibility.warning && (
@@ -394,6 +419,7 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
               {form.allergies?.length > 0 && form.allergies[0] !== 'none' && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Allergies</span><span className="font-semibold text-foreground capitalize">{form.allergies.join(', ')}</span></div>}
               {form.cuisinePrefs?.length > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Cuisines</span><span className="font-semibold text-foreground capitalize">{form.cuisinePrefs.join(', ')}</span></div>}
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">Cooking</span><span className="font-semibold text-foreground capitalize">{form.cookingSkill} · {form.cookingTime}</span></div>
+              {hasAdherenceData && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Complexity</span><span className="font-semibold text-foreground capitalize">{complexity.level}</span></div>}
             </div>
             <p className="text-[10px] text-muted-foreground text-center">Budget from Budget tab · Health from onboarding</p>
           </div>
