@@ -1,68 +1,44 @@
 
 
-## Fix: Wire All Disconnected Features Together
+## Unified PES Engine — Single Source of Truth
 
 ### Problem
-Several features were built but never connected to the rest of the system. Specifically:
-
-1. **Meal Recovery** (`meal-recovery.ts`) — `getRecoveredTargets()` and `calculateRecoveryAdjustment()` exist but are never imported or called anywhere. Yesterday's missed protein or calorie overshoot has zero effect on today.
-
-2. **Portion Engine** (`portion-engine.ts`) — `calculatePortions()` exists but is never used. Meal plan shows recipes without scaled quantities.
-
-3. **Weekly Auto-Fix doesn't regenerate plan** — `autoFixNextWeek()` adjusts profile targets (protein, calories, budget) but never regenerates the actual week plan or grocery list. The user clicks "Fix Next Week Plan" and gets toasts, but the meal plan stays the same.
-
-4. **Swap doesn't refresh grocery list** — After applying a swap in `SwapSimulatorSheet`, the plan is saved but `MealPlannerTabs`'s `GroceriesTab` uses a `useMemo` on the initial plan prop, so it doesn't re-render with updated ingredients.
-
-5. **Profile sync after auto-fix** — `autoFixNextWeek()` writes directly to `localStorage` with `JSON.stringify` instead of using `saveProfile()` from store, so `UserProfileContext` never picks up the changes.
+4 separate scoring formulas produce inconsistent food rankings across modules.
 
 ### Changes (5 files)
 
-**File 1: Update `src/pages/Dashboard.tsx`** — Wire meal recovery
+**File 1: `src/lib/pes-engine.ts`** — Add `computePES()`, `inferCategory()`, `getMealTargetCalories()` at the bottom
 
-- Import `getRecoveredTargets` from `meal-recovery.ts`
-- In the existing mount `useEffect`, call `getRecoveredTargets(profile.dailyCalories, profile.dailyProtein)`
-- Store the `recovery` result in state
-- If recovery exists, show a small info banner: e.g. "Today's protein boosted +20g (yesterday was short)" — reuse the existing banner pattern (similar to budget alert banner)
-- Pass adjusted targets to `CalorieRing` and `MacroCard` so the rings reflect recovery-adjusted goals
+- `QUALITY_MAP` constant mapping food categories to DIAAS quality factors (egg: 1.0, chicken: 1.0, dairy: 0.95, soy: 0.9, dal: 0.75, pulses: 0.75, cereal: 0.6, junk: 0.4)
+- `inferCategory(recipe)` — maps tags/name to category key
+- `computePES(recipe, context)` — unified scoring: `0.5 * min(1, ppr*3) + 0.3 * calorieFit + 0.2 * min(1, satiety/5)` with penalties for protein drop (-0.3), calorie excess (-0.2), budget exceed (-0.2). Returns clamped 0–1.
+- `getMealTargetCalories(mealType, profile)` — daily calories * split percentage (breakfast 25%, lunch 35%, snacks 15%, dinner 25%)
+- All existing functions untouched
 
-**File 2: Update `src/components/MealPlanDashboard.tsx`** — Wire portion engine to meal cards
+**File 2: `src/lib/swap-engine.ts`** — Line 64-65: replace inline scoring
 
-- Import `calculatePortions` from `portion-engine.ts`
-- In the meal card rendering, call `calculatePortions(recipe, mealTargetCalories)` where `mealTargetCalories` comes from the planner profile's per-meal split
-- Display scaled ingredient quantities below each meal card (e.g. "Rice: 80g · Dal: 150g · Oil: 5g") in small muted text
-- Only show portions when recipe has ingredients
+- Import `computePES`, `getMealTargetCalories`
+- Replace `(e.proteinPerRupee * 0.6) + (calorieFit * 0.4)` with `computePES(e, { targetCalories, originalProtein: original.protein })`
+- Rest unchanged (sorting, highlights, protein drop flag)
 
-**File 3: Update `src/lib/weekly-feedback.ts`** — Auto-fix must regenerate plan + use proper save
+**File 3: `src/lib/meal-plan-generator.ts`** — Lines 15-23: replace `scoreRecipe()` body
 
-- In `autoFixNextWeek()`: after adjusting targets, import and call `generateWeekPlan()` + `saveWeekPlan()` to actually regenerate the meal plan
-- Replace direct `localStorage.setItem('nutrilens_profile', ...)` with `saveProfile()` from store so `UserProfileContext` stays in sync
-- After regenerating plan, the grocery list auto-updates since `GroceriesTab` reads from the saved plan
+- Import `computePES` from pes-engine
+- Replace the 6-factor formula with `computePES(enriched, { targetCalories: maxCost, budgetPerMeal: maxCost, originalProtein: targetProtein })` + `feedbackMod` additive
+- `pickBest()` unchanged
 
-**File 4: Update `src/components/WeeklyFeedbackCard.tsx`** — Refresh profile after fix
+**File 4: `src/lib/meal-suggestion-engine.ts`** — Lines 88-100: replace `rankScore`
 
-- After `autoFixNextWeek()` succeeds, call `refreshProfile()` from `useUserProfile()` context so Dashboard picks up new targets immediately
-- Add a note in the success toast: "Plan regenerated for next week"
+- Import `computePES`
+- Replace 5-factor formula with `computePES(r, { targetCalories: remainingCalories, budgetPerMeal: maxCost })`
+- Keep `matchReason` bonus as +0.05 additive
 
-**File 5: Update `src/pages/MealPlanner.tsx`** — Grocery list refreshes after swap
+**File 5: `src/lib/grocery-survival.ts`** — Line 107: replace sort
 
-- After `performSwap()` saves the updated plan, call `setPlan({...updated})` (already done) — but also ensure `MealPlannerTabs` receives the latest `plan` prop so `GroceriesTab`'s `useMemo` recomputes
-- This is already wired correctly (plan state updates trigger re-render). Verify `MealPlannerTabs` receives `plan` as prop — if `GroceriesTab` reads from `getWeekPlan()` instead of props, change it to use the prop
-
-### Sync Verification Checklist
-```text
-Log meal → budget ring updates     ✅ Already wired (checkBudgetAfterMeal)
-Log meal → cloud sync              ✅ Already wired (syncDailyLogToCloud)
-Swap meal → plan updates           ✅ Already wired (performSwap)
-Swap meal → grocery list updates   ⚠️ Fix: ensure GroceriesTab re-reads plan
-Recovery → today's targets         ❌ Fix: wire getRecoveredTargets in Dashboard
-Portions → meal card display       ❌ Fix: wire calculatePortions in MealPlanDashboard
-Auto-fix → regenerate plan         ❌ Fix: call generateWeekPlan in autoFixNextWeek
-Auto-fix → profile context sync    ❌ Fix: use saveProfile + refreshProfile
-```
+- Import `computePES`
+- Replace `b.proteinPerRupee - a.proteinPerRupee` with `computePES(b, { targetCalories: 500 }) - computePES(a, { targetCalories: 500 })`
 
 ### What stays unchanged
-- Onboarding flow, food database, recipe system
-- Budget service, expense store, PES engine
-- Survival kit, swap engine logic
-- Cloud sync, auth context
+- All existing display functions (`evaluateFood`, `getPESColor`, `dailyEfficiency`, `compareFoods`, `findBetterAlternatives`, `bestUnderPrice`)
+- `foodDatabase` array, all UI components, filtering logic, budget service, weekly feedback
 
