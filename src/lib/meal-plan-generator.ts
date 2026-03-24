@@ -512,29 +512,81 @@ export function swapMeal(plan: WeekPlan, date: string, recipeId: string, profile
   return { ...plan };
 }
 
-export function generateShoppingList(plan: WeekPlan): { category: string; items: { name: string; quantity: string; checked: boolean }[] }[] {
-  const itemMap: Record<string, { name: string; quantities: string[]; category: string }> = {};
+// ─── Batch Cooking Detection ───
 
-  for (const day of plan.days) {
-    for (const meal of day.meals) {
-      const recipe = filterRecipes({}).find(r => r.id === meal.recipeId);
+function detectBatchCooking(plan: WeekPlan): WeekPlan {
+  // Find recipes that share a common base and appear within 2 days of each other
+  const BASE_INGREDIENTS = ['dal', 'rice', 'roti', 'curry', 'sambar', 'chutney', 'raita'];
+  const recipeOccurrences: Record<string, { dayIdx: number; mealIdx: number }[]> = {};
+
+  for (let d = 0; d < plan.days.length; d++) {
+    for (let m = 0; m < plan.days[d].meals.length; m++) {
+      const meal = plan.days[d].meals[m];
+      const recipe = recipes.find(r => r.id === meal.recipeId);
       if (!recipe) continue;
-      for (const ing of recipe.ingredients) {
-        const key = ing.name.toLowerCase();
-        if (!itemMap[key]) {
-          itemMap[key] = { name: ing.name, quantities: [], category: ing.category };
+
+      // Check if recipe ingredients contain a base
+      for (const base of BASE_INGREDIENTS) {
+        const hasBase = recipe.ingredients.some(ing => ing.name.toLowerCase().includes(base));
+        if (hasBase) {
+          const key = `${base}-${recipe.id}`;
+          if (!recipeOccurrences[key]) recipeOccurrences[key] = [];
+          recipeOccurrences[key].push({ dayIdx: d, mealIdx: m });
         }
-        itemMap[key].quantities.push(ing.quantity);
       }
     }
   }
 
+  // Group meals that share same recipe within 2 days
+  let groupId = 1;
+  for (const [, occurrences] of Object.entries(recipeOccurrences)) {
+    if (occurrences.length < 2) continue;
+    // Check if any two are within 2 days
+    const sorted = occurrences.sort((a, b) => a.dayIdx - b.dayIdx);
+    const batchTag = `batch-${groupId}`;
+    let tagged = false;
+    for (let i = 0; i < sorted.length - 1; i++) {
+      if (sorted[i + 1].dayIdx - sorted[i].dayIdx <= 2) {
+        plan.days[sorted[i].dayIdx].meals[sorted[i].mealIdx].batchGroup = batchTag;
+        plan.days[sorted[i + 1].dayIdx].meals[sorted[i + 1].mealIdx].batchGroup = batchTag;
+        tagged = true;
+      }
+    }
+    if (tagged) groupId++;
+  }
+
+  return plan;
+}
+
+// ─── Shopping List (Aggregated) ───
+
+export function generateShoppingList(plan: WeekPlan): { category: string; items: { name: string; quantity: string; checked: boolean }[] }[] {
+  const allIngredients: { name: string; quantity: string; category: string }[] = [];
+
+  for (const day of plan.days) {
+    for (const meal of day.meals) {
+      const recipe = recipes.find(r => r.id === meal.recipeId);
+      if (!recipe) continue;
+      const scale = meal.portionScale || 1;
+      for (const ing of recipe.ingredients) {
+        allIngredients.push({
+          name: ing.name,
+          quantity: scale !== 1 ? `${scale}x ${ing.quantity}` : ing.quantity,
+          category: ing.category,
+        });
+      }
+    }
+  }
+
+  const aggregated = aggregateIngredients(allIngredients);
+
+  // Group by category
   const catMap: Record<string, { name: string; quantity: string; checked: boolean }[]> = {};
-  for (const item of Object.values(itemMap)) {
+  for (const item of aggregated) {
     if (!catMap[item.category]) catMap[item.category] = [];
     catMap[item.category].push({
       name: item.name,
-      quantity: item.quantities.length > 1 ? `${item.quantities.length}x (${item.quantities[0]})` : item.quantities[0],
+      quantity: item.displayQuantity,
       checked: false,
     });
   }
