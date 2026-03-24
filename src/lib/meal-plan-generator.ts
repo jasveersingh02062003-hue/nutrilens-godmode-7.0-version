@@ -319,8 +319,10 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
   const cuisines = getCuisineMap(profile.cuisinePrefs || []);
   const difficulty = getDifficultyFilter(profile.cookingSkill);
   const mealsPerDay = profile.mealsPerDay || 3;
-  const targetCal = profile.dailyCalories;
-  const targetProtein = profile.dailyProtein || Math.round(profile.dailyCalories * 0.15 / 4);
+  const baseCal = profile.dailyCalories;
+  const flexReserve = Math.round(baseCal * 0.1);
+  const targetCal = baseCal - flexReserve; // 90% for planned meals
+  const targetProtein = profile.dailyProtein || Math.round(baseCal * 0.15 / 4);
   const allHealthConds = [...(healthConditions || []), ...(womenHealth || [])];
 
   // Adherence-based complexity adjustment
