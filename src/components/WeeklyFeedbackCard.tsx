@@ -68,6 +68,7 @@ export default function WeeklyFeedbackCard() {
     if (result.applied) {
       result.changes.forEach(c => toast.success(`✅ ${c}`));
       setSummary({ ...summary, autoFixApplied: true });
+      refreshProfile(); // Sync profile context with updated targets
     } else {
       toast.info('No adjustments needed — you\'re on track!');
     }
