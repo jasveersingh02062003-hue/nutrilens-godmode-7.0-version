@@ -238,7 +238,7 @@ export default function MealPlanner() {
                         </div>
                         <button onClick={() => handleSwapMeal(day.date, meal.recipeId)}
                           className="px-2.5 py-1.5 rounded-lg bg-muted text-muted-foreground text-[10px] font-semibold flex items-center gap-1 hover:bg-primary/10 hover:text-primary transition-colors">
-                          <Repeat className="w-3 h-3" /> Swap
+                          <Zap className="w-3 h-3" /> Try Swap
                         </button>
                       </div>
                     );
