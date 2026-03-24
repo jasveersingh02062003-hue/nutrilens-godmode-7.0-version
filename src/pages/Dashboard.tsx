@@ -139,6 +139,7 @@ export default function Dashboard() {
   const survivalMode = isSurvivalModeActive() || isSurvivalModeManual();
   const recoveryMode = isRecoveryModeActive();
   const dualSyncInsight = getDualSyncInsight(profile.dailyCalories);
+  const [budgetAlert, setBudgetAlert] = useState<(BudgetAlertResult & { timestamp: number; date: string }) | null>(getLatestBudgetAlert());
 
   return (
     <>
