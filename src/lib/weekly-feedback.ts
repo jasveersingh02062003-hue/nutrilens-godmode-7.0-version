@@ -235,7 +235,7 @@ export function autoFixNextWeek(summary: WeeklySummary): { changes: string[]; ap
     case 'budget': {
       const overshoot = summary.spent - summary.budget;
       if (overshoot > 0) {
-        const bs = getBudgetSettingsFromExpense();
+        const bs = getBudgetSettings();
         const reduction = Math.round(overshoot / 7);
         const newWeekly = Math.max(350, bs.weeklyBudget - overshoot);
         bs.weeklyBudget = newWeekly;
