@@ -461,10 +461,14 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
     weekStart: weekStartStr,
     days,
     generatedAt: new Date().toISOString(),
+    flexCaloriesPerDay: flexReserve,
   };
 
   // ─── Weekly protein balancing post-pass ───
   plan = balanceWeeklyProtein(plan, profile);
+
+  // ─── Batch cooking detection ───
+  plan = detectBatchCooking(plan);
 
   return plan;
 }
