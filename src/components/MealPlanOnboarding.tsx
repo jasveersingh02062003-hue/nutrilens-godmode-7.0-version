@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Check, Sparkles, Apple, ChefHat, Heart, Activity, Scale, Flame, Droplets, Shield, Wallet } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Sparkles, Apple, ChefHat, Heart, Activity, Scale, Flame, Droplets, Shield, Wallet, AlertTriangle } from 'lucide-react';
 import { MealPlannerProfile, saveMealPlannerProfile } from '@/lib/meal-planner-store';
 import { calculateBMI, calculateBMR, calculateTDEE, getBMICategory } from '@/lib/nutrition';
 import { determineGoalAndTargets } from '@/lib/goal-engine';
 import { getProfile } from '@/lib/store';
 import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
+import { validatePlanFeasibility, FeasibilityResult } from '@/lib/plan-validator';
 import MonikaGuide, { MEAL_PLANNER_MONIKA } from '@/components/onboarding/MonikaGuide';
 import OnboardingProgress from '@/components/onboarding/OnboardingProgress';
 
@@ -331,9 +332,56 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
         const perMeal = budgetSettings.perMeal || { breakfast: 0, lunch: 0, dinner: 0, snacks: 0 };
         const budgetDaily = (perMeal.breakfast || 0) + (perMeal.lunch || 0) + (perMeal.dinner || 0) + (perMeal.snacks || 0);
         const health = p?.healthConditions || [];
+
+        // Run feasibility check
+        const tempProfile: MealPlannerProfile = {
+          name: p?.name || '', gender: p?.gender || 'male', age: p?.age || 25,
+          currentWeight: p?.weightKg || 70, goalWeight: p?.targetWeight || 65, heightCm: p?.heightCm || 170,
+          weightUnit: 'kg', bmi, mainGoal: p?.goal || 'maintain', motivations: [], weeklyPace: 0.5,
+          experienceLevel: '', challenges: [], activityLevel: p?.activityLevel || 'moderate',
+          exerciseFrequency: '', exerciseTypes: [], sleepHours: '', stressLevel: '',
+          dietaryPrefs: form.dietaryPrefs || [], medicalRestrictions: health, allergies: form.allergies || [],
+          dislikedFoods: '', religiousRestrictions: [], cuisinePrefs: form.cuisinePrefs || [],
+          cookingSkill: form.cookingSkill || '', cookingTime: form.cookingTime || '', equipment: [],
+          eatingOutFrequency: '', mealPrep: '', snackingHabits: [], mealsPerDay: 3,
+          dailyBudget: budgetDaily, currency: 'INR',
+          dailyCalories: p?.dailyCalories || 2000, dailyProtein: p?.dailyProtein || 80,
+          dailyCarbs: p?.dailyCarbs || 250, dailyFat: p?.dailyFat || 55,
+          onboardingComplete: true, createdAt: new Date().toISOString(),
+        };
+        const feasibility = validatePlanFeasibility(tempProfile, budgetSettings);
+
         return (
           <div className="space-y-4">
             <Header icon={Sparkles} title="Ready to generate!" sub="Your complete plan profile." />
+
+            {/* Feasibility warning */}
+            {!feasibility.feasible && feasibility.warning && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3.5 flex gap-3"
+              >
+                <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">{feasibility.warning}</p>
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => set('budgetChoice', 'stay_budget')}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all ${form.budgetChoice === 'stay_budget' ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border'}`}
+                    >
+                      Stay in budget
+                    </button>
+                    <button
+                      onClick={() => set('budgetChoice', 'hit_nutrition')}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all ${form.budgetChoice === 'hit_nutrition' ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border'}`}
+                    >
+                      Hit nutrition targets
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             <div className="card-elevated p-4 space-y-2.5">
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">Goal</span><span className="font-semibold text-foreground capitalize">{(p?.goal || 'maintain').replace(/_/g, ' ')}</span></div>
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">BMI</span><span className="font-semibold text-foreground">{bmi.toFixed(1)} ({cat})</span></div>
