@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingCart, Check, Plus, Search, Clock, Flame, Zap, X } from 'lucide-react';
 import { getWeekPlan, getCurrentWeekStart } from '@/lib/meal-planner-store';
