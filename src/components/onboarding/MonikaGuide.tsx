@@ -105,28 +105,13 @@ export const MONIKA_MESSAGES: Record<string, { message: string; mood: MonikaGuid
 
 // Meal Planner onboarding messages
 export const MEAL_PLANNER_MONIKA: Record<string, { message: string; mood: MonikaMood }> = {
-  welcome: { message: "Let's build your perfect meal plan together!", mood: 'excited' },
-  goal: { message: "What are we cooking towards? Your goal shapes everything.", mood: 'thinking' },
-  motivations: { message: "Understanding your 'why' helps me keep you motivated.", mood: 'happy' },
-  pace: { message: "Slow & steady or full speed? Both are valid.", mood: 'thinking' },
-  experience: { message: "No judgment — everyone starts somewhere.", mood: 'happy' },
-  challenges: { message: "Knowing your struggles helps me plan around them.", mood: 'concerned' },
-  activity: { message: "Your activity level determines calorie needs.", mood: 'thinking' },
-  exercise: { message: "Exercise + good food = unstoppable.", mood: 'excited' },
-  sleep: { message: "Good sleep = better food choices.", mood: 'thinking' },
-  stress: { message: "I'll suggest comfort foods that are actually healthy.", mood: 'concerned' },
+  dataSync: { message: "I've gathered all your data. Let's see what we're working with!", mood: 'excited' },
   dietary: { message: "Your preferences, your plan — no compromises.", mood: 'happy' },
-  medical: { message: "Safety first! I'll keep these in mind.", mood: 'concerned' },
-  allergies: { message: "I'll make sure nothing sneaks into your meals.", mood: 'concerned' },
+  allergies: { message: "I'll make sure nothing harmful sneaks into your meals.", mood: 'concerned' },
   cuisines: { message: "Let's pick your favourite cuisines!", mood: 'excited' },
   cooking: { message: "Whether chef or microwave master — I've got you.", mood: 'happy' },
   cookTime: { message: "Time is precious — I'll respect yours.", mood: 'thinking' },
-  equipment: { message: "Let me know what you're working with.", mood: 'happy' },
-  eatingOut: { message: "Eating out is fine — I'll plan around it.", mood: 'happy' },
-  snacking: { message: "Snacking is normal! Let's make it smart.", mood: 'happy' },
-  mealsPerDay: { message: "Almost there! How many meals should I plan?", mood: 'excited' },
-  budget: { message: "Set your food budget — I'll plan meals that fit your wallet! 💰", mood: 'thinking' },
-  summary: { message: "Your meal plan profile is ready!", mood: 'celebrating' },
+  summary: { message: "Everything's ready! Let's generate your plan.", mood: 'celebrating' },
 };
 
 // Budget Planner onboarding messages
