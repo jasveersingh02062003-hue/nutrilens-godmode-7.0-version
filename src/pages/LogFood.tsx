@@ -149,6 +149,14 @@ export default function LogFood() {
       });
     }
 
+    // Real-time budget check after logging
+    if (costAmount > 0) {
+      const alert = checkBudgetAfterMeal(costAmount);
+      if (alert.level === 'warning') toast.warning(alert.message);
+      else if (alert.level === 'overspend') toast.error(alert.message);
+      else if (alert.level === 'overspend_severe') toast.error(alert.message);
+    }
+
     setContextPickerOpen(false);
     navigate(targetDate ? '/progress' : '/dashboard');
   };
