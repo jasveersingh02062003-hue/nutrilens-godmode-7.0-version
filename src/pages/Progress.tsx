@@ -172,6 +172,9 @@ export default function ProgressPage() {
         {/* Overview Stats */}
         <OverviewStats refreshKey={refreshKey} />
 
+        {/* Weekly Summaries History */}
+        <WeeklySummariesSection />
+
         {/* Flashback */}
         <FlashbackCard onOpenDate={(d) => setSelectedDate(d)} />
 
