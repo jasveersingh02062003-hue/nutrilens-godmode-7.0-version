@@ -2,8 +2,9 @@ import { MealPlannerProfile, WeekPlan, DayPlan, PlannedMeal } from './meal-plann
 import { filterRecipes, getEnrichedRecipe, Recipe, recipes } from './recipes';
 import { getBudgetCurveMultiplier, getAdjustedDailyBudget } from './budget-service';
 import { getEnhancedBudgetSettings } from './budget-alerts';
-import { getMealMacroTargets, getRecipeComposition } from './plan-validator';
+import { getMealMacroTargets, getRecipeComposition, shouldAvoidRecipe, validateWeeklyNutrition } from './plan-validator';
 import { getFeedbackScoreModifier } from './meal-plan-feedback';
+import { getComplexityRecommendation, getAdherenceHistory } from './adherence-service';
 
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -100,6 +101,7 @@ function findRecipeWithFallback(
     excludeIds?: string[];
     maxCost?: number;
     targetProtein?: number;
+    healthConditions?: string[];
   }
 ): { recipe: Recipe; reason: string } | null {
   const levels = [
@@ -112,8 +114,14 @@ function findRecipeWithFallback(
     { mealType },
   ];
 
+  const healthConds = opts.healthConditions || [];
+
   for (const filter of levels) {
-    const results = filterRecipes(filter);
+    let results = filterRecipes(filter);
+    // Health constraint filtering (non-negotiable — priority 1)
+    if (healthConds.length > 0) {
+      results = results.filter(r => !shouldAvoidRecipe(r, healthConds));
+    }
     const costed = opts.maxCost ? results.filter(r => getEnrichedRecipe(r).estimatedCost <= opts.maxCost! * 1.15) : results;
     if (costed.length) {
       const recipe = pickBest(costed, opts.maxCost, opts.targetProtein);
@@ -125,7 +133,11 @@ function findRecipeWithFallback(
     }
   }
 
-  const fallback = recipes.filter(r => r.mealType.includes(mealType as any));
+  // Final fallback: any recipe matching meal type (still respect health)
+  let fallback = recipes.filter(r => r.mealType.includes(mealType as any));
+  if (healthConds.length > 0) {
+    fallback = fallback.filter(r => !shouldAvoidRecipe(r, healthConds));
+  }
   if (fallback.length) {
     const recipe = pickBest(fallback, opts.maxCost, opts.targetProtein);
     return { recipe, reason: generateMealReason(recipe, opts.maxCost, opts.targetProtein) };
@@ -156,6 +168,144 @@ export interface PlannedMealWithReason extends PlannedMeal {
   reason?: string;
 }
 
+// ─── Fail-Safe Simple Plan ───
+// Basic rotations when main engine can't find enough recipes
+
+interface SimpleMealDef {
+  name: string;
+  calories: number;
+  protein: number;
+  cost: number;
+}
+
+const SIMPLE_MEALS: Record<string, SimpleMealDef[]> = {
+  breakfast: [
+    { name: 'Oats + Banana', calories: 300, protein: 10, cost: 30 },
+    { name: 'Egg Toast', calories: 320, protein: 14, cost: 35 },
+    { name: 'Poha', calories: 250, protein: 6, cost: 25 },
+    { name: 'Upma', calories: 280, protein: 7, cost: 25 },
+    { name: 'Idli + Chutney', calories: 260, protein: 8, cost: 30 },
+  ],
+  lunch: [
+    { name: 'Dal + Rice + Sabzi', calories: 550, protein: 18, cost: 60 },
+    { name: 'Roti + Paneer', calories: 500, protein: 22, cost: 80 },
+    { name: 'Chole + Rice', calories: 520, protein: 16, cost: 55 },
+    { name: 'Rajma + Rice', calories: 530, protein: 17, cost: 50 },
+    { name: 'Khichdi', calories: 400, protein: 14, cost: 35 },
+  ],
+  dinner: [
+    { name: 'Roti + Dal + Salad', calories: 450, protein: 16, cost: 50 },
+    { name: 'Rice + Sambar', calories: 480, protein: 14, cost: 45 },
+    { name: 'Egg Curry + Roti', calories: 500, protein: 20, cost: 55 },
+    { name: 'Moong Dal + Roti', calories: 420, protein: 18, cost: 40 },
+    { name: 'Veg Pulao', calories: 460, protein: 12, cost: 50 },
+  ],
+  snack: [
+    { name: 'Banana + Peanuts', calories: 200, protein: 7, cost: 15 },
+    { name: 'Sprouts Chaat', calories: 180, protein: 10, cost: 20 },
+    { name: 'Curd + Fruits', calories: 150, protein: 6, cost: 25 },
+  ],
+};
+
+/**
+ * Generates a simple fallback plan when main engine can't produce valid results.
+ */
+export function generateSimplePlan(profile: MealPlannerProfile): WeekPlan {
+  const weekStart = new Date();
+  const day = weekStart.getDay();
+  const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1);
+  weekStart.setDate(diff);
+  const weekStartStr = weekStart.toISOString().split('T')[0];
+
+  const mealTypes = ['breakfast', 'lunch', 'dinner'];
+  if (profile.mealsPerDay > 3) mealTypes.push('snack');
+
+  const days: DayPlan[] = [];
+
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(weekStart);
+    date.setDate(date.getDate() + i);
+    const dateStr = date.toISOString().split('T')[0];
+
+    const meals: PlannedMealWithReason[] = mealTypes.map(type => {
+      const options = SIMPLE_MEALS[type] || SIMPLE_MEALS.snack;
+      const pick = options[i % options.length];
+      return {
+        recipeId: `simple-${type}-${i % options.length}`,
+        mealType: type as any,
+        cooked: false,
+        logged: false,
+        reason: `Simple fallback: ${pick.name}`,
+      };
+    });
+
+    days.push({ date: dateStr, meals });
+  }
+
+  return { weekStart: weekStartStr, days, generatedAt: new Date().toISOString() };
+}
+
+// ─── Weekly Protein Balancing Post-Pass ───
+
+function balanceWeeklyProtein(plan: WeekPlan, profile: MealPlannerProfile): WeekPlan {
+  const targetProtein = profile.dailyProtein || 60;
+  const dayProteins: { dayIdx: number; mealIdx: number; protein: number; recipeId: string }[][] = [];
+
+  // Compute protein per meal per day
+  for (let d = 0; d < plan.days.length; d++) {
+    const dayMeals: typeof dayProteins[0] = [];
+    for (let m = 0; m < plan.days[d].meals.length; m++) {
+      const recipe = recipes.find(r => r.id === plan.days[d].meals[m].recipeId);
+      dayMeals.push({
+        dayIdx: d,
+        mealIdx: m,
+        protein: recipe?.protein || 0,
+        recipeId: plan.days[d].meals[m].recipeId,
+      });
+    }
+    dayProteins.push(dayMeals);
+  }
+
+  const dayTotals = dayProteins.map(meals => meals.reduce((s, m) => s + m.protein, 0));
+
+  // Find days below 80% target and days above 110%
+  for (let d = 0; d < dayTotals.length; d++) {
+    if (dayTotals[d] >= targetProtein * 0.8) continue;
+
+    // Find a day that exceeded target
+    const surplusDay = dayTotals.findIndex((t, i) => i !== d && t > targetProtein * 1.1);
+    if (surplusDay === -1) continue;
+
+    // Find highest protein meal on surplus day, lowest on deficit day
+    const surplusMeals = [...dayProteins[surplusDay]].sort((a, b) => b.protein - a.protein);
+    const deficitMeals = [...dayProteins[d]].sort((a, b) => a.protein - b.protein);
+
+    if (surplusMeals.length > 0 && deficitMeals.length > 0) {
+      const highMeal = surplusMeals[0];
+      const lowMeal = deficitMeals[0];
+
+      // Only swap if same meal type
+      if (plan.days[surplusDay].meals[highMeal.mealIdx].mealType ===
+          plan.days[d].meals[lowMeal.mealIdx].mealType) {
+        // Swap recipe IDs
+        const tempId = plan.days[d].meals[lowMeal.mealIdx].recipeId;
+        plan.days[d].meals[lowMeal.mealIdx].recipeId = plan.days[surplusDay].meals[highMeal.mealIdx].recipeId;
+        plan.days[surplusDay].meals[highMeal.mealIdx].recipeId = tempId;
+
+        // Update reason
+        (plan.days[d].meals[lowMeal.mealIdx] as PlannedMealWithReason).reason =
+          'Rebalanced for weekly protein consistency';
+
+        // Update tracking
+        dayTotals[d] = dayTotals[d] - lowMeal.protein + highMeal.protein;
+        dayTotals[surplusDay] = dayTotals[surplusDay] - highMeal.protein + lowMeal.protein;
+      }
+    }
+  }
+
+  return plan;
+}
+
 export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?: string[], womenHealth?: string[]): WeekPlan {
   const weekStart = new Date();
   const day = weekStart.getDay();
@@ -170,6 +320,12 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
   const mealsPerDay = profile.mealsPerDay || 3;
   const targetCal = profile.dailyCalories;
   const targetProtein = profile.dailyProtein || Math.round(profile.dailyCalories * 0.15 / 4);
+  const allHealthConds = [...(healthConditions || []), ...(womenHealth || [])];
+
+  // Adherence-based complexity adjustment
+  const adherenceHist = getAdherenceHistory();
+  const lastScore = adherenceHist.length > 0 ? adherenceHist[adherenceHist.length - 1].score : undefined;
+  const complexity = getComplexityRecommendation(lastScore);
 
   // Get macro distribution targets
   const macroTargets = getMealMacroTargets(targetProtein, targetCal, mealsPerDay);
@@ -189,8 +345,8 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
   }
 
   const days: DayPlan[] = [];
-  // Track used recipes per meal type separately for better variety
   const usedByType: Record<string, string[]> = { breakfast: [], lunch: [], dinner: [], snack: [] };
+  let validRecipeCount = 0;
 
   for (let i = 0; i < 7; i++) {
     const date = new Date(weekStart);
@@ -211,7 +367,8 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
       const macroTarget = (macroTargets as any)[macroKey] || { proteinPct: 0.33, caloriePct: 0.33 };
       const mealProteinTarget = Math.round(targetProtein * macroTarget.proteinPct);
       const mealCalTarget = Math.round(targetCal * macroTarget.caloriePct);
-      const maxTime = getMaxTimeForMeal(type, profile.cookingTime);
+      // Use adherence-adjusted prep time or user setting
+      const maxTime = Math.min(getMaxTimeForMeal(type, profile.cookingTime), complexity.maxPrepTime);
 
       // Variety window: exclude last 3 breakfasts, last 2 lunch/dinner
       const varietyWindow = type === 'breakfast' ? 3 : 2;
@@ -226,6 +383,7 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
         maxCost: mealBudget,
         targetProtein: mealProteinTarget,
         excludeIds,
+        healthConditions: allHealthConds,
       });
 
       if (result) {
@@ -240,6 +398,7 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
         usedByType[type] = [...(usedByType[type] || []), result.recipe.id];
         dayProtein += result.recipe.protein;
         dayCost += enriched.estimatedCost;
+        validRecipeCount++;
       }
     }
 
@@ -258,10 +417,13 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
       const slotBudgetKey = slotType === 'snack' ? 'snacks' : slotType;
       const slotBudget = Math.round(((perMealBudget as any)[slotBudgetKey] || 100) * curveMultiplier);
 
-      // Budget flex: allow 15% overspend on this meal if needed for protein
       const flexBudget = Math.round(slotBudget * 1.15);
-      const betterCandidates = filterRecipes({ mealType: slotType, tags })
+      let betterCandidates = filterRecipes({ mealType: slotType, tags })
         .filter(r => r.protein > lowestProtein && getEnrichedRecipe(r).estimatedCost <= flexBudget);
+      // Health filter on swap candidates
+      if (allHealthConds.length > 0) {
+        betterCandidates = betterCandidates.filter(r => !shouldAvoidRecipe(r, allHealthConds));
+      }
       if (betterCandidates.length) {
         const best = betterCandidates.reduce((a, b) =>
           getEnrichedRecipe(a).proteinPerRupee > getEnrichedRecipe(b).proteinPerRupee ? a : b
@@ -280,11 +442,22 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
     days.push({ date: dateStr, meals });
   }
 
-  return {
+  // ─── Fail-safe check: if too few valid recipes found, use simple plan ───
+  const minExpected = mealTypes.length * 7 * 0.4; // at least 40% of slots filled
+  if (validRecipeCount < minExpected) {
+    return generateSimplePlan(profile);
+  }
+
+  let plan: WeekPlan = {
     weekStart: weekStartStr,
     days,
     generatedAt: new Date().toISOString(),
   };
+
+  // ─── Weekly protein balancing post-pass ───
+  plan = balanceWeeklyProtein(plan, profile);
+
+  return plan;
 }
 
 export function swapMeal(plan: WeekPlan, date: string, recipeId: string, profile: MealPlannerProfile): WeekPlan {
@@ -295,10 +468,9 @@ export function swapMeal(plan: WeekPlan, date: string, recipeId: string, profile
   const meal = day.meals[mealIdx];
   const usedIds = plan.days.flatMap(d => d.meals.map(m => m.recipeId));
   const tags = profile.dietaryPrefs || [];
+  const healthConds = profile.medicalRestrictions || [];
 
-  // Get the current recipe to match constraints
   const currentRecipe = recipes.find(r => r.id === recipeId);
-  const currentEnriched = currentRecipe ? getEnrichedRecipe(currentRecipe) : null;
 
   const enhanced = getEnhancedBudgetSettings();
   const perMealBudget = enhanced.perMeal || { breakfast: 100, lunch: 150, dinner: 200, snacks: 50 };
@@ -309,10 +481,10 @@ export function swapMeal(plan: WeekPlan, date: string, recipeId: string, profile
     tags,
     excludeIds: usedIds,
     maxCost: mealBudget,
-    // Match within ±15% calories of current recipe
     maxCalories: currentRecipe ? Math.round(currentRecipe.calories * 1.15) : undefined,
     targetProtein: currentRecipe ? currentRecipe.protein : undefined,
     maxPrepTime: getMaxTimeForMeal(meal.mealType, profile.cookingTime),
+    healthConditions: healthConds,
   });
 
   if (result) {
