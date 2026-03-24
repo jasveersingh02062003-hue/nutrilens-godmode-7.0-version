@@ -7,6 +7,8 @@ import { getRecipeById, Recipe } from '@/lib/recipes';
 import { generateShoppingList } from '@/lib/meal-plan-generator';
 import { getRecipeImage } from '@/lib/recipe-images';
 import { getRecipeCost } from '@/lib/recipe-cost';
+import { computePES, getMealTargetCalories } from '@/lib/pes-engine';
+import { getEnrichedRecipe } from '@/lib/recipes';
 import { getBudgetSummary } from '@/lib/budget-service';
 import { calculatePortions } from '@/lib/portion-engine';
 import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
