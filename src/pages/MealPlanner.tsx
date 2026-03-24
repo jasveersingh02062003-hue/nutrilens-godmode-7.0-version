@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ChefHat, CalendarDays, ArrowLeft, ArrowRight, Check, ShoppingCart, Repeat, X, Search, Target, Scale, Crown, Lock } from 'lucide-react';
+import { Sparkles, ChefHat, CalendarDays, ArrowLeft, ArrowRight, Check, ShoppingCart, Repeat, X, Search, Target, Scale, Crown, Lock, Zap } from 'lucide-react';
 import { isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
@@ -12,6 +12,8 @@ import type { TabName } from '@/components/MealPlannerTabs';
 import { getMealPlannerProfile, MealPlannerProfile, getWeekPlan, saveWeekPlan, markMealCooked, getCurrentWeekStart } from '@/lib/meal-planner-store';
 import { generateWeekPlan, swapMeal } from '@/lib/meal-plan-generator';
 import { getRecipeById, getRecipesByMealType } from '@/lib/recipes';
+import SwapSimulatorSheet from '@/components/SwapSimulatorSheet';
+import type { SwapImpact } from '@/lib/swap-engine';
 import { getProfile as getUserProfile } from '@/lib/store';
 import { getRecipeImage } from '@/lib/recipe-images';
 import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
@@ -126,15 +128,20 @@ export default function MealPlanner() {
     }
   };
 
-  const performSwap = (newRecipeId: string) => {
+  const performSwap = (newRecipeId: string, impact?: { costDiff: number; proteinDiff: number }) => {
     if (!plan || !profile || !swapTarget) return;
-    const updated = swapMeal(plan, swapTarget.date, swapTarget.recipeId, profile);
-    const day = updated.days.find(d => d.date === swapTarget.date);
-    const meal = day?.meals.find(m => m.mealType === swapTarget.mealType);
-    if (meal) meal.recipeId = newRecipeId;
+    const updated = { ...plan, days: plan.days.map(d => d.date === swapTarget.date ? {
+      ...d, meals: d.meals.map(m => m.recipeId === swapTarget.recipeId ? { ...m, recipeId: newRecipeId } : m)
+    } : d) };
     saveWeekPlan(updated);
     setPlan({ ...updated });
     setSwapTarget(null);
+    // Feedback toast
+    if (impact) {
+      const costMsg = impact.costDiff < 0 ? `₹${Math.abs(impact.costDiff)} saved` : impact.costDiff > 0 ? `₹${impact.costDiff} more` : '';
+      const protMsg = impact.proteinDiff >= 0 ? 'Protein on track ✓' : '⚠ Protein low — add a snack';
+      toast.success(`${costMsg}${costMsg ? ' · ' : ''}${protMsg}`);
+    }
   };
 
   const handleMarkCooked = (date: string, recipeId: string) => {
@@ -231,7 +238,7 @@ export default function MealPlanner() {
                         </div>
                         <button onClick={() => handleSwapMeal(day.date, meal.recipeId)}
                           className="px-2.5 py-1.5 rounded-lg bg-muted text-muted-foreground text-[10px] font-semibold flex items-center gap-1 hover:bg-primary/10 hover:text-primary transition-colors">
-                          <Repeat className="w-3 h-3" /> Swap
+                          <Zap className="w-3 h-3" /> Try Swap
                         </button>
                       </div>
                     );
@@ -247,41 +254,16 @@ export default function MealPlanner() {
           </button>
         </div>
 
-        {/* Swap bottom sheet */}
-        <AnimatePresence>
-          {swapTarget && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-end justify-center" onClick={() => setSwapTarget(null)}>
-              <div className="absolute inset-0 bg-foreground/10 backdrop-blur-sm" />
-              <motion.div initial={{ y: 300 }} animate={{ y: 0 }} exit={{ y: 300 }}
-                className="relative w-full max-w-lg bg-card rounded-t-3xl shadow-lg" onClick={e => e.stopPropagation()} style={{ maxHeight: '60vh' }}>
-                <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-                  <h3 className="font-bold text-sm text-foreground">Swap {swapTarget.mealType}</h3>
-                  <button onClick={() => setSwapTarget(null)} className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="px-5 py-3 space-y-2 overflow-y-auto" style={{ maxHeight: '45vh' }}>
-                  {getRecipesByMealType(swapTarget.mealType)
-                    .filter(r => r.id !== swapTarget.recipeId)
-                    .slice(0, 8)
-                    .map(r => (
-                      <button key={r.id} onClick={() => performSwap(r.id)}
-                        className="w-full card-subtle p-3 flex items-center gap-3 text-left hover:shadow-md transition-shadow">
-                        <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
-                          <img src={getRecipeImage(r.id, swapTarget.mealType)} alt={r.name} className="w-full h-full object-cover" loading="lazy" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-foreground truncate">{r.name}</p>
-                          <p className="text-[10px] text-muted-foreground">{r.calories} kcal · {r.prepTime + r.cookTime}m · {r.difficulty}</p>
-                        </div>
-                      </button>
-                    ))}
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Swap Simulator Sheet */}
+        {swapTarget && (
+          <SwapSimulatorSheet
+            open={!!swapTarget}
+            onClose={() => setSwapTarget(null)}
+            originalRecipeId={swapTarget.recipeId}
+            mealType={swapTarget.mealType}
+            onApply={(recipeId, impact) => performSwap(recipeId, { costDiff: impact.costDiff, proteinDiff: impact.proteinDiff })}
+          />
+        )}
 
         {/* Success modal */}
         <AnimatePresence>
@@ -448,6 +430,15 @@ export default function MealPlanner() {
       </div>
       <MonikaFab />
       <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
+      {swapTarget && (
+        <SwapSimulatorSheet
+          open={!!swapTarget}
+          onClose={() => setSwapTarget(null)}
+          originalRecipeId={swapTarget.recipeId}
+          mealType={swapTarget.mealType}
+          onApply={(recipeId, impact) => performSwap(recipeId, { costDiff: impact.costDiff, proteinDiff: impact.proteinDiff })}
+        />
+      )}
     </div>
   );
 }
