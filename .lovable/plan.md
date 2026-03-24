@@ -1,47 +1,100 @@
 
 
-## Sync Budget Planner & Meal Planner Flow
+## Redesign: Budget-First Planner with Data Sync Animation
 
-### What changes
+### Current Problem
+The MealPlanOnboarding asks **21 questions**, many of which duplicate data already collected during the main app onboarding (activity, sleep, stress, health conditions, exercise). The budget onboarding doesn't separate home vs outside food. There's no "data sync" animation screen showing the user what the system already knows.
 
-When the user taps "Create Meal Plan" and budget onboarding hasn't been completed, redirect them to the Budget tab first. After budget onboarding completes, auto-switch to the Meal Plan tab. Remove the duplicate budget step from MealPlanOnboarding and instead read budget data from the shared localStorage.
+### What We'll Build
 
-### Changes (4 files)
+**Phase A: Enhance Budget Onboarding** (BudgetPlannerTab.tsx)
+- Add "outside food budget" as a separate field (restaurants, street food, packed food) — already has `outsideFoodLimit` field but needs clearer UX
+- Add "meals per day" question (3/4/5) to the budget flow since it determines per-meal split
+- Show computed daily budget (monthly / 30), weekly budget (daily × 7), and per-meal breakdown
+- This is partially done already — the manual flow has monthly + per-meal + outside limit
 
-**File 1: `src/components/BudgetPlannerTab.tsx`**
-- Add optional `onOnboardingComplete` prop to `BudgetPlannerTab`
-- On line 1400, where `BudgetOnboarding` renders, pass a wrapped callback that calls both `refresh()` and `onOnboardingComplete?.()`
+**Phase B: Add Data Sync Animation Screen** (new step in MealPlanOnboarding)
+- Replace `welcome` step with a "data sync" animation screen
+- Pull all existing user data from `getProfile()` and `getEnhancedBudgetSettings()`
+- Show animated cards sliding in with: Name, Height/Weight, BMI, BMR, TDEE, Daily Calories, Protein/Carbs/Fat targets, Health conditions, Skin concerns, Budget (daily/weekly/monthly), Per-meal budgets
+- User taps "Continue" to proceed
 
-**File 2: `src/components/MealPlannerTabs.tsx`**
-- Add optional `onBudgetComplete?: () => void` prop to `MealPlannerTabsProps`
-- Pass it through to `<BudgetPlannerTab onOnboardingComplete={onBudgetComplete} />`
+**Phase C: Trim MealPlanOnboarding to ONLY missing questions** (MealPlanOnboarding.tsx)
+- **REMOVE** these steps (already known from main onboarding): `goal`, `motivations`, `pace`, `activity`, `exercise`, `sleep`, `stress`, `medical`, `mealsPerDay`
+- **KEEP** only steps that collect NEW meal-specific data:
+  1. `dataSyncScreen` (new — animated data display)
+  2. `dietary` (veg/non-veg/vegan — not asked in main onboarding)
+  3. `allergies` (food-specific allergies)
+  4. `cuisines` (cuisine preferences)
+  5. `cooking` (cooking skill)
+  6. `cookTime` (time per meal)
+  7. `summary` (final review with ALL data combined)
+- Remove `experience`, `challenges`, `equipment`, `eatingOut`, `snacking` — nice-to-have but user wants minimal questions
+- In `finish()`, pull goal/pace/activity/health/skin from `getProfile()` instead of form fields
 
-**File 3: `src/pages/MealPlanner.tsx`**
-- Import `getEnhancedBudgetSettings` from `@/lib/budget-alerts`
-- In the "Create Meal Plan" button handler (line ~406), check `getEnhancedBudgetSettings().onboardingDone`. If false, set `activeTab` to `'Budget'` and show `toast('Set your budget first')` instead of proceeding to onboarding
-- Add `handleBudgetComplete` callback: sets `activeTab` to `'Meal Plan'`, sets `step` to `'onboarding'`, shows toast "Budget set! Now let's plan your meals"
-- Pass `onBudgetComplete={handleBudgetComplete}` to `MealPlannerTabs`
+### Changes (2 files)
 
-**File 4: `src/components/MealPlanOnboarding.tsx`**
-- Remove `'budget'` from `STEPS` array (line 18)
-- Remove budget-related form fields (`monthlyBudget`, `mealSplitBreakfast`, etc.) from initial state
-- Remove the budget `renderStep` case
-- In `finish()`, read budget from `getEnhancedBudgetSettings()` instead of form fields — replace lines 122-140 with reading from the already-saved enhanced settings
-- In the `summary` step, show a read-only "Budget" row displaying the current per-meal budgets from `getEnhancedBudgetSettings()` with a note "Edit in Budget tab"
+**File 1: `src/components/MealPlanOnboarding.tsx`**
+- Reduce STEPS to: `['dataSync', 'dietary', 'allergies', 'cuisines', 'cooking', 'cookTime', 'summary']`
+- Add `dataSync` step: animated screen showing all user profile data + budget data with count-up numbers and slide-in cards
+- Remove all redundant steps and their form fields
+- Update `finish()` to read goal, activity, health, skin, sleep, stress from `getProfile()`
+- Update summary to show the complete combined data set
 
-### Flow after changes
+**File 2: `src/components/onboarding/MonikaGuide.tsx`**
+- Update MEAL_PLANNER_MONIKA messages for new reduced step set
+
+### Data Sync Animation Screen Design
 ```text
-User opens Planner → sees tabs (Budget, Meal Plan, Groceries, Recipes)
-  ├─ Taps "Create Meal Plan" in Meal Plan tab
-  │   ├─ Budget NOT done → redirected to Budget tab → BudgetOnboarding
-  │   │   └─ Completes → auto-switch to Meal Plan tab → MealPlanOnboarding
-  │   └─ Budget done → MealPlanOnboarding (no budget step, reads existing budget)
-  └─ Both share same localStorage keys (expense-store + budget-alerts)
+┌─────────────────────────┐
+│  Hi {Name}! 👋          │
+│  Here's your profile    │
+│                         │
+│  ┌─ Body ─────────────┐ │  ← slide in 0.1s
+│  │ 170cm · 70kg       │ │
+│  │ BMI: 24.2 (Normal) │ │
+│  └────────────────────┘ │
+│  ┌─ Metabolism ───────┐ │  ← slide in 0.2s
+│  │ BMR: 1650 kcal     │ │
+│  │ TDEE: 2558 kcal    │ │
+│  │ Target: 2046 kcal  │ │
+│  └────────────────────┘ │
+│  ┌─ Macros ───────────┐ │  ← slide in 0.3s
+│  │ P: 120g C: 230g    │ │
+│  │ F: 57g             │ │
+│  └────────────────────┘ │
+│  ┌─ Health ───────────┐ │  ← slide in 0.4s
+│  │ Conditions: None   │ │
+│  │ Skin: Acne support │ │
+│  └────────────────────┘ │
+│  ┌─ Budget ───────────┐ │  ← slide in 0.5s
+│  │ ₹7000/month        │ │
+│  │ ₹233/day · ₹1633/wk│ │
+│  │ BF:₹70 L:₹81 D:₹82│ │
+│  └────────────────────┘ │
+│                         │
+│  [ Continue →         ] │
+└─────────────────────────┘
 ```
 
-### What stays unchanged
-- `BudgetOnboarding` UI and logic (untouched)
-- `meal-plan-generator.ts` (already reads `getEnhancedBudgetSettings`)
-- All calculation engines
-- All other onboarding steps in MealPlanOnboarding
+### Flow After Changes
+```text
+Main Onboarding complete → user has all body/health/skin data
+  ↓
+Planner page → Budget tab first (if not done)
+  ↓
+Budget Onboarding: monthly budget + outside food + per-meal split
+  ↓
+Auto-switch to Meal Plan tab → MealPlanOnboarding
+  ↓
+Step 1: Data Sync Animation (shows everything system knows)
+Step 2: Veg/Non-veg/Vegan?
+Step 3: Food allergies?
+Step 4: Cuisines?
+Step 5: Cooking skill?
+Step 6: Cooking time?
+Step 7: Summary → Generate
+```
+
+Total questions: **5 screens** (down from 21). Only asks what's NOT already known.
 
