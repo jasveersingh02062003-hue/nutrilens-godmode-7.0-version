@@ -236,11 +236,13 @@ export function autoFixNextWeek(summary: WeeklySummary): { changes: string[]; ap
     case 'budget': {
       const overshoot = summary.spent - summary.budget;
       if (overshoot > 0) {
-        const currentDaily = getAdjustedDailyBudget();
+        const bs = getBudgetSettingsFromExpense();
         const reduction = Math.round(overshoot / 7);
-        const newDaily = Math.max(50, currentDaily - reduction);
-        setAdjustedDailyBudget(newDaily);
-        changes.push(`Daily budget adjusted to ₹${newDaily}`);
+        const newWeekly = Math.max(350, bs.weeklyBudget - overshoot);
+        bs.weeklyBudget = newWeekly;
+        bs.monthlyBudget = newWeekly * 4;
+        saveBudgetSettings(bs);
+        changes.push(`Weekly budget adjusted to ₹${newWeekly}`);
       }
       break;
     }
