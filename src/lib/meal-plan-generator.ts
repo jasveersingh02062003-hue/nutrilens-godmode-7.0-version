@@ -356,6 +356,12 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
     date.setDate(date.getDate() + i);
     const dateStr = date.toISOString().split('T')[0];
     const dayOfMonth = date.getDate();
+    const dayOfWeek = date.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+    // Weekend: relax prep time, allow slightly higher budget
+    const weekendBudgetMult = (isWeekend && (profile.weekendStyle || 'relaxed') === 'relaxed') ? 1.15 : 1.0;
+    const weekendTimeMult = isWeekend ? 1.25 : 1.0; // +25% cook time on weekends
 
     const curveMultiplier = getBudgetCurveMultiplier(dayOfMonth);
 
