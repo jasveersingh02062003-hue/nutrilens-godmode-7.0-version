@@ -4,7 +4,7 @@ import { getExpensesForRange, getBudgetSettings, getWeekDateRange } from './expe
 import { getWeightEntries } from './weight-history';
 import { getMealPlannerProfile, saveMealPlannerProfile } from './meal-planner-store';
 import { getNotificationSettings, saveNotificationSettings, sendNotification } from './notifications';
-import { getAdjustedDailyBudget, setAdjustedDailyBudget } from './budget-service';
+import { saveBudgetSettings, getBudgetSettings as getBudgetSettingsFromExpense } from './expense-store';
 
 export interface WeeklySummary {
   weekStart: string;
