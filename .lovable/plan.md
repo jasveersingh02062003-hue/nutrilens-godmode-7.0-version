@@ -1,65 +1,68 @@
 
 
-## What-If Simulator (Future Impact Engine)
+## Fix: Wire All Disconnected Features Together
 
-### Summary
-Replace the blind swap with a smart swap simulator that shows alternatives ranked by decision score, highlights a "Best Choice", warns about protein drops, and provides instant impact feedback — all in a slide-up sheet.
+### Problem
+Several features were built but never connected to the rest of the system. Specifically:
 
-### Changes (3 files)
+1. **Meal Recovery** (`meal-recovery.ts`) — `getRecoveredTargets()` and `calculateRecoveryAdjustment()` exist but are never imported or called anywhere. Yesterday's missed protein or calorie overshoot has zero effect on today.
 
-**File 1: New `src/lib/swap-engine.ts`** — Alternative selection + impact calculation
+2. **Portion Engine** (`portion-engine.ts`) — `calculatePortions()` exists but is never used. Meal plan shows recipes without scaled quantities.
 
-- `getSwapAlternatives(recipeId, mealType, profile)`:
-  - Gets all recipes matching `mealType` from existing `recipes` array
-  - Filters by dietary prefs (`tags`), health conditions (`avoidFor` via `shouldAvoidRecipe`), allergies
-  - Filters calories within ±20% of original
-  - Excludes current recipe
-  - Computes `decisionScore = (proteinPerRupee * 0.6) + (calorieFit * 0.4)` for each
-  - Flags `proteinDrop: true` if alt protein < 80% of original (demoted in sort)
-  - Top scorer gets `bestChoice: true`
-  - Each alt gets a `highlight` label: "Cheapest" / "Best Choice" / "High Protein"
-  - Returns top 3 enriched alternatives
+3. **Weekly Auto-Fix doesn't regenerate plan** — `autoFixNextWeek()` adjusts profile targets (protein, calories, budget) but never regenerates the actual week plan or grocery list. The user clicks "Fix Next Week Plan" and gets toasts, but the meal plan stays the same.
 
-- `calculateSwapImpact(original, alternative, profile)`:
-  - `costDiff`, `proteinDiff`, `calorieDiff`
-  - Timeline: `daysFaster = (calorieDiff * 7 / 7700) * (weightDiff / weeklyLoss) * 7` (simplified, clamped)
-  - Budget warning: checks if today's spent + alt cost exceeds daily budget (uses `getExpensesForDate` + `getAdjustedDailyBudget`)
-  - `proteinDropWarning` if protein drops >20%
-  - Returns `{ costDiff, proteinDiff, calorieDiff, timelineDays, budgetWarning, proteinDropWarning }`
+4. **Swap doesn't refresh grocery list** — After applying a swap in `SwapSimulatorSheet`, the plan is saved but `MealPlannerTabs`'s `GroceriesTab` uses a `useMemo` on the initial plan prop, so it doesn't re-render with updated ingredients.
 
-**File 2: New `src/components/SwapSimulatorSheet.tsx`** — The What-If modal
+5. **Profile sync after auto-fix** — `autoFixNextWeek()` writes directly to `localStorage` with `JSON.stringify` instead of using `saveProfile()` from store, so `UserProfileContext` never picks up the changes.
 
-- Props: `open`, `onClose`, `originalRecipeId`, `mealType`, `profile`, `onApply(recipeId)`
-- Two-step flow:
-  - **Step 1 (Alternatives)**: Shows current meal header + 3 alternative cards. Each card shows name, price (bold), highlight badge ("Best Choice ⭐" / "Cheapest" / "High Protein"), small protein warning if `proteinDrop`
-  - **Step 2 (Comparison)**: Side-by-side original (red) vs selected (green). Exactly 3 impact lines with icons. Budget warning in red if applicable. Protein drop warning if applicable
-- "Apply Swap" and "Back" buttons
-- Uses `Sheet` from ui/sheet, animations via CSS transitions
+### Changes (5 files)
 
-**File 3: Update `src/pages/MealPlanner.tsx` + `src/components/MealPlanDashboard.tsx`** — Wire up
+**File 1: Update `src/pages/Dashboard.tsx`** — Wire meal recovery
 
-- `MealPlanner.tsx`:
-  - `handleSwapMeal` now sets `swapTarget` state (already does this)
-  - Add `SwapSimulatorSheet` rendered with `swapTarget` data
-  - `onApply` callback: calls existing `swapMeal()` with chosen recipe, saves plan, shows feedback toast ("₹X saved today · Protein on track")
-  - Remove the old swap-target recipe picker modal (lines ~170-250 in MealPlanner.tsx)
+- Import `getRecoveredTargets` from `meal-recovery.ts`
+- In the existing mount `useEffect`, call `getRecoveredTargets(profile.dailyCalories, profile.dailyProtein)`
+- Store the `recovery` result in state
+- If recovery exists, show a small info banner: e.g. "Today's protein boosted +20g (yesterday was short)" — reuse the existing banner pattern (similar to budget alert banner)
+- Pass adjusted targets to `CalorieRing` and `MacroCard` so the rings reflect recovery-adjusted goals
 
-- `MealPlanDashboard.tsx`:
-  - Change swap button text from "Swap" to "⚡ Try Swap"
-  - Change "Find Cheaper →" text to "⚡ Try Swap"
+**File 2: Update `src/components/MealPlanDashboard.tsx`** — Wire portion engine to meal cards
 
-### Impact Lines Format
+- Import `calculatePortions` from `portion-engine.ts`
+- In the meal card rendering, call `calculatePortions(recipe, mealTargetCalories)` where `mealTargetCalories` comes from the planner profile's per-meal split
+- Display scaled ingredient quantities below each meal card (e.g. "Rice: 80g · Dal: 150g · Oil: 5g") in small muted text
+- Only show portions when recipe has ingredients
+
+**File 3: Update `src/lib/weekly-feedback.ts`** — Auto-fix must regenerate plan + use proper save
+
+- In `autoFixNextWeek()`: after adjusting targets, import and call `generateWeekPlan()` + `saveWeekPlan()` to actually regenerate the meal plan
+- Replace direct `localStorage.setItem('nutrilens_profile', ...)` with `saveProfile()` from store so `UserProfileContext` stays in sync
+- After regenerating plan, the grocery list auto-updates since `GroceriesTab` reads from the saved plan
+
+**File 4: Update `src/components/WeeklyFeedbackCard.tsx`** — Refresh profile after fix
+
+- After `autoFixNextWeek()` succeeds, call `refreshProfile()` from `useUserProfile()` context so Dashboard picks up new targets immediately
+- Add a note in the success toast: "Plan regenerated for next week"
+
+**File 5: Update `src/pages/MealPlanner.tsx`** — Grocery list refreshes after swap
+
+- After `performSwap()` saves the updated plan, call `setPlan({...updated})` (already done) — but also ensure `MealPlannerTabs` receives the latest `plan` prop so `GroceriesTab`'s `useMemo` recomputes
+- This is already wired correctly (plan state updates trigger re-render). Verify `MealPlannerTabs` receives `plan` as prop — if `GroceriesTab` reads from `getWeekPlan()` instead of props, change it to use the prop
+
+### Sync Verification Checklist
 ```text
-💰 Save ₹80          (or "Costs ₹30 more")
-💪 +5g protein        (or "⚠ -13g protein")  
-⏱️ Goal 2 days faster (or "1 day slower")
+Log meal → budget ring updates     ✅ Already wired (checkBudgetAfterMeal)
+Log meal → cloud sync              ✅ Already wired (syncDailyLogToCloud)
+Swap meal → plan updates           ✅ Already wired (performSwap)
+Swap meal → grocery list updates   ⚠️ Fix: ensure GroceriesTab re-reads plan
+Recovery → today's targets         ❌ Fix: wire getRecoveredTargets in Dashboard
+Portions → meal card display       ❌ Fix: wire calculatePortions in MealPlanDashboard
+Auto-fix → regenerate plan         ❌ Fix: call generateWeekPlan in autoFixNextWeek
+Auto-fix → profile context sync    ❌ Fix: use saveProfile + refreshProfile
 ```
 
-### Post-Swap Feedback Toast
-After applying: `toast.success("₹80 saved · Protein still on track ✓")` or `toast.warning("₹80 saved · ⚠ Protein low — add a snack later")`
-
 ### What stays unchanged
-- `swapMeal()` function in meal-plan-generator.ts (reused internally)
-- Recipe database, budget system, all other components
-- Existing plan generation, weekly balancing, batch cooking
+- Onboarding flow, food database, recipe system
+- Budget service, expense store, PES engine
+- Survival kit, swap engine logic
+- Cloud sync, auth context
 
