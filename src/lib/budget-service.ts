@@ -9,6 +9,7 @@ import {
 } from './expense-store';
 import { getDailyLog, getDailyTotals, getAllLogDates, getTodayKey } from './store';
 import { getEnhancedBudgetSettings } from './budget-alerts';
+import { foodDatabase } from './pes-engine';
 
 export interface BudgetSummary {
   budget: number;
