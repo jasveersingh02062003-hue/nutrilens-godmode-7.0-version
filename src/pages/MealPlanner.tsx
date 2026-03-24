@@ -254,41 +254,16 @@ export default function MealPlanner() {
           </button>
         </div>
 
-        {/* Swap bottom sheet */}
-        <AnimatePresence>
-          {swapTarget && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-end justify-center" onClick={() => setSwapTarget(null)}>
-              <div className="absolute inset-0 bg-foreground/10 backdrop-blur-sm" />
-              <motion.div initial={{ y: 300 }} animate={{ y: 0 }} exit={{ y: 300 }}
-                className="relative w-full max-w-lg bg-card rounded-t-3xl shadow-lg" onClick={e => e.stopPropagation()} style={{ maxHeight: '60vh' }}>
-                <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-                  <h3 className="font-bold text-sm text-foreground">Swap {swapTarget.mealType}</h3>
-                  <button onClick={() => setSwapTarget(null)} className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="px-5 py-3 space-y-2 overflow-y-auto" style={{ maxHeight: '45vh' }}>
-                  {getRecipesByMealType(swapTarget.mealType)
-                    .filter(r => r.id !== swapTarget.recipeId)
-                    .slice(0, 8)
-                    .map(r => (
-                      <button key={r.id} onClick={() => performSwap(r.id)}
-                        className="w-full card-subtle p-3 flex items-center gap-3 text-left hover:shadow-md transition-shadow">
-                        <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
-                          <img src={getRecipeImage(r.id, swapTarget.mealType)} alt={r.name} className="w-full h-full object-cover" loading="lazy" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-foreground truncate">{r.name}</p>
-                          <p className="text-[10px] text-muted-foreground">{r.calories} kcal · {r.prepTime + r.cookTime}m · {r.difficulty}</p>
-                        </div>
-                      </button>
-                    ))}
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Swap Simulator Sheet */}
+        {swapTarget && (
+          <SwapSimulatorSheet
+            open={!!swapTarget}
+            onClose={() => setSwapTarget(null)}
+            originalRecipeId={swapTarget.recipeId}
+            mealType={swapTarget.mealType}
+            onApply={(recipeId, impact) => performSwap(recipeId, { costDiff: impact.costDiff, proteinDiff: impact.proteinDiff })}
+          />
+        )}
 
         {/* Success modal */}
         <AnimatePresence>
