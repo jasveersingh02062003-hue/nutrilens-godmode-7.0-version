@@ -126,15 +126,20 @@ export default function MealPlanner() {
     }
   };
 
-  const performSwap = (newRecipeId: string) => {
+  const performSwap = (newRecipeId: string, impact?: { costDiff: number; proteinDiff: number }) => {
     if (!plan || !profile || !swapTarget) return;
-    const updated = swapMeal(plan, swapTarget.date, swapTarget.recipeId, profile);
-    const day = updated.days.find(d => d.date === swapTarget.date);
-    const meal = day?.meals.find(m => m.mealType === swapTarget.mealType);
-    if (meal) meal.recipeId = newRecipeId;
+    const updated = { ...plan, days: plan.days.map(d => d.date === swapTarget.date ? {
+      ...d, meals: d.meals.map(m => m.recipeId === swapTarget.recipeId ? { ...m, recipeId: newRecipeId } : m)
+    } : d) };
     saveWeekPlan(updated);
     setPlan({ ...updated });
     setSwapTarget(null);
+    // Feedback toast
+    if (impact) {
+      const costMsg = impact.costDiff < 0 ? `₹${Math.abs(impact.costDiff)} saved` : impact.costDiff > 0 ? `₹${impact.costDiff} more` : '';
+      const protMsg = impact.proteinDiff >= 0 ? 'Protein on track ✓' : '⚠ Protein low — add a snack';
+      toast.success(`${costMsg}${costMsg ? ' · ' : ''}${protMsg}`);
+    }
   };
 
   const handleMarkCooked = (date: string, recipeId: string) => {

@@ -64,7 +64,7 @@ export function getSwapAlternatives(
     const calorieFit = 1 - Math.abs(e.calories - original.calories) / Math.max(1, original.calories);
     const decisionScore = (e.proteinPerRupee * 0.6) + (calorieFit * 0.4);
     const proteinDrop = e.protein < original.protein * 0.8;
-    return { recipe: e, cost, decisionScore, proteinDrop, bestChoice: false, highlight: 'Best Choice' as const };
+    return { recipe: e, cost, decisionScore, proteinDrop, bestChoice: false, highlight: 'Best Choice' as 'Cheapest' | 'Best Choice' | 'High Protein' };
   });
 
   // Sort: non-protein-drop first, then by score
