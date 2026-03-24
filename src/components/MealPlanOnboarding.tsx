@@ -113,6 +113,7 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
       mealPrep: '',
       snackingHabits: [],
       mealsPerDay: 3,
+      staplePreference: form.staplePreference || 'mixed',
       dailyBudget,
       currency: 'INR',
       dailyCalories: decision.targetCalories,
