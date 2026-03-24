@@ -1,10 +1,9 @@
 // Weekly Feedback Engine — behavior correction loop
 import { getRecentLogs, getDailyTotals, getProfile, type DailyLog } from './store';
-import { getExpensesForRange, getBudgetSettings, getWeekDateRange } from './expense-store';
+import { getExpensesForRange, getBudgetSettings, getWeekDateRange, saveBudgetSettings } from './expense-store';
 import { getWeightEntries } from './weight-history';
 import { getMealPlannerProfile, saveMealPlannerProfile } from './meal-planner-store';
 import { getNotificationSettings, saveNotificationSettings, sendNotification } from './notifications';
-import { saveBudgetSettings, getBudgetSettings as getBudgetSettingsFromExpense } from './expense-store';
 
 export interface WeeklySummary {
   weekStart: string;
