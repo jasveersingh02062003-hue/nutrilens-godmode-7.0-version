@@ -396,7 +396,7 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
         targetProtein: mealProteinTarget,
         excludeIds,
         healthConditions: allHealthConds,
-      });
+      }, profile);
 
       if (result) {
         const enriched = getEnrichedRecipe(result.recipe);
