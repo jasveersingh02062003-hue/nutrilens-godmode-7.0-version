@@ -72,6 +72,7 @@ export interface WeekPlan {
   weekStart: string;
   days: DayPlan[];
   generatedAt: string;
+  flexCaloriesPerDay?: number;
 }
 
 const PLANNER_PROFILE_KEY = 'nutrilens_meal_planner_profile';
