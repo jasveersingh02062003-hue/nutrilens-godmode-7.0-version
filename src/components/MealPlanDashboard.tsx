@@ -338,7 +338,7 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
                       </button>
                       <button onClick={() => onSwapMeal(currentDay.date, meal.recipeId)}
                         className="px-3 py-2 rounded-xl bg-muted text-muted-foreground text-xs font-semibold flex items-center gap-1.5">
-                        <Repeat className="w-3 h-3" /> Swap
+                        <Repeat className="w-3 h-3" /> ⚡ Try Swap
                       </button>
                       {!meal.cooked && (
                         <button onClick={() => onMarkCooked(currentDay.date, meal.recipeId)}
