@@ -48,6 +48,7 @@ import PESExplanationCard from '@/components/PESExplanationCard';
 import WeeklyFeedbackCard from '@/components/WeeklyFeedbackCard';
 import { shouldGenerateSummary, generateWeeklySummary, scheduleWeeklyNotification } from '@/lib/weekly-feedback';
 import { hasBrowserPermission } from '@/lib/notifications';
+import { getRecoveredTargets, type RecoveryAdjustment } from '@/lib/meal-recovery';
 export default function Dashboard() {
   const navigate = useNavigate();
   const { profile, refreshProfile } = useUserProfile();
