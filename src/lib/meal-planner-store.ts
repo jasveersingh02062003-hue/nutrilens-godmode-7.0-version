@@ -43,6 +43,8 @@ export interface MealPlannerProfile {
   mealsPerDay: number;
   dailyBudget: number;
   currency: string;
+  staplePreference?: 'rice' | 'roti' | 'mixed';
+  weekendStyle?: 'relaxed' | 'strict';
 
   // Calculated
   dailyCalories: number;
