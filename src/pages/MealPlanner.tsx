@@ -430,6 +430,15 @@ export default function MealPlanner() {
       </div>
       <MonikaFab />
       <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
+      {swapTarget && (
+        <SwapSimulatorSheet
+          open={!!swapTarget}
+          onClose={() => setSwapTarget(null)}
+          originalRecipeId={swapTarget.recipeId}
+          mealType={swapTarget.mealType}
+          onApply={(recipeId, impact) => performSwap(recipeId, { costDiff: impact.costDiff, proteinDiff: impact.proteinDiff })}
+        />
+      )}
     </div>
   );
 }
