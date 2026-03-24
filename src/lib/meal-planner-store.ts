@@ -43,6 +43,8 @@ export interface MealPlannerProfile {
   mealsPerDay: number;
   dailyBudget: number;
   currency: string;
+  staplePreference?: 'rice' | 'roti' | 'mixed';
+  weekendStyle?: 'relaxed' | 'strict';
 
   // Calculated
   dailyCalories: number;
@@ -59,6 +61,8 @@ export interface PlannedMeal {
   mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
   cooked: boolean;
   logged: boolean;
+  portionScale?: number;
+  batchGroup?: string;
 }
 
 export interface DayPlan {
@@ -70,6 +74,7 @@ export interface WeekPlan {
   weekStart: string;
   days: DayPlan[];
   generatedAt: string;
+  flexCaloriesPerDay?: number;
 }
 
 const PLANNER_PROFILE_KEY = 'nutrilens_meal_planner_profile';

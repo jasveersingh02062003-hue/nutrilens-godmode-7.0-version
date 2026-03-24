@@ -113,6 +113,7 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
       mealPrep: '',
       snackingHabits: [],
       mealsPerDay: 3,
+      staplePreference: form.staplePreference || 'mixed',
       dailyBudget,
       currency: 'INR',
       dailyCalories: decision.targetCalories,
@@ -267,6 +268,21 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
               { value: 'pescatarian', label: 'Pescatarian' }, { value: 'keto', label: 'Keto' },
               { value: 'low_carb', label: 'Low Carb' }, { value: 'balanced', label: 'Balanced' },
             ]} />
+            <div className="pt-2">
+              <p className="text-sm font-semibold text-foreground mb-2">What's your daily staple?</p>
+              <div className="flex gap-2">
+                {[
+                  { v: 'rice', l: '🍚 Rice' },
+                  { v: 'roti', l: '🫓 Roti' },
+                  { v: 'mixed', l: '🔄 Mixed' },
+                ].map(o => (
+                  <button key={o.v} onClick={() => set('staplePreference', o.v)}
+                    className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${form.staplePreference === o.v ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:border-primary/30'}`}>
+                    {o.l}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         );
 

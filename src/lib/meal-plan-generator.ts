@@ -5,6 +5,7 @@ import { getEnhancedBudgetSettings } from './budget-alerts';
 import { getMealMacroTargets, getRecipeComposition, shouldAvoidRecipe, validateWeeklyNutrition } from './plan-validator';
 import { getFeedbackScoreModifier } from './meal-plan-feedback';
 import { getComplexityRecommendation, getAdherenceHistory } from './adherence-service';
+import { aggregateIngredients, formatGrams } from './portion-engine';
 
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -318,8 +319,10 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
   const cuisines = getCuisineMap(profile.cuisinePrefs || []);
   const difficulty = getDifficultyFilter(profile.cookingSkill);
   const mealsPerDay = profile.mealsPerDay || 3;
-  const targetCal = profile.dailyCalories;
-  const targetProtein = profile.dailyProtein || Math.round(profile.dailyCalories * 0.15 / 4);
+  const baseCal = profile.dailyCalories;
+  const flexReserve = Math.round(baseCal * 0.1);
+  const targetCal = baseCal - flexReserve; // 90% for planned meals
+  const targetProtein = profile.dailyProtein || Math.round(baseCal * 0.15 / 4);
   const allHealthConds = [...(healthConditions || []), ...(womenHealth || [])];
 
   // Adherence-based complexity adjustment
@@ -353,6 +356,12 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
     date.setDate(date.getDate() + i);
     const dateStr = date.toISOString().split('T')[0];
     const dayOfMonth = date.getDate();
+    const dayOfWeek = date.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+    // Weekend: relax prep time, allow slightly higher budget
+    const weekendBudgetMult = (isWeekend && (profile.weekendStyle || 'relaxed') === 'relaxed') ? 1.15 : 1.0;
+    const weekendTimeMult = isWeekend ? 1.25 : 1.0; // +25% cook time on weekends
 
     const curveMultiplier = getBudgetCurveMultiplier(dayOfMonth);
 
@@ -363,12 +372,12 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
 
     for (const { type, budgetKey, macroKey } of mealTypes) {
       const mealBudgetRaw = (perMealBudget as any)[budgetKey] || 100;
-      const mealBudget = Math.round(mealBudgetRaw * curveMultiplier);
+      const mealBudget = Math.round(mealBudgetRaw * curveMultiplier * weekendBudgetMult);
       const macroTarget = (macroTargets as any)[macroKey] || { proteinPct: 0.33, caloriePct: 0.33 };
       const mealProteinTarget = Math.round(targetProtein * macroTarget.proteinPct);
       const mealCalTarget = Math.round(targetCal * macroTarget.caloriePct);
       // Use adherence-adjusted prep time or user setting
-      const maxTime = Math.min(getMaxTimeForMeal(type, profile.cookingTime), complexity.maxPrepTime);
+      const maxTime = Math.min(Math.round(getMaxTimeForMeal(type, profile.cookingTime) * weekendTimeMult), complexity.maxPrepTime);
 
       // Variety window: exclude last 3 breakfasts, last 2 lunch/dinner
       const varietyWindow = type === 'breakfast' ? 3 : 2;
@@ -452,10 +461,14 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
     weekStart: weekStartStr,
     days,
     generatedAt: new Date().toISOString(),
+    flexCaloriesPerDay: flexReserve,
   };
 
   // ─── Weekly protein balancing post-pass ───
   plan = balanceWeeklyProtein(plan, profile);
+
+  // ─── Batch cooking detection ───
+  plan = detectBatchCooking(plan);
 
   return plan;
 }
@@ -499,29 +512,81 @@ export function swapMeal(plan: WeekPlan, date: string, recipeId: string, profile
   return { ...plan };
 }
 
-export function generateShoppingList(plan: WeekPlan): { category: string; items: { name: string; quantity: string; checked: boolean }[] }[] {
-  const itemMap: Record<string, { name: string; quantities: string[]; category: string }> = {};
+// ─── Batch Cooking Detection ───
 
-  for (const day of plan.days) {
-    for (const meal of day.meals) {
-      const recipe = filterRecipes({}).find(r => r.id === meal.recipeId);
+function detectBatchCooking(plan: WeekPlan): WeekPlan {
+  // Find recipes that share a common base and appear within 2 days of each other
+  const BASE_INGREDIENTS = ['dal', 'rice', 'roti', 'curry', 'sambar', 'chutney', 'raita'];
+  const recipeOccurrences: Record<string, { dayIdx: number; mealIdx: number }[]> = {};
+
+  for (let d = 0; d < plan.days.length; d++) {
+    for (let m = 0; m < plan.days[d].meals.length; m++) {
+      const meal = plan.days[d].meals[m];
+      const recipe = recipes.find(r => r.id === meal.recipeId);
       if (!recipe) continue;
-      for (const ing of recipe.ingredients) {
-        const key = ing.name.toLowerCase();
-        if (!itemMap[key]) {
-          itemMap[key] = { name: ing.name, quantities: [], category: ing.category };
+
+      // Check if recipe ingredients contain a base
+      for (const base of BASE_INGREDIENTS) {
+        const hasBase = recipe.ingredients.some(ing => ing.name.toLowerCase().includes(base));
+        if (hasBase) {
+          const key = `${base}-${recipe.id}`;
+          if (!recipeOccurrences[key]) recipeOccurrences[key] = [];
+          recipeOccurrences[key].push({ dayIdx: d, mealIdx: m });
         }
-        itemMap[key].quantities.push(ing.quantity);
       }
     }
   }
 
+  // Group meals that share same recipe within 2 days
+  let groupId = 1;
+  for (const [, occurrences] of Object.entries(recipeOccurrences)) {
+    if (occurrences.length < 2) continue;
+    // Check if any two are within 2 days
+    const sorted = occurrences.sort((a, b) => a.dayIdx - b.dayIdx);
+    const batchTag = `batch-${groupId}`;
+    let tagged = false;
+    for (let i = 0; i < sorted.length - 1; i++) {
+      if (sorted[i + 1].dayIdx - sorted[i].dayIdx <= 2) {
+        plan.days[sorted[i].dayIdx].meals[sorted[i].mealIdx].batchGroup = batchTag;
+        plan.days[sorted[i + 1].dayIdx].meals[sorted[i + 1].mealIdx].batchGroup = batchTag;
+        tagged = true;
+      }
+    }
+    if (tagged) groupId++;
+  }
+
+  return plan;
+}
+
+// ─── Shopping List (Aggregated) ───
+
+export function generateShoppingList(plan: WeekPlan): { category: string; items: { name: string; quantity: string; checked: boolean }[] }[] {
+  const allIngredients: { name: string; quantity: string; category: string }[] = [];
+
+  for (const day of plan.days) {
+    for (const meal of day.meals) {
+      const recipe = recipes.find(r => r.id === meal.recipeId);
+      if (!recipe) continue;
+      const scale = meal.portionScale || 1;
+      for (const ing of recipe.ingredients) {
+        allIngredients.push({
+          name: ing.name,
+          quantity: scale !== 1 ? `${scale}x ${ing.quantity}` : ing.quantity,
+          category: ing.category,
+        });
+      }
+    }
+  }
+
+  const aggregated = aggregateIngredients(allIngredients);
+
+  // Group by category
   const catMap: Record<string, { name: string; quantity: string; checked: boolean }[]> = {};
-  for (const item of Object.values(itemMap)) {
+  for (const item of aggregated) {
     if (!catMap[item.category]) catMap[item.category] = [];
     catMap[item.category].push({
       name: item.name,
-      quantity: item.quantities.length > 1 ? `${item.quantities.length}x (${item.quantities[0]})` : item.quantities[0],
+      quantity: item.displayQuantity,
       checked: false,
     });
   }
