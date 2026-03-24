@@ -517,6 +517,14 @@ export default function CameraHome() {
       duration: 5000,
     });
 
+    // Real-time budget check after logging
+    const mealCostAmount = finalCost?.amount || 0;
+    if (mealCostAmount > 0) {
+      const budgetAlert = checkBudgetAfterMeal(mealCostAmount);
+      if (budgetAlert.level === 'warning') toast.warning(budgetAlert.message);
+      else if (budgetAlert.level === 'overspend' || budgetAlert.level === 'overspend_severe') toast.error(budgetAlert.message);
+    }
+
     resetToCamera();
     navigate('/dashboard');
   };
