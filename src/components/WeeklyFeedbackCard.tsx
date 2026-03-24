@@ -42,6 +42,7 @@ function metricIcon(metric: string) {
 }
 
 export default function WeeklyFeedbackCard() {
+  const { refreshProfile } = useUserProfile();
   const [summary, setSummary] = useState<WeeklySummary | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [dismissed, setDismissed] = useState(false);
