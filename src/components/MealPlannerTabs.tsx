@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingCart, Check, Plus, Search, Clock, Flame, Zap, X } from 'lucide-react';
 import { getWeekPlan, getCurrentWeekStart } from '@/lib/meal-planner-store';
@@ -22,14 +22,55 @@ interface MealPlannerTabsProps {
 
 // ===== Groceries Sub-Tab =====
 function GroceriesTab({ plan }: { plan: WeekPlan }) {
-  const initialList = useMemo(() => generateShoppingList(plan), [plan]);
+  const [kitOpen, setKitOpen] = useState(false);
+  const [savedKit, setSavedKit] = useState(() => getSavedSurvivalKit());
+
+  const initialList = useMemo(() => {
+    const planList = generateShoppingList(plan);
+
+    if (!savedKit) return planList;
+
+    // Convert survival kit items into grocery format grouped by category
+    const kitByCategory: Record<string, { name: string; quantity: string; checked: boolean; isKit?: boolean }[]> = {};
+    for (const item of savedKit.items) {
+      const cat = item.category || 'Survival Kit';
+      if (!kitByCategory[cat]) kitByCategory[cat] = [];
+      kitByCategory[cat].push({
+        name: `⚡ ${item.name}`,
+        quantity: `${item.quantity} ${item.unit} (₹${Math.round(item.cost)})`,
+        checked: false,
+        isKit: true,
+      });
+    }
+
+    // Merge: kit categories first, then plan categories
+    const merged: typeof planList = [];
+    for (const [cat, items] of Object.entries(kitByCategory)) {
+      const existing = planList.find((c: any) => c.category === cat);
+      if (existing) {
+        merged.push({ category: cat, items: [...items, ...existing.items] });
+      } else {
+        merged.push({ category: cat, items });
+      }
+    }
+    // Add remaining plan categories not in kit
+    for (const cat of planList) {
+      if (!kitByCategory[cat.category]) {
+        merged.push(cat);
+      }
+    }
+    return merged;
+  }, [plan, savedKit]);
 
   const [groceryList, setGroceryList] = useState(initialList);
   const [addingItem, setAddingItem] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemQty, setNewItemQty] = useState('');
-  const [kitOpen, setKitOpen] = useState(false);
-  const [savedKit, setSavedKit] = useState(() => getSavedSurvivalKit());
+
+  // Re-sync grocery list when kit changes
+  useEffect(() => {
+    setGroceryList(initialList);
+  }, [initialList]);
 
   const toggleItem = (catIdx: number, itemIdx: number) => {
     setGroceryList(prev => prev.map((cat, ci) =>
@@ -109,7 +150,7 @@ function GroceriesTab({ plan }: { plan: WeekPlan }) {
             <div className="space-y-1">
               {cat.items.map((item: any, itemIdx: number) => (
                 <button key={`${item.name}-${itemIdx}`} onClick={() => toggleItem(catIdx, itemIdx)}
-                  className={`w-full card-subtle p-3 flex items-center gap-3 text-left transition-all ${item.checked ? 'opacity-50' : ''}`}>
+                  className={`w-full card-subtle p-3 flex items-center gap-3 text-left transition-all ${item.checked ? 'opacity-50' : ''} ${item.isKit ? 'border-l-2 border-l-primary bg-primary/5' : ''}`}>
                   <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${item.checked ? 'bg-primary border-primary' : 'border-border'}`}>
                     {item.checked && <Check className="w-3 h-3 text-primary-foreground" />}
                   </div>
