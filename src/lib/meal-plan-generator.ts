@@ -6,21 +6,22 @@ import { getMealMacroTargets, getRecipeComposition, shouldAvoidRecipe, validateW
 import { getFeedbackScoreModifier } from './meal-plan-feedback';
 import { getComplexityRecommendation, getAdherenceHistory } from './adherence-service';
 import { aggregateIngredients, formatGrams } from './portion-engine';
+import { computePES } from './pes-engine';
 
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-/** Score a recipe for meal plan ranking (higher = better) */
+/** Score a recipe for meal plan ranking (higher = better) — uses unified PES engine */
 function scoreRecipe(recipe: Recipe, maxCost?: number, targetProtein?: number): number {
   const enriched = getEnrichedRecipe(recipe);
-  const ppr = Math.min(1, enriched.proteinPerRupee * 3);
-  const sat = Math.min(1, enriched.satietyScore / 5);
-  const nut = (enriched.nutritionScore || 5) / 10;
-  const costFit = maxCost && maxCost > 0 ? Math.max(0, 1 - (enriched.estimatedCost / maxCost)) : 0.5;
-  const protFit = targetProtein && targetProtein > 0 ? Math.min(1, enriched.protein / targetProtein) : 0.5;
+  const base = computePES(enriched, {
+    targetCalories: enriched.calories, // self-fit is neutral; calorie target comes from slot
+    budgetPerMeal: maxCost,
+    originalProtein: targetProtein,
+  });
   const feedbackMod = getFeedbackScoreModifier(recipe.id);
-  return (ppr * 0.25) + (sat * 0.25) + (nut * 0.15) + (costFit * 0.1) + (protFit * 0.15) + feedbackMod + 0.1;
+  return base + feedbackMod;
 }
 
 /** Pick the best-scored recipe from an array */

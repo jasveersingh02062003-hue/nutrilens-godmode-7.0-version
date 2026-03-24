@@ -297,3 +297,97 @@ export function getPESForMeal(cost: number, protein: number, dailyBudget: number
   const pes = protein / cost;
   return { pes: Math.round(pes * 100) / 100, color: getPESColor(pes, dailyBudget, isVeg) };
 }
+
+// ─── Unified PES Engine (Single Source of Truth) ───
+
+export const QUALITY_MAP: Record<string, number> = {
+  egg: 1.0,
+  chicken: 1.0,
+  dairy: 0.95,
+  soy: 0.9,
+  dal: 0.75,
+  pulses: 0.75,
+  cereal: 0.6,
+  junk: 0.4,
+};
+
+/**
+ * Infer a protein quality category from recipe tags and name.
+ */
+export function inferCategory(recipe: { tags?: string[]; name?: string }): string {
+  const tags = recipe.tags || [];
+  const name = (recipe.name || '').toLowerCase();
+
+  if (tags.includes('junk') || name.includes('samosa') || name.includes('pizza') || name.includes('burger')) return 'junk';
+  if (name.includes('egg') || name.includes('anda') || name.includes('bhurji')) return 'egg';
+  if (name.includes('chicken') || name.includes('murgh')) return 'chicken';
+  if (name.includes('fish') || name.includes('mutton') || name.includes('keema')) return 'chicken';
+  if (name.includes('soya') || name.includes('soy')) return 'soy';
+  if (name.includes('dal') || name.includes('lentil') || name.includes('masoor') || name.includes('moong') || name.includes('chana') || name.includes('rajma')) return 'dal';
+  if (name.includes('paneer') || name.includes('milk') || name.includes('curd') || name.includes('whey') || name.includes('dairy')) return 'dairy';
+  if (name.includes('chickpea') || name.includes('sprout')) return 'pulses';
+  if (tags.includes('non_veg')) return 'chicken';
+  return 'cereal';
+}
+
+/**
+ * Unified PES scoring function used across all food ranking modules.
+ * Returns a score between 0 and 1.
+ */
+export function computePES(
+  recipe: {
+    protein: number;
+    cost?: number;
+    estimatedCost?: number;
+    price?: number;
+    calories: number;
+    satietyScore?: number;
+    tags?: string[];
+    name?: string;
+  },
+  context: {
+    targetCalories?: number;
+    originalProtein?: number;
+    budgetPerMeal?: number;
+  } = {}
+): number {
+  const { targetCalories, originalProtein, budgetPerMeal } = context;
+  const cost = recipe.cost ?? recipe.estimatedCost ?? recipe.price ?? 1;
+
+  const category = inferCategory(recipe);
+  const qualityFactor = QUALITY_MAP[category] ?? 0.7;
+  const adjustedProtein = recipe.protein * qualityFactor;
+  const proteinPerRupee = cost > 0 ? adjustedProtein / cost : 0;
+
+  // Calorie fit (clamped 0–1)
+  let calorieFit = 0.5;
+  if (targetCalories && targetCalories > 0) {
+    calorieFit = 1 - Math.abs(recipe.calories - targetCalories) / targetCalories;
+    calorieFit = Math.max(0, Math.min(1, calorieFit));
+  }
+
+  const satiety = recipe.satietyScore ?? 3;
+
+  // Weighted score
+  let score =
+    0.5 * Math.min(1, proteinPerRupee * 3) +
+    0.3 * calorieFit +
+    0.2 * Math.min(1, satiety / 5);
+
+  // Penalties
+  if (originalProtein && recipe.protein < originalProtein * 0.85) score -= 0.3;
+  if (targetCalories && recipe.calories > targetCalories * 1.2) score -= 0.2;
+  if (budgetPerMeal && cost > budgetPerMeal) score -= 0.2;
+
+  return Math.max(0, Math.min(1, score));
+}
+
+/**
+ * Get the target calories for a specific meal slot based on profile.
+ */
+export function getMealTargetCalories(mealType: string, profile: any): number {
+  const dailyTarget = profile?.dailyCalories ?? profile?.goals?.targetCalories ?? 2000;
+  const splits: Record<string, number> = { breakfast: 0.25, lunch: 0.35, snacks: 0.15, dinner: 0.25 };
+  const key = mealType === 'snack' ? 'snacks' : mealType;
+  return Math.round(dailyTarget * (splits[key] ?? 0.25));
+}

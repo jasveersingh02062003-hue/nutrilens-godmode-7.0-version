@@ -7,6 +7,7 @@ import { getExpensesForDate } from './expense-store';
 import { getAdjustedDailyBudget } from './budget-service';
 import { getProfile } from './store';
 import { getTodayKey } from './store';
+import { computePES, getMealTargetCalories } from './pes-engine';
 
 export interface SwapAlternative {
   recipe: EnrichedRecipe;
@@ -56,13 +57,16 @@ export function getSwapAlternatives(
     return true;
   });
 
-  // Enrich and score
+  // Enrich and score using unified PES engine
   const originalCost = getRecipeCost(original);
+  const targetCalories = getMealTargetCalories(mealType, userProfile);
   const enriched = candidates.map(r => {
     const e = getEnrichedRecipe(r);
     const cost = getRecipeCost(r);
-    const calorieFit = 1 - Math.abs(e.calories - original.calories) / Math.max(1, original.calories);
-    const decisionScore = (e.proteinPerRupee * 0.6) + (calorieFit * 0.4);
+    const decisionScore = computePES(e, {
+      targetCalories,
+      originalProtein: original.protein,
+    });
     const proteinDrop = e.protein < original.protein * 0.8;
     return { recipe: e, cost, decisionScore, proteinDrop, bestChoice: false, highlight: 'Best Choice' as 'Cheapest' | 'Best Choice' | 'High Protein' };
   });

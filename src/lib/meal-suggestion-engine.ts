@@ -5,6 +5,7 @@ import { getEffectiveRestrictions } from './logic-engine';
 import { getEnhancedBudgetSettings, type PerMealBudget } from './budget-alerts';
 import { getBudgetSettings, getExpensesForDate } from './expense-store';
 import { getDailyLog, getTodayKey, type UserProfile } from './store';
+import { computePES } from './pes-engine';
 
 export interface SuggestedRecipe extends EnrichedRecipe {
   matchReason?: string;
@@ -80,24 +81,16 @@ export function getRecipesForMeal(
     return true;
   });
 
-  // Compute rank score using satiety + protein/rupee + remaining needs
+  // Compute rank score using unified PES engine
   const scored: SuggestedRecipe[] = filtered.map(r => {
     const allText = [r.name.toLowerCase(), ...r.tags, ...r.ingredients.map(i => i.name.toLowerCase())].join(' ');
     const prefMatches = restrictions.prefer.filter(kw => allText.includes(kw.toLowerCase()));
 
-    const pprScore = Math.min(1, r.proteinPerRupee * 3); // normalize ~0.33 → 1
-    const satScore = Math.min(1, r.satietyScore / 5);     // normalize ~5 → 1
-    const nutScore = r.nutritionScore / 10;
-    let calFit = 0.5, protFit = 0.5;
-    if (remainingCalories && remainingCalories > 0) {
-      calFit = Math.min(1, r.calories / remainingCalories);
-    }
-    if (remainingProtein && remainingProtein > 0) {
-      protFit = Math.min(1, r.protein / remainingProtein);
-    }
-
-    const rankScore = (pprScore * 0.3) + (satScore * 0.3) + (nutScore * 0.2) + (calFit * 0.1) + (protFit * 0.1)
-      + (prefMatches.length * 0.05);
+    const baseScore = computePES(r, {
+      targetCalories: remainingCalories,
+      budgetPerMeal: maxCost > 0 ? maxCost : undefined,
+    });
+    const rankScore = baseScore + (prefMatches.length * 0.05);
 
     return {
       ...r,
