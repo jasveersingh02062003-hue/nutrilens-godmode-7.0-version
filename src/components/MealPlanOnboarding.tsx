@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Check, Sparkles, Apple, ChefHat, Heart, Activity, Scale, Flame, Droplets, Shield, Wallet } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Sparkles, Apple, ChefHat, Heart, Activity, Scale, Flame, Droplets, Shield, Wallet, AlertTriangle } from 'lucide-react';
 import { MealPlannerProfile, saveMealPlannerProfile } from '@/lib/meal-planner-store';
 import { calculateBMI, calculateBMR, calculateTDEE, getBMICategory } from '@/lib/nutrition';
 import { determineGoalAndTargets } from '@/lib/goal-engine';
 import { getProfile } from '@/lib/store';
 import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
+import { validatePlanFeasibility, FeasibilityResult } from '@/lib/plan-validator';
 import MonikaGuide, { MEAL_PLANNER_MONIKA } from '@/components/onboarding/MonikaGuide';
 import OnboardingProgress from '@/components/onboarding/OnboardingProgress';
 
