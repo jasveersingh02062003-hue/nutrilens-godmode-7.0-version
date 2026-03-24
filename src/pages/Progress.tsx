@@ -2,7 +2,9 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Trophy, TrendingUp, Scale, Share2, Camera, IndianRupee, FileText, Crown } from 'lucide-react';
 import { getRecentLogs, getDailyTotals, getDailyLog, getAllLogDates } from '@/lib/store';
 import { hasExpensesOnDate } from '@/lib/expense-store';
-import { Flame } from 'lucide-react';
+import { Flame, BarChart3 } from 'lucide-react';
+import { getWeeklySummaries, type WeeklySummary } from '@/lib/weekly-feedback';
+import { Progress as ProgressBar } from '@/components/ui/progress';
 import { getWeightStreak } from '@/lib/weight-history';
 import { BADGES, computeAchievementStats, checkAndUnlockBadges, getUnlockedBadges } from '@/lib/achievements';
 import { sendAchievementAlert } from '@/lib/notifications';
@@ -169,6 +171,9 @@ export default function ProgressPage() {
 
         {/* Overview Stats */}
         <OverviewStats refreshKey={refreshKey} />
+
+        {/* Weekly Summaries History */}
+        <WeeklySummariesSection />
 
         {/* Flashback */}
         <FlashbackCard onOpenDate={(d) => setSelectedDate(d)} />
@@ -351,6 +356,41 @@ export default function ProgressPage() {
       />
 
       <UpgradeModal open={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
+    </div>
+  );
+}
+
+function WeeklySummariesSection() {
+  const summaries = getWeeklySummaries();
+  if (summaries.length === 0) return null;
+
+  const fmt = (d: string) => {
+    const dt = new Date(d + 'T00:00:00');
+    return dt.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+  };
+
+  const scoreColor = (s: number) =>
+    s >= 80 ? 'bg-primary/10 text-primary' : s >= 60 ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive';
+
+  return (
+    <div className="card-elevated p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <BarChart3 className="w-4 h-4 text-primary" />
+        <h3 className="font-semibold text-sm text-foreground">Weekly Summaries</h3>
+      </div>
+      <div className="space-y-3">
+        {summaries.slice(0, 6).map((s) => (
+          <div key={s.weekStart} className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/30">
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${scoreColor(s.adherenceScore)}`}>
+              {s.adherenceScore}%
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-medium text-foreground truncate">{s.insight}</p>
+              <p className="text-[10px] text-muted-foreground">{fmt(s.weekStart)} – {fmt(s.weekEnd)}</p>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

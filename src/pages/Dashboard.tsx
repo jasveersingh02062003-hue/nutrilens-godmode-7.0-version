@@ -45,7 +45,9 @@ import { getMealPlannerProfile } from '@/lib/meal-planner-store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import PESExplanationCard from '@/components/PESExplanationCard';
-
+import WeeklyFeedbackCard from '@/components/WeeklyFeedbackCard';
+import { shouldGenerateSummary, generateWeeklySummary, scheduleWeeklyNotification } from '@/lib/weekly-feedback';
+import { hasBrowserPermission } from '@/lib/notifications';
 export default function Dashboard() {
   const navigate = useNavigate();
   const { profile, refreshProfile } = useUserProfile();
@@ -107,6 +109,11 @@ export default function Dashboard() {
           toast.info(`🎯 Target adjusted to ${goalAdapt.newTargetCalories} kcal — ${goalAdapt.reason}`);
         }
       }
+    }
+    // Weekly feedback engine
+    if (shouldGenerateSummary()) {
+      const summary = generateWeeklySummary();
+      if (hasBrowserPermission()) scheduleWeeklyNotification(summary);
     }
   }, [profile, navigate]);
 
@@ -302,6 +309,11 @@ export default function Dashboard() {
         {/* Daily Food Efficiency */}
         <div className="animate-slide-up" style={{ animationDelay: '0.055s' }}>
           <DailyEfficiencyCard />
+        </div>
+
+        {/* Weekly Feedback (behavior correction) */}
+        <div className="animate-slide-up" style={{ animationDelay: '0.053s' }}>
+          <WeeklyFeedbackCard />
         </div>
 
         {/* 3b. Weekly Report (Mondays) */}
