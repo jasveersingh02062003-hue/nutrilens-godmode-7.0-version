@@ -311,6 +311,11 @@ export default function Dashboard() {
           <DailyEfficiencyCard />
         </div>
 
+        {/* Weekly Feedback (behavior correction) */}
+        <div className="animate-slide-up" style={{ animationDelay: '0.053s' }}>
+          <WeeklyFeedbackCard />
+        </div>
+
         {/* 3b. Weekly Report (Mondays) */}
         <div className="animate-slide-up" style={{ animationDelay: '0.06s' }}>
           <WeeklyReportCard />
