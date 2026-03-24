@@ -8,6 +8,7 @@ import { generateShoppingList } from '@/lib/meal-plan-generator';
 import { getRecipeImage } from '@/lib/recipe-images';
 import { getRecipeCost } from '@/lib/recipe-cost';
 import { getBudgetSummary } from '@/lib/budget-service';
+import { calculatePortions } from '@/lib/portion-engine';
 import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
 import { saveManualExpense } from '@/lib/expense-store';
 import { deductRecipeFromPantry } from '@/lib/pantry-deduction';
