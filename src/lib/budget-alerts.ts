@@ -14,6 +14,7 @@ export interface EnhancedBudgetSettings {
   perMealBudget: number; // legacy single value
   perMeal?: PerMealBudget;
   outsideFoodLimit: number;
+  outsideMealSlotsPerWeek?: number; // how many meals/week are outside food
   onboardingDone?: boolean;
   incomeRange?: string;
   eatingOutPerWeek?: number;
