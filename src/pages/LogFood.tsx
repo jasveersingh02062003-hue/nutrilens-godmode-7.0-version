@@ -4,6 +4,7 @@ import { Camera, Mic, MicOff, Search, ArrowLeft, Plus, Minus, Check, X, Loader2,
 import { addMealToLog, addMealToLogForDate, FoodItem, MealEntry, MealSource, MealCost, CookingMethod } from '@/lib/store';
 import { saveManualExpense } from '@/lib/expense-store';
 import CostSuggestionBanner from '@/components/CostSuggestionBanner';
+import PESBreakdownModal from '@/components/PESBreakdownModal';
 import ContextPickerSheet from '@/components/ContextPickerSheet';
 import { getDefaultCategory, learnCookingMethod } from '@/lib/context-learning';
 import { searchIndianFoods, indianFoodToFoodItem, type IndianFood } from '@/lib/indian-foods';
