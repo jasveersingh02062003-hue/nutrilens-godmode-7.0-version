@@ -779,26 +779,20 @@ export function getAdjustmentDetails(): {
 }
 
 /**
- * Get after-dinner notification summary.
- * Returns a user-friendly message about today's surplus/deficit and how it affects upcoming days.
+ * Get after-dinner notification summary — pure function.
+ * Pass explicit values to avoid hidden state dependencies.
  */
-export function getDinnerNotificationSummary(): {
-  message: string;
-  tomorrowTarget: number;
-} | null {
-  const p = getProfile();
-  if (!p) return null;
-
-  const today = getEffectiveDate();
-  const dailyLog = getDailyLog(today);
-  const totals = getDailyTotals(dailyLog);
-  const originalTarget = p.dailyCalories || 1600;
-  const diff = totals.eaten - originalTarget;
+export function getDinnerNotificationSummary(
+  today: string,
+  actualCalories: number,
+  targetCalories: number,
+  state: CalorieBankState
+): { message: string; tomorrowTarget: number } | null {
+  const diff = actualCalories - targetCalories;
 
   // Don't notify for balanced days
   if (Math.abs(diff) < 50) return null;
 
-  const state = loadState();
   const mode = state.correctionMode;
   const config = MODE_CONFIG[mode];
 
@@ -813,13 +807,10 @@ export function getDinnerNotificationSummary(): {
     const deficit = Math.abs(diff);
     const recovery = Math.min(
       Math.round(deficit * config.deficitRecovery),
-      Math.round(originalTarget * 0.15)
+      Math.round(targetCalories * 0.15)
     );
     message = `You ate ${Math.round(deficit)} kcal less than your target.\n\n→ Tomorrow's calories will increase by ~${recovery} kcal.`;
   }
-
-  // Compute tomorrow's adjusted target
-  const tomorrowTarget = getAdjustedDailyTarget(p);
 
   // Pending adjustments from previous days
   const pendingAdj = state.adjustmentPlan
@@ -830,7 +821,21 @@ export function getDinnerNotificationSummary(): {
     message += `\n\n(${pendingAdj} kcal still being balanced from previous days.)`;
   }
 
-  message += `\n\n👉 Tomorrow's target: ~${tomorrowTarget} kcal`;
+  // Tomorrow's adjusted target = base target + tomorrow's adjustment
+  const tomorrow = new Date(today + 'T00:00:00');
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+  const tomorrowAdj = state.adjustmentPlan.find(e => e.date === tomorrowStr)?.adjust || 0;
+  const tomorrowTarget = targetCalories + tomorrowAdj;
+
+  message += `\n\n👉 Tomorrow's target: ~${Math.round(tomorrowTarget)} kcal`;
 
   return { message, tomorrowTarget };
+}
+
+/**
+ * Load the current calorie bank state (exposed for callers that need to pass it to pure functions).
+ */
+export function getCalorieBankState(): CalorieBankState {
+  return loadState();
 }
