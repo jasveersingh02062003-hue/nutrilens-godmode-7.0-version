@@ -154,12 +154,6 @@ export default function Dashboard() {
         }
       }
     }
-    // Auto-open adjustment modal if navigated from dinner notification
-    if (searchParams.get('showAdjustment') === 'true') {
-      setWhyModalOpen(true);
-      searchParams.delete('showAdjustment');
-      setSearchParams(searchParams, { replace: true });
-    }
     // Weekly feedback engine
     if (shouldGenerateSummary()) {
       const summary = generateWeeklySummary();

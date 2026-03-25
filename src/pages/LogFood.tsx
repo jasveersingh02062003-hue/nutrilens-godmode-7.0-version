@@ -17,7 +17,8 @@ import { toast } from 'sonner';
 import { checkBudgetAfterMeal } from '@/lib/budget-service';
 import UnitPicker from '@/components/UnitPicker';
 import { calculateNutrition, getUnitOptionsForFood } from '@/lib/unit-conversion';
-import { updateCalorieBank, getContextualMealToast, getDinnerNotificationSummary } from '@/lib/calorie-correction';
+import { updateCalorieBank, getContextualMealToast, getDinnerNotificationSummary, getCalorieBankState } from '@/lib/calorie-correction';
+import AdjustmentExplanationModal from '@/components/AdjustmentExplanationModal';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -193,14 +194,19 @@ export default function LogFood() {
 
     // After-dinner notification with surplus/deficit spreading
     if (mealType === 'dinner') {
-      const dinnerKey = `nutrilens_dinner_notif_${targetDate || new Date().toISOString().split('T')[0]}`;
+      const todayKey = targetDate || new Date().toISOString().split('T')[0];
+      const dinnerKey = `nutrilens_dinner_notif_${todayKey}`;
       if (!localStorage.getItem(dinnerKey)) {
-        const summary = getDinnerNotificationSummary();
+        const updatedLog = getDailyLog(todayKey);
+        const updatedTotals = getDailyTotals(updatedLog);
+        const origTarget = profile2?.dailyCalories || 1600;
+        const bankState = getCalorieBankState();
+        const summary = getDinnerNotificationSummary(todayKey, updatedTotals.eaten, origTarget, bankState);
         if (summary) {
           toast('Plan updated ⚖️', {
             description: summary.message,
             duration: 8000,
-            action: { label: 'Details', onClick: () => navigate('/dashboard?showAdjustment=true') },
+            action: { label: 'Details', onClick: () => setAdjModalOpen(true) },
           });
           localStorage.setItem(dinnerKey, '1');
         }
