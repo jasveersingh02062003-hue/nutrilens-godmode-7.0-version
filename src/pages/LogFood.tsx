@@ -55,7 +55,7 @@ export default function LogFood() {
     : searchIndianFoods('').map(indianFoodToFoodItem);
 
   const addFood = (food: FoodItem) => {
-    setSelected(prev => [...prev, { ...food, id: Date.now().toString() }]);
+    setSelected(prev => [...prev, { ...food, id: Date.now().toString(), confidenceScore: 0.9 }]);
     setStep('adjust');
   };
 
@@ -238,6 +238,7 @@ export default function LogFood() {
           quantity: item.quantity || 1,
           unit: item.unit || 'serving',
           confidence: item.confidence || 70,
+          confidenceScore: 0.7,
         }));
         setSelected(items);
         setStep('adjust');
@@ -322,6 +323,7 @@ export default function LogFood() {
           quantity: item.quantity || 1,
           unit: item.unit || 'serving',
           confidence: item.confidence || 75,
+          confidenceScore: 0.6,
         }));
         setSelected(items);
         setStep('adjust');

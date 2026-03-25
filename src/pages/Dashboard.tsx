@@ -48,7 +48,8 @@ import PESExplanationCard from '@/components/PESExplanationCard';
 import WeeklyFeedbackCard from '@/components/WeeklyFeedbackCard';
 import { shouldGenerateSummary, generateWeeklySummary, scheduleWeeklyNotification } from '@/lib/weekly-feedback';
 import { hasBrowserPermission } from '@/lib/notifications';
-import { processEndOfDay, getAdjustedDailyTarget, getProteinTarget, getCorrectionMessage, isTargetAdjusted } from '@/lib/calorie-correction';
+import { processEndOfDay, getAdjustedDailyTarget, getProteinTarget, getCorrectionMessage, isTargetAdjusted, getAdherenceScore, getBalanceStreak, getDayType, setDayType, type DayType } from '@/lib/calorie-correction';
+import { Flame } from 'lucide-react';
 export default function Dashboard() {
   const navigate = useNavigate();
   const { profile, refreshProfile } = useUserProfile();
@@ -65,6 +66,9 @@ export default function Dashboard() {
   const [showPESExplanation, setShowPESExplanation] = useState(() => !localStorage.getItem('pes_explanation_seen'));
   const [budgetAlert, setBudgetAlert] = useState<(BudgetAlertResult & { timestamp: number; date: string }) | null>(getLatestBudgetAlert());
   const [showCorrectionBadge, setShowCorrectionBadge] = useState(false);
+  const [adherenceScore, setAdherenceScore] = useState(0);
+  const [balanceStreak, setBalanceStreak] = useState(0);
+  const [currentDayType, setCurrentDayType] = useState<DayType>('normal');
 
   const plannerProfile = getMealPlannerProfile();
   const plannerIncomplete = !plannerProfile || !plannerProfile.onboardingComplete;
@@ -116,6 +120,9 @@ export default function Dashboard() {
     if (profile) {
       processEndOfDay(profile);
       setShowCorrectionBadge(isTargetAdjusted(profile));
+      setAdherenceScore(Math.round(getAdherenceScore().score * 100));
+      setBalanceStreak(getBalanceStreak());
+      setCurrentDayType(getDayType());
       const correctionMsg = getCorrectionMessage();
       if (correctionMsg) {
         toast.info(correctionMsg.message);
@@ -258,6 +265,52 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+
+        {/* Adherence & Streak Row */}
+        {(adherenceScore > 0 || balanceStreak > 0) && (
+          <div className="flex gap-2 animate-fade-in">
+            {adherenceScore > 0 && (
+              <div className="flex-1 card-subtle p-3 flex items-center gap-2">
+                <span className="text-sm">📋</span>
+                <div>
+                  <p className="text-xs font-semibold text-foreground">Adherence: {adherenceScore}%</p>
+                  <p className="text-[9px] text-muted-foreground">Last 7 days</p>
+                </div>
+              </div>
+            )}
+            {balanceStreak > 0 && (
+              <div className="flex-1 card-subtle p-3 flex items-center gap-2">
+                <Flame className="w-4 h-4 text-accent" />
+                <div>
+                  <p className="text-xs font-semibold text-foreground">{balanceStreak} day{balanceStreak !== 1 ? 's' : ''} balanced</p>
+                  <p className="text-[9px] text-muted-foreground">Within ±100 kcal</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Day Type Selector */}
+        <div className="animate-fade-in flex items-center gap-2">
+          {(['normal', 'cheat', 'recovery', 'fasting'] as DayType[]).map(dt => (
+            <button
+              key={dt}
+              onClick={() => {
+                const today = new Date().toISOString().split('T')[0];
+                setDayType(today, dt);
+                setCurrentDayType(dt);
+                toast.success(`Day marked as ${dt}`);
+              }}
+              className={`px-3 py-1.5 rounded-xl text-[10px] font-semibold transition-colors ${
+                currentDayType === dt
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              {dt === 'normal' ? '🟢 Normal' : dt === 'cheat' ? '🎉 Cheat' : dt === 'recovery' ? '🔄 Recovery' : '🍽️ Fasting'}
+            </button>
+          ))}
+        </div>
 
         {/* Daily Adjustment Summary (from yesterday) */}
         <div className="animate-fade-in">
