@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { ArrowLeft, Edit2, Bell, Activity, Download, HelpCircle, ChevronRight, Package, LogOut, Loader2, Heart, SlidersHorizontal, Crown, Zap, Star, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getBMICategory } from '@/lib/nutrition';
@@ -24,6 +24,9 @@ import UpgradeModal from '@/components/UpgradeModal';
 import PlansPage from '@/components/PlansPage';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
 
+import { runAllDiagnostics, type TestResult } from '@/lib/calorie-correction-diagnostic';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
 export default function Profile() {
   const navigate = useNavigate();
   const { profile } = useUserProfile();
@@ -45,6 +48,8 @@ export default function Profile() {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showPlans, setShowPlans] = useState(false);
   const [devMode, setDevMode] = useState(false);
+  const [showDiagnostic, setShowDiagnostic] = useState(false);
+  const [diagnosticResults, setDiagnosticResults] = useState<TestResult[]>([]);
   const devTapRef = useRef({ count: 0, timer: null as any });
   const profilePhoto = getProfilePhoto();
   const correctionCount = getCorrections().length;
@@ -324,6 +329,16 @@ export default function Profile() {
               >
                 Reset Counters
               </button>
+              <button
+                onClick={() => {
+                  const results = runAllDiagnostics();
+                  setDiagnosticResults(results);
+                  setShowDiagnostic(true);
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-accent text-accent-foreground"
+              >
+                Test Calorie Engine
+              </button>
             </div>
           </div>
         )}
@@ -340,6 +355,40 @@ export default function Profile() {
         <SkinConcernsSheet open={showSkinConcerns} onClose={() => setShowSkinConcerns(false)} />
         <UpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} onUpgraded={() => setCurrentPlan(getPlan())} />
         <PlansPage open={showPlans} onClose={() => setShowPlans(false)} onPlanChanged={() => setCurrentPlan(getPlan())} />
+
+        {/* Calorie Engine Diagnostic Modal */}
+        <Dialog open={showDiagnostic} onOpenChange={setShowDiagnostic}>
+          <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Zap className="w-5 h-5 text-primary" /> Calorie Engine Diagnostic
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 mt-2">
+              {diagnosticResults.map((r, i) => (
+                <div key={i} className={`rounded-xl border p-3 space-y-1.5 ${r.passed ? 'border-green-500/30 bg-green-500/5' : 'border-destructive/30 bg-destructive/5'}`}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">{r.passed ? '✅' : '❌'}</span>
+                    <p className="text-xs font-bold text-foreground">{r.name}</p>
+                    <span className={`ml-auto text-[10px] font-semibold ${r.passed ? 'text-green-600' : 'text-destructive'}`}>
+                      {r.passed ? 'PASS' : 'FAIL'}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground"><strong>Expected:</strong> {r.expected}</p>
+                  <p className="text-[10px] text-muted-foreground"><strong>Actual:</strong> {r.actual}</p>
+                  <p className="text-[10px] text-muted-foreground/70">{r.details}</p>
+                </div>
+              ))}
+              {diagnosticResults.length > 0 && (
+                <p className="text-center text-[10px] text-muted-foreground pt-1">
+                  {diagnosticResults.every(r => r.passed)
+                    ? '🎉 All tests passed — engine is working correctly!'
+                    : `⚠️ ${diagnosticResults.filter(r => !r.passed).length} test(s) failed`}
+                </p>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
