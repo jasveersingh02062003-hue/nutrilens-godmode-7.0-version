@@ -28,7 +28,8 @@ import { computeSmartAdjustment, applySmartAdjustment, type AdjustmentResult } f
 import { resolveMealVisualState } from '@/lib/meal-state-service';
 import PESBreakdownModal from '@/components/PESBreakdownModal';
 import { getBudgetSettings } from '@/lib/expense-store';
-import { updateCalorieBank, getContextualMealToast, getDinnerNotificationSummary } from '@/lib/calorie-correction';
+import { updateCalorieBank, getContextualMealToast, getDinnerNotificationSummary, getCalorieBankState } from '@/lib/calorie-correction';
+import AdjustmentExplanationModal from '@/components/AdjustmentExplanationModal';
 
 interface Props {
   open: boolean;
@@ -175,12 +176,14 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
     // Dinner notification on delete
     if (mealType === 'dinner') {
       const dinnerKey = `nutrilens_dinner_notif_${date}`;
-      if (!localStorage.getItem(dinnerKey)) {
-        const summary = getDinnerNotificationSummary();
-        if (summary) {
-          toast('Plan updated ⚖️', { description: summary.message, duration: 8000 });
-          localStorage.setItem(dinnerKey, '1');
-        }
+      localStorage.removeItem(dinnerKey); // allow re-trigger after edit
+      const updatedTotals2 = { eaten: updatedLog.meals.reduce((s, m) => s + m.totalCalories, 0) };
+      const origTarget = profile?.dailyCalories || 1600;
+      const bankState = getCalorieBankState();
+      const summary = getDinnerNotificationSummary(date, updatedTotals2.eaten, origTarget, bankState);
+      if (summary) {
+        toast('Plan updated ⚖️', { description: summary.message, duration: 8000, action: { label: 'Details', onClick: () => setAdjModalOpen(true) } });
+        localStorage.setItem(dinnerKey, '1');
       }
     }
     setDeleteId(null);
@@ -299,12 +302,14 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
     // Dinner notification on add
     if (mealType === 'dinner') {
       const dinnerKey = `nutrilens_dinner_notif_${date}`;
-      if (!localStorage.getItem(dinnerKey)) {
-        const summary = getDinnerNotificationSummary();
-        if (summary) {
-          toast('Plan updated ⚖️', { description: summary.message, duration: 8000 });
-          localStorage.setItem(dinnerKey, '1');
-        }
+      localStorage.removeItem(dinnerKey); // allow re-trigger after edit
+      const addTotals = { eaten: updatedLog.meals.reduce((s, m) => s + m.totalCalories, 0) };
+      const origTarget = profile?.dailyCalories || 1600;
+      const bankState = getCalorieBankState();
+      const summary = getDinnerNotificationSummary(date, addTotals.eaten, origTarget, bankState);
+      if (summary) {
+        toast('Plan updated ⚖️', { description: summary.message, duration: 8000, action: { label: 'Details', onClick: () => setAdjModalOpen(true) } });
+        localStorage.setItem(dinnerKey, '1');
       }
     }
     setAddSheetOpen(false);
