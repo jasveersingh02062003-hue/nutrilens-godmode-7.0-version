@@ -24,6 +24,17 @@ export interface AdjustmentPlanEntry {
   adjust: number;
 }
 
+export interface AdjustmentSource {
+  sourceDate: string;
+  surplus: number;
+  appliedAdjustment: number;
+}
+
+export interface AdjustmentSourceMap {
+  targetDate: string;
+  sources: AdjustmentSource[];
+}
+
 export interface CalorieBankState {
   calorieBank: number;
   adjustmentPlan: AdjustmentPlanEntry[];
