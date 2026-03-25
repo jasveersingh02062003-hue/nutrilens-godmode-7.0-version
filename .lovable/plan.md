@@ -1,83 +1,66 @@
 
 
-## Fix Smart Calorie Correction Engine — Missing Pieces
+## Required Fixes: UX Improvements, Trust Feedback, and Smart Logging
 
 ### Overview
-Targeted fixes to the existing `calorie-correction.ts` and `meal-adjustment.ts` to close production gaps. No new files needed, no rewrites.
+12 targeted fixes across Dashboard, logging, and meal components to improve user trust, add missing feedback loops, and handle edge cases. No architectural rewrites.
 
-### Fix 1: Adjustment Plan Merging (Not Overwriting)
+### Files to Create
 
-**`src/lib/calorie-correction.ts`**
-- Add a `mergePlans()` helper that combines existing and new plan entries by date (summing adjustments for the same date).
-- In `updateCalorieBank()` lines 297 and 312: replace direct assignment (`state.adjustmentPlan = ...`) with `state.adjustmentPlan = mergePlans(state.adjustmentPlan.filter(e => e.date >= today), newPlan)`.
-- Same fix in `processEndOfDay()` line 426.
+**1. `src/components/WhyAdjustedModal.tsx`** (Fix 2: Trust Feedback)
+- Modal showing why the calorie target changed, using data from `getAdjustmentPlan()` and `getDailyBalances()`.
+- Shows: "You ate +700 kcal on Monday. We're spreading it across 4 days: -175 kcal/day."
+- Renders each plan entry as a row with date and adjustment amount.
 
-### Fix 2: Recalc Calories After Portion Change
+**2. `src/components/MissedDayPrompt.tsx`** (Fix 1: Missed Logging)
+- Simple modal: "Looks like you missed logging yesterday. Would you like to quickly add it or skip?"
+- "Log Yesterday" navigates to `/log-food?date=yesterday`; "Skip" dismisses.
+- Triggered on Dashboard mount if yesterday has 0 meals logged.
 
-**`src/lib/meal-adjustment.ts`**
-- After every `item.quantity` change (lines 83, 109, 135), recalculate `item.calories` and `item.protein` using base per-unit values. Since `FoodItem.calories` and `FoodItem.protein` are per-unit values and `quantity` is the multiplier, the current math (`item.calories * item.quantity`) already works correctly for totals. However, add a comment clarifying this and ensure no stale total is cached.
+**3. `src/components/QuickLogSheet.tsx`** (Fix 11: Quick Log)
+- Sheet with a free-text input: "2 rotis + sabzi" → parses common Indian food shortcuts using the existing `searchIndianFoods` database.
+- Maps recognized items, creates FoodItems with `confidenceScore: 0.6` and a `quickLog: true` flag.
+- Accessible from a "Quick Log" button on the Dashboard.
 
-Actually — reviewing the code more carefully: `item.calories` is the per-unit value and `quantity` is the count. The engine correctly uses `item.calories * item.quantity` for totals. The portion change modifies `quantity`, which is correct. **No code change needed here** — the math is already sound.
+### Files to Modify
 
-### Fix 3: Protein Constraint (Already Implemented)
+**4. `src/pages/Dashboard.tsx`** (Fixes 1, 2, 5, 8, 9, 10)
+- **Fix 1**: On mount, check if yesterday has 0 meals → show `MissedDayPrompt`.
+- **Fix 2**: Make the ⚖️ correction badge clickable → opens `WhyAdjustedModal`.
+- **Fix 5**: Swap visual order: move protein MacroCard ABOVE CalorieRing or make it larger. Display protein remaining prominently: "💪 60g protein remaining" in a dedicated card above the calorie ring.
+- **Fix 8**: Add time-based insight card. Morning rule: if yesterday's dinner was >40% of daily calories, show "Light breakfast suggested." Evening rule: if protein remaining >40g after 6 PM, show "Try eggs or soya for quick protein."
+- **Fix 9**: Add grocery overspend banner using `getBudgetSummary()` — if projected weekly spend >budget, show: "You're overspending this week. Switch 2 meals to save ₹200." Links to grocery page.
+- **Fix 10**: On day 3 of the week, show toast "You're doing better than 70% of users!" On day 5: "Stay consistent 2 more days → unlock streak." Simple day-of-week check.
+- **Fix 11**: Add "Quick Log" floating button that opens `QuickLogSheet`.
 
-The protein check already exists at lines 119-140 of `meal-adjustment.ts`. It checks if total protein dropped below 90% of target and boosts high-protein flexible items. **No change needed.**
+**5. `src/pages/LogFood.tsx`** (Fixes 4, 6)
+- **Fix 4**: Before saving, run a sanity check on each item: if `calories < expectedMin * 0.3` or `calories > expectedMax * 2`, show inline warning with "Fix" (opens edit) and "Ignore" buttons. Use `getFoodByName()` to get expected range.
+- **Fix 6**: After saving a meal, show completion toast with protein progress: `"Breakfast complete ✅ Protein goal 25% done 💪"`. Compute `(totalProteinEaten / proteinTarget * 100)`.
 
-### Fix 4: Locked-Meal Calorie Protection (Already Implemented)
+**6. `src/components/TodayMeals.tsx`** (Fix 7: Skip Meal)
+- Add a "Skip" button to each pending meal slot.
+- On skip, call existing `skipMeal()` from `calorie-engine.ts` (already imported).
+- Show toast: "Meal skipped. Remaining meals adjusted."
 
-Lines 35-56 of `meal-adjustment.ts` already separate locked vs flexible items and compute `flexTarget = adjustedTarget - lockedCal`. **No change needed.**
+**7. `src/components/CalorieRing.tsx`** (Fix 5: Protein Priority)
+- Add a protein remaining line below the ring's "kcal remaining" display: "💪 Xg protein left" in a prominent style.
+- Accept `proteinRemaining` as a new prop.
 
-### Fix 5: Adherence Score Modulating Adjustments (Already Implemented)
+**8. Toast Message Updates** (Fix 12: Emotional Tone)
+- In `calorie-correction.ts` `getCorrectionMessage()`: Update messages:
+  - Surplus: "Big meal today 😄 We've got you covered for the next few days."
+  - Deficit: "Light day — we'll add a little extra tomorrow to keep your energy up."
+- In `LogFood.tsx` save toast: Use warm tone.
+- In `TodayMeals.tsx` skip toast: "No worries! We've adjusted your remaining meals."
 
-Lines 287-290 of `calorie-correction.ts` already read adherence score and apply a 0.7 multiplier if score < 0.5. **No change needed.**
+**9. `src/components/PESBadge.tsx`** (Fix 3: PES Education)
+- Add a one-line comparative insight below the PES score when displayed in meal cards.
+- Simple rule: if PES < 0.3, show "Try [higher PES alternative] for 2x more protein per ₹."
+- Data source: existing `foodDatabase` from `pes-engine.ts`.
 
-### Fix 6: Confidence Score Usage (Already Implemented)
-
-Lines 279-284 already apply confidence-based softening. **No change needed.**
-
-### Fix 7: Consecutive Surplus Failure Handling
-
-**`src/lib/calorie-correction.ts`**
-- Current code at line 283 checks `consecutiveSurplusDays > 3` and applies a 0.7 multiplier. This is correct but the adjustment plan entries themselves aren't dampened after creation.
-- Add: after building the plan in the surplus branch (line 297), if `consecutiveSurplusDays > 3`, dampen each plan entry's adjust by 0.7.
-
-### Fix 8: Day-Type Logic (Already Implemented)
-
-`getAdjustedDailyTarget()` already handles fasting (return 0) at line 333 and cheat days bypass plan creation at line 273. **No change needed** — but cheat day should also return original target in `getAdjustedDailyTarget`. Currently cheat days fall through to the normal calculation. Fix: add `if (dayType === 'cheat') return originalTarget;` after the fasting check at line 333.
-
-### Fix 9: Safe localStorage Init (Already Implemented)
-
-`loadState()` already uses `{ ...DEFAULT_STATE, ...parsed }` at line 103. **No change needed.**
-
-### Fix 10: UI Sync via Event Bus
-
-**`src/lib/calorie-correction.ts`**
-- Add a simple callback registry: `let uiUpdateCallbacks: Array<() => void> = []`
-- Export `onCalorieBankUpdate(cb)` to register callbacks and `offCalorieBankUpdate(cb)` to unregister.
-- At the end of `updateCalorieBank()` and `processEndOfDay()`, call all registered callbacks.
-- In `Dashboard.tsx`, register a callback in useEffect that triggers a re-render (increment a state counter).
-
-### Fix 11: PES Sorting (Partial)
-
-The current code sorts by `proteinDensity` (protein/calories ratio) which is a reasonable proxy for PES. To use actual PES if available:
-
-**`src/lib/meal-adjustment.ts`**
-- Update the sort comparator to check for `(item as any).pes` first, falling back to proteinDensity. This makes it forward-compatible with PES scores when available.
-
-### Fix 12: Portion Boundary Clamping
-
-**`src/lib/meal-adjustment.ts`**
-- After every quantity assignment, add: `item.quantity = Math.max(0.5, Math.min(1.5 * originalQty, item.quantity))` — but the code already has `minQty = Math.max(0.5, item.quantity * 0.5)` and `maxQty = item.quantity * 1.5`. The boundaries are already enforced. **No change needed.**
-
----
-
-### Summary of Actual Changes
-
-| File | Change |
-|------|--------|
-| `src/lib/calorie-correction.ts` | Add `mergePlans()` helper; use it in `updateCalorieBank` and `processEndOfDay`; add cheat-day return in `getAdjustedDailyTarget`; dampen plan entries on consecutive surplus; add UI callback registry |
-| `src/lib/meal-adjustment.ts` | Add PES-aware sorting fallback |
-| `src/pages/Dashboard.tsx` | Register `onCalorieBankUpdate` callback for reactive re-renders |
-
-Most of the 12 "fixes" were already implemented in previous iterations. The real gaps are: plan merging (Fix 1), cheat-day target return (Fix 8), consecutive surplus dampening on plan entries (Fix 7), UI sync callbacks (Fix 10), and PES sort integration (Fix 11).
+### Implementation Priority
+1. Fixes 5, 6, 12 (visual priority + rewards + tone) — highest user impact, smallest code changes
+2. Fixes 2, 7 (trust modal + skip meal) — medium effort, high trust value
+3. Fixes 1, 4, 8 (missed day + validation + time intelligence) — medium effort
+4. Fixes 3, 9, 10, 11 (PES education + grocery alerts + retention + quick log) — additive features
 
