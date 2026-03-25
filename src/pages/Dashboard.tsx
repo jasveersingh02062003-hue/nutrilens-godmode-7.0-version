@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import PostOnboardingTutorial from '@/components/PostOnboardingTutorial';
 import { runWeeklyAdaptation as runGoalAdaptation, applyAdaptation } from '@/lib/goal-engine';
 import { Bell, ClipboardList, X, ShieldAlert } from 'lucide-react';
-import WhyAdjustedModal from '@/components/WhyAdjustedModal';
+import AdjustmentExplanationModal from '@/components/AdjustmentExplanationModal';
 import MissedDayPrompt from '@/components/MissedDayPrompt';
 import MonikaFab from '@/components/MonikaFab';
 import TimeInsightCard from '@/components/TimeInsightCard';
@@ -58,7 +58,7 @@ import PESExplanationCard from '@/components/PESExplanationCard';
 import WeeklyFeedbackCard from '@/components/WeeklyFeedbackCard';
 import { shouldGenerateSummary, generateWeeklySummary, scheduleWeeklyNotification } from '@/lib/weekly-feedback';
 import { hasBrowserPermission, startProactiveChecks } from '@/lib/notifications';
-import { processEndOfDay, getAdjustedDailyTarget, getProteinTarget, getCorrectionMessage, isTargetAdjusted, getAdherenceScore, getBalanceStreak, getDayType, setDayType, onCalorieBankUpdate, offCalorieBankUpdate, type DayType } from '@/lib/calorie-correction';
+import { processEndOfDay, getAdjustedDailyTarget, getProteinTarget, getCorrectionMessage, isTargetAdjusted, getAdherenceScore, getBalanceStreak, getDayType, setDayType, onCalorieBankUpdate, offCalorieBankUpdate, getAdjustmentExplanation, type DayType } from '@/lib/calorie-correction';
 import { Flame } from 'lucide-react';
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -139,6 +139,15 @@ export default function Dashboard() {
       setAdherenceScore(Math.round(getAdherenceScore().score * 100));
       setBalanceStreak(getBalanceStreak());
       setCurrentDayType(getDayType());
+      // Morning toast explaining adjustment
+      const explanation = getAdjustmentExplanation();
+      if (explanation) {
+        toast('⚖️ Calories adjusted', {
+          description: explanation,
+          action: { label: 'Details', onClick: () => setWhyModalOpen(true) },
+          duration: 6000,
+        });
+      }
     }
     // Weekly feedback engine
     if (shouldGenerateSummary()) {
@@ -500,7 +509,7 @@ export default function Dashboard() {
       {/* Weekly Weight Check-In (Sunday prompt) */}
       <WeeklyWeightCheckIn defaultWeight={profile.weightKg} onDone={refreshLog} />
 
-      <WhyAdjustedModal open={whyModalOpen} onClose={() => setWhyModalOpen(false)} />
+      <AdjustmentExplanationModal open={whyModalOpen} onClose={() => setWhyModalOpen(false)} />
       <MissedDayPrompt open={missedPromptOpen} onClose={() => setMissedPromptOpen(false)} missedDate={missedDate} />
 
       {/* Drop-Off Defense Modal */}
