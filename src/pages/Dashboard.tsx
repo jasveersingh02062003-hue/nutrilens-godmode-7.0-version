@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
 import PostOnboardingTutorial from '@/components/PostOnboardingTutorial';
 import { runWeeklyAdaptation as runGoalAdaptation, applyAdaptation } from '@/lib/goal-engine';
-import { Bell, ClipboardList, X, ShieldAlert } from 'lucide-react';
+import { Bell, ClipboardList, X, ShieldAlert, Zap } from 'lucide-react';
+import WhyAdjustedModal from '@/components/WhyAdjustedModal';
+import MissedDayPrompt from '@/components/MissedDayPrompt';
+import QuickLogSheet from '@/components/QuickLogSheet';
+import TimeInsightCard from '@/components/TimeInsightCard';
 import { updateDailyBehaviorStats, runWeeklyAdaptation, isSurvivalModeActive } from '@/lib/behavior-stats';
 import { useNavigate } from 'react-router-dom';
 import CalorieRing from '@/components/CalorieRing';
