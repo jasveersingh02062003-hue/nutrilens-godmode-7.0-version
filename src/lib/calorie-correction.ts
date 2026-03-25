@@ -1,11 +1,15 @@
 // ============================================
 // Smart Calorie Correction Engine
 // Rolling "calorie bank" with adjustment plans
+// Production-hardened with modes, adherence, confidence, streaks
 // ============================================
 
-import { getDailyLog, getDailyTotals, getProfile, type UserProfile, type DailyLog } from '@/lib/store';
+import { getDailyLog, getDailyTotals, getProfile, getRecentLogs, type UserProfile, type DailyLog } from '@/lib/store';
 
 // ── Types ──
+
+export type CorrectionMode = 'aggressive' | 'balanced' | 'flexible';
+export type DayType = 'normal' | 'cheat' | 'recovery' | 'fasting';
 
 export interface DailyBalanceEntry {
   date: string;
@@ -28,6 +32,13 @@ export interface CalorieBankState {
   lastProcessedDate: string;
   dailyBalances: DailyBalanceEntry[];
   consecutiveSurplusDays: number;
+  consecutiveDeficitDays: number;
+  // Production fields
+  correctionMode: CorrectionMode;
+  autoAdjustMeals: boolean;
+  dayCutoffHour: number;
+  specialDays: Record<string, DayType>;
+  balanceStreak: number;
 }
 
 export interface MonthlyStats {
@@ -37,7 +48,28 @@ export interface MonthlyStats {
   netBalance: number;
 }
 
+export interface EngineResponse {
+  adjustedCalories: number;
+  originalCalories: number;
+  proteinTarget: number;
+  bankStatus: 'surplus' | 'deficit' | 'balanced';
+  bankAmount: number;
+  adjustmentsApplied: AdjustmentPlanEntry[];
+  confidenceScore: number;
+  warnings: string[];
+  adherenceScore: number;
+  balanceStreak: number;
+  dayType: DayType;
+  correctionMode: CorrectionMode;
+}
+
 const BANK_KEY = 'nutrilens_calorie_bank';
+
+const MODE_CONFIG: Record<CorrectionMode, { recoveryDays: [number, number]; surplusCap: number; deficitRecovery: number }> = {
+  aggressive: { recoveryDays: [2, 3], surplusCap: 0.25, deficitRecovery: 0.50 },
+  balanced:   { recoveryDays: [3, 5], surplusCap: 0.20, deficitRecovery: 0.40 },
+  flexible:   { recoveryDays: [4, 6], surplusCap: 0.15, deficitRecovery: 0.30 },
+};
 
 const DEFAULT_STATE: CalorieBankState = {
   calorieBank: 0,
@@ -47,6 +79,12 @@ const DEFAULT_STATE: CalorieBankState = {
   lastProcessedDate: '',
   dailyBalances: [],
   consecutiveSurplusDays: 0,
+  consecutiveDeficitDays: 0,
+  correctionMode: 'balanced',
+  autoAdjustMeals: true,
+  dayCutoffHour: 3,
+  specialDays: {},
+  balanceStreak: 0,
 };
 
 // ── Persistence ──
@@ -59,11 +97,7 @@ function loadState(): CalorieBankState {
     // Backward compat: migrate old dailyBalances format
     if (parsed.dailyBalances?.length && typeof parsed.dailyBalances[0].target === 'undefined') {
       parsed.dailyBalances = parsed.dailyBalances.map((b: any) => ({
-        date: b.date,
-        target: 0,
-        actual: 0,
-        diff: b.diff ?? 0,
-        bankAfter: 0,
+        date: b.date, target: 0, actual: 0, diff: b.diff ?? 0, bankAfter: 0,
       }));
     }
     return { ...DEFAULT_STATE, ...parsed };
@@ -76,10 +110,96 @@ function saveState(state: CalorieBankState): void {
   localStorage.setItem(BANK_KEY, JSON.stringify(state));
 }
 
+// ── Time-Based Day Cutoff ──
+
+export function getEffectiveDate(cutoffHour?: number): string {
+  const now = new Date();
+  const cutoff = cutoffHour ?? loadState().dayCutoffHour;
+  if (now.getHours() < cutoff) {
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday.toISOString().split('T')[0];
+  }
+  return now.toISOString().split('T')[0];
+}
+
+// ── Special Day Types ──
+
+export function setDayType(date: string, type: DayType): void {
+  const state = loadState();
+  if (type === 'normal') {
+    delete state.specialDays[date];
+  } else {
+    state.specialDays[date] = type;
+  }
+  saveState(state);
+}
+
+export function getDayType(date?: string): DayType {
+  const state = loadState();
+  const d = date || getEffectiveDate();
+  return state.specialDays[d] || 'normal';
+}
+
+// ── Correction Mode ──
+
+export function setCorrectionMode(mode: CorrectionMode): void {
+  const state = loadState();
+  state.correctionMode = mode;
+  saveState(state);
+}
+
+export function getCorrectionMode(): CorrectionMode {
+  return loadState().correctionMode;
+}
+
+// ── Auto-Adjust Toggle ──
+
+export function setAutoAdjust(on: boolean): void {
+  const state = loadState();
+  state.autoAdjustMeals = on;
+  saveState(state);
+}
+
+export function getAutoAdjust(): boolean {
+  return loadState().autoAdjustMeals;
+}
+
+// ── Confidence Scoring ──
+
+export function getAverageConfidence(log?: DailyLog): number {
+  const l = log || getDailyLog(getEffectiveDate());
+  let totalConf = 0;
+  let count = 0;
+  for (const meal of l.meals) {
+    for (const item of meal.items) {
+      totalConf += (item as any).confidenceScore ?? 0.85;
+      count++;
+    }
+  }
+  return count > 0 ? totalConf / count : 0.85;
+}
+
+// ── Adherence Tracking ──
+
+export function getAdherenceScore(): { score: number; label: string } {
+  const logs = getRecentLogs(7);
+  let mealsLogged = 0;
+  const mealsPlanned = 7 * 3; // 3 meals/day for 7 days
+  for (const log of logs) {
+    mealsLogged += log.meals.length;
+  }
+  const score = Math.min(1, mealsLogged / mealsPlanned);
+  const pct = Math.round(score * 100);
+  const label = pct >= 80 ? 'Great' : pct >= 60 ? 'Good' : pct >= 40 ? 'Fair' : 'Low';
+  return { score, label };
+}
+
 // ── Helper: build adjustment plan ──
 
-function buildAdjustmentPlan(surplus: number, originalTarget: number, startDate: string, days: number): AdjustmentPlanEntry[] {
-  const maxPerDay = originalTarget * 0.20;
+function buildAdjustmentPlan(surplus: number, originalTarget: number, startDate: string, days: number, mode: CorrectionMode): AdjustmentPlanEntry[] {
+  const config = MODE_CONFIG[mode];
+  const maxPerDay = originalTarget * config.surplusCap;
   const perDay = Math.min(surplus / days, maxPerDay);
   const plan: AdjustmentPlanEntry[] = [];
   const start = new Date(startDate);
@@ -100,12 +220,18 @@ export function updateCalorieBank(log?: DailyLog, profile?: UserProfile | null):
   const p = profile || getProfile();
   if (!p) return;
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getEffectiveDate();
   const dailyLog = log || getDailyLog(today);
   const totals = getDailyTotals(dailyLog);
   const originalTarget = p.dailyCalories || 1600;
 
   const state = loadState();
+  const dayType = state.specialDays[today] || 'normal';
+  const mode = state.correctionMode;
+  const config = MODE_CONFIG[mode];
+
+  // Fasting day — no bank update
+  if (dayType === 'fasting') return;
 
   const diff = totals.eaten - originalTarget;
 
@@ -117,11 +243,7 @@ export function updateCalorieBank(log?: DailyLog, profile?: UserProfile | null):
   state.calorieBank = state.calorieBank - previousDiff + diff;
 
   const entry: DailyBalanceEntry = {
-    date: today,
-    target: originalTarget,
-    actual: totals.eaten,
-    diff,
-    bankAfter: state.calorieBank,
+    date: today, target: originalTarget, actual: totals.eaten, diff, bankAfter: state.calorieBank,
   };
 
   if (existingIdx >= 0) {
@@ -135,24 +257,54 @@ export function updateCalorieBank(log?: DailyLog, profile?: UserProfile | null):
     state.dailyBalances = state.dailyBalances.slice(-30);
   }
 
-  // Track consecutive surplus days
+  // Track consecutive surplus/deficit days
   if (diff > 0) {
-    if (state.lastProcessedDate !== today) {
-      state.consecutiveSurplusDays++;
-    }
+    state.consecutiveSurplusDays = state.lastProcessedDate !== today ? state.consecutiveSurplusDays + 1 : state.consecutiveSurplusDays;
+    state.consecutiveDeficitDays = 0;
+  } else if (diff < -50) {
+    state.consecutiveDeficitDays = state.lastProcessedDate !== today ? state.consecutiveDeficitDays + 1 : state.consecutiveDeficitDays;
+    state.consecutiveSurplusDays = 0;
   } else {
     state.consecutiveSurplusDays = 0;
+    state.consecutiveDeficitDays = 0;
   }
+
+  // Cheat day — track bank but don't create adjustment plan
+  if (dayType === 'cheat') {
+    saveState(state);
+    return;
+  }
+
+  // Confidence-based softening
+  const confidence = getAverageConfidence(dailyLog);
+  const confMultiplier = confidence < 0.7 ? 0.7 : 1;
+
+  // Failure handling: if 3+ consecutive surplus days, reduce intensity
+  const failureMultiplier = state.consecutiveSurplusDays > 3 ? 0.7 : 1;
+  const effectiveMultiplier = confMultiplier * failureMultiplier;
+
+  // Adherence-based softening
+  const adherence = getAdherenceScore();
+  const adherenceMultiplier = adherence.score < 0.5 ? 0.7 : 1;
+
+  const totalMultiplier = effectiveMultiplier * adherenceMultiplier;
 
   // Build/update adjustment plan for surplus
   if (state.calorieBank > 50) {
-    const days = Math.min(7, Math.max(4, state.consecutiveSurplusDays + 3));
-    state.adjustmentPlan = buildAdjustmentPlan(state.calorieBank, originalTarget, today, days);
+    const [minDays, maxDays] = config.recoveryDays;
+    const days = Math.min(maxDays + (state.consecutiveSurplusDays > 3 ? 2 : 0), Math.max(minDays, state.consecutiveSurplusDays + minDays));
+    const effectiveSurplus = state.calorieBank * totalMultiplier;
+    state.adjustmentPlan = buildAdjustmentPlan(effectiveSurplus, originalTarget, today, Math.min(7, days), mode);
     state.adjustmentDaysRemaining = days;
-    state.adjustmentPerDay = Math.min(state.calorieBank / days, originalTarget * 0.20);
+    state.adjustmentPerDay = Math.min(effectiveSurplus / days, originalTarget * config.surplusCap);
   } else if (state.calorieBank < -50) {
     // Deficit: single-day partial recovery for tomorrow
-    const recovery = Math.abs(state.calorieBank) * 0.4;
+    let recoveryFactor = config.deficitRecovery;
+    // If 3+ consecutive deficit days, gradually reduce recovery
+    if (state.consecutiveDeficitDays > 3) {
+      recoveryFactor *= 0.5;
+    }
+    const recovery = Math.abs(state.calorieBank) * recoveryFactor * totalMultiplier;
     const maxRecovery = originalTarget * 0.15;
     const adjust = Math.round(Math.min(recovery, maxRecovery));
     const tomorrow = new Date();
@@ -174,37 +326,47 @@ export function getAdjustedDailyTarget(profile: UserProfile | null): number {
 
   const originalTarget = p.dailyCalories || 1600;
   const state = loadState();
-  const today = new Date().toISOString().split('T')[0];
+  const today = getEffectiveDate();
+  const dayType = state.specialDays[today] || 'normal';
+
+  // Special day type handling
+  if (dayType === 'fasting') return 0;
+  if (!state.autoAdjustMeals) return originalTarget;
+
+  const mode = state.correctionMode;
+  const config = MODE_CONFIG[mode];
+
+  // Recovery day: half-intensity
+  const intensityMultiplier = dayType === 'recovery' ? 0.5 : 1;
 
   // Check explicit adjustment plan first
   const planEntry = state.adjustmentPlan.find(e => e.date === today);
   if (planEntry) {
-    const adjusted = originalTarget + planEntry.adjust;
+    const adjusted = originalTarget + Math.round(planEntry.adjust * intensityMultiplier);
     const floor = originalTarget * 0.80;
     const ceiling = originalTarget * 1.15;
     return Math.round(Math.max(floor, Math.min(ceiling, adjusted)));
   }
 
-  if (Math.abs(state.calorieBank) < 50) {
-    return originalTarget;
-  }
+  if (Math.abs(state.calorieBank) < 50) return originalTarget;
 
   if (state.calorieBank > 0) {
+    const [minDays, maxDays] = config.recoveryDays;
     const recoveryDays = Math.max(
-      state.adjustmentDaysRemaining > 0 ? state.adjustmentDaysRemaining : 4,
-      Math.min(7, state.consecutiveSurplusDays + 3)
+      state.adjustmentDaysRemaining > 0 ? state.adjustmentDaysRemaining : minDays,
+      Math.min(maxDays, state.consecutiveSurplusDays + minDays)
     );
-    const maxAdjustment = originalTarget * 0.20;
-    const adjustment = Math.min(state.calorieBank / recoveryDays, maxAdjustment);
+    const maxAdjustment = originalTarget * config.surplusCap;
+    const adjustment = Math.min(state.calorieBank / recoveryDays, maxAdjustment) * intensityMultiplier;
     const nextTarget = originalTarget - adjustment;
     const floor = originalTarget * 0.80;
     return Math.round(Math.max(floor, nextTarget));
   }
 
-  // DEFICIT: partial recovery (40%)
-  const recoveryAmount = Math.abs(state.calorieBank) * 0.4;
+  // DEFICIT: partial recovery
+  const recoveryAmount = Math.abs(state.calorieBank) * config.deficitRecovery;
   const maxRecovery = originalTarget * 0.15;
-  const recovery = Math.min(recoveryAmount, maxRecovery);
+  const recovery = Math.min(recoveryAmount, maxRecovery) * intensityMultiplier;
   const nextTarget = originalTarget + recovery;
   const ceiling = originalTarget * 1.15;
   return Math.round(Math.min(ceiling, nextTarget));
@@ -224,7 +386,7 @@ export function processEndOfDay(profile: UserProfile | null): void {
   const p = profile || getProfile();
   if (!p) return;
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getEffectiveDate();
   const state = loadState();
 
   if (state.lastProcessedDate === today) return;
@@ -239,35 +401,44 @@ export function processEndOfDay(profile: UserProfile | null): void {
     const existingIdx = state.dailyBalances.findIndex(b => b.date === yesterday);
     if (existingIdx < 0 && totals.eaten > 0) {
       state.dailyBalances.push({
-        date: yesterday,
-        target: originalTarget,
-        actual: totals.eaten,
-        diff,
-        bankAfter: state.calorieBank + diff,
+        date: yesterday, target: originalTarget, actual: totals.eaten, diff, bankAfter: state.calorieBank + diff,
       });
       state.calorieBank += diff;
+    }
+
+    // Balance streak: |diff| <= 100 → increment, else reset
+    const lastEntry = state.dailyBalances.find(b => b.date === yesterday);
+    if (lastEntry && Math.abs(lastEntry.diff) <= 100) {
+      state.balanceStreak++;
+    } else if (lastEntry) {
+      state.balanceStreak = 0;
     }
 
     // Clean expired adjustment plan entries
     state.adjustmentPlan = state.adjustmentPlan.filter(e => e.date >= today);
 
-    if (state.adjustmentDaysRemaining > 0) {
-      state.adjustmentDaysRemaining--;
-    }
+    if (state.adjustmentDaysRemaining > 0) state.adjustmentDaysRemaining--;
 
     // Rebuild plan if bank still positive and plan is empty
     if (state.adjustmentPlan.length === 0 && state.calorieBank > 50) {
-      const days = Math.min(7, Math.max(4, state.consecutiveSurplusDays + 3));
-      state.adjustmentPlan = buildAdjustmentPlan(state.calorieBank, originalTarget, today, days);
+      const [minDays, maxDays] = MODE_CONFIG[state.correctionMode].recoveryDays;
+      const days = Math.min(maxDays + 2, Math.max(minDays, state.consecutiveSurplusDays + minDays));
+      state.adjustmentPlan = buildAdjustmentPlan(state.calorieBank, originalTarget, today, Math.min(7, days), state.correctionMode);
       state.adjustmentDaysRemaining = days;
-      state.adjustmentPerDay = Math.min(state.calorieBank / days, originalTarget * 0.20);
+      state.adjustmentPerDay = Math.min(state.calorieBank / days, originalTarget * MODE_CONFIG[state.correctionMode].surplusCap);
     }
   }
 
   state.lastProcessedDate = today;
 
-  if (state.dailyBalances.length > 30) {
-    state.dailyBalances = state.dailyBalances.slice(-30);
+  if (state.dailyBalances.length > 30) state.dailyBalances = state.dailyBalances.slice(-30);
+
+  // Clean old special days (older than 30 days)
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+  const cutoffStr = cutoff.toISOString().split('T')[0];
+  for (const key of Object.keys(state.specialDays)) {
+    if (key < cutoffStr) delete state.specialDays[key];
   }
 
   saveState(state);
@@ -289,16 +460,14 @@ export function getCalorieBankSummary(): {
 
   if (state.calorieBank > 0) {
     return {
-      bank: Math.round(state.calorieBank),
-      status: 'surplus',
-      message: 'Your plan auto-adjusted to keep you aligned.',
+      bank: Math.round(state.calorieBank), status: 'surplus',
+      message: state.autoAdjustMeals ? 'Your plan auto-adjusted to keep you aligned.' : 'Surplus detected — enable auto-adjust for corrections.',
     };
   }
 
   return {
-    bank: Math.round(state.calorieBank),
-    status: 'deficit',
-    message: 'Slight increase applied to maintain your energy.',
+    bank: Math.round(state.calorieBank), status: 'deficit',
+    message: state.autoAdjustMeals ? 'Slight increase applied to maintain your energy.' : 'Deficit detected — enable auto-adjust for recovery.',
   };
 }
 
@@ -306,8 +475,7 @@ export function getCalorieBankSummary(): {
  * Get daily balances for the last 30 days (enriched format).
  */
 export function getDailyBalances(): DailyBalanceEntry[] {
-  const state = loadState();
-  return [...state.dailyBalances].sort((a, b) => a.date.localeCompare(b.date));
+  return [...loadState().dailyBalances].sort((a, b) => a.date.localeCompare(b.date));
 }
 
 /**
@@ -315,7 +483,7 @@ export function getDailyBalances(): DailyBalanceEntry[] {
  */
 export function getAdjustmentPlan(): AdjustmentPlanEntry[] {
   const state = loadState();
-  const today = new Date().toISOString().split('T')[0];
+  const today = getEffectiveDate();
   return state.adjustmentPlan.filter(e => e.date >= today);
 }
 
@@ -324,22 +492,16 @@ export function getAdjustmentPlan(): AdjustmentPlanEntry[] {
  */
 export function getMonthlyStats(month?: string): MonthlyStats {
   const state = loadState();
-  const targetMonth = month || new Date().toISOString().slice(0, 7); // "YYYY-MM"
-
+  const targetMonth = month || new Date().toISOString().slice(0, 7);
   const monthBalances = state.dailyBalances.filter(b => b.date.startsWith(targetMonth));
 
-  let surplusDays = 0;
-  let deficitDays = 0;
-  let balancedDays = 0;
-  let netBalance = 0;
-
+  let surplusDays = 0, deficitDays = 0, balancedDays = 0, netBalance = 0;
   for (const b of monthBalances) {
     netBalance += b.diff;
     if (b.diff > 50) surplusDays++;
     else if (b.diff < -50) deficitDays++;
     else balancedDays++;
   }
-
   return { surplusDays, deficitDays, balancedDays, netBalance: Math.round(netBalance) };
 }
 
@@ -357,14 +519,9 @@ export function getWeekendPattern(): { detected: boolean; message: string } {
     if (day === 0 || day === 6) weekendSurplus++;
   }
 
-  const ratio = weekendSurplus / surplusEntries.length;
-  if (ratio >= 0.5) {
-    return {
-      detected: true,
-      message: 'You tend to eat more on weekends. We\'ve adjusted future plans to handle this better.',
-    };
+  if (weekendSurplus / surplusEntries.length >= 0.5) {
+    return { detected: true, message: 'You tend to eat more on weekends. We\'ve adjusted future plans to handle this better.' };
   }
-
   return { detected: false, message: '' };
 }
 
@@ -373,20 +530,16 @@ export function getWeekendPattern(): { detected: boolean; message: string } {
  */
 export function getCorrectionMessage(): { type: 'surplus' | 'deficit'; message: string } | null {
   const state = loadState();
-
   if (Math.abs(state.calorieBank) < 50) return null;
 
   if (state.calorieBank > 0) {
-    return {
-      type: 'surplus',
-      message: "No worries — we've adjusted the next few days to keep you on track.",
-    };
+    const msg = state.consecutiveSurplusDays > 3
+      ? "Consistency matters more than perfection. We're making small adjustments to keep you on track."
+      : "No worries — we've adjusted the next few days to keep you on track.";
+    return { type: 'surplus', message: msg };
   }
 
-  return {
-    type: 'deficit',
-    message: "We've increased today's plan slightly to keep your energy strong.",
-  };
+  return { type: 'deficit', message: "We've increased today's plan slightly to keep your energy strong." };
 }
 
 /**
@@ -396,7 +549,7 @@ export function getContextualMealToast(): { type: 'surplus' | 'deficit'; message
   const p = getProfile();
   if (!p) return null;
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getEffectiveDate();
   const log = getDailyLog(today);
   const totals = getDailyTotals(log);
   const target = p.dailyCalories || 1600;
@@ -428,4 +581,47 @@ export function isTargetAdjusted(profile: UserProfile | null): boolean {
   const original = p.dailyCalories || 1600;
   const adjusted = getAdjustedDailyTarget(p);
   return Math.abs(adjusted - original) > 10;
+}
+
+/**
+ * Get balance streak count.
+ */
+export function getBalanceStreak(): number {
+  return loadState().balanceStreak;
+}
+
+/**
+ * Standardized API contract for UI components.
+ */
+export function getEngineResponse(profile?: UserProfile | null, log?: DailyLog): EngineResponse {
+  const p = profile || getProfile();
+  const originalCalories = p?.dailyCalories || 1600;
+  const state = loadState();
+  const today = getEffectiveDate();
+  const dailyLog = log || getDailyLog(today);
+
+  const bankAbs = Math.abs(state.calorieBank);
+  const bankStatus: 'surplus' | 'deficit' | 'balanced' = bankAbs < 50 ? 'balanced' : state.calorieBank > 0 ? 'surplus' : 'deficit';
+
+  const warnings: string[] = [];
+  const confidence = getAverageConfidence(dailyLog);
+  if (confidence < 0.7) warnings.push('Low confidence data — adjustments are gentler.');
+  const adherence = getAdherenceScore();
+  if (adherence.score < 0.5) warnings.push('Low adherence — consider logging more meals.');
+  if (state.consecutiveSurplusDays > 3) warnings.push('Consistency matters more than perfection.');
+
+  return {
+    adjustedCalories: getAdjustedDailyTarget(p),
+    originalCalories,
+    proteinTarget: getProteinTarget(p),
+    bankStatus,
+    bankAmount: Math.round(state.calorieBank),
+    adjustmentsApplied: getAdjustmentPlan(),
+    confidenceScore: Math.round(confidence * 100),
+    warnings,
+    adherenceScore: Math.round(adherence.score * 100),
+    balanceStreak: state.balanceStreak,
+    dayType: state.specialDays[today] || 'normal',
+    correctionMode: state.correctionMode,
+  };
 }

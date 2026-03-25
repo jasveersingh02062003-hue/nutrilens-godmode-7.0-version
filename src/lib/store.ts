@@ -64,6 +64,8 @@ export interface FoodItem {
   estimatedWeightGrams?: number;
   itemCost?: number;
   itemSource?: MealSourceCategory;
+  /** Confidence score (0–1): camera=0.7, manual=0.9, voice=0.6 */
+  confidenceScore?: number;
   /** Per-100g base values for unit conversion recalculation */
   per100g?: { calories: number; protein: number; carbs: number; fat: number; fiber?: number };
   /** Available unit options for this food item */
