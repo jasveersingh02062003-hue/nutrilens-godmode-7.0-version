@@ -578,13 +578,15 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
                         <button
                           key={i}
                           onClick={() => {
+                            // Look up real nutrition from food database
+                            const dbFood = getFoodByName(s.name);
                             const item: FoodItem = {
                               id: Date.now().toString() + i,
                               name: s.name,
-                              calories: s.calories,
-                              protein: s.protein,
-                              carbs: Math.round(s.calories * 0.4 / 4),
-                              fat: Math.round(s.calories * 0.3 / 9),
+                              calories: dbFood ? dbFood.calories : s.calories,
+                              protein: dbFood ? dbFood.protein : s.protein,
+                              carbs: dbFood ? dbFood.carbs : Math.round(s.calories * 0.4 / 4),
+                              fat: dbFood ? dbFood.fat : Math.round(s.calories * 0.3 / 9),
                               quantity: 1,
                               unit: s.portion,
                               emoji: s.emoji,
