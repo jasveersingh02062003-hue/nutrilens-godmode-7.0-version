@@ -48,7 +48,7 @@ import UpgradeBanner from '@/components/UpgradeBanner';
 import { getMealPlannerProfile } from '@/lib/meal-planner-store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { seedDemoData } from '@/lib/seed-demo-data';
+
 import PESExplanationCard from '@/components/PESExplanationCard';
 import WeeklyFeedbackCard from '@/components/WeeklyFeedbackCard';
 import { shouldGenerateSummary, generateWeeklySummary, scheduleWeeklyNotification } from '@/lib/weekly-feedback';
@@ -205,16 +205,6 @@ export default function Dashboard() {
                 <SubscriptionBadge />
               </div>
               <p className="text-[11px] text-muted-foreground">Track your nutrition today</p>
-              <button
-                onClick={() => {
-                  seedDemoData();
-                  toast.success('🎉 30 days + 12 weeks of demo data loaded!');
-                  setTimeout(() => window.location.reload(), 500);
-                }}
-                className="text-[10px] text-primary underline mt-0.5"
-              >
-                Load Demo Data
-              </button>
             </div>
           </div>
           <div className="flex items-center gap-2">
