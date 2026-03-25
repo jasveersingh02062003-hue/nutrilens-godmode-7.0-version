@@ -3,8 +3,6 @@
 // Runs 3 simulated scenarios without touching real user data
 // ============================================
 
-import { MODE_CONFIG } from './calorie-correction-internal';
-
 export interface TestResult {
   name: string;
   passed: boolean;
