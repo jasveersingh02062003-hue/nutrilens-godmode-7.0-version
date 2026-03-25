@@ -193,6 +193,7 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
       };
     });
     saveDailyLog(updatedLog);
+    updateCalorieBank(updatedLog, profile);
     onChanged();
     forceUpdate();
   }
