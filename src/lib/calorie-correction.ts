@@ -834,13 +834,6 @@ export function getDinnerNotificationSummary(): {
 
   return { message, tomorrowTarget };
 }
-  recentSurplusDays: Array<{ date: string; surplus: number }>;
-  futureAdjustments: Array<{
-    date: string;
-    adjustment: number;
-    sources: AdjustmentSource[];
-  }>;
-} {
   const state = loadState();
   const today = getEffectiveDate();
   const activeSources = state.adjustmentSources.filter(s => s.targetDate >= today);
