@@ -238,10 +238,10 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
     const existingMeal = updatedLog.meals.find(m => m.type === mealType);
     if (existingMeal) {
       existingMeal.items.push(item);
-      existingMeal.totalCalories = existingMeal.items.reduce((s, i) => s + i.calories, 0);
-      existingMeal.totalProtein = existingMeal.items.reduce((s, i) => s + i.protein, 0);
-      existingMeal.totalCarbs = existingMeal.items.reduce((s, i) => s + i.carbs, 0);
-      existingMeal.totalFat = existingMeal.items.reduce((s, i) => s + i.fat, 0);
+      existingMeal.totalCalories = existingMeal.items.reduce((s, i) => s + i.calories * i.quantity, 0);
+      existingMeal.totalProtein = existingMeal.items.reduce((s, i) => s + i.protein * i.quantity, 0);
+      existingMeal.totalCarbs = existingMeal.items.reduce((s, i) => s + i.carbs * i.quantity, 0);
+      existingMeal.totalFat = existingMeal.items.reduce((s, i) => s + i.fat * i.quantity, 0);
     } else {
       const newMeal: MealEntry = {
         id: Date.now().toString(),
