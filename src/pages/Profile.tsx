@@ -48,6 +48,8 @@ export default function Profile() {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showPlans, setShowPlans] = useState(false);
   const [devMode, setDevMode] = useState(false);
+  const [showDiagnostic, setShowDiagnostic] = useState(false);
+  const [diagnosticResults, setDiagnosticResults] = useState<TestResult[]>([]);
   const devTapRef = useRef({ count: 0, timer: null as any });
   const profilePhoto = getProfilePhoto();
   const correctionCount = getCorrections().length;
