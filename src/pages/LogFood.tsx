@@ -116,6 +116,20 @@ export default function LogFood() {
   };
 
   const finalizeMeal = (source?: MealSource | null, cookingMethod?: CookingMethod | null) => {
+    // Show PES breakdown if meal has cost
+    const costAmount = mealCost?.amount || 0;
+    if (costAmount > 0 && totalProtein > 0) {
+      setPendingSource(source);
+      setPendingCookingMethod(cookingMethod);
+      setContextPickerOpen(false);
+      setShowPES(true);
+      return;
+    }
+    // No cost → save directly
+    commitMeal(source, cookingMethod);
+  };
+
+  const commitMeal = (source?: MealSource | null, cookingMethod?: CookingMethod | null) => {
     // Learn cooking preference for these food items
     if (cookingMethod && selected.length > 0) {
       learnCookingMethod(selected.map(s => s.name), cookingMethod);
@@ -163,6 +177,7 @@ export default function LogFood() {
     }
 
     setContextPickerOpen(false);
+    setShowPES(false);
     navigate(targetDate ? '/progress' : '/dashboard');
   };
 
