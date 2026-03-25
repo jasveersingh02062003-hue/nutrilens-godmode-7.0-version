@@ -24,6 +24,9 @@ import UpgradeModal from '@/components/UpgradeModal';
 import PlansPage from '@/components/PlansPage';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
 
+import { runAllDiagnostics, type TestResult } from '@/lib/calorie-correction-diagnostic';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
 export default function Profile() {
   const navigate = useNavigate();
   const { profile } = useUserProfile();
