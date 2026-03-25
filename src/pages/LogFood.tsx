@@ -571,6 +571,21 @@ export default function LogFood() {
         onSave={(source, cookingMethod) => finalizeMeal(source, cookingMethod)}
         onSkip={() => finalizeMeal(null)}
       />
+      {/* PES Breakdown Modal */}
+      <PESBreakdownModal
+        open={showPES}
+        food={{
+          name: selected.map(s => s.name).join(', '),
+          cost: mealCost?.amount || 0,
+          protein: Math.round(totalProtein),
+          carbs: Math.round(totalCarbs),
+          fat: Math.round(totalFat),
+          calories: Math.round(totalCal),
+        }}
+        mealLabel={mealLabels[mealType]}
+        onConfirm={() => commitMeal(pendingSource, pendingCookingMethod)}
+        onEdit={() => { setShowPES(false); }}
+      />
     </div>
   );
 }
