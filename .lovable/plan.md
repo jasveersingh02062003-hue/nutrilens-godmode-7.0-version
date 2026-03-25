@@ -1,47 +1,73 @@
 
 
-## Fix Unified PES Engine — 3 Issues
+## Fix Data Integrity — Consistent Quantity Handling and Validation
 
-The unified PES engine is already implemented. Three issues need fixing based on the review.
+### Root Problem
 
-### Issue 1: `meal-plan-generator.ts` — `targetCalories` is wrong
+The app has a **quantity multiplication inconsistency** — sometimes `calories` on a FoodItem is per-serving (and needs `* quantity`), sometimes it's already total. Different code paths handle this differently, producing impossible numbers like 284g protein + 213g fat = only 1185 kcal.
 
-**Current** (line 19): `targetCalories: enriched.calories` (self-referential, always gives perfect calorie fit = neutral)
+### Specific Bugs Found
 
-**Fix**: `scoreRecipe` needs a `mealType` parameter so it can call `getMealTargetCalories(mealType, profile)`. This requires threading `mealType` and a profile reference through `scoreRecipe` and `pickBest`. Where `scoreRecipe` is called during plan generation, the meal type is known.
+**Bug 1: Three different total-calculation formulas in MealDetailSheet.tsx**
+- `handleDeleteItem` (line 159): `filtered.reduce((s, i) => s + i.calories, 0)` — NO quantity multiply
+- `handleUpdateQty` (line 191): `items.reduce((s, i) => s + i.calories, 0)` — NO quantity multiply
+- `handleUpdateItemFromEdit` (line 232): `items.reduce((s, i) => s + i.calories * i.quantity, 0)` — WITH quantity multiply
+- `handleAddItem` (line 249): `items.reduce((s, i) => s + i.protein, 0)` — NO quantity multiply
 
-### Issue 2: `grocery-survival.ts` — Hardcoded 500 kcal
+These inconsistencies mean the same meal shows different totals depending on which action was last performed.
 
-**Current** (line 108): `computePES(b, { targetCalories: 500 })`
+**Bug 2: CameraHome stores per-unit values but saves total**
+- Camera divides nutrition by quantity for per-unit storage (line 301): `calories: nutrition.calories / suggestedQty`
+- Then computes total correctly (line 334): `totalCal = sum(calories * quantity)`
+- But MealDetailSheet reads without multiplying in some paths
 
-**Fix**: Use the user profile's daily target / 4 (average meal) if available. The `generateSurvivalKit` function already receives profile-like data or can read from store. If no profile context is available, use a reasonable default like `dailyTarget / 4`.
+**Bug 3: Fake macro fabrication**
+- Gap suggestions (line 594) create FoodItems with fabricated macros: `carbs: Math.round(s.calories * 0.4 / 4)` — not from any food database
+- Weather nudge (line 632) does the same: `protein: Math.round(food.calories * 0.15 / 4)`
 
-### Issue 3: `getMealTargetCalories` — Ignores user's custom meal split
+**Bug 4: Macro-to-calorie validation is missing**
+- No check that `(protein*4) + (carbs*4) + (fat*9) ≈ calories`
 
-**Current** (line 390): Hardcoded splits `{ breakfast: 0.25, lunch: 0.35, snacks: 0.15, dinner: 0.25 }`
+### Fix Plan (4 files)
 
-**Fix**: Read from `profile.budget?.mealSplit` first (which stores percentages as integers like 25, 35, 15, 25), fall back to hardcoded defaults.
+**File 1: `src/components/MealDetailSheet.tsx`** — Standardize all total calculations
 
-### Changes (3 files)
+All 4 recalculation sites must use the same formula. Since CameraHome stores per-unit values and quantity separately, the correct formula is `i.calories * i.quantity`. Fix:
 
-**File 1: `src/lib/pes-engine.ts`** — Fix `getMealTargetCalories`
-- Read `profile.budget?.mealSplit?.[key]` first, dividing by 100
-- Fall back to hardcoded defaults if not set
+- `handleDeleteItem` (line 159): change `s + i.calories` → `s + i.calories * i.quantity` (and protein, carbs, fat)
+- `handleUpdateQty` (line 191): same fix — add `* i.quantity`
+- `handleAddItem` (line 249): same fix — add `* i.quantity`
+- Display lines 60-63 (`totalP`, `totalC`, etc.) already sum from `m.totalProtein` which is the stored total — these are fine as long as the stored value is correct
 
-**File 2: `src/lib/meal-plan-generator.ts`** — Fix `scoreRecipe` to use proper target calories
-- Add `mealType` and `profile` parameters to `scoreRecipe`
-- Call `getMealTargetCalories(mealType, profile)` for `targetCalories`
-- Update all call sites of `scoreRecipe` and `pickBest` to pass `mealType` and profile
-- Keep `budgetPerMeal: maxCost` and `originalProtein: targetProtein` as-is
+**File 2: `src/components/MealDetailSheet.tsx`** — Fix gap suggestion food items
 
-**File 3: `src/lib/grocery-survival.ts`** — Use dynamic target calories
-- Read the user's daily calorie target from profile/store
-- Compute `targetCalories = dailyTarget / 4` for survival sorting
-- Fall back to 500 if no profile data available
+- Lines 594-596: Instead of fabricating macros from calorie percentages, look up the food in the database using `getFoodByName(s.name)` and use `indianFoodToFoodItem` for real nutrition data
+- Lines 630-636 (weather nudge): Same fix — use database lookup instead of fabricated ratios
 
-### What stays unchanged
-- `computePES` formula, `inferCategory`, `QUALITY_MAP`
-- Swap engine (already correctly uses `getMealTargetCalories`)
-- Suggestion engine (already correctly uses `remainingCalories`)
-- All display functions and UI components
+**File 3: `src/lib/food-validation.ts`** — Add macro-calorie cross-check
+
+Add a new validation rule that checks:
+```
+calculatedCal = (protein * 4) + (carbs * 4) + (fat * 9)
+if (|calculatedCal - reportedCal| > max(50, reportedCal * 0.15)):
+  warning("Nutrition values don't add up")
+```
+
+This catches data corruption before it reaches the user.
+
+**File 4: `src/lib/store.ts`** — Add `getDailyTotals` fix
+
+The existing `getDailyTotals` (line 242) reads from `meal.totalCalories` (pre-computed totals stored on the MealEntry). This is correct IF the stored values are correct. No change needed here, but add a safety comment.
+
+### What This Fixes
+- The 284g protein / 1185 kcal mismatch (caused by inconsistent quantity handling)
+- Progress bars showing wrong percentages
+- Totals changing depending on which action was last performed
+- Fabricated nutrition data from suggestions
+
+### What Stays Unchanged
+- FoodItem interface (per100g field stays)
+- CameraHome save flow (already correct)
+- CalorieEngine, PES engine, all other services
+- indianFoodToFoodItem (already uses per100g correctly)
 
