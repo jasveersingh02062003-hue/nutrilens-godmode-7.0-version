@@ -834,29 +834,3 @@ export function getDinnerNotificationSummary(): {
 
   return { message, tomorrowTarget };
 }
-  const today = getEffectiveDate();
-  const activeSources = state.adjustmentSources.filter(s => s.targetDate >= today);
-
-  // Deduplicate source days
-  const sourceMap = new Map<string, number>();
-  for (const entry of activeSources) {
-    for (const src of entry.sources) {
-      sourceMap.set(src.sourceDate, src.surplus);
-    }
-  }
-  const recentSurplusDays = Array.from(sourceMap.entries())
-    .map(([date, surplus]) => ({ date, surplus }))
-    .sort((a, b) => a.date.localeCompare(b.date));
-
-  // Future adjustments with sources
-  const futureAdjustments = activeSources.map(entry => {
-    const totalAdj = entry.sources.reduce((sum, s) => sum + s.appliedAdjustment, 0);
-    return {
-      date: entry.targetDate,
-      adjustment: totalAdj,
-      sources: entry.sources,
-    };
-  });
-
-  return { recentSurplusDays, futureAdjustments };
-}
