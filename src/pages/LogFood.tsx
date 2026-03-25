@@ -179,6 +179,8 @@ export default function LogFood() {
 
     // Update calorie bank after logging
     updateCalorieBank();
+    const mealToast = getContextualMealToast();
+    if (mealToast) toast(mealToast.message, { duration: 4000 });
 
     setContextPickerOpen(false);
     setShowPES(false);
