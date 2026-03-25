@@ -48,7 +48,7 @@ import PESExplanationCard from '@/components/PESExplanationCard';
 import WeeklyFeedbackCard from '@/components/WeeklyFeedbackCard';
 import { shouldGenerateSummary, generateWeeklySummary, scheduleWeeklyNotification } from '@/lib/weekly-feedback';
 import { hasBrowserPermission } from '@/lib/notifications';
-import { processEndOfDay, getAdjustedDailyTarget, getProteinTarget, getCorrectionMessage, isTargetAdjusted, getAdherenceScore, getBalanceStreak, getDayType, setDayType, type DayType } from '@/lib/calorie-correction';
+import { processEndOfDay, getAdjustedDailyTarget, getProteinTarget, getCorrectionMessage, isTargetAdjusted, getAdherenceScore, getBalanceStreak, getDayType, setDayType, onCalorieBankUpdate, offCalorieBankUpdate, type DayType } from '@/lib/calorie-correction';
 import { Flame } from 'lucide-react';
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -139,14 +139,27 @@ export default function Dashboard() {
     const interval = setInterval(() => {
       setLog(getDailyLog());
       setBudgetAlert(getLatestBudgetAlert());
-      // Check streaks on each refresh
       const { milestones } = checkAndUpdateStreaks();
       for (const m of milestones) {
         toast.success(`${m.milestone.emoji} ${m.milestone.label}! ${m.type} streak: ${m.milestone.target} days!`);
       }
     }, 2000);
-    return () => clearInterval(interval);
-  }, []);
+
+    // Reactive UI sync from calorie correction engine
+    const handleBankUpdate = () => {
+      setLog(getDailyLog());
+      setShowCorrectionBadge(isTargetAdjusted(profile));
+      setAdherenceScore(Math.round(getAdherenceScore().score * 100));
+      setBalanceStreak(getBalanceStreak());
+      setCurrentDayType(getDayType());
+    };
+    onCalorieBankUpdate(handleBankUpdate);
+
+    return () => {
+      clearInterval(interval);
+      offCalorieBankUpdate(handleBankUpdate);
+    };
+  }, [profile]);
 
   if (!profile) return null;
 

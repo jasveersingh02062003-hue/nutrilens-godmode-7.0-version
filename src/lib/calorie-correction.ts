@@ -211,6 +211,39 @@ function buildAdjustmentPlan(surplus: number, originalTarget: number, startDate:
   return plan;
 }
 
+// ── UI Update Callbacks ──
+
+let uiUpdateCallbacks: Array<() => void> = [];
+
+export function onCalorieBankUpdate(cb: () => void): void {
+  uiUpdateCallbacks.push(cb);
+}
+
+export function offCalorieBankUpdate(cb: () => void): void {
+  uiUpdateCallbacks = uiUpdateCallbacks.filter(c => c !== cb);
+}
+
+function notifyUICallbacks(): void {
+  for (const cb of uiUpdateCallbacks) {
+    try { cb(); } catch {}
+  }
+}
+
+// ── Plan Merging ──
+
+function mergePlans(existing: AdjustmentPlanEntry[], newEntries: AdjustmentPlanEntry[]): AdjustmentPlanEntry[] {
+  const merged = [...existing];
+  for (const newEntry of newEntries) {
+    const idx = merged.findIndex(e => e.date === newEntry.date);
+    if (idx !== -1) {
+      merged[idx] = { ...merged[idx], adjust: merged[idx].adjust + newEntry.adjust };
+    } else {
+      merged.push(newEntry);
+    }
+  }
+  return merged.sort((a, b) => a.date.localeCompare(b.date));
+}
+
 // ── Core Functions ──
 
 /**
@@ -294,7 +327,12 @@ export function updateCalorieBank(log?: DailyLog, profile?: UserProfile | null):
     const [minDays, maxDays] = config.recoveryDays;
     const days = Math.min(maxDays + (state.consecutiveSurplusDays > 3 ? 2 : 0), Math.max(minDays, state.consecutiveSurplusDays + minDays));
     const effectiveSurplus = state.calorieBank * totalMultiplier;
-    state.adjustmentPlan = buildAdjustmentPlan(effectiveSurplus, originalTarget, today, Math.min(7, days), mode);
+    const newPlan = buildAdjustmentPlan(effectiveSurplus, originalTarget, today, Math.min(7, days), mode);
+    // Dampen plan entries if consecutive surplus > 3
+    if (state.consecutiveSurplusDays > 3) {
+      newPlan.forEach(p => p.adjust = Math.round(p.adjust * 0.7));
+    }
+    state.adjustmentPlan = mergePlans(state.adjustmentPlan.filter(e => e.date >= today), newPlan);
     state.adjustmentDaysRemaining = days;
     state.adjustmentPerDay = Math.min(effectiveSurplus / days, originalTarget * config.surplusCap);
   } else if (state.calorieBank < -50) {
@@ -309,12 +347,14 @@ export function updateCalorieBank(log?: DailyLog, profile?: UserProfile | null):
     const adjust = Math.round(Math.min(recovery, maxRecovery));
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    state.adjustmentPlan = [{ date: tomorrow.toISOString().split('T')[0], adjust }];
+    const newDeficitPlan = [{ date: tomorrow.toISOString().split('T')[0], adjust }];
+    state.adjustmentPlan = mergePlans(state.adjustmentPlan.filter(e => e.date >= today), newDeficitPlan);
   } else {
     state.adjustmentPlan = [];
   }
 
   saveState(state);
+  notifyUICallbacks();
 }
 
 /**
@@ -331,6 +371,7 @@ export function getAdjustedDailyTarget(profile: UserProfile | null): number {
 
   // Special day type handling
   if (dayType === 'fasting') return 0;
+  if (dayType === 'cheat') return originalTarget;
   if (!state.autoAdjustMeals) return originalTarget;
 
   const mode = state.correctionMode;
@@ -423,7 +464,8 @@ export function processEndOfDay(profile: UserProfile | null): void {
     if (state.adjustmentPlan.length === 0 && state.calorieBank > 50) {
       const [minDays, maxDays] = MODE_CONFIG[state.correctionMode].recoveryDays;
       const days = Math.min(maxDays + 2, Math.max(minDays, state.consecutiveSurplusDays + minDays));
-      state.adjustmentPlan = buildAdjustmentPlan(state.calorieBank, originalTarget, today, Math.min(7, days), state.correctionMode);
+      const newPlan = buildAdjustmentPlan(state.calorieBank, originalTarget, today, Math.min(7, days), state.correctionMode);
+      state.adjustmentPlan = mergePlans(state.adjustmentPlan, newPlan);
       state.adjustmentDaysRemaining = days;
       state.adjustmentPerDay = Math.min(state.calorieBank / days, originalTarget * MODE_CONFIG[state.correctionMode].surplusCap);
     }
@@ -442,6 +484,7 @@ export function processEndOfDay(profile: UserProfile | null): void {
   }
 
   saveState(state);
+  notifyUICallbacks();
 }
 
 /**
