@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Plus, ChevronRight, AlertTriangle, Check, Dumbbell, SkipForward } from 'lucide-react';
+import { toast } from 'sonner';
 import { DailyLog, getTodayKey } from '@/lib/store';
 import { useNavigate } from 'react-router-dom';
 import { getMealHealthColor } from '@/lib/meal-feedback';
@@ -278,6 +279,7 @@ export default function TodayMeals({ log, onRefresh, dayState }: Props) {
                           e.stopPropagation();
                           engineSkipMeal(todayKey, mc.type);
                           onRefresh?.();
+                          toast("No worries! We've adjusted your remaining meals 😊", { duration: 3000 });
                         }}
                         className="w-7 h-7 rounded-lg bg-muted/60 flex items-center justify-center hover:bg-muted transition-colors"
                         title="Skip this meal"

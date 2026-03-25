@@ -3,9 +3,10 @@ import { DayState } from '@/lib/calorie-engine';
 
 interface Props {
   dayState: DayState;
+  proteinRemaining?: number;
 }
 
-export default function CalorieRing({ dayState }: Props) {
+export default function CalorieRing({ dayState, proteinRemaining }: Props) {
   const { totalConsumed, totalAllowed, totalBurned, remaining, baseTarget } = dayState;
 
   const progress = totalAllowed > 0 ? Math.min(1, totalConsumed / totalAllowed) : 0;
@@ -56,6 +57,9 @@ export default function CalorieRing({ dayState }: Props) {
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-3xl font-bold tracking-tight text-foreground">{displayRemaining}</span>
             <span className="text-[11px] text-muted-foreground font-medium mt-0.5">kcal remaining</span>
+            {proteinRemaining != null && proteinRemaining > 0 && (
+              <span className="text-[10px] font-semibold text-coral mt-1">💪 {proteinRemaining}g protein left</span>
+            )}
           </div>
         </div>
 

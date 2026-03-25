@@ -577,12 +577,12 @@ export function getCorrectionMessage(): { type: 'surplus' | 'deficit'; message: 
 
   if (state.calorieBank > 0) {
     const msg = state.consecutiveSurplusDays > 3
-      ? "Consistency matters more than perfection. We're making small adjustments to keep you on track."
-      : "No worries — we've adjusted the next few days to keep you on track.";
+      ? "You've been eating well lately 😄 We're making gentle adjustments to keep things balanced."
+      : "Big meal today 😄 We've got you covered for the next few days.";
     return { type: 'surplus', message: msg };
   }
 
-  return { type: 'deficit', message: "We've increased today's plan slightly to keep your energy strong." };
+  return { type: 'deficit', message: "Light day — we'll add a little extra tomorrow to keep your energy up 💪" };
 }
 
 /**
@@ -601,14 +601,14 @@ export function getContextualMealToast(): { type: 'surplus' | 'deficit'; message
   if (diff > 100) {
     return {
       type: 'surplus',
-      message: "You went over your target today. No worries — we'll adjust the next few days to keep you on track.",
+      message: "Big meal today 😄 We've got you covered — your plan will adjust gently.",
     };
   }
 
   if (diff < -300 && totals.eaten > 0) {
     return {
       type: 'deficit',
-      message: "You ate a bit less today. We've slightly increased tomorrow's plan to keep your energy strong.",
+      message: "Light day — we'll add a little extra tomorrow to keep your energy up 💪",
     };
   }
 
