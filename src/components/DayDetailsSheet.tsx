@@ -16,6 +16,8 @@ import { CATEGORY_CONFIG } from '@/lib/budget-service';
 import { ACTIVITY_TYPES } from '@/lib/activities';
 import { getSourceEmoji, getSourceLabel } from '@/lib/context-learning';
 import { generateDayInsight } from '@/lib/day-insights';
+import { getCalorieBankState } from '@/lib/calorie-correction';
+import { getFutureDayPlan, getAdjustmentBreakdownForDate, getExplanationMessage } from '@/lib/calendar-helpers';
 import ActivityLogSheet from '@/components/ActivityLogSheet';
 import SupplementLogSheet from '@/components/SupplementLogSheet';
 import FullScreenMemory from '@/components/FullScreenMemory';
@@ -141,11 +143,7 @@ export default function DayDetailsSheet({ open, date, onClose, onChanged }: Prop
               </button>
             </div>
 
-            {isFuture && (
-              <div className="p-3 rounded-xl bg-accent/10 border border-accent/20">
-                <p className="text-xs text-accent font-medium">You can only log meals for today and past days. Use the Meal Planner to plan future meals.</p>
-              </div>
-            )}
+            {isFuture && <FutureDayPlanSection date={date} profile={profile} />}
 
             {/* Monica Insight */}
             {insight && !isFuture && (
@@ -485,4 +483,89 @@ function Section({ icon, title, count, children }: { icon: React.ReactNode; titl
 
 function EmptyState({ text }: { text: string }) {
   return <p className="text-[10px] text-muted-foreground text-center py-2">{text}</p>;
+}
+
+function FutureDayPlanSection({ date, profile }: { date: string; profile: any }) {
+  const state = getCalorieBankState();
+  const plan = getFutureDayPlan(date, profile, state);
+  const breakdown = getAdjustmentBreakdownForDate(date, state);
+  const explanation = getExplanationMessage(breakdown);
+  const hasAdjustment = plan.adjustment !== 0;
+
+  return (
+    <div className="space-y-3">
+      {/* Smart Plan Preview */}
+      <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/15">
+        <div className="flex items-center gap-2 mb-2.5">
+          <Sparkles className="w-4 h-4 text-primary" />
+          <p className="text-xs font-bold text-primary">Smart Plan Preview</p>
+        </div>
+
+        {/* Calorie target */}
+        <div className="flex items-baseline gap-1.5 mb-3">
+          <span className="text-2xl font-bold text-foreground">{plan.calories}</span>
+          <span className="text-xs text-muted-foreground">kcal target</span>
+          {hasAdjustment && (
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+              plan.adjustment < 0 
+                ? 'bg-destructive/10 text-destructive' 
+                : 'bg-primary/10 text-primary'
+            }`}>
+              {plan.adjustment < 0 ? '🔻' : '🔺'} {plan.adjustment > 0 ? '+' : ''}{plan.adjustment} kcal
+            </span>
+          )}
+        </div>
+
+        {/* Macro breakdown */}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="p-2 rounded-lg bg-primary/10 text-center">
+            <p className="text-sm font-bold text-primary">{plan.protein}g</p>
+            <p className="text-[9px] text-muted-foreground font-medium">Protein 🔒</p>
+          </div>
+          <div className="p-2 rounded-lg bg-accent/10 text-center">
+            <p className="text-sm font-bold text-accent">{plan.carbs}g</p>
+            <p className="text-[9px] text-muted-foreground font-medium">Carbs</p>
+          </div>
+          <div className="p-2 rounded-lg bg-destructive/10 text-center">
+            <p className="text-sm font-bold text-destructive">{plan.fats}g</p>
+            <p className="text-[9px] text-muted-foreground font-medium">Fat</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Adjustment explanation */}
+      {breakdown.length > 0 && (
+        <div className="p-3 rounded-xl bg-muted/50 border border-border">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">⚖️ Why this target?</p>
+          <div className="space-y-1.5">
+            {breakdown.map((b, i) => {
+              const dayLabel = new Date(b.sourceDate + 'T12:00:00').toLocaleDateString('en-US', {
+                weekday: 'short', month: 'short', day: 'numeric',
+              });
+              return (
+                <div key={i} className="flex items-center justify-between text-[11px]">
+                  <span className="text-muted-foreground">{dayLabel}</span>
+                  <span className={`font-semibold ${b.surplus > 0 ? 'text-destructive' : 'text-primary'}`}>
+                    {b.surplus > 0 ? '+' : ''}{b.surplus} kcal → {b.appliedAdjustment > 0 ? '+' : ''}{b.appliedAdjustment}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {!hasAdjustment && (
+        <div className="p-3 rounded-xl bg-muted/30 border border-border">
+          <p className="text-xs text-muted-foreground text-center">No adjustments — original target applies ✅</p>
+        </div>
+      )}
+
+      <div className="p-2.5 rounded-xl bg-accent/5 border border-accent/15">
+        <p className="text-[11px] text-accent font-medium text-center">
+          💡 Use the Meal Planner to plan meals for this day
+        </p>
+      </div>
+    </div>
+  );
 }
