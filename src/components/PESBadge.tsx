@@ -27,10 +27,22 @@ export default function PESBadge({ pes, color, size = 'sm' }: Props) {
 
   const dotSize = size === 'sm' ? 'w-1.5 h-1.5' : 'w-2 h-2';
 
+  // Educational insight (Fix 3)
+  const insight = pes < 0.3
+    ? 'Try eggs or dal for better protein per ₹'
+    : pes > 0.8
+    ? 'Great protein efficiency!'
+    : null;
+
   return (
-    <span className={`inline-flex items-center rounded-full border font-semibold ${colorMap[color]} ${sizeClass}`}>
-      <span className={`${dotSize} rounded-full ${dotMap[color]}`} />
-      {pes.toFixed(2)}/₹
+    <span className="inline-flex flex-col items-start">
+      <span className={`inline-flex items-center rounded-full border font-semibold ${colorMap[color]} ${sizeClass}`}>
+        <span className={`${dotSize} rounded-full ${dotMap[color]}`} />
+        {pes.toFixed(2)}/₹
+      </span>
+      {insight && size === 'md' && (
+        <span className="text-[8px] text-muted-foreground mt-0.5 leading-tight">{insight}</span>
+      )}
     </span>
   );
 }

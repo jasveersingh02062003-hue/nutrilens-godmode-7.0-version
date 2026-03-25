@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import ConfidenceBadge from '@/components/ConfidenceBadge';
 import { validateMeal, validateSingleItem, type ValidationResult } from '@/lib/validation-engine';
 import ValidationFeedback from '@/components/ValidationFeedback';
-import { getProfile } from '@/lib/store';
+import { getProfile, getDailyLog, getDailyTotals } from '@/lib/store';
 import { toast } from 'sonner';
 import { checkBudgetAfterMeal } from '@/lib/budget-service';
 import UnitPicker from '@/components/UnitPicker';
@@ -179,6 +179,15 @@ export default function LogFood() {
 
     // Update calorie bank after logging
     updateCalorieBank();
+
+    // Meal completion toast with protein progress (Fix 6)
+    const profile2 = getProfile();
+    const proteinTarget = profile2?.dailyProtein || 60;
+    const totalProteinEaten = getDailyTotals(getDailyLog()).protein;
+    const proteinPct = Math.min(100, Math.round((totalProteinEaten / proteinTarget) * 100));
+    toast.success(`${mealLabels[mealType]} logged ✅ Protein goal ${proteinPct}% done 💪`, { duration: 4000 });
+
+    // Show contextual correction toast if needed
     const mealToast = getContextualMealToast();
     if (mealToast) toast(mealToast.message, { duration: 4000 });
 

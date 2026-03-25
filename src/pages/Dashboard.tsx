@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
 import PostOnboardingTutorial from '@/components/PostOnboardingTutorial';
 import { runWeeklyAdaptation as runGoalAdaptation, applyAdaptation } from '@/lib/goal-engine';
-import { Bell, ClipboardList, X, ShieldAlert } from 'lucide-react';
+import { Bell, ClipboardList, X, ShieldAlert, Zap } from 'lucide-react';
+import WhyAdjustedModal from '@/components/WhyAdjustedModal';
+import MissedDayPrompt from '@/components/MissedDayPrompt';
+import QuickLogSheet from '@/components/QuickLogSheet';
+import TimeInsightCard from '@/components/TimeInsightCard';
 import { updateDailyBehaviorStats, runWeeklyAdaptation, isSurvivalModeActive } from '@/lib/behavior-stats';
 import { useNavigate } from 'react-router-dom';
 import CalorieRing from '@/components/CalorieRing';
@@ -69,6 +73,10 @@ export default function Dashboard() {
   const [adherenceScore, setAdherenceScore] = useState(0);
   const [balanceStreak, setBalanceStreak] = useState(0);
   const [currentDayType, setCurrentDayType] = useState<DayType>('normal');
+  const [whyModalOpen, setWhyModalOpen] = useState(false);
+  const [missedPromptOpen, setMissedPromptOpen] = useState(false);
+  const [missedDate, setMissedDate] = useState('');
+  const [quickLogOpen, setQuickLogOpen] = useState(false);
 
   const plannerProfile = getMealPlannerProfile();
   const plannerIncomplete = !plannerProfile || !plannerProfile.onboardingComplete;
@@ -133,6 +141,22 @@ export default function Dashboard() {
       const summary = generateWeeklySummary();
       if (hasBrowserPermission()) scheduleWeeklyNotification(summary);
     }
+    // Missed day detection (Fix 1)
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yKey = yesterday.toISOString().split('T')[0];
+    const yLog = getDailyLog(yKey);
+    if (yLog.meals.length === 0 && !localStorage.getItem(`missed_prompt_${yKey}`)) {
+      setMissedDate(yKey);
+      setMissedPromptOpen(true);
+      localStorage.setItem(`missed_prompt_${yKey}`, 'shown');
+    }
+    // Retention hooks (Fix 10)
+    const dayOfWeek = new Date().getDay(); // 0=Sun
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - dayOfWeek);
+    if (dayOfWeek === 3) setTimeout(() => toast.success("You're doing better than 70% of users! 🎉"), 2000);
+    if (dayOfWeek === 5) setTimeout(() => toast.success("Stay consistent 2 more days → unlock streak! 🔥"), 2000);
   }, [profile, navigate]);
 
   useEffect(() => {
@@ -266,16 +290,14 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Calorie Correction Badge */}
+        {/* Calorie Correction Badge — clickable for explanation (Fix 2) */}
         {showCorrectionBadge && (
           <div className="animate-fade-in">
-            <div className="flex items-center gap-3 rounded-2xl px-4 py-3 border bg-primary/10 border-primary/20">
+            <button onClick={() => setWhyModalOpen(true)} className="w-full flex items-center gap-3 rounded-2xl px-4 py-3 border bg-primary/10 border-primary/20 text-left">
               <span className="text-sm">⚖️</span>
-              <p className="text-[11px] font-medium text-foreground">Adjusted for balance — your plan adapts to keep you on track</p>
-              <button onClick={() => setShowCorrectionBadge(false)} className="shrink-0">
-                <X className="w-3.5 h-3.5 text-muted-foreground" />
-              </button>
-            </div>
+              <p className="text-[11px] font-medium text-foreground flex-1">Adjusted for balance — tap to see why</p>
+              <X className="w-3.5 h-3.5 text-muted-foreground shrink-0" onClick={(e) => { e.stopPropagation(); setShowCorrectionBadge(false); }} />
+            </button>
           </div>
         )}
 
@@ -352,9 +374,27 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Protein Priority Card (Fix 5) */}
+        <div className="animate-scale-in">
+          <div className="card-elevated p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-coral/10 flex items-center justify-center">
+              <span className="text-lg">💪</span>
+            </div>
+            <div className="flex-1">
+              <p className="text-lg font-bold text-foreground">{Math.max(0, getProteinTarget(profile) - totals.protein)}g <span className="text-xs font-medium text-muted-foreground">protein remaining</span></p>
+              <p className="text-[10px] text-muted-foreground">Target: {getProteinTarget(profile)}g · Eaten: {totals.protein}g</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Time-Based Insight (Fix 8) */}
+        <div className="animate-fade-in">
+          <TimeInsightCard />
+        </div>
+
         {/* 2. Calorie Ring */}
         <div className="animate-scale-in">
-          <CalorieRing dayState={dayState} />
+          <CalorieRing dayState={dayState} proteinRemaining={Math.max(0, getProteinTarget(profile) - totals.protein)} />
         </div>
 
         {/* Next Meal Suggestion */}
@@ -447,7 +487,20 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Quick Log FAB (Fix 11) */}
+      <button
+        onClick={() => setQuickLogOpen(true)}
+        className="fixed bottom-24 left-4 z-40 w-12 h-12 rounded-full bg-accent text-accent-foreground shadow-lg flex items-center justify-center active:scale-90 transition-transform"
+        title="Quick Log"
+      >
+        <Zap className="w-5 h-5" />
+      </button>
+
       <MonikaFab onDashboardRefresh={refreshLog} />
+
+      <WhyAdjustedModal open={whyModalOpen} onClose={() => setWhyModalOpen(false)} />
+      <MissedDayPrompt open={missedPromptOpen} onClose={() => setMissedPromptOpen(false)} missedDate={missedDate} />
+      <QuickLogSheet open={quickLogOpen} onClose={() => setQuickLogOpen(false)} onSaved={refreshLog} />
 
       {/* Supplement Sheets */}
       <SupplementLogSheet
