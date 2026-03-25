@@ -28,7 +28,7 @@ import { computeSmartAdjustment, applySmartAdjustment, type AdjustmentResult } f
 import { resolveMealVisualState } from '@/lib/meal-state-service';
 import PESBreakdownModal from '@/components/PESBreakdownModal';
 import { getBudgetSettings } from '@/lib/expense-store';
-import { updateCalorieBank, getContextualMealToast } from '@/lib/calorie-correction';
+import { updateCalorieBank, getContextualMealToast, getDinnerNotificationSummary } from '@/lib/calorie-correction';
 
 interface Props {
   open: boolean;
@@ -172,6 +172,17 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
     updateCalorieBank(updatedLog, profile);
     const mealToast = getContextualMealToast();
     if (mealToast) toast(mealToast.message, { duration: 4000 });
+    // Dinner notification on delete
+    if (mealType === 'dinner') {
+      const dinnerKey = `nutrilens_dinner_notif_${date}`;
+      if (!localStorage.getItem(dinnerKey)) {
+        const summary = getDinnerNotificationSummary();
+        if (summary) {
+          toast('Plan updated ⚖️', { description: summary.message, duration: 8000 });
+          localStorage.setItem(dinnerKey, '1');
+        }
+      }
+    }
     setDeleteId(null);
     onChanged();
     forceUpdate();
@@ -285,6 +296,17 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
     updateCalorieBank(updatedLog, profile);
     const mealToast = getContextualMealToast();
     if (mealToast) toast(mealToast.message, { duration: 4000 });
+    // Dinner notification on add
+    if (mealType === 'dinner') {
+      const dinnerKey = `nutrilens_dinner_notif_${date}`;
+      if (!localStorage.getItem(dinnerKey)) {
+        const summary = getDinnerNotificationSummary();
+        if (summary) {
+          toast('Plan updated ⚖️', { description: summary.message, duration: 8000 });
+          localStorage.setItem(dinnerKey, '1');
+        }
+      }
+    }
     setAddSheetOpen(false);
     setPendingPESItem(null);
     setShowPESBreakdown(false);
