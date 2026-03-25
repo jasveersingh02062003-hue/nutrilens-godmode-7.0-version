@@ -172,26 +172,18 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
     const updatedLog = { ...log };
     updatedLog.meals = updatedLog.meals.map(m => {
       if (m.id !== mealId) return m;
+      // Only update quantity — per-unit nutrition values stay unchanged
       const items = m.items.map(i => {
         if (i.id !== itemId) return i;
-        const newQty = Math.max(0.5, i.quantity + delta * 0.5);
-        const ratio = newQty / i.quantity;
-        return {
-          ...i,
-          quantity: newQty,
-          calories: Math.round(i.calories * ratio),
-          protein: Math.round(i.protein * ratio * 10) / 10,
-          carbs: Math.round(i.carbs * ratio * 10) / 10,
-          fat: Math.round(i.fat * ratio * 10) / 10,
-        };
+        return { ...i, quantity: Math.max(0.5, i.quantity + delta * 0.5) };
       });
       return {
         ...m,
         items,
-        totalCalories: items.reduce((s, i) => s + i.calories, 0),
-        totalProtein: items.reduce((s, i) => s + i.protein, 0),
-        totalCarbs: items.reduce((s, i) => s + i.carbs, 0),
-        totalFat: items.reduce((s, i) => s + i.fat, 0),
+        totalCalories: items.reduce((s, i) => s + i.calories * i.quantity, 0),
+        totalProtein: items.reduce((s, i) => s + i.protein * i.quantity, 0),
+        totalCarbs: items.reduce((s, i) => s + i.carbs * i.quantity, 0),
+        totalFat: items.reduce((s, i) => s + i.fat * i.quantity, 0),
       };
     });
     saveDailyLog(updatedLog);
