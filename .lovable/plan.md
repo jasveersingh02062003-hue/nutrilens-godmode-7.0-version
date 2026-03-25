@@ -1,61 +1,31 @@
 
 
-# Plan: Intelligent Calendar with Future Day Macro Planning
+# Plan: Add Safety Clamp + Minor Refinements to Calendar Helpers
 
-## Overview
-Extend the Progress tab calendar so that tapping a **future date** shows an intelligent plan preview (adjusted calories, macro breakdown, adjustment explanations) instead of the current empty "you can't log" state. Past dates continue showing stored data.
+## What's Already Done
+The intelligent calendar with future day planning is **fully implemented**:
+- Pure helper functions in `calendar-helpers.ts`
+- Future day plan preview in `DayDetailsSheet.tsx` (macros, adjustment breakdown, explanation)
+- Calendar 🔻/🔺 indicators in `Progress.tsx`
+- `processEndOfDay` freezes `adjustedTarget` in daily balances
+- After-dinner notification with pure function signature
 
-## Files to Create
+## Remaining Fix: Safety Clamp
 
-### 1. `src/lib/calendar-helpers.ts` — Pure helper functions
+### 1. `src/lib/calendar-helpers.ts` — Add 1200 kcal minimum clamp
 
-```typescript
-getFutureDayPlan(date, profile, state) → { calories, protein, carbs, fats, adjustment, adjustedTarget }
-getDayStatus(actual, adjustedTarget) → 'on-track' | 'partial' | 'off-track' | 'no-data'
-getAdjustmentBreakdownForDate(date, state) → AdjustmentSource[]
-```
+**Line 46**: Change `Math.max(0, baseTarget + adjustment)` to `Math.max(1200, baseTarget + adjustment)`
 
-- **Protein stays fixed** (`profile.dailyProtein`)
-- Remaining calories after protein (protein × 4) split: 75% carbs (÷4), 25% fat (÷9)
-- Clamp negative remaining to 0
-- Uses existing `CalorieBankState.adjustmentPlan` array (find entry by date)
+This prevents the system from generating dangerously low calorie targets when large surpluses stack up. The protein-lock already exists; this adds the calorie floor.
 
-### 2. Modify `src/components/DayDetailsSheet.tsx` — Future day plan display
+### 2. `src/lib/calendar-helpers.ts` — Add edge case for negative remaining calories
 
-When `isFuture`:
-- Import `getFutureDayPlan`, `getAdjustmentBreakdownForDate` from calendar-helpers
-- Import `getCalorieBankState` from calorie-correction
-- Replace the current "You can only log meals for today and past days" banner with a **Smart Plan Preview** section:
-  - Adjusted calorie target with delta indicator (🔻/🔺)
-  - Macro breakdown cards (protein, carbs, fats) replacing the empty 0-value cards
-  - Adjustment explanation list showing which past days caused the change
-  - Keep the "Use Meal Planner" suggestion at bottom
-
-### 3. Modify `src/pages/Progress.tsx` — Calendar future day indicators
-
-In the `calendarDays` computation (line 136-147):
-- For future dates, check if `adjustmentPlan` has an entry for that date
-- Add an `adjustment` field to each calendar day object
-- In the calendar cell render (lines 196-218), show:
-  - 🔻 small indicator below future days with negative adjustments
-  - 🔺 for positive adjustments (deficit recovery)
-- Add legend entries for 🔻/🔺
-
-### 4. Modify `src/lib/calorie-correction.ts` — `processEndOfDay` freeze
-
-Add to `processEndOfDay` (after computing yesterday's balance): store `adjustedTarget` into the `DailyBalanceEntry` so past days have a frozen adjusted target. Add optional `adjustedTarget` field to `DailyBalanceEntry` type.
-
-## Key Rules Enforced
-- **Past days**: All data from stored `dailyBalances` / `getDailyLog` — never recomputed
-- **Future days**: Computed live from `adjustmentPlan` + profile targets
-- **Protein**: Never reduced, always `profile.dailyProtein`
-- **Carbs/fats**: Derived from remaining calories after protein
+After the clamp, if `adjustedTarget - proteinCal` is still negative (extreme edge case where protein alone exceeds 1200), clamp `remaining` to 0 (already done on line 51, so this is safe).
 
 ## Files Modified
 | File | Change |
 |------|--------|
-| `src/lib/calendar-helpers.ts` | **New** — pure helper functions |
-| `src/components/DayDetailsSheet.tsx` | Future day plan preview UI |
-| `src/pages/Progress.tsx` | Calendar 🔻/🔺 indicators for future days |
-| `src/lib/calorie-correction.ts` | Add `adjustedTarget` to `DailyBalanceEntry`, freeze in `processEndOfDay` |
+| `src/lib/calendar-helpers.ts` | Add 1200 kcal safety clamp (1 line change) |
+
+That's it — everything else requested is already live in the codebase.
 
