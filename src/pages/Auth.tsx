@@ -148,6 +148,11 @@ export default function Auth() {
                   Phone
                 </button>
               </div>
+
+              <button onClick={handleDemo} className="w-full py-3 rounded-xl bg-muted border border-border flex items-center justify-center gap-2 text-sm font-medium text-muted-foreground hover:bg-accent/50 transition-colors">
+                <FlaskConical className="w-4 h-4" />
+                Try Demo (14 days of sample data)
+              </button>
             </div>
           </motion.div>
         )}
