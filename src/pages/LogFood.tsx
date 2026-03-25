@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import { checkBudgetAfterMeal } from '@/lib/budget-service';
 import UnitPicker from '@/components/UnitPicker';
 import { calculateNutrition, getUnitOptionsForFood } from '@/lib/unit-conversion';
-import { updateCalorieBank } from '@/lib/calorie-correction';
+import { updateCalorieBank, getContextualMealToast } from '@/lib/calorie-correction';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
