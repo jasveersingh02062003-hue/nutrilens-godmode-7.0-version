@@ -239,6 +239,8 @@ export function addWater() {
   return log;
 }
 
+// NOTE: This reads pre-computed meal.totalCalories etc. Correctness depends on
+// all mutation sites (MealDetailSheet, CameraHome) computing totals as sum(item.calories * item.quantity).
 export function getDailyTotals(log: DailyLog) {
   let eaten = 0, protein = 0, carbs = 0, fat = 0;
   for (const meal of log.meals) {
