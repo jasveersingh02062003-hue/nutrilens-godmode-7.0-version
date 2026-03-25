@@ -179,6 +179,16 @@ export function recalculateDay(profile: UserProfile | null, log: DailyLog): DayS
     });
   }
 
+  // Apply explicit redistribution adjustments (from user-triggered redistribution)
+  const adjustments = getDailyAdjustments(date);
+  for (const slot of slots) {
+    const storeType = toStoreMealType(slot.name);
+    const adj = adjustments[storeType] || adjustments[slot.name];
+    if (adj && adj.calories > 0) {
+      slot.targetKcal += adj.calories;
+    }
+  }
+
   return {
     baseTarget,
     totalBurned,

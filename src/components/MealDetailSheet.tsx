@@ -26,6 +26,8 @@ import SmartAdjustmentCard from '@/components/SmartAdjustmentCard';
 import ManualAdjustmentSheet from '@/components/ManualAdjustmentSheet';
 import { computeSmartAdjustment, applySmartAdjustment, type AdjustmentResult } from '@/lib/smart-adjustment';
 import { resolveMealVisualState } from '@/lib/meal-state-service';
+import PESBreakdownModal from '@/components/PESBreakdownModal';
+import { getBudgetSettings } from '@/lib/expense-store';
 
 interface Props {
   open: boolean;

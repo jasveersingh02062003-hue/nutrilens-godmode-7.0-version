@@ -86,9 +86,9 @@ export default function TodayMeals({ log, onRefresh, dayState }: Props) {
             const meals = log.meals.filter(m => m.type === mc.type);
             const totalCal = meals.reduce((s, m) => s + m.totalCalories, 0);
             const displayTime = getMealTime(mc.type, mc.time);
-            const totalProtein = Math.round(meals.reduce((s, m) => s + m.items.reduce((is, i) => is + (i.protein || 0), 0), 0));
-            const totalCarbs = Math.round(meals.reduce((s, m) => s + m.items.reduce((is, i) => is + (i.carbs || 0), 0), 0));
-            const totalFat = Math.round(meals.reduce((s, m) => s + m.items.reduce((is, i) => is + (i.fat || 0), 0), 0));
+            const totalProtein = Math.round(meals.reduce((s, m) => s + m.items.reduce((is, i) => is + (i.protein || 0) * (i.quantity || 1), 0), 0));
+            const totalCarbs = Math.round(meals.reduce((s, m) => s + m.items.reduce((is, i) => is + (i.carbs || 0) * (i.quantity || 1), 0), 0));
+            const totalFat = Math.round(meals.reduce((s, m) => s + m.items.reduce((is, i) => is + (i.fat || 0) * (i.quantity || 1), 0), 0));
             const healthScore = hasConditions && meals.length > 0
               ? scoreUnifiedMeal(meals.flatMap(m => m.items), totalCarbs, totalProtein, totalFat, totalCal, profile)
               : null;
