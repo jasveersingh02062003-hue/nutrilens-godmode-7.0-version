@@ -140,13 +140,17 @@ export default function Dashboard() {
       setBalanceStreak(getBalanceStreak());
       setCurrentDayType(getDayType());
       // Morning toast explaining adjustment
-      const explanation = getAdjustmentExplanation();
-      if (explanation) {
-        toast('⚖️ Calories adjusted', {
-          description: explanation,
-          action: { label: 'Details', onClick: () => setWhyModalOpen(true) },
-          duration: 6000,
-        });
+      const toastKey = `calorie_toast_${getTodayKey()}`;
+      if (!localStorage.getItem(toastKey)) {
+        const explanation = getAdjustmentExplanation();
+        if (explanation) {
+          toast('⚖️ Calories adjusted', {
+            description: explanation,
+            action: { label: 'Details', onClick: () => setWhyModalOpen(true) },
+            duration: 6000,
+          });
+          localStorage.setItem(toastKey, '1');
+        }
       }
     }
     // Weekly feedback engine
