@@ -383,6 +383,11 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Protein Rescue Card (after 6 PM, >40g remaining) */}
+        <div className="animate-fade-in">
+          <ProteinRescueCard profile={profile} onApplied={refreshLog} />
+        </div>
+
         {/* Time-Based Insight (Fix 8) */}
         <div className="animate-fade-in">
           <TimeInsightCard />
