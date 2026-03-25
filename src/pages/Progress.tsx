@@ -27,6 +27,8 @@ import HealthScoreCard from '@/components/HealthScoreCard';
 import SymptomTrackerCard from '@/components/SymptomTrackerCard';
 import BloodReportCard from '@/components/BloodReportCard';
 import BloodReportSheet from '@/components/BloodReportSheet';
+import IdentityBadgesCard from '@/components/IdentityBadgesCard';
+import { getMonthlySavings } from '@/lib/budget-impact';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { getPlan, isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
@@ -239,6 +241,12 @@ export default function ProgressPage() {
 
         {/* Budget Insights */}
         <BudgetInsightsCard refreshKey={refreshKey} />
+
+        {/* Monthly Savings Impact */}
+        <MonthlySavingsCard />
+
+        {/* Identity Badges */}
+        <IdentityBadgesCard />
 
         {/* Health Score (multi-condition) */}
         <HealthScoreCard refreshKey={refreshKey} />
