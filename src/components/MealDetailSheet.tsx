@@ -888,6 +888,27 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
           />
         );
       })()}
+
+      {/* PES Breakdown Modal for manual food adds */}
+      {pendingPESItem && (
+        <PESBreakdownModal
+          open={showPESBreakdown}
+          food={{
+            name: pendingPESItem.name,
+            cost: pendingPESItem.itemCost || 0,
+            protein: Math.round(pendingPESItem.protein * pendingPESItem.quantity),
+            carbs: Math.round(pendingPESItem.carbs * pendingPESItem.quantity),
+            fat: Math.round(pendingPESItem.fat * pendingPESItem.quantity),
+            calories: Math.round(pendingPESItem.calories * pendingPESItem.quantity),
+          }}
+          mealLabel={mealLabel}
+          onConfirm={() => saveItemToMeal(pendingPESItem)}
+          onEdit={() => {
+            setShowPESBreakdown(false);
+            setPendingPESItem(null);
+          }}
+        />
+      )}
     </>
   );
 }
