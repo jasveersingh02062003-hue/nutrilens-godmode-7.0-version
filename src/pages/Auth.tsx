@@ -103,6 +103,12 @@ export default function Auth() {
     if (error) toast.error(error.message);
   };
 
+  const handleDemo = () => {
+    seedDemoData();
+    toast.success('Demo data loaded! Explore the app.');
+    navigate('/dashboard');
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <AnimatePresence mode="wait">
