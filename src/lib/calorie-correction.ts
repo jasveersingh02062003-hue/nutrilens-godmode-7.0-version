@@ -266,6 +266,19 @@ function mergePlans(existing: AdjustmentPlanEntry[], newEntries: AdjustmentPlanE
   return merged.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+function mergeSources(existing: AdjustmentSourceMap[], newEntries: AdjustmentSourceMap[]): AdjustmentSourceMap[] {
+  const merged = [...existing];
+  for (const entry of newEntries) {
+    const idx = merged.findIndex(e => e.targetDate === entry.targetDate);
+    if (idx !== -1) {
+      merged[idx] = { ...merged[idx], sources: [...merged[idx].sources, ...entry.sources] };
+    } else {
+      merged.push(entry);
+    }
+  }
+  return merged.sort((a, b) => a.targetDate.localeCompare(b.targetDate));
+}
+
 // ── Core Functions ──
 
 /**
@@ -494,8 +507,9 @@ export function processEndOfDay(profile: UserProfile | null): void {
     if (state.adjustmentPlan.length === 0 && state.calorieBank > 50) {
       const [minDays, maxDays] = MODE_CONFIG[state.correctionMode].recoveryDays;
       const days = Math.min(maxDays + 2, Math.max(minDays, state.consecutiveSurplusDays + minDays));
-      const newPlan = buildAdjustmentPlan(state.calorieBank, originalTarget, today, Math.min(7, days), state.correctionMode);
+      const { plan: newPlan, sources: newSources } = buildAdjustmentPlan(state.calorieBank, originalTarget, today, Math.min(7, days), state.correctionMode, yesterday);
       state.adjustmentPlan = mergePlans(state.adjustmentPlan, newPlan);
+      state.adjustmentSources = mergeSources(state.adjustmentSources, newSources);
       state.adjustmentDaysRemaining = days;
       state.adjustmentPerDay = Math.min(state.calorieBank / days, originalTarget * MODE_CONFIG[state.correctionMode].surplusCap);
     }
@@ -697,4 +711,67 @@ export function getEngineResponse(profile?: UserProfile | null, log?: DailyLog):
     dayType: state.specialDays[today] || 'normal',
     correctionMode: state.correctionMode,
   };
+}
+
+// ── Adjustment Explanation Functions ──
+
+/**
+ * Get a plain-text explanation of why today's target changed.
+ */
+export function getAdjustmentExplanation(date?: string): string | null {
+  const state = loadState();
+  const d = date || getEffectiveDate();
+  const sourceMap = state.adjustmentSources.find(s => s.targetDate === d);
+  if (!sourceMap || sourceMap.sources.length === 0) return null;
+
+  const grouped: Record<string, number> = {};
+  for (const src of sourceMap.sources) {
+    grouped[src.sourceDate] = (grouped[src.sourceDate] || 0) + src.surplus;
+  }
+
+  const lines = Object.entries(grouped).map(([srcDate, surplus]) => {
+    const dayName = new Date(srcDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' });
+    return `On ${dayName}, you ate ${surplus > 0 ? '+' : ''}${surplus} kcal ${surplus > 0 ? 'over' : 'under'} target`;
+  });
+
+  return `${lines.join('. ')}. Your plan adjusted to keep you on track.`;
+}
+
+/**
+ * Get structured adjustment details for the explanation modal.
+ */
+export function getAdjustmentDetails(): {
+  recentSurplusDays: Array<{ date: string; surplus: number }>;
+  futureAdjustments: Array<{
+    date: string;
+    adjustment: number;
+    sources: AdjustmentSource[];
+  }>;
+} {
+  const state = loadState();
+  const today = getEffectiveDate();
+  const activeSources = state.adjustmentSources.filter(s => s.targetDate >= today);
+
+  // Deduplicate source days
+  const sourceMap = new Map<string, number>();
+  for (const entry of activeSources) {
+    for (const src of entry.sources) {
+      sourceMap.set(src.sourceDate, src.surplus);
+    }
+  }
+  const recentSurplusDays = Array.from(sourceMap.entries())
+    .map(([date, surplus]) => ({ date, surplus }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  // Future adjustments with sources
+  const futureAdjustments = activeSources.map(entry => {
+    const totalAdj = entry.sources.reduce((sum, s) => sum + s.appliedAdjustment, 0);
+    return {
+      date: entry.targetDate,
+      adjustment: totalAdj,
+      sources: entry.sources,
+    };
+  });
+
+  return { recentSurplusDays, futureAdjustments };
 }
