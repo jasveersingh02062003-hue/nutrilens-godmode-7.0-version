@@ -53,6 +53,8 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
   const [showManualAdjust, setShowManualAdjust] = useState(false);
   const [adjustmentResult, setAdjustmentResult] = useState<AdjustmentResult | null>(null);
   const [adjustmentDismissed, setAdjustmentDismissed] = useState(false);
+  const [pendingPESItem, setPendingPESItem] = useState<FoodItem | null>(null);
+  const [showPESBreakdown, setShowPESBreakdown] = useState(false);
   const [, setTick] = useState(0);
   const forceUpdate = useCallback(() => setTick(t => t + 1), []);
 
