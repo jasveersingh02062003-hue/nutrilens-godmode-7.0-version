@@ -58,6 +58,7 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
   const [pendingPESItem, setPendingPESItem] = useState<FoodItem | null>(null);
   const [showPESBreakdown, setShowPESBreakdown] = useState(false);
   const [, setTick] = useState(0);
+  const [adjModalOpen, setAdjModalOpen] = useState(false);
   const forceUpdate = useCallback(() => setTick(t => t + 1), []);
 
   const log = getDailyLog(date);

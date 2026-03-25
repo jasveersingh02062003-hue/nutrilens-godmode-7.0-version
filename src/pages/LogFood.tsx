@@ -47,6 +47,7 @@ export default function LogFood() {
   const [showPES, setShowPES] = useState(false);
   const [pendingSource, setPendingSource] = useState<MealSource | null | undefined>(undefined);
   const [pendingCookingMethod, setPendingCookingMethod] = useState<CookingMethod | null | undefined>(undefined);
+  const [adjModalOpen, setAdjModalOpen] = useState(false);
 
   const mealLabels: Record<MealType, string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack' };
   
@@ -625,6 +626,7 @@ export default function LogFood() {
         onConfirm={() => commitMeal(pendingSource, pendingCookingMethod)}
         onEdit={() => { setShowPES(false); }}
       />
+      <AdjustmentExplanationModal open={adjModalOpen} onClose={() => setAdjModalOpen(false)} />
     </div>
   );
 }
