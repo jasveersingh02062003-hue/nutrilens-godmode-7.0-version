@@ -777,3 +777,94 @@ export function getAdjustmentDetails(): {
 
   return { recentSurplusDays, futureAdjustments };
 }
+
+/**
+ * Get after-dinner notification summary.
+ * Returns a user-friendly message about today's surplus/deficit and how it affects upcoming days.
+ */
+export function getDinnerNotificationSummary(): {
+  message: string;
+  tomorrowTarget: number;
+} | null {
+  const p = getProfile();
+  if (!p) return null;
+
+  const today = getEffectiveDate();
+  const dailyLog = getDailyLog(today);
+  const totals = getDailyTotals(dailyLog);
+  const originalTarget = p.dailyCalories || 1600;
+  const diff = totals.eaten - originalTarget;
+
+  // Don't notify for balanced days
+  if (Math.abs(diff) < 50) return null;
+
+  const state = loadState();
+  const mode = state.correctionMode;
+  const config = MODE_CONFIG[mode];
+
+  let message = '';
+
+  if (diff > 0) {
+    const [minDays] = config.recoveryDays;
+    const spreadDays = Math.max(minDays, 4);
+    const perDay = Math.round(diff / spreadDays);
+    message = `You ate +${Math.round(diff)} kcal over target today.\n\n→ We'll reduce ~${perDay} kcal/day over the next ${spreadDays} days.`;
+  } else {
+    const deficit = Math.abs(diff);
+    const recovery = Math.min(
+      Math.round(deficit * config.deficitRecovery),
+      Math.round(originalTarget * 0.15)
+    );
+    message = `You ate ${Math.round(deficit)} kcal less than your target.\n\n→ Tomorrow's calories will increase by ~${recovery} kcal.`;
+  }
+
+  // Compute tomorrow's adjusted target
+  const tomorrowTarget = getAdjustedDailyTarget(p);
+
+  // Pending adjustments from previous days
+  const pendingAdj = state.adjustmentPlan
+    .filter(e => e.date > today)
+    .reduce((sum, e) => sum + Math.abs(e.adjust), 0);
+
+  if (pendingAdj > 0) {
+    message += `\n\n(${pendingAdj} kcal still being balanced from previous days.)`;
+  }
+
+  message += `\n\n👉 Tomorrow's target: ~${tomorrowTarget} kcal`;
+
+  return { message, tomorrowTarget };
+}
+  recentSurplusDays: Array<{ date: string; surplus: number }>;
+  futureAdjustments: Array<{
+    date: string;
+    adjustment: number;
+    sources: AdjustmentSource[];
+  }>;
+} {
+  const state = loadState();
+  const today = getEffectiveDate();
+  const activeSources = state.adjustmentSources.filter(s => s.targetDate >= today);
+
+  // Deduplicate source days
+  const sourceMap = new Map<string, number>();
+  for (const entry of activeSources) {
+    for (const src of entry.sources) {
+      sourceMap.set(src.sourceDate, src.surplus);
+    }
+  }
+  const recentSurplusDays = Array.from(sourceMap.entries())
+    .map(([date, surplus]) => ({ date, surplus }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  // Future adjustments with sources
+  const futureAdjustments = activeSources.map(entry => {
+    const totalAdj = entry.sources.reduce((sum, s) => sum + s.appliedAdjustment, 0);
+    return {
+      date: entry.targetDate,
+      adjustment: totalAdj,
+      sources: entry.sources,
+    };
+  });
+
+  return { recentSurplusDays, futureAdjustments };
+}

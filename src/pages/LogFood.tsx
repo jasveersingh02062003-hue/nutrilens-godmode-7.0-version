@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import { checkBudgetAfterMeal } from '@/lib/budget-service';
 import UnitPicker from '@/components/UnitPicker';
 import { calculateNutrition, getUnitOptionsForFood } from '@/lib/unit-conversion';
-import { updateCalorieBank, getContextualMealToast } from '@/lib/calorie-correction';
+import { updateCalorieBank, getContextualMealToast, getDinnerNotificationSummary } from '@/lib/calorie-correction';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -190,6 +190,22 @@ export default function LogFood() {
     // Show contextual correction toast if needed
     const mealToast = getContextualMealToast();
     if (mealToast) toast(mealToast.message, { duration: 4000 });
+
+    // After-dinner notification with surplus/deficit spreading
+    if (mealType === 'dinner') {
+      const dinnerKey = `nutrilens_dinner_notif_${targetDate || new Date().toISOString().split('T')[0]}`;
+      if (!localStorage.getItem(dinnerKey)) {
+        const summary = getDinnerNotificationSummary();
+        if (summary) {
+          toast('Plan updated ⚖️', {
+            description: summary.message,
+            duration: 8000,
+            action: { label: 'Details', onClick: () => navigate('/dashboard?showAdjustment=true') },
+          });
+          localStorage.setItem(dinnerKey, '1');
+        }
+      }
+    }
 
     setContextPickerOpen(false);
     setShowPES(false);

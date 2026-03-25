@@ -7,7 +7,7 @@ import MissedDayPrompt from '@/components/MissedDayPrompt';
 import MonikaFab from '@/components/MonikaFab';
 import TimeInsightCard from '@/components/TimeInsightCard';
 import { updateDailyBehaviorStats, runWeeklyAdaptation, isSurvivalModeActive } from '@/lib/behavior-stats';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import ProteinRescueCard from '@/components/ProteinRescueCard';
 import WeeklyWeightCheckIn from '@/components/WeeklyWeightCheckIn';
 import RepeatMealsButton from '@/components/RepeatMealsButton';
@@ -62,6 +62,7 @@ import { processEndOfDay, getAdjustedDailyTarget, getProteinTarget, getCorrectio
 import { Flame } from 'lucide-react';
 export default function Dashboard() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { profile, refreshProfile } = useUserProfile();
   const [log, setLog] = useState<DailyLog>(getDailyLog());
   const totals = getDailyTotals(log);
