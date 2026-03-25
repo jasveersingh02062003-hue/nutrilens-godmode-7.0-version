@@ -141,7 +141,9 @@ export function recalculateDay(profile: UserProfile | null, log: DailyLog): DayS
   const slots: MealSlot[] = MEAL_NAMES.map(name => {
     const storeType = toStoreMealType(name);
     const meals = (log.meals || []).filter(m => m.type === storeType);
-    const consumedKcal = meals.reduce((s, m) => s + m.totalCalories, 0);
+    // Recompute from items to avoid stale stored totals
+    const consumedKcal = meals.reduce((s, m) =>
+      s + m.items.reduce((is, i) => is + (i.calories || 0) * (i.quantity || 1), 0), 0);
 
     let status: MealSlotStatus = 'pending';
     if (skipped.includes(name)) {

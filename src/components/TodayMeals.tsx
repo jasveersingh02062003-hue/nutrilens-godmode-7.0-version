@@ -84,7 +84,7 @@ export default function TodayMeals({ log, onRefresh, dayState }: Props) {
         <div className="space-y-2">
           {mealConfig.map((mc, idx) => {
             const meals = log.meals.filter(m => m.type === mc.type);
-            const totalCal = meals.reduce((s, m) => s + m.totalCalories, 0);
+            const totalCal = meals.reduce((s, m) => s + m.items.reduce((is, i) => is + (i.calories || 0) * (i.quantity || 1), 0), 0);
             const displayTime = getMealTime(mc.type, mc.time);
             const totalProtein = Math.round(meals.reduce((s, m) => s + m.items.reduce((is, i) => is + (i.protein || 0) * (i.quantity || 1), 0), 0));
             const totalCarbs = Math.round(meals.reduce((s, m) => s + m.items.reduce((is, i) => is + (i.carbs || 0) * (i.quantity || 1), 0), 0));

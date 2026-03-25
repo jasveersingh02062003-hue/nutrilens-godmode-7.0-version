@@ -61,10 +61,11 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
   const log = getDailyLog(date);
   const meals = log.meals.filter(m => m.type === mealType);
   const allItems = meals.flatMap(m => m.items.map(item => ({ ...item, mealId: m.id })));
-  const totalCal = meals.reduce((s, m) => s + m.totalCalories, 0);
-  const totalP = meals.reduce((s, m) => s + m.totalProtein, 0);
-  const totalC = meals.reduce((s, m) => s + m.totalCarbs, 0);
-  const totalF = meals.reduce((s, m) => s + m.totalFat, 0);
+  // Recompute from items to avoid stale stored totals
+  const totalCal = meals.reduce((s, m) => s + m.items.reduce((is, i) => is + (i.calories || 0) * (i.quantity || 1), 0), 0);
+  const totalP = meals.reduce((s, m) => s + m.items.reduce((is, i) => is + (i.protein || 0) * (i.quantity || 1), 0), 0);
+  const totalC = meals.reduce((s, m) => s + m.items.reduce((is, i) => is + (i.carbs || 0) * (i.quantity || 1), 0), 0);
+  const totalF = meals.reduce((s, m) => s + m.items.reduce((is, i) => is + (i.fat || 0) * (i.quantity || 1), 0), 0);
   const totalItemCost = allItems.reduce((s, i) => s + (i.itemCost || 0), 0);
   const mealCostAmount = meals.reduce((s, m) => s + (m.cost?.amount || 0), 0);
   const displayTotalCost = totalItemCost > 0 ? totalItemCost : mealCostAmount;

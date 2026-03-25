@@ -4,6 +4,7 @@ import { Camera, Mic, MicOff, Search, ArrowLeft, Plus, Minus, Check, X, Loader2,
 import { addMealToLog, addMealToLogForDate, FoodItem, MealEntry, MealSource, MealCost, CookingMethod } from '@/lib/store';
 import { saveManualExpense } from '@/lib/expense-store';
 import CostSuggestionBanner from '@/components/CostSuggestionBanner';
+import PESBreakdownModal from '@/components/PESBreakdownModal';
 import ContextPickerSheet from '@/components/ContextPickerSheet';
 import { getDefaultCategory, learnCookingMethod } from '@/lib/context-learning';
 import { searchIndianFoods, indianFoodToFoodItem, type IndianFood } from '@/lib/indian-foods';
@@ -41,6 +42,9 @@ export default function LogFood() {
   const recognitionRef = useRef<any>(null);
   const [contextPickerOpen, setContextPickerOpen] = useState(false);
   const [mealCost, setMealCost] = useState<MealCost | null>(null);
+  const [showPES, setShowPES] = useState(false);
+  const [pendingSource, setPendingSource] = useState<MealSource | null | undefined>(undefined);
+  const [pendingCookingMethod, setPendingCookingMethod] = useState<CookingMethod | null | undefined>(undefined);
 
   const mealLabels: Record<MealType, string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack' };
   
@@ -112,6 +116,20 @@ export default function LogFood() {
   };
 
   const finalizeMeal = (source?: MealSource | null, cookingMethod?: CookingMethod | null) => {
+    // Show PES breakdown if meal has cost
+    const costAmount = mealCost?.amount || 0;
+    if (costAmount > 0 && totalProtein > 0) {
+      setPendingSource(source);
+      setPendingCookingMethod(cookingMethod);
+      setContextPickerOpen(false);
+      setShowPES(true);
+      return;
+    }
+    // No cost → save directly
+    commitMeal(source, cookingMethod);
+  };
+
+  const commitMeal = (source?: MealSource | null, cookingMethod?: CookingMethod | null) => {
     // Learn cooking preference for these food items
     if (cookingMethod && selected.length > 0) {
       learnCookingMethod(selected.map(s => s.name), cookingMethod);
@@ -159,6 +177,7 @@ export default function LogFood() {
     }
 
     setContextPickerOpen(false);
+    setShowPES(false);
     navigate(targetDate ? '/progress' : '/dashboard');
   };
 
@@ -551,6 +570,21 @@ export default function LogFood() {
         foodNames={selected.map(s => s.name)}
         onSave={(source, cookingMethod) => finalizeMeal(source, cookingMethod)}
         onSkip={() => finalizeMeal(null)}
+      />
+      {/* PES Breakdown Modal */}
+      <PESBreakdownModal
+        open={showPES}
+        food={{
+          name: selected.map(s => s.name).join(', '),
+          cost: mealCost?.amount || 0,
+          protein: Math.round(totalProtein),
+          carbs: Math.round(totalCarbs),
+          fat: Math.round(totalFat),
+          calories: Math.round(totalCal),
+        }}
+        mealLabel={mealLabels[mealType]}
+        onConfirm={() => commitMeal(pendingSource, pendingCookingMethod)}
+        onEdit={() => { setShowPES(false); }}
       />
     </div>
   );
