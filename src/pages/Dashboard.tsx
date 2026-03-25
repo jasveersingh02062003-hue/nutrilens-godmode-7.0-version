@@ -131,32 +131,12 @@ export default function Dashboard() {
       setAdherenceScore(Math.round(getAdherenceScore().score * 100));
       setBalanceStreak(getBalanceStreak());
       setCurrentDayType(getDayType());
-      const correctionMsg = getCorrectionMessage();
-      if (correctionMsg) {
-        toast.info(correctionMsg.message);
-      }
     }
     // Weekly feedback engine
     if (shouldGenerateSummary()) {
       const summary = generateWeeklySummary();
       if (hasBrowserPermission()) scheduleWeeklyNotification(summary);
     }
-    // Missed day detection (Fix 1)
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yKey = yesterday.toISOString().split('T')[0];
-    const yLog = getDailyLog(yKey);
-    if (yLog.meals.length === 0 && !localStorage.getItem(`missed_prompt_${yKey}`)) {
-      setMissedDate(yKey);
-      setMissedPromptOpen(true);
-      localStorage.setItem(`missed_prompt_${yKey}`, 'shown');
-    }
-    // Retention hooks (Fix 10)
-    const dayOfWeek = new Date().getDay(); // 0=Sun
-    const weekStart = new Date();
-    weekStart.setDate(weekStart.getDate() - dayOfWeek);
-    if (dayOfWeek === 3) setTimeout(() => toast.success("You're doing better than 70% of users! 🎉"), 2000);
-    if (dayOfWeek === 5) setTimeout(() => toast.success("Stay consistent 2 more days → unlock streak! 🔥"), 2000);
   }, [profile, navigate]);
 
   useEffect(() => {
