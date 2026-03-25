@@ -372,6 +372,36 @@ export default function ProgressPage() {
   );
 }
 
+function MonthlySavingsCard() {
+  const savings = getMonthlySavings();
+  if (savings.saved <= 0 || savings.totalBudget <= 0) return null;
+
+  return (
+    <div className="card-elevated p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-sm">💰</span>
+        <h3 className="font-semibold text-sm text-foreground">Monthly Savings</h3>
+      </div>
+      <div className="flex items-baseline gap-2 mb-2">
+        <span className="text-2xl font-bold text-primary">₹{savings.saved}</span>
+        <span className="text-xs text-muted-foreground">saved this month</span>
+      </div>
+      <p className="text-xs text-muted-foreground mb-2">
+        Budget: ₹{savings.totalBudget} · Spent: ₹{savings.totalSpent}
+      </p>
+      {savings.equivalents.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {savings.equivalents.map((eq, i) => (
+            <span key={i} className="px-2.5 py-1 rounded-lg bg-primary/10 text-xs font-semibold text-primary">
+              {eq}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CalorieBalanceCard() {
   const [view, setView] = useState<'weekly' | 'monthly'>('weekly');
   const balances = getDailyBalances();
