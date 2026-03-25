@@ -2,6 +2,7 @@
 import type { UserProfile, DailyLog, MealEntry, FoodItem, BurnedData } from './store';
 import type { WeekPlan, DayPlan, PlannedMeal, MealPlannerProfile } from './meal-planner-store';
 import type { WeightEntry } from './weight-history';
+import type { ProgressPhoto } from './store';
 
 const PROFILE_KEY = 'nutrilens_profile';
 const LOG_KEY_PREFIX = 'nutrilens_log_';
@@ -11,6 +12,7 @@ const STREAKS_KEY = 'nutrilens_streaks';
 const PLANNER_PROFILE_KEY = 'nutrilens_meal_planner_profile';
 const WEEK_PLAN_KEY_PREFIX = 'nutrilens_week_plan_';
 const USER_KEY = 'nutrilens_user';
+const PHOTOS_KEY = 'nutrilens_progress_photos';
 
 // ─── Food photos by meal type ───
 const MEAL_PHOTOS: Record<string, string[]> = {
@@ -214,22 +216,51 @@ function generateDailyLog(daysAgo: number): DailyLog {
 
 function generateWeightHistory(): WeightEntry[] {
   const entries: WeightEntry[] = [];
-  const weights = [65.5,65.4,65.3,65.5,65.2,65.1,65.0,65.2,64.9,64.8,65.0,64.7,64.8,64.6,64.5,64.7,64.4,64.3,64.5,64.2,64.1,64.3,64.0,63.9,64.1,63.8,63.7,63.9,63.6,63.5];
-  for (let i = 29; i >= 0; i--) {
-    const date = dateStr(i);
+  // 12 weeks = 84 days of weight data, one entry per week (on Mondays)
+  const startWeight = 67.0;
+  for (let week = 11; week >= 0; week--) {
+    const daysAgo = week * 7;
+    const date = dateStr(daysAgo);
+    // Gradual downward trend with small fluctuations
+    const loss = (11 - week) * 0.3;
+    const fluctuation = (Math.sin(week * 1.7) * 0.3);
+    const weight = Math.round((startWeight - loss + fluctuation) * 10) / 10;
     entries.push({
       id: uid(),
       date,
-      weekStart: getMonday(i),
-      weight: weights[i % weights.length],
+      weekStart: getMonday(daysAgo),
+      weight,
       unit: 'kg',
       photo: null,
-      verified: i % 7 === 0,
-      note: i % 7 === 0 ? 'Weekly weigh-in' : '',
-      timestamp: new Date(date + 'T08:00:00').toISOString(),
+      verified: true,
+      note: week % 4 === 0 ? 'Monthly check-in 📊' : week % 2 === 0 ? 'Weekly weigh-in' : 'Quick morning weigh-in',
+      timestamp: new Date(date + 'T07:30:00').toISOString(),
     });
   }
   return entries;
+}
+
+function generateProgressPhotos(): ProgressPhoto[] {
+  const photos: ProgressPhoto[] = [];
+  const types: ProgressPhoto['type'][] = ['front', 'side', 'back', 'front', 'side', 'front'];
+  const captions = ['Week 1 start 💪', 'Side view week 2', 'Back progress week 3', 'Week 5 front', 'Week 7 side check', 'Week 10 — feeling great! 🎉'];
+  // Use placeholder SVG data URLs for demo (small colored rectangles)
+  const colors = ['#E8D5B7', '#D4C4A8', '#C9B99A', '#BFB08E', '#B5A782', '#AB9E76'];
+  for (let i = 0; i < 6; i++) {
+    const daysAgo = (5 - i) * 14; // every 2 weeks
+    const color = colors[i];
+    // Create a tiny SVG data URL as placeholder
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="300" viewBox="0 0 200 300"><rect fill="${color}" width="200" height="300"/><text x="100" y="140" text-anchor="middle" fill="#555" font-size="14" font-family="sans-serif">Progress</text><text x="100" y="165" text-anchor="middle" fill="#555" font-size="12" font-family="sans-serif">${types[i]}</text><text x="100" y="190" text-anchor="middle" fill="#888" font-size="10" font-family="sans-serif">Week ${(i + 1) * 2}</text></svg>`;
+    const dataUrl = `data:image/svg+xml;base64,${btoa(svg)}`;
+    photos.push({
+      id: `demo_photo_${uid()}`,
+      dataUrl,
+      type: types[i],
+      caption: captions[i],
+      date: dateStr(daysAgo),
+    });
+  }
+  return photos;
 }
 
 function generateCalorieBank() {
@@ -358,8 +389,11 @@ export function seedDemoData() {
   // 3. Calorie bank
   localStorage.setItem(BANK_KEY, JSON.stringify(generateCalorieBank()));
 
-  // 4. Weight history (separate verified entries)
+  // 4. Weight history (12 weeks of verified weekly entries)
   localStorage.setItem(WEIGHT_HISTORY_KEY, JSON.stringify(generateWeightHistory()));
+
+  // 4b. Progress photos (6 photos across 12 weeks)
+  localStorage.setItem(PHOTOS_KEY, JSON.stringify(generateProgressPhotos()));
 
   // 5. Streaks
   localStorage.setItem(STREAKS_KEY, JSON.stringify(generateStreaks()));
