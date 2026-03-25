@@ -1,6 +1,7 @@
 // ============================================
 // Meal Adjustment Engine
 // Adjusts existing meal plan portions based on corrected targets
+// Supports meal locking: only modifies flexible (unlogged) items
 // ============================================
 
 import { type FoodItem } from '@/lib/store';
@@ -13,33 +14,56 @@ export interface MealAdjustmentResult {
 /**
  * Adjust meal items to fit within the adjusted calorie target while
  * preserving protein. Scales portions proportionally.
+ * 
+ * @param items - All food items for the meal slot
+ * @param currentCalories - Total calories of all items
+ * @param adjustedTarget - The corrected calorie target
+ * @param proteinTarget - Fixed protein target (never reduced)
+ * @param lockedCalories - Calories from already-logged (locked) meals to subtract from target
  */
 export function adjustMealPlan(
   items: FoodItem[],
   currentCalories: number,
   adjustedTarget: number,
-  proteinTarget: number
+  proteinTarget: number,
+  lockedCalories: number = 0
 ): MealAdjustmentResult {
   if (items.length === 0 || currentCalories <= 0) {
     return { adjustedItems: items, changes: [] };
   }
 
-  const calorieDiff = currentCalories - adjustedTarget;
+  // Separate locked vs flexible items
+  const lockedItems: FoodItem[] = [];
+  const flexibleItems: FoodItem[] = [];
+
+  for (const item of items) {
+    if ((item as any).status === 'locked') {
+      lockedItems.push({ ...item });
+    } else {
+      flexibleItems.push({ ...item });
+    }
+  }
+
+  // If no flexible items, nothing to adjust
+  if (flexibleItems.length === 0) {
+    return { adjustedItems: items.map(i => ({ ...i })), changes: [] };
+  }
+
+  // Effective target for flexible items only
+  const lockedCal = lockedCalories || lockedItems.reduce((s, i) => s + i.calories * i.quantity, 0);
+  const flexTarget = adjustedTarget - lockedCal;
+  const flexCurrentCal = flexibleItems.reduce((s, i) => s + i.calories * i.quantity, 0);
+  const calorieDiff = flexCurrentCal - flexTarget;
   const changes: string[] = [];
 
   // If within 5% tolerance, no changes needed
-  if (Math.abs(calorieDiff) < adjustedTarget * 0.05) {
-    return { adjustedItems: items, changes: [] };
+  if (Math.abs(calorieDiff) < flexTarget * 0.05) {
+    return { adjustedItems: [...lockedItems, ...flexibleItems], changes: [] };
   }
-
-  const adjustedItems = items.map(item => ({ ...item }));
 
   if (calorieDiff > 0) {
     // REDUCE calories: scale down portions, prioritize keeping high-protein items
-    const scaleFactor = Math.max(0.5, adjustedTarget / currentCalories);
-
-    // Sort by protein density (protein per calorie) — keep high-protein items larger
-    const sortedIndices = adjustedItems
+    const sortedIndices = flexibleItems
       .map((item, idx) => ({ idx, proteinDensity: item.protein / Math.max(1, item.calories) }))
       .sort((a, b) => a.proteinDensity - b.proteinDensity);
 
@@ -47,7 +71,7 @@ export function adjustMealPlan(
 
     for (const { idx } of sortedIndices) {
       if (remaining <= 0) break;
-      const item = adjustedItems[idx];
+      const item = flexibleItems[idx];
       const currentItemCal = item.calories * item.quantity;
       const minQty = Math.max(0.5, item.quantity * 0.5);
       const maxReduction = currentItemCal - (item.calories * minQty);
@@ -66,9 +90,7 @@ export function adjustMealPlan(
     }
   } else {
     // INCREASE calories: scale up high-protein items first
-    const scaleFactor = Math.min(1.5, adjustedTarget / currentCalories);
-
-    const sortedIndices = adjustedItems
+    const sortedIndices = flexibleItems
       .map((item, idx) => ({ idx, proteinDensity: item.protein / Math.max(1, item.calories) }))
       .sort((a, b) => b.proteinDensity - a.proteinDensity);
 
@@ -76,7 +98,7 @@ export function adjustMealPlan(
 
     for (const { idx } of sortedIndices) {
       if (remaining <= 0) break;
-      const item = adjustedItems[idx];
+      const item = flexibleItems[idx];
       const maxQty = item.quantity * 1.5;
       const maxIncrease = (maxQty - item.quantity) * item.calories;
 
@@ -95,20 +117,23 @@ export function adjustMealPlan(
   }
 
   // Protein check: if total protein dropped below target, boost high-protein items
-  const totalProtein = adjustedItems.reduce((s, i) => s + i.protein * i.quantity, 0);
+  const allItems = [...lockedItems, ...flexibleItems];
+  const totalProtein = allItems.reduce((s, i) => s + i.protein * i.quantity, 0);
   if (totalProtein < proteinTarget * 0.9) {
     const proteinGap = proteinTarget - totalProtein;
-    const highProteinItems = adjustedItems
+    const highProteinFlex = flexibleItems
       .filter(i => i.protein > 5)
       .sort((a, b) => b.protein - a.protein);
 
-    for (const item of highProteinItems) {
-      if (proteinGap <= 0) break;
+    let gap = proteinGap;
+    for (const item of highProteinFlex) {
+      if (gap <= 0) break;
       const maxQty = item.quantity * 1.3;
-      const boost = Math.min((maxQty - item.quantity), proteinGap / item.protein);
+      const boost = Math.min((maxQty - item.quantity), gap / item.protein);
       if (boost > 0.1) {
         const oldQty = item.quantity;
         item.quantity = Math.round((item.quantity + boost) * 10) / 10;
+        gap -= (item.quantity - oldQty) * item.protein;
         changes.push(`Boosted ${item.name} for protein (${oldQty} → ${item.quantity})`);
       }
     }
@@ -118,5 +143,5 @@ export function adjustMealPlan(
     changes.unshift("Today's plan is slightly adjusted for balance.");
   }
 
-  return { adjustedItems, changes };
+  return { adjustedItems: allItems, changes };
 }

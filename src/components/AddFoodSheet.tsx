@@ -50,6 +50,7 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
                     ...item,
                     id: Date.now().toString() + Math.random().toString(36).slice(2, 5),
                     itemCost: cost || 0,
+                    confidenceScore: 0.9,
                   });
                   setQuery('');
                 }}
