@@ -210,18 +210,27 @@ export function getAdherenceScore(): { score: number; label: string } {
 
 // ── Helper: build adjustment plan ──
 
-function buildAdjustmentPlan(surplus: number, originalTarget: number, startDate: string, days: number, mode: CorrectionMode): AdjustmentPlanEntry[] {
+function buildAdjustmentPlan(surplus: number, originalTarget: number, startDate: string, days: number, mode: CorrectionMode, sourceDate?: string): { plan: AdjustmentPlanEntry[]; sources: AdjustmentSourceMap[] } {
   const config = MODE_CONFIG[mode];
   const maxPerDay = originalTarget * config.surplusCap;
   const perDay = Math.min(surplus / days, maxPerDay);
   const plan: AdjustmentPlanEntry[] = [];
+  const sources: AdjustmentSourceMap[] = [];
   const start = new Date(startDate);
   for (let i = 1; i <= days; i++) {
     const d = new Date(start);
     d.setDate(d.getDate() + i);
-    plan.push({ date: d.toISOString().split('T')[0], adjust: -Math.round(perDay) });
+    const targetDate = d.toISOString().split('T')[0];
+    const adjustAmount = -Math.round(perDay);
+    plan.push({ date: targetDate, adjust: adjustAmount });
+    if (sourceDate) {
+      sources.push({
+        targetDate,
+        sources: [{ sourceDate, surplus, appliedAdjustment: adjustAmount }],
+      });
+    }
   }
-  return plan;
+  return { plan, sources };
 }
 
 // ── UI Update Callbacks ──
@@ -340,18 +349,19 @@ export function updateCalorieBank(log?: DailyLog, profile?: UserProfile | null):
     const [minDays, maxDays] = config.recoveryDays;
     const days = Math.min(maxDays + (state.consecutiveSurplusDays > 3 ? 2 : 0), Math.max(minDays, state.consecutiveSurplusDays + minDays));
     const effectiveSurplus = state.calorieBank * totalMultiplier;
-    const newPlan = buildAdjustmentPlan(effectiveSurplus, originalTarget, today, Math.min(7, days), mode);
+    const { plan: newPlan, sources: newSources } = buildAdjustmentPlan(effectiveSurplus, originalTarget, today, Math.min(7, days), mode, today);
     // Dampen plan entries if consecutive surplus > 3
     if (state.consecutiveSurplusDays > 3) {
       newPlan.forEach(p => p.adjust = Math.round(p.adjust * 0.7));
+      newSources.forEach(s => s.sources.forEach(src => src.appliedAdjustment = Math.round(src.appliedAdjustment * 0.7)));
     }
     state.adjustmentPlan = mergePlans(state.adjustmentPlan.filter(e => e.date >= today), newPlan);
+    state.adjustmentSources = mergeSources(state.adjustmentSources.filter(s => s.targetDate >= today), newSources);
     state.adjustmentDaysRemaining = days;
     state.adjustmentPerDay = Math.min(effectiveSurplus / days, originalTarget * config.surplusCap);
   } else if (state.calorieBank < -50) {
     // Deficit: single-day partial recovery for tomorrow
     let recoveryFactor = config.deficitRecovery;
-    // If 3+ consecutive deficit days, gradually reduce recovery
     if (state.consecutiveDeficitDays > 3) {
       recoveryFactor *= 0.5;
     }
@@ -360,10 +370,17 @@ export function updateCalorieBank(log?: DailyLog, profile?: UserProfile | null):
     const adjust = Math.round(Math.min(recovery, maxRecovery));
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const newDeficitPlan = [{ date: tomorrow.toISOString().split('T')[0], adjust }];
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    const newDeficitPlan = [{ date: tomorrowStr, adjust }];
+    const newDeficitSources: AdjustmentSourceMap[] = [{
+      targetDate: tomorrowStr,
+      sources: [{ sourceDate: today, surplus: diff, appliedAdjustment: adjust }],
+    }];
     state.adjustmentPlan = mergePlans(state.adjustmentPlan.filter(e => e.date >= today), newDeficitPlan);
+    state.adjustmentSources = mergeSources(state.adjustmentSources.filter(s => s.targetDate >= today), newDeficitSources);
   } else {
     state.adjustmentPlan = [];
+    state.adjustmentSources = [];
   }
 
   saveState(state);
