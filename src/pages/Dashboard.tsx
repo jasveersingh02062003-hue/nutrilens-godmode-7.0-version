@@ -145,6 +145,14 @@ export default function Dashboard() {
       const summary = generateWeeklySummary();
       if (hasBrowserPermission()) scheduleWeeklyNotification(summary);
     }
+    // Drop-off defense
+    const dropOff = checkDropOff();
+    if (dropOff.detected) setDropOffModal(dropOff);
+    // Hard boundary check
+    const boundary = checkWeeklySurplus();
+    if (boundary) setHardBoundaryModal(boundary);
+    // Update last log date
+    updateLastLogDate();
   }, [profile, navigate]);
 
   useEffect(() => {
