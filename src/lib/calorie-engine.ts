@@ -6,6 +6,7 @@
 import { DailyLog, UserProfile } from '@/lib/store';
 import { calculateBurnBreakdown } from '@/lib/burn-service';
 import { getDailyAdjustments } from '@/lib/meal-targets';
+import { getAdjustedDailyTarget } from '@/lib/calorie-correction';
 
 // ── Types ──
 
@@ -123,7 +124,7 @@ const MISSED_THRESHOLDS: Record<MealSlot['name'], number> = {
 // ── Master recalculation ──
 
 export function recalculateDay(profile: UserProfile | null, log: DailyLog): DayState {
-  const baseTarget = profile?.dailyCalories || 1600;
+  const baseTarget = getAdjustedDailyTarget(profile);
   const date = log.date || new Date().toISOString().split('T')[0];
 
   // Total burned (using effective burn from burn-service)
