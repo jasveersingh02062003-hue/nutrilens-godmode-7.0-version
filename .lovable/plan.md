@@ -1,56 +1,61 @@
 
 
-# Plan: Fix After-Dinner Notification — Pure Function + In-Place Modal
+# Plan: Intelligent Calendar with Future Day Macro Planning
 
-## Problem
-1. `getDinnerNotificationSummary()` has hidden dependencies (calls `getProfile()`, `loadState()`, `getDailyLog()` internally) — hard to test and risks stale state
-2. LogFood navigates to `/dashboard?showAdjustment=true` instead of showing the modal in-place — bad UX after dinner logging
-3. MealDetailSheet edit/delete doesn't reset the notification guard, so re-edits can't re-trigger
+## Overview
+Extend the Progress tab calendar so that tapping a **future date** shows an intelligent plan preview (adjusted calories, macro breakdown, adjustment explanations) instead of the current empty "you can't log" state. Past dates continue showing stored data.
 
-## Changes
+## Files to Create
 
-### 1. `src/lib/calorie-correction.ts` — Make `getDinnerNotificationSummary` a pure function
-
-Replace current signature (lines 785-836) with explicit parameters:
+### 1. `src/lib/calendar-helpers.ts` — Pure helper functions
 
 ```typescript
-export function getDinnerNotificationSummary(
-  today: string,
-  actualCalories: number,
-  targetCalories: number,
-  state: CalorieBankState
-): { message: string; tomorrowTarget: number } | null
+getFutureDayPlan(date, profile, state) → { calories, protein, carbs, fats, adjustment, adjustedTarget }
+getDayStatus(actual, adjustedTarget) → 'on-track' | 'partial' | 'off-track' | 'no-data'
+getAdjustmentBreakdownForDate(date, state) → AdjustmentSource[]
 ```
 
-- Accepts today's date, actual eaten, original target, and current state explicitly
-- Same internal logic (surplus spreads over 4+ days, deficit partial recovery)
-- Computes `tomorrowTarget` from `state.adjustmentPlan` entries for tomorrow
-- No more internal `getProfile()`, `loadState()`, `getDailyLog()` calls
+- **Protein stays fixed** (`profile.dailyProtein`)
+- Remaining calories after protein (protein × 4) split: 75% carbs (÷4), 25% fat (÷9)
+- Clamp negative remaining to 0
+- Uses existing `CalorieBankState.adjustmentPlan` array (find entry by date)
 
-### 2. `src/pages/LogFood.tsx` — Show modal in-place, no navigation
+### 2. Modify `src/components/DayDetailsSheet.tsx` — Future day plan display
 
-- Add state: `const [adjModalOpen, setAdjModalOpen] = useState(false)` and `const [adjDetails, setAdjDetails] = useState(null)`
-- Import `getAdjustmentDetails`, `loadState` (or equivalent), `AdjustmentExplanationModal`
-- In the dinner notification block (lines 194-208):
-  - Call `getDinnerNotificationSummary(today, actualCal, targetCal, state)` with explicit args
-  - Toast action opens modal in-place via `setAdjModalOpen(true)` instead of `navigate('/dashboard?showAdjustment=true')`
-- Render `<AdjustmentExplanationModal>` at the bottom of the component JSX
-- Keep existing navigation to dashboard after `commitMeal` completes (line 212)
+When `isFuture`:
+- Import `getFutureDayPlan`, `getAdjustmentBreakdownForDate` from calendar-helpers
+- Import `getCalorieBankState` from calorie-correction
+- Replace the current "You can only log meals for today and past days" banner with a **Smart Plan Preview** section:
+  - Adjusted calorie target with delta indicator (🔻/🔺)
+  - Macro breakdown cards (protein, carbs, fats) replacing the empty 0-value cards
+  - Adjustment explanation list showing which past days caused the change
+  - Keep the "Use Meal Planner" suggestion at bottom
 
-### 3. `src/components/MealDetailSheet.tsx` — Update calls + clear guard on edit
+### 3. Modify `src/pages/Progress.tsx` — Calendar future day indicators
 
-- Update all 3 `getDinnerNotificationSummary()` calls to pass explicit parameters
-- Before re-calling notification logic on dinner edit/delete, remove the localStorage guard so the notification can re-fire with updated data
+In the `calendarDays` computation (line 136-147):
+- For future dates, check if `adjustmentPlan` has an entry for that date
+- Add an `adjustment` field to each calendar day object
+- In the calendar cell render (lines 196-218), show:
+  - 🔻 small indicator below future days with negative adjustments
+  - 🔺 for positive adjustments (deficit recovery)
+- Add legend entries for 🔻/🔺
 
-### 4. `src/pages/Dashboard.tsx` — Remove `showAdjustment` URL param handling
+### 4. Modify `src/lib/calorie-correction.ts` — `processEndOfDay` freeze
 
-Remove the auto-open-modal-on-param logic since we no longer navigate with that param from LogFood.
+Add to `processEndOfDay` (after computing yesterday's balance): store `adjustedTarget` into the `DailyBalanceEntry` so past days have a frozen adjusted target. Add optional `adjustedTarget` field to `DailyBalanceEntry` type.
+
+## Key Rules Enforced
+- **Past days**: All data from stored `dailyBalances` / `getDailyLog` — never recomputed
+- **Future days**: Computed live from `adjustmentPlan` + profile targets
+- **Protein**: Never reduced, always `profile.dailyProtein`
+- **Carbs/fats**: Derived from remaining calories after protein
 
 ## Files Modified
 | File | Change |
 |------|--------|
-| `src/lib/calorie-correction.ts` | Refactor `getDinnerNotificationSummary` to pure function |
-| `src/pages/LogFood.tsx` | In-place modal, explicit function args |
-| `src/components/MealDetailSheet.tsx` | Explicit args, guard reset on edit |
-| `src/pages/Dashboard.tsx` | Remove `showAdjustment` param handling |
+| `src/lib/calendar-helpers.ts` | **New** — pure helper functions |
+| `src/components/DayDetailsSheet.tsx` | Future day plan preview UI |
+| `src/pages/Progress.tsx` | Calendar 🔻/🔺 indicators for future days |
+| `src/lib/calorie-correction.ts` | Add `adjustedTarget` to `DailyBalanceEntry`, freeze in `processEndOfDay` |
 
