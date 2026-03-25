@@ -4,8 +4,10 @@ import { getSwapAlternatives, calculateSwapImpact, type SwapAlternative, type Sw
 import { getRecipeById } from '@/lib/recipes';
 import { getRecipeCost } from '@/lib/recipe-cost';
 import { getRecipeImage } from '@/lib/recipe-images';
+import { computePES } from '@/lib/pes-engine';
 import { Zap, ArrowLeft, AlertTriangle, Star, DollarSign, Dumbbell, Timer } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 
 interface Props {
   open: boolean;
@@ -41,6 +43,16 @@ export default function SwapSimulatorSheet({ open, onClose, originalRecipeId, me
 
   const handleApply = () => {
     if (selected && impact) {
+      // PES Reinforcement (Feature 5)
+      if (original && selected.recipe) {
+        const oldPES = computePES({ protein: original.protein, calories: original.calories, cost: originalCost, name: original.name });
+        const newCost = getRecipeCost(selected.recipe);
+        const newPES = computePES({ protein: selected.recipe.protein, calories: selected.recipe.calories, cost: newCost, name: selected.recipe.name });
+        if (newPES > 0 && oldPES > 0 && newPES / oldPES > 1.5) {
+          const ratio = Math.round(newPES / oldPES * 10) / 10;
+          toast.success(`Nice choice 👏 You picked a ${ratio}x better protein value meal!`);
+        }
+      }
       onApply(selected.recipe.id, impact);
       onClose();
     }

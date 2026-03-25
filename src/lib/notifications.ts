@@ -253,6 +253,79 @@ export function stopNotificationScheduler() {
   }
 }
 
+// ── Proactive Intelligence Checks ──
+
+let proactiveInterval: ReturnType<typeof setInterval> | null = null;
+const PROACTIVE_KEY = 'nutrilens_proactive_notif_last';
+
+function getProactiveLast(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(PROACTIVE_KEY) || '{}'); } catch { return {}; }
+}
+function setProactiveLast(key: string, date: string) {
+  const data = getProactiveLast();
+  data[key] = date;
+  localStorage.setItem(PROACTIVE_KEY, JSON.stringify(data));
+}
+
+export function startProactiveChecks() {
+  if (proactiveInterval) clearInterval(proactiveInterval);
+
+  const check = () => {
+    const now = new Date();
+    const hour = now.getHours();
+    const today = now.toISOString().split('T')[0];
+    const last = getProactiveLast();
+
+    // 1 PM: Lunch protein suggestion
+    if (hour === 13 && last['lunch_protein'] !== today) {
+      setProactiveLast('lunch_protein', today);
+      sendNotification(
+        '🥗 Lunch time!',
+        'Try a high-protein option — dal + eggs or soya chunks for max value.',
+        { tag: 'proactive-lunch' }
+      );
+    }
+
+    // 6 PM: Protein remaining check
+    if (hour === 18 && last['evening_protein'] !== today) {
+      try {
+        const logData = localStorage.getItem(`nutrilens_log_${today}`);
+        const log = logData ? JSON.parse(logData) : { meals: [] };
+        let totalProtein = 0;
+        for (const meal of (log.meals || [])) {
+          for (const item of (meal.items || [])) {
+            totalProtein += (item.protein || 0) * (item.quantity || 1);
+          }
+        }
+        const profile = localStorage.getItem('nutrilens_profile');
+        const proteinTarget = profile ? (JSON.parse(profile).dailyProtein || 60) : 60;
+        const remaining = proteinTarget - totalProtein;
+        if (remaining > 40) {
+          setProactiveLast('evening_protein', today);
+          sendNotification(
+            `💪 You still need ${Math.round(remaining)}g protein`,
+            'Add eggs, curd, or soya chunks to hit your goal tonight.',
+            { tag: 'proactive-protein' }
+          );
+        }
+      } catch {}
+    }
+
+    // Saturday 9 AM: Weekend risk
+    if (now.getDay() === 6 && hour === 9 && last['weekend_risk'] !== today) {
+      setProactiveLast('weekend_risk', today);
+      sendNotification(
+        '😄 Weekend risk detected!',
+        "Weekends can be tricky. We'll help you stay on track with smart choices.",
+        { tag: 'proactive-weekend' }
+      );
+    }
+  };
+
+  proactiveInterval = setInterval(check, 60_000); // check every minute
+  check(); // run immediately
+}
+
 // ── Achievement alert helper ──
 
 export function sendAchievementAlert(badgeName: string) {

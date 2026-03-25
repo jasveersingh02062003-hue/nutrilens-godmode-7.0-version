@@ -8,6 +8,11 @@ import MonikaFab from '@/components/MonikaFab';
 import TimeInsightCard from '@/components/TimeInsightCard';
 import { updateDailyBehaviorStats, runWeeklyAdaptation, isSurvivalModeActive } from '@/lib/behavior-stats';
 import { useNavigate } from 'react-router-dom';
+import ProteinRescueCard from '@/components/ProteinRescueCard';
+import WeeklyWeightCheckIn from '@/components/WeeklyWeightCheckIn';
+import RepeatMealsButton from '@/components/RepeatMealsButton';
+import { checkDropOff, dismissDropOff, updateLastLogDate } from '@/lib/drop-off-defense';
+import { checkWeeklySurplus, applyHardReset, dismissHardBoundary } from '@/lib/hard-boundary';
 import CalorieRing from '@/components/CalorieRing';
 import MacroCard from '@/components/MacroCard';
 import TodayMeals from '@/components/TodayMeals';
@@ -52,7 +57,7 @@ import { Button } from '@/components/ui/button';
 import PESExplanationCard from '@/components/PESExplanationCard';
 import WeeklyFeedbackCard from '@/components/WeeklyFeedbackCard';
 import { shouldGenerateSummary, generateWeeklySummary, scheduleWeeklyNotification } from '@/lib/weekly-feedback';
-import { hasBrowserPermission } from '@/lib/notifications';
+import { hasBrowserPermission, startProactiveChecks } from '@/lib/notifications';
 import { processEndOfDay, getAdjustedDailyTarget, getProteinTarget, getCorrectionMessage, isTargetAdjusted, getAdherenceScore, getBalanceStreak, getDayType, setDayType, onCalorieBankUpdate, offCalorieBankUpdate, type DayType } from '@/lib/calorie-correction';
 import { Flame } from 'lucide-react';
 export default function Dashboard() {
@@ -77,6 +82,8 @@ export default function Dashboard() {
   const [whyModalOpen, setWhyModalOpen] = useState(false);
   const [missedPromptOpen, setMissedPromptOpen] = useState(false);
   const [missedDate, setMissedDate] = useState('');
+  const [dropOffModal, setDropOffModal] = useState<{ detected: boolean; daysMissed: number; message: string } | null>(null);
+  const [hardBoundaryModal, setHardBoundaryModal] = useState<{ weeklySurplus: number; message: string; suggestion: string } | null>(null);
   
 
   const plannerProfile = getMealPlannerProfile();
@@ -138,6 +145,16 @@ export default function Dashboard() {
       const summary = generateWeeklySummary();
       if (hasBrowserPermission()) scheduleWeeklyNotification(summary);
     }
+    // Drop-off defense
+    const dropOff = checkDropOff();
+    if (dropOff.detected) setDropOffModal(dropOff);
+    // Hard boundary check
+    const boundary = checkWeeklySurplus();
+    if (boundary) setHardBoundaryModal(boundary);
+    // Update last log date
+    updateLastLogDate();
+    // Start proactive notification checks
+    startProactiveChecks();
   }, [profile, navigate]);
 
   useEffect(() => {
@@ -368,6 +385,11 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Protein Rescue Card (after 6 PM, >40g remaining) */}
+        <div className="animate-fade-in">
+          <ProteinRescueCard profile={profile} onApplied={refreshLog} />
+        </div>
+
         {/* Time-Based Insight (Fix 8) */}
         <div className="animate-fade-in">
           <TimeInsightCard />
@@ -462,6 +484,11 @@ export default function Dashboard() {
           <TodayMealPlan />
         </div>
 
+        {/* Repeat Yesterday's Meals */}
+        <div className="animate-slide-up" style={{ animationDelay: '0.17s' }}>
+          <RepeatMealsButton onApplied={refreshLog} />
+        </div>
+
         {/* 7. Today's Meals */}
         <div className="animate-slide-up" style={{ animationDelay: '0.18s' }}>
           <TodayMeals log={log} onRefresh={refreshLog} dayState={dayState} />
@@ -470,8 +497,56 @@ export default function Dashboard() {
 
       <MonikaFab onDashboardRefresh={refreshLog} />
 
+      {/* Weekly Weight Check-In (Sunday prompt) */}
+      <WeeklyWeightCheckIn defaultWeight={profile.weightKg} onDone={refreshLog} />
+
       <WhyAdjustedModal open={whyModalOpen} onClose={() => setWhyModalOpen(false)} />
       <MissedDayPrompt open={missedPromptOpen} onClose={() => setMissedPromptOpen(false)} missedDate={missedDate} />
+
+      {/* Drop-Off Defense Modal */}
+      <Dialog open={!!dropOffModal} onOpenChange={(v) => !v && setDropOffModal(null)}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <span>👋</span> Welcome Back!
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              {dropOffModal?.message}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 pt-2">
+            <Button variant="ghost" className="flex-1" onClick={() => { dismissDropOff(); setDropOffModal(null); }}>
+              Dismiss
+            </Button>
+            <Button className="flex-1" onClick={() => { dismissDropOff(); setDropOffModal(null); refreshLog(); toast.success('Plan restarted! Let\'s go! 💪'); }}>
+              🚀 Restart
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Hard Boundary Alert Modal */}
+      <Dialog open={!!hardBoundaryModal} onOpenChange={(v) => !v && setHardBoundaryModal(null)}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <ShieldAlert className="w-4 h-4 text-destructive" /> Weekly Alert
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              {hardBoundaryModal?.message}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">{hardBoundaryModal?.suggestion}</p>
+          <div className="flex gap-2 pt-2">
+            <Button variant="ghost" className="flex-1" onClick={() => { dismissHardBoundary(); setHardBoundaryModal(null); }}>
+              Not now
+            </Button>
+            <Button className="flex-1" onClick={() => { applyHardReset(); setHardBoundaryModal(null); toast.success('Plan reset for tomorrow — 15% lighter day ahead'); refreshProfile(); }}>
+              Reset Plan
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Supplement Sheets */}
       <SupplementLogSheet

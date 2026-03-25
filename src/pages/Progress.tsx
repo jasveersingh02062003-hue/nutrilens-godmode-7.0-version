@@ -27,6 +27,8 @@ import HealthScoreCard from '@/components/HealthScoreCard';
 import SymptomTrackerCard from '@/components/SymptomTrackerCard';
 import BloodReportCard from '@/components/BloodReportCard';
 import BloodReportSheet from '@/components/BloodReportSheet';
+import IdentityBadgesCard from '@/components/IdentityBadgesCard';
+import { getMonthlySavings } from '@/lib/budget-impact';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { getPlan, isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
@@ -240,6 +242,12 @@ export default function ProgressPage() {
         {/* Budget Insights */}
         <BudgetInsightsCard refreshKey={refreshKey} />
 
+        {/* Monthly Savings Impact */}
+        <MonthlySavingsCard />
+
+        {/* Identity Badges */}
+        <IdentityBadgesCard />
+
         {/* Health Score (multi-condition) */}
         <HealthScoreCard refreshKey={refreshKey} />
 
@@ -360,6 +368,36 @@ export default function ProgressPage() {
       />
 
       <UpgradeModal open={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
+    </div>
+  );
+}
+
+function MonthlySavingsCard() {
+  const savings = getMonthlySavings();
+  if (savings.saved <= 0 || savings.totalBudget <= 0) return null;
+
+  return (
+    <div className="card-elevated p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-sm">💰</span>
+        <h3 className="font-semibold text-sm text-foreground">Monthly Savings</h3>
+      </div>
+      <div className="flex items-baseline gap-2 mb-2">
+        <span className="text-2xl font-bold text-primary">₹{savings.saved}</span>
+        <span className="text-xs text-muted-foreground">saved this month</span>
+      </div>
+      <p className="text-xs text-muted-foreground mb-2">
+        Budget: ₹{savings.totalBudget} · Spent: ₹{savings.totalSpent}
+      </p>
+      {savings.equivalents.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {savings.equivalents.map((eq, i) => (
+            <span key={i} className="px-2.5 py-1 rounded-lg bg-primary/10 text-xs font-semibold text-primary">
+              {eq}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
