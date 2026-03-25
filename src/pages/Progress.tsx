@@ -31,7 +31,7 @@ import { useUserProfile } from '@/contexts/UserProfileContext';
 import { getPlan, isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
-import { getDailyBalances, getCalorieBankSummary } from '@/lib/calorie-correction';
+import { getDailyBalances, getCalorieBankSummary, getAdjustmentPlan, getMonthlyStats, getWeekendPattern, type DailyBalanceEntry } from '@/lib/calorie-correction';
 
 type AdherenceStatus = 'green' | 'yellow' | 'red' | 'gray';
 
@@ -365,74 +365,214 @@ export default function ProgressPage() {
 }
 
 function CalorieBalanceCard() {
+  const [view, setView] = useState<'weekly' | 'monthly'>('weekly');
   const balances = getDailyBalances();
   const summary = getCalorieBankSummary();
+  const plan = getAdjustmentPlan();
+  const monthlyStats = getMonthlyStats();
+  const weekendPattern = getWeekendPattern();
+  const [showPlanDetails, setShowPlanDetails] = useState(false);
 
   if (balances.length === 0) return null;
 
+  const last7 = balances.slice(-7);
   const last14 = balances.slice(-14);
   const maxAbs = Math.max(1, ...last14.map(b => Math.abs(b.diff)));
   const bankClamped = Math.max(-2000, Math.min(2000, summary.bank));
   const bankPct = Math.round(((bankClamped + 2000) / 4000) * 100);
 
+  // Weekly totals
+  const weeklyTarget = last7.reduce((s, b) => s + b.target, 0);
+  const weeklyActual = last7.reduce((s, b) => s + b.actual, 0);
+  const weeklyNet = weeklyActual - weeklyTarget;
+
+  // Plan source info
+  const planSource = plan.length > 0 ? balances.filter(b => b.diff > 50).slice(-1)[0] : null;
+  const planTotal = plan.reduce((s, e) => s + Math.abs(e.adjust), 0);
+
+  const fmtDay = (d: string) => {
+    const dt = new Date(d + 'T00:00:00');
+    return dt.toLocaleDateString('en-IN', { weekday: 'short' });
+  };
+  const fmtDate = (d: string) => {
+    const dt = new Date(d + 'T00:00:00');
+    return dt.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+  };
+
   return (
-    <div className="card-elevated p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-sm">⚖️</span>
-        <h3 className="font-semibold text-sm text-foreground">Calorie Balance</h3>
-        {summary.status !== 'balanced' && (
-          <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full ${
-            summary.status === 'surplus' ? 'bg-accent/10 text-accent' : 'bg-primary/10 text-primary'
-          }`}>
-            {summary.status === 'surplus' ? '+' : ''}{summary.bank} kcal
-          </span>
-        )}
-      </div>
-
-      {/* Balance Meter */}
-      <div className="mb-3">
-        <div className="h-3 bg-secondary rounded-full overflow-hidden relative">
-          <div className="absolute inset-y-0 left-1/2 w-px bg-border z-10" />
-          <div
-            className={`h-full rounded-full transition-all duration-700 ease-out ${
-              summary.bank >= 0 ? 'bg-accent' : 'bg-primary'
-            }`}
-            style={{
-              width: `${Math.abs(bankPct - 50)}%`,
-              marginLeft: summary.bank < 0 ? `${bankPct}%` : '50%',
-            }}
-          />
+    <div className="card-elevated p-4 space-y-4">
+      {/* Header with toggle */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm">⚖️</span>
+          <h3 className="font-semibold text-sm text-foreground">Calorie Balance</h3>
+          {summary.status !== 'balanced' && (
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+              summary.status === 'surplus' ? 'bg-accent/10 text-accent' : 'bg-primary/10 text-primary'
+            }`}>
+              {summary.status === 'surplus' ? '+' : ''}{summary.bank} kcal
+            </span>
+          )}
         </div>
-        <div className="flex justify-between mt-1 text-[9px] text-muted-foreground">
-          <span>-2000</span>
-          <span>0</span>
-          <span>+2000</span>
+        <div className="flex rounded-lg bg-muted p-0.5 gap-0.5">
+          <button
+            onClick={() => setView('weekly')}
+            className={`text-[10px] font-semibold px-2.5 py-1 rounded-md transition-colors ${view === 'weekly' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
+          >
+            Week
+          </button>
+          <button
+            onClick={() => setView('monthly')}
+            className={`text-[10px] font-semibold px-2.5 py-1 rounded-md transition-colors ${view === 'monthly' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
+          >
+            Month
+          </button>
         </div>
       </div>
 
-      {/* Daily bars */}
-      <div className="flex items-end gap-0.5 h-16 mb-2">
-        {last14.map((b, i) => {
-          const pct = Math.max(4, (Math.abs(b.diff) / maxAbs) * 100);
-          const isPositive = b.diff > 0;
-          return (
-            <div key={i} className="flex-1 flex flex-col items-center justify-end h-full">
+      {view === 'weekly' ? (
+        <>
+          {/* Weekly summary */}
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">This week</span>
+            <span className="font-semibold text-foreground">
+              Target: {weeklyTarget} · Actual: {weeklyActual} ·{' '}
+              <span className={weeklyNet > 0 ? 'text-accent' : weeklyNet < 0 ? 'text-primary' : 'text-foreground'}>
+                Net: {weeklyNet > 0 ? '+' : ''}{weeklyNet}
+              </span>
+            </span>
+          </div>
+
+          {/* Day-by-day table */}
+          <div className="rounded-xl border border-border overflow-hidden">
+            <div className="grid grid-cols-5 gap-0 text-[9px] font-semibold text-muted-foreground bg-muted/50 px-2 py-1.5">
+              <span>Day</span>
+              <span className="text-right">Target</span>
+              <span className="text-right">Actual</span>
+              <span className="text-right">Diff</span>
+              <span className="text-right">Status</span>
+            </div>
+            {last7.map((b, i) => {
+              const status = Math.abs(b.diff) < 50 ? 'Balanced' : b.diff > 0 ? 'Adjusted' : 'Deficit';
+              const statusColor = status === 'Balanced' ? 'text-primary' : status === 'Adjusted' ? 'text-accent' : 'text-muted-foreground';
+              return (
+                <div key={i} className="grid grid-cols-5 gap-0 text-[10px] px-2 py-1.5 border-t border-border">
+                  <span className="font-medium text-foreground">{fmtDay(b.date)}</span>
+                  <span className="text-right text-muted-foreground">{b.target}</span>
+                  <span className="text-right text-foreground font-medium">{b.actual}</span>
+                  <span className={`text-right font-semibold ${b.diff > 0 ? 'text-accent' : b.diff < 0 ? 'text-primary' : 'text-foreground'}`}>
+                    {b.diff > 0 ? '+' : ''}{b.diff}
+                  </span>
+                  <span className={`text-right font-medium ${statusColor}`}>{status}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Bar chart */}
+          <div className="flex items-end gap-0.5 h-16">
+            {last14.map((b, i) => {
+              const pct = Math.max(4, (Math.abs(b.diff) / maxAbs) * 100);
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center justify-end h-full">
+                  <div
+                    className={`w-full rounded-sm transition-all ${b.diff > 0 ? 'bg-accent/60' : 'bg-primary/60'}`}
+                    style={{ height: `${pct}%` }}
+                    title={`${b.date}: ${b.diff > 0 ? '+' : ''}${b.diff} kcal`}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex justify-between text-[8px] text-muted-foreground">
+            <span>{last14[0]?.date.slice(5)}</span>
+            <span>{last14[last14.length - 1]?.date.slice(5)}</span>
+          </div>
+
+          {/* Recovery tracker */}
+          {plan.length > 0 && planSource && (
+            <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs">🔄</span>
+                <p className="text-xs font-semibold text-foreground">Correction in progress</p>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                +{Math.round(planSource.diff)} kcal from {fmtDate(planSource.date)} → being balanced across {plan.length} days.
+                Remaining: {planTotal} kcal.
+              </p>
+              <button
+                onClick={() => setShowPlanDetails(!showPlanDetails)}
+                className="text-[10px] font-semibold text-primary"
+              >
+                {showPlanDetails ? 'Hide details ↑' : 'Show details ↓'}
+              </button>
+              {showPlanDetails && (
+                <div className="space-y-1 pt-1">
+                  {plan.map((e, i) => (
+                    <div key={i} className="flex items-center justify-between text-[10px]">
+                      <span className="text-muted-foreground">{fmtDate(e.date)}</span>
+                      <span className="font-semibold text-foreground">{e.adjust > 0 ? '+' : ''}{e.adjust} kcal</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      ) : (
+        /* Monthly view */
+        <>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl bg-accent/5 border border-accent/10 p-3 text-center">
+              <p className="text-lg font-bold text-accent">{monthlyStats.surplusDays}</p>
+              <p className="text-[10px] text-muted-foreground">Surplus days</p>
+            </div>
+            <div className="rounded-xl bg-primary/5 border border-primary/10 p-3 text-center">
+              <p className="text-lg font-bold text-primary">{monthlyStats.deficitDays}</p>
+              <p className="text-[10px] text-muted-foreground">Deficit days</p>
+            </div>
+            <div className="rounded-xl bg-muted/50 border border-border p-3 text-center">
+              <p className="text-lg font-bold text-foreground">{monthlyStats.balancedDays}</p>
+              <p className="text-[10px] text-muted-foreground">Balanced</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between text-xs p-3 rounded-xl bg-muted/30">
+            <span className="text-muted-foreground">Net monthly balance</span>
+            <span className={`font-bold ${monthlyStats.netBalance > 0 ? 'text-accent' : monthlyStats.netBalance < 0 ? 'text-primary' : 'text-foreground'}`}>
+              {monthlyStats.netBalance > 0 ? '+' : ''}{monthlyStats.netBalance} kcal
+            </span>
+          </div>
+
+          {/* Balance meter */}
+          <div>
+            <div className="h-3 bg-secondary rounded-full overflow-hidden relative">
+              <div className="absolute inset-y-0 left-1/2 w-px bg-border z-10" />
               <div
-                className={`w-full rounded-sm transition-all ${isPositive ? 'bg-accent/60' : 'bg-primary/60'}`}
-                style={{ height: `${pct}%` }}
-                title={`${b.date}: ${b.diff > 0 ? '+' : ''}${b.diff} kcal`}
+                className={`h-full rounded-full transition-all duration-700 ease-out ${summary.bank >= 0 ? 'bg-accent' : 'bg-primary'}`}
+                style={{
+                  width: `${Math.abs(bankPct - 50)}%`,
+                  marginLeft: summary.bank < 0 ? `${bankPct}%` : '50%',
+                }}
               />
             </div>
-          );
-        })}
-      </div>
-      <div className="flex justify-between text-[8px] text-muted-foreground">
-        <span>{last14[0]?.date.slice(5)}</span>
-        <span>{last14[last14.length - 1]?.date.slice(5)}</span>
-      </div>
+            <div className="flex justify-between mt-1 text-[9px] text-muted-foreground">
+              <span>-2000</span>
+              <span>0</span>
+              <span>+2000</span>
+            </div>
+          </div>
 
-      {/* Summary text */}
-      <p className="text-[11px] text-muted-foreground mt-2">{summary.message}</p>
+          {/* Behavioral insight */}
+          {weekendPattern.detected && (
+            <div className="p-3 rounded-xl bg-accent/5 border border-accent/10">
+              <p className="text-xs font-medium text-foreground">💡 {weekendPattern.message}</p>
+            </div>
+          )}
+        </>
+      )}
+
+      <p className="text-[11px] text-muted-foreground">{summary.message}</p>
     </div>
   );
 }

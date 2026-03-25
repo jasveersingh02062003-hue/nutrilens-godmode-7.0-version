@@ -28,7 +28,7 @@ import { computeSmartAdjustment, applySmartAdjustment, type AdjustmentResult } f
 import { resolveMealVisualState } from '@/lib/meal-state-service';
 import PESBreakdownModal from '@/components/PESBreakdownModal';
 import { getBudgetSettings } from '@/lib/expense-store';
-import { updateCalorieBank } from '@/lib/calorie-correction';
+import { updateCalorieBank, getContextualMealToast } from '@/lib/calorie-correction';
 
 interface Props {
   open: boolean;
@@ -170,6 +170,8 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
     }).filter(m => m.items.length > 0);
     saveDailyLog(updatedLog);
     updateCalorieBank(updatedLog, profile);
+    const mealToast = getContextualMealToast();
+    if (mealToast) toast(mealToast.message, { duration: 4000 });
     setDeleteId(null);
     onChanged();
     forceUpdate();
@@ -195,6 +197,8 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
     });
     saveDailyLog(updatedLog);
     updateCalorieBank(updatedLog, profile);
+    const mealToast = getContextualMealToast();
+    if (mealToast) toast(mealToast.message, { duration: 4000 });
     onChanged();
     forceUpdate();
   }
@@ -279,6 +283,8 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
     }
     saveDailyLog(updatedLog);
     updateCalorieBank(updatedLog, profile);
+    const mealToast = getContextualMealToast();
+    if (mealToast) toast(mealToast.message, { duration: 4000 });
     setAddSheetOpen(false);
     setPendingPESItem(null);
     setShowPESBreakdown(false);

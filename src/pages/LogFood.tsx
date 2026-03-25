@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import { checkBudgetAfterMeal } from '@/lib/budget-service';
 import UnitPicker from '@/components/UnitPicker';
 import { calculateNutrition, getUnitOptionsForFood } from '@/lib/unit-conversion';
-import { updateCalorieBank } from '@/lib/calorie-correction';
+import { updateCalorieBank, getContextualMealToast } from '@/lib/calorie-correction';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -179,6 +179,8 @@ export default function LogFood() {
 
     // Update calorie bank after logging
     updateCalorieBank();
+    const mealToast = getContextualMealToast();
+    if (mealToast) toast(mealToast.message, { duration: 4000 });
 
     setContextPickerOpen(false);
     setShowPES(false);
