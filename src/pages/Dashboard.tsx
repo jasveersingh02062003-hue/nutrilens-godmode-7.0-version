@@ -8,6 +8,11 @@ import MonikaFab from '@/components/MonikaFab';
 import TimeInsightCard from '@/components/TimeInsightCard';
 import { updateDailyBehaviorStats, runWeeklyAdaptation, isSurvivalModeActive } from '@/lib/behavior-stats';
 import { useNavigate } from 'react-router-dom';
+import ProteinRescueCard from '@/components/ProteinRescueCard';
+import WeeklyWeightCheckIn from '@/components/WeeklyWeightCheckIn';
+import RepeatMealsButton from '@/components/RepeatMealsButton';
+import { checkDropOff, dismissDropOff, updateLastLogDate } from '@/lib/drop-off-defense';
+import { checkWeeklySurplus, applyHardReset, dismissHardBoundary } from '@/lib/hard-boundary';
 import CalorieRing from '@/components/CalorieRing';
 import MacroCard from '@/components/MacroCard';
 import TodayMeals from '@/components/TodayMeals';
@@ -77,6 +82,8 @@ export default function Dashboard() {
   const [whyModalOpen, setWhyModalOpen] = useState(false);
   const [missedPromptOpen, setMissedPromptOpen] = useState(false);
   const [missedDate, setMissedDate] = useState('');
+  const [dropOffModal, setDropOffModal] = useState<{ detected: boolean; daysMissed: number; message: string } | null>(null);
+  const [hardBoundaryModal, setHardBoundaryModal] = useState<{ weeklySurplus: number; message: string; suggestion: string } | null>(null);
   
 
   const plannerProfile = getMealPlannerProfile();
