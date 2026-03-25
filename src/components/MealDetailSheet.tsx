@@ -156,10 +156,10 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
       return {
         ...m,
         items: filtered,
-        totalCalories: filtered.reduce((s, i) => s + i.calories, 0),
-        totalProtein: filtered.reduce((s, i) => s + i.protein, 0),
-        totalCarbs: filtered.reduce((s, i) => s + i.carbs, 0),
-        totalFat: filtered.reduce((s, i) => s + i.fat, 0),
+        totalCalories: filtered.reduce((s, i) => s + i.calories * i.quantity, 0),
+        totalProtein: filtered.reduce((s, i) => s + i.protein * i.quantity, 0),
+        totalCarbs: filtered.reduce((s, i) => s + i.carbs * i.quantity, 0),
+        totalFat: filtered.reduce((s, i) => s + i.fat * i.quantity, 0),
       };
     }).filter(m => m.items.length > 0);
     saveDailyLog(updatedLog);
@@ -172,26 +172,18 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
     const updatedLog = { ...log };
     updatedLog.meals = updatedLog.meals.map(m => {
       if (m.id !== mealId) return m;
+      // Only update quantity — per-unit nutrition values stay unchanged
       const items = m.items.map(i => {
         if (i.id !== itemId) return i;
-        const newQty = Math.max(0.5, i.quantity + delta * 0.5);
-        const ratio = newQty / i.quantity;
-        return {
-          ...i,
-          quantity: newQty,
-          calories: Math.round(i.calories * ratio),
-          protein: Math.round(i.protein * ratio * 10) / 10,
-          carbs: Math.round(i.carbs * ratio * 10) / 10,
-          fat: Math.round(i.fat * ratio * 10) / 10,
-        };
+        return { ...i, quantity: Math.max(0.5, i.quantity + delta * 0.5) };
       });
       return {
         ...m,
         items,
-        totalCalories: items.reduce((s, i) => s + i.calories, 0),
-        totalProtein: items.reduce((s, i) => s + i.protein, 0),
-        totalCarbs: items.reduce((s, i) => s + i.carbs, 0),
-        totalFat: items.reduce((s, i) => s + i.fat, 0),
+        totalCalories: items.reduce((s, i) => s + i.calories * i.quantity, 0),
+        totalProtein: items.reduce((s, i) => s + i.protein * i.quantity, 0),
+        totalCarbs: items.reduce((s, i) => s + i.carbs * i.quantity, 0),
+        totalFat: items.reduce((s, i) => s + i.fat * i.quantity, 0),
       };
     });
     saveDailyLog(updatedLog);
@@ -246,10 +238,10 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
     const existingMeal = updatedLog.meals.find(m => m.type === mealType);
     if (existingMeal) {
       existingMeal.items.push(item);
-      existingMeal.totalCalories = existingMeal.items.reduce((s, i) => s + i.calories, 0);
-      existingMeal.totalProtein = existingMeal.items.reduce((s, i) => s + i.protein, 0);
-      existingMeal.totalCarbs = existingMeal.items.reduce((s, i) => s + i.carbs, 0);
-      existingMeal.totalFat = existingMeal.items.reduce((s, i) => s + i.fat, 0);
+      existingMeal.totalCalories = existingMeal.items.reduce((s, i) => s + i.calories * i.quantity, 0);
+      existingMeal.totalProtein = existingMeal.items.reduce((s, i) => s + i.protein * i.quantity, 0);
+      existingMeal.totalCarbs = existingMeal.items.reduce((s, i) => s + i.carbs * i.quantity, 0);
+      existingMeal.totalFat = existingMeal.items.reduce((s, i) => s + i.fat * i.quantity, 0);
     } else {
       const newMeal: MealEntry = {
         id: Date.now().toString(),
@@ -586,13 +578,15 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
                         <button
                           key={i}
                           onClick={() => {
+                            // Look up real nutrition from food database
+                            const dbFood = getFoodByName(s.name);
                             const item: FoodItem = {
                               id: Date.now().toString() + i,
                               name: s.name,
-                              calories: s.calories,
-                              protein: s.protein,
-                              carbs: Math.round(s.calories * 0.4 / 4),
-                              fat: Math.round(s.calories * 0.3 / 9),
+                              calories: dbFood ? dbFood.calories : s.calories,
+                              protein: dbFood ? dbFood.protein : s.protein,
+                              carbs: dbFood ? dbFood.carbs : Math.round(s.calories * 0.4 / 4),
+                              fat: dbFood ? dbFood.fat : Math.round(s.calories * 0.3 / 9),
                               quantity: 1,
                               unit: s.portion,
                               emoji: s.emoji,
@@ -624,13 +618,15 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
                   mealItems={allItems}
                   compact
                   onAddFood={(food) => {
+                    // Look up real nutrition from food database
+                    const dbFood = getFoodByName(food.name);
                     const item: FoodItem = {
                       id: Date.now().toString(),
                       name: food.name,
-                      calories: food.calories,
-                      protein: Math.round(food.calories * 0.15 / 4),
-                      carbs: Math.round(food.calories * 0.5 / 4),
-                      fat: Math.round(food.calories * 0.35 / 9),
+                      calories: dbFood ? dbFood.calories : food.calories,
+                      protein: dbFood ? dbFood.protein : Math.round(food.calories * 0.15 / 4),
+                      carbs: dbFood ? dbFood.carbs : Math.round(food.calories * 0.5 / 4),
+                      fat: dbFood ? dbFood.fat : Math.round(food.calories * 0.35 / 9),
                       quantity: 1,
                       unit: 'serving',
                       emoji: food.emoji,

@@ -21,6 +21,11 @@ export function validateFoodItem(
   quantity?: number,
   unit?: string,
 ): ValidationWarning[] {
+  // RULE 0: Macro-calorie cross-check — (P*4)+(C*4)+(F*9) should ≈ calories
+  const calculatedCal = (totalProtein * 4) + (totalCarbs * 4) + (totalFat * 9);
+  if (totalCalories > 50 && Math.abs(calculatedCal - totalCalories) > Math.max(50, totalCalories * 0.15)) {
+    console.warn(`⚠️ Nutrition mismatch for ${name}: macros suggest ${Math.round(calculatedCal)} kcal but reported ${totalCalories} kcal`);
+  }
   const warnings: ValidationWarning[] = [];
   const grams = estimatedWeightGrams || 100;
   const totalGrams = grams * (quantity || 1);
