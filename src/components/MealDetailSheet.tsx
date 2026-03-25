@@ -169,6 +169,7 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
       };
     }).filter(m => m.items.length > 0);
     saveDailyLog(updatedLog);
+    updateCalorieBank(updatedLog, profile);
     setDeleteId(null);
     onChanged();
     forceUpdate();
