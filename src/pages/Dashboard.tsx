@@ -57,7 +57,7 @@ import { Button } from '@/components/ui/button';
 import PESExplanationCard from '@/components/PESExplanationCard';
 import WeeklyFeedbackCard from '@/components/WeeklyFeedbackCard';
 import { shouldGenerateSummary, generateWeeklySummary, scheduleWeeklyNotification } from '@/lib/weekly-feedback';
-import { hasBrowserPermission } from '@/lib/notifications';
+import { hasBrowserPermission, startProactiveChecks } from '@/lib/notifications';
 import { processEndOfDay, getAdjustedDailyTarget, getProteinTarget, getCorrectionMessage, isTargetAdjusted, getAdherenceScore, getBalanceStreak, getDayType, setDayType, onCalorieBankUpdate, offCalorieBankUpdate, type DayType } from '@/lib/calorie-correction';
 import { Flame } from 'lucide-react';
 export default function Dashboard() {
