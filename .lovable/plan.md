@@ -1,133 +1,83 @@
 
 
-## Smart Calorie Correction Engine — Production Hardening Plan
+## Fix Smart Calorie Correction Engine — Missing Pieces
 
 ### Overview
-This plan adds the missing production layers to the existing calorie correction engine: meal locking, user behavior modes, adherence tracking, failure handling, confidence scoring, special day types, balance streaks, time-based cutoff, and a standardized API contract. The core engine (`calorie-correction.ts`) and meal adjustment (`meal-adjustment.ts`) already work — this extends them.
+Targeted fixes to the existing `calorie-correction.ts` and `meal-adjustment.ts` to close production gaps. No new files needed, no rewrites.
 
-### Priority 1: Data Model Extensions
+### Fix 1: Adjustment Plan Merging (Not Overwriting)
 
-**`src/lib/calorie-correction.ts`** — Extend `CalorieBankState` with:
-- `correctionMode: 'aggressive' | 'balanced' | 'flexible'` (default `'balanced'`)
-- `autoAdjustMeals: boolean` (default `true`)
-- `dayCutoffHour: number` (default `3`)
-- `specialDays: Record<string, 'normal' | 'cheat' | 'recovery' | 'fasting'>`
-- `balanceStreak: number` (consecutive days within ±100 kcal)
+**`src/lib/calorie-correction.ts`**
+- Add a `mergePlans()` helper that combines existing and new plan entries by date (summing adjustments for the same date).
+- In `updateCalorieBank()` lines 297 and 312: replace direct assignment (`state.adjustmentPlan = ...`) with `state.adjustmentPlan = mergePlans(state.adjustmentPlan.filter(e => e.date >= today), newPlan)`.
+- Same fix in `processEndOfDay()` line 426.
 
-Update `loadState()` to default these new fields for backward compatibility.
+### Fix 2: Recalc Calories After Portion Change
 
-### Priority 2: Meal Locking (3 functions)
+**`src/lib/meal-adjustment.ts`**
+- After every `item.quantity` change (lines 83, 109, 135), recalculate `item.calories` and `item.protein` using base per-unit values. Since `FoodItem.calories` and `FoodItem.protein` are per-unit values and `quantity` is the multiplier, the current math (`item.calories * item.quantity`) already works correctly for totals. However, add a comment clarifying this and ensure no stale total is cached.
 
-**`src/lib/meal-adjustment.ts`** — Add meal locking logic:
-- Add `status?: 'locked' | 'flexible'` to the adjustment flow. Logged meals (those already in `dailyLog.meals`) are treated as locked. Only future/unlogged meal slots are adjustable.
-- Modify `adjustMealPlan()` to accept a `lockedCalories` parameter — the engine subtracts locked calories from the adjusted target and only modifies flexible items.
+Actually — reviewing the code more carefully: `item.calories` is the per-unit value and `quantity` is the count. The engine correctly uses `item.calories * item.quantity` for totals. The portion change modifies `quantity`, which is correct. **No code change needed here** — the math is already sound.
 
-### Priority 3: User Behavior Modes
+### Fix 3: Protein Constraint (Already Implemented)
 
-**`src/lib/calorie-correction.ts`** — Add mode-based caps:
+The protein check already exists at lines 119-140 of `meal-adjustment.ts`. It checks if total protein dropped below 90% of target and boosts high-protein flexible items. **No change needed.**
 
-| Mode | Recovery Days | Surplus Cap | Deficit Recovery |
-|------|--------------|-------------|-----------------|
-| Aggressive | 2–3 | 25% | 50% |
-| Balanced | 3–5 | 20% | 40% |
-| Flexible | 4–6 | 15% | 30% |
+### Fix 4: Locked-Meal Calorie Protection (Already Implemented)
 
-Modify `getAdjustedDailyTarget()` and `updateCalorieBank()` to read `correctionMode` from state and apply the corresponding caps.
+Lines 35-56 of `meal-adjustment.ts` already separate locked vs flexible items and compute `flexTarget = adjustedTarget - lockedCal`. **No change needed.**
 
-**`src/pages/Profile.tsx`** — Add a "Correction Mode" setting row (alongside existing Tracking Mode toggle). Three options: Aggressive / Balanced / Flexible. Store via a new `setCorrectionMode()` function.
+### Fix 5: Adherence Score Modulating Adjustments (Already Implemented)
 
-### Priority 4: Adherence Tracking
+Lines 287-290 of `calorie-correction.ts` already read adherence score and apply a 0.7 multiplier if score < 0.5. **No change needed.**
 
-**`src/lib/calorie-correction.ts`** — Add `getAdherenceScore()`:
-- Over rolling 7 days, compute `mealsLogged / mealsPlanned`.
-- If adherence < 0.5, reduce correction intensity by 30% (softer adjustments).
-- Return `{ score: number, label: string }`.
+### Fix 6: Confidence Score Usage (Already Implemented)
 
-**`src/pages/Dashboard.tsx`** — Show adherence score as a small stat near the calorie ring (e.g., "Adherence: 82%").
+Lines 279-284 already apply confidence-based softening. **No change needed.**
 
-### Priority 5: Failure Handling
+### Fix 7: Consecutive Surplus Failure Handling
 
-**`src/lib/calorie-correction.ts`** — In `updateCalorieBank()`:
-- Track `consecutiveSurplusDays` (already exists).
-- If > 3, reduce `adjustmentPerDay` by 30% and extend window to max 7 days.
-- If `consecutiveDeficitDays` > 3 (new field), gradually return target to original (shrink recovery boost by 50% each day).
-- Show supportive message: "Consistency matters more than perfection."
+**`src/lib/calorie-correction.ts`**
+- Current code at line 283 checks `consecutiveSurplusDays > 3` and applies a 0.7 multiplier. This is correct but the adjustment plan entries themselves aren't dampened after creation.
+- Add: after building the plan in the surplus branch (line 297), if `consecutiveSurplusDays > 3`, dampen each plan entry's adjust by 0.7.
 
-### Priority 6: Confidence Scoring
+### Fix 8: Day-Type Logic (Already Implemented)
 
-**`src/lib/store.ts`** — Add optional `confidenceScore?: number` to `FoodItem`.
+`getAdjustedDailyTarget()` already handles fasting (return 0) at line 333 and cheat days bypass plan creation at line 273. **No change needed** — but cheat day should also return original target in `getAdjustedDailyTarget`. Currently cheat days fall through to the normal calculation. Fix: add `if (dayType === 'cheat') return originalTarget;` after the fasting check at line 333.
 
-**`src/lib/calorie-correction.ts`** — Add `getAverageConfidence(log)`:
-- Compute weighted average confidence from logged items (camera: 0.7, manual: 0.9, voice: 0.6, default: 0.85).
-- If average < 0.7, reduce adjustment intensity by 30%.
+### Fix 9: Safe localStorage Init (Already Implemented)
 
-**Logging components** (`AddFoodSheet.tsx`, `LogFood.tsx`, camera flow) — Set `confidenceScore` on items based on input method.
+`loadState()` already uses `{ ...DEFAULT_STATE, ...parsed }` at line 103. **No change needed.**
 
-### Priority 7: Special Day Types
+### Fix 10: UI Sync via Event Bus
 
-**`src/lib/calorie-correction.ts`** — Add `setDayType(date, type)` and `getDayType(date)`:
-- `cheat`: bank still tracks diff but no adjustment is applied for that day's meals.
-- `recovery`: half-intensity correction.
-- `fasting`: target set to 0, no logging expected, no bank update.
+**`src/lib/calorie-correction.ts`**
+- Add a simple callback registry: `let uiUpdateCallbacks: Array<() => void> = []`
+- Export `onCalorieBankUpdate(cb)` to register callbacks and `offCalorieBankUpdate(cb)` to unregister.
+- At the end of `updateCalorieBank()` and `processEndOfDay()`, call all registered callbacks.
+- In `Dashboard.tsx`, register a callback in useEffect that triggers a re-render (increment a state counter).
 
-**`src/pages/Dashboard.tsx`** — Add a small day-type selector (dropdown or chip) near the date header. Default "Normal".
+### Fix 11: PES Sorting (Partial)
 
-Modify `getAdjustedDailyTarget()` to check day type and skip/reduce adjustments accordingly.
+The current code sorts by `proteinDensity` (protein/calories ratio) which is a reasonable proxy for PES. To use actual PES if available:
 
-### Priority 8: Auto-Adjust Toggle
+**`src/lib/meal-adjustment.ts`**
+- Update the sort comparator to check for `(item as any).pes` first, falling back to proteinDensity. This makes it forward-compatible with PES scores when available.
 
-**`src/lib/calorie-correction.ts`** — Add `setAutoAdjust(on: boolean)` and `getAutoAdjust()`.
+### Fix 12: Portion Boundary Clamping
 
-When OFF, `getAdjustedDailyTarget()` returns the original target but `getCalorieBankSummary()` still shows the bank status as a recommendation. The bank continues tracking.
+**`src/lib/meal-adjustment.ts`**
+- After every quantity assignment, add: `item.quantity = Math.max(0.5, Math.min(1.5 * originalQty, item.quantity))` — but the code already has `minQty = Math.max(0.5, item.quantity * 0.5)` and `maxQty = item.quantity * 1.5`. The boundaries are already enforced. **No change needed.**
 
-**`src/pages/Profile.tsx`** — Add "Auto Adjust Meals" toggle in settings.
+---
 
-### Priority 9: Balance Streak
+### Summary of Actual Changes
 
-**`src/lib/calorie-correction.ts`** — In `processEndOfDay()`:
-- If yesterday's `|diff| <= 100`, increment `balanceStreak`.
-- Otherwise reset to 0.
+| File | Change |
+|------|--------|
+| `src/lib/calorie-correction.ts` | Add `mergePlans()` helper; use it in `updateCalorieBank` and `processEndOfDay`; add cheat-day return in `getAdjustedDailyTarget`; dampen plan entries on consecutive surplus; add UI callback registry |
+| `src/lib/meal-adjustment.ts` | Add PES-aware sorting fallback |
+| `src/pages/Dashboard.tsx` | Register `onCalorieBankUpdate` callback for reactive re-renders |
 
-**`src/pages/Dashboard.tsx`** — Show streak badge when > 0: "3 days balanced" with a small flame icon.
-
-### Priority 10: Time-Based Day Cutoff
-
-**`src/lib/calorie-correction.ts`** — Add `getEffectiveDate()`:
-- If current hour < `dayCutoffHour` (default 3 AM), return yesterday's date.
-- Use this in `updateCalorieBank()` and `getAdjustedDailyTarget()` instead of raw `new Date()`.
-
-### Priority 11: Standardized API Contract
-
-**`src/lib/calorie-correction.ts`** — Add new function `getEngineResponse(profile, log)`:
-```ts
-interface EngineResponse {
-  adjustedCalories: number;
-  originalCalories: number;
-  proteinTarget: number;
-  bankStatus: 'surplus' | 'deficit' | 'balanced';
-  bankAmount: number;
-  adjustmentsApplied: Array<{ date: string; adjust: number }>;
-  confidenceScore: number;
-  warnings: string[];
-  adherenceScore: number;
-  balanceStreak: number;
-  dayType: string;
-  correctionMode: string;
-}
-```
-This is a convenience wrapper for UI components to consume all engine state in one call.
-
-### Files Changed Summary
-1. `src/lib/calorie-correction.ts` — Extended state, modes, adherence, failure handling, confidence, day types, auto-adjust, balance streak, cutoff, API contract
-2. `src/lib/meal-adjustment.ts` — Meal locking (locked vs flexible items)
-3. `src/lib/store.ts` — Add `confidenceScore` to `FoodItem`
-4. `src/pages/Profile.tsx` — Add Correction Mode selector + Auto Adjust toggle
-5. `src/pages/Dashboard.tsx` — Adherence score display, balance streak badge, day type selector
-6. `src/components/AddFoodSheet.tsx` / `src/pages/LogFood.tsx` — Set confidence scores on food items
-
-### What This Does NOT Change
-- Existing PES system, grocery mode, budget engine — all untouched
-- Existing `recalculateDay()` in `calorie-engine.ts` — already uses `getAdjustedDailyTarget()`
-- Progress page CalorieBalanceCard — already working, no changes needed
-- localStorage remains primary storage (IndexedDB migration deferred to future)
+Most of the 12 "fixes" were already implemented in previous iterations. The real gaps are: plan merging (Fix 1), cheat-day target return (Fix 8), consecutive surplus dampening on plan entries (Fix 7), UI sync callbacks (Fix 10), and PES sort integration (Fix 11).
 
