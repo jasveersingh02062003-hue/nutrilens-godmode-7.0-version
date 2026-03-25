@@ -12,13 +12,12 @@ import { supabase } from '@/integrations/supabase/client';
 import ConfidenceBadge from '@/components/ConfidenceBadge';
 import { validateMeal, validateSingleItem, type ValidationResult } from '@/lib/validation-engine';
 import ValidationFeedback from '@/components/ValidationFeedback';
-import { getProfile } from '@/lib/store';
+import { getProfile, getDailyLog, getDailyTotals } from '@/lib/store';
 import { toast } from 'sonner';
 import { checkBudgetAfterMeal } from '@/lib/budget-service';
 import UnitPicker from '@/components/UnitPicker';
 import { calculateNutrition, getUnitOptionsForFood } from '@/lib/unit-conversion';
 import { updateCalorieBank, getContextualMealToast } from '@/lib/calorie-correction';
-import { getDailyLog, getDailyTotals } from '@/lib/store';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
