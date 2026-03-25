@@ -50,6 +50,7 @@ export interface CalorieBankState {
   dayCutoffHour: number;
   specialDays: Record<string, DayType>;
   balanceStreak: number;
+  adjustmentSources: AdjustmentSourceMap[];
 }
 
 export interface MonthlyStats {
@@ -96,6 +97,7 @@ const DEFAULT_STATE: CalorieBankState = {
   dayCutoffHour: 3,
   specialDays: {},
   balanceStreak: 0,
+  adjustmentSources: [],
 };
 
 // ── Persistence ──
