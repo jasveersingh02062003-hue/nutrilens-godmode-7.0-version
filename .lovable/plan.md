@@ -1,73 +1,73 @@
 
 
-## Fix Data Integrity — Consistent Quantity Handling and Validation
+## Smart Calorie Correction Engine — Implementation Plan
 
-### Root Problem
+### Overview
+Replace the rigid daily recovery system (`meal-recovery.ts`) with a rolling "calorie bank" that spreads surplus corrections over multiple days, partially recovers deficits, locks protein, and communicates adjustments supportively. Add a daily balance history for weekly/monthly views.
 
-The app has a **quantity multiplication inconsistency** — sometimes `calories` on a FoodItem is per-serving (and needs `* quantity`), sometimes it's already total. Different code paths handle this differently, producing impossible numbers like 284g protein + 213g fat = only 1185 kcal.
+### New Files
 
-### Specific Bugs Found
+**1. `src/lib/calorie-correction.ts`** — Core engine
 
-**Bug 1: Three different total-calculation formulas in MealDetailSheet.tsx**
-- `handleDeleteItem` (line 159): `filtered.reduce((s, i) => s + i.calories, 0)` — NO quantity multiply
-- `handleUpdateQty` (line 191): `items.reduce((s, i) => s + i.calories, 0)` — NO quantity multiply
-- `handleUpdateItemFromEdit` (line 232): `items.reduce((s, i) => s + i.calories * i.quantity, 0)` — WITH quantity multiply
-- `handleAddItem` (line 249): `items.reduce((s, i) => s + i.protein, 0)` — NO quantity multiply
+- **Data model** in localStorage (`nutrilens_calorie_bank`):
+  ```
+  { calorieBank, adjustmentDaysRemaining, adjustmentPerDay, lastProcessedDate, dailyBalances: [{date, diff}] }
+  ```
+- `updateCalorieBank(dailyLog, profile)` — Computes `actual - originalTarget`, updates bank, appends to `dailyBalances` array (last 30 days).
+- `getAdjustedDailyTarget(profile)` — Returns corrected target:
+  - Surplus (bank > 0): spread over 4 days, cap at 20% reduction, floor at 80%.
+  - Deficit (bank < 0): recover 40%, cap at 15% boost, ceiling at 115%.
+  - Adaptive: consecutive surplus days extend window up to 7 days.
+- `getProteinTarget(profile)` — Always returns `profile.dailyProtein` (never reduced).
+- `processEndOfDay(profile)` — On day rollover, decrement remaining days, recalc if needed.
+- `getCalorieBankSummary()` — Returns `{ bank, status, message }`.
+- `getDailyBalances()` — Returns last 30 days of `{ date, diff }` for the progress view.
+- `getCorrectionMessage()` — Returns user-friendly toast text (surplus/deficit/null).
 
-These inconsistencies mean the same meal shows different totals depending on which action was last performed.
+**2. `src/lib/meal-adjustment.ts`** — Meal-level portion adjustments
 
-**Bug 2: CameraHome stores per-unit values but saves total**
-- Camera divides nutrition by quantity for per-unit storage (line 301): `calories: nutrition.calories / suggestedQty`
-- Then computes total correctly (line 334): `totalCal = sum(calories * quantity)`
-- But MealDetailSheet reads without multiplying in some paths
+- `adjustMealPlan(meals, adjustedTarget, proteinTarget)` — Modifies existing day's meals:
+  - If reducing calories: shrink portions of lowest-PES items first (min 0.5x), suggest swaps if needed.
+  - If increasing: grow portions of highest-PES items (max 1.5x), add small high-protein items.
+  - Protein lock: after calorie adjustment, if protein falls short, boost high-protein items.
+  - Returns `{ adjustedMeals, changes: string[] }` (human-readable change list).
 
-**Bug 3: Fake macro fabrication**
-- Gap suggestions (line 594) create FoodItems with fabricated macros: `carbs: Math.round(s.calories * 0.4 / 4)` — not from any food database
-- Weather nudge (line 632) does the same: `protein: Math.round(food.calories * 0.15 / 4)`
+### Modified Files
 
-**Bug 4: Macro-to-calorie validation is missing**
-- No check that `(protein*4) + (carbs*4) + (fat*9) ≈ calories`
+**3. `src/lib/calorie-engine.ts`** — Single-line change
+- Line 126: Replace `profile?.dailyCalories || 1600` with `getAdjustedDailyTarget(profile)`.
+- This propagates the adjusted target to CalorieRing, slot redistribution, and all downstream UI.
 
-### Fix Plan (4 files)
+**4. `src/pages/Dashboard.tsx`** — Badge, toast, day rollover
+- Replace `getRecoveredTargets` import with `processEndOfDay`, `getAdjustedDailyTarget`, `getCorrectionMessage` from calorie-correction.
+- In startup useEffect: call `processEndOfDay(profile)` instead of `getRecoveredTargets`. Show supportive toast via `getCorrectionMessage()`.
+- Replace the "Meal Recovery Banner" (lines 249-260) with an "Adjusted for balance" badge (⚖️) shown when adjusted target differs from original.
+- MacroCard protein goal: use `getProteinTarget(profile)` (same value, but semantically correct).
 
-**File 1: `src/components/MealDetailSheet.tsx`** — Standardize all total calculations
+**5. `src/components/MealDetailSheet.tsx`** — Update bank on mutations
+- After `handleAddItem`, `handleDeleteItem`, `handleUpdateQty`: call `updateCalorieBank(getDailyLog(), profile)`.
 
-All 4 recalculation sites must use the same formula. Since CameraHome stores per-unit values and quantity separately, the correct formula is `i.calories * i.quantity`. Fix:
+**6. `src/pages/LogFood.tsx`** — Update bank after manual logging
+- After saving a meal, call `updateCalorieBank(getDailyLog(), profile)`.
 
-- `handleDeleteItem` (line 159): change `s + i.calories` → `s + i.calories * i.quantity` (and protein, carbs, fat)
-- `handleUpdateQty` (line 191): same fix — add `* i.quantity`
-- `handleAddItem` (line 249): same fix — add `* i.quantity`
-- Display lines 60-63 (`totalP`, `totalC`, etc.) already sum from `m.totalProtein` which is the stored total — these are fine as long as the stored value is correct
+**7. `src/lib/meal-plan-generator.ts`** — Use adjusted target
+- In `scoreRecipe` and wherever `profile.dailyCalories` is used for daily plan generation, replace with `getAdjustedDailyTarget(profile)`.
 
-**File 2: `src/components/MealDetailSheet.tsx`** — Fix gap suggestion food items
+**8. `src/pages/Progress.tsx`** — Calorie Balance History section
+- Add a new "Calorie Balance" card between "Weekly Overview" and existing sections.
+- Uses `getDailyBalances()` to render a horizontal bar chart of daily surplus/deficit (green bars for surplus, red for deficit) for last 30 days.
+- Shows summary text: "Your plan auto-adjusted to keep you aligned."
+- Shows current bank status as a balance meter (capped visual at ±2000 kcal).
 
-- Lines 594-596: Instead of fabricating macros from calorie percentages, look up the food in the database using `getFoodByName(s.name)` and use `indianFoodToFoodItem` for real nutrition data
-- Lines 630-636 (weather nudge): Same fix — use database lookup instead of fabricated ratios
+### What Gets Replaced
+- `meal-recovery.ts` functions (`getRecoveredTargets`, `calculateRecoveryAdjustment`) are no longer called. File stays but becomes unused.
+- The recovery banner in Dashboard is replaced by the lighter "Adjusted for balance" badge.
 
-**File 3: `src/lib/food-validation.ts`** — Add macro-calorie cross-check
-
-Add a new validation rule that checks:
-```
-calculatedCal = (protein * 4) + (carbs * 4) + (fat * 9)
-if (|calculatedCal - reportedCal| > max(50, reportedCal * 0.15)):
-  warning("Nutrition values don't add up")
-```
-
-This catches data corruption before it reaches the user.
-
-**File 4: `src/lib/store.ts`** — Add `getDailyTotals` fix
-
-The existing `getDailyTotals` (line 242) reads from `meal.totalCalories` (pre-computed totals stored on the MealEntry). This is correct IF the stored values are correct. No change needed here, but add a safety comment.
-
-### What This Fixes
-- The 284g protein / 1185 kcal mismatch (caused by inconsistent quantity handling)
-- Progress bars showing wrong percentages
-- Totals changing depending on which action was last performed
-- Fabricated nutrition data from suggestions
-
-### What Stays Unchanged
-- FoodItem interface (per100g field stays)
-- CameraHome save flow (already correct)
-- CalorieEngine, PES engine, all other services
-- indianFoodToFoodItem (already uses per100g correctly)
+### Key Rules
+- Target: min 80%, max 115% of original
+- Surplus correction: spread over 4 days (up to 7 if consecutive), capped at 20%/day
+- Deficit recovery: 40% partial, capped at 15%
+- Protein: constant, never reduced
+- Toast language: supportive, no guilt, no raw numbers
+- All state in one localStorage key + dailyBalances array
 
