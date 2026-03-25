@@ -482,6 +482,11 @@ export default function Dashboard() {
           <TodayMealPlan />
         </div>
 
+        {/* Repeat Yesterday's Meals */}
+        <div className="animate-slide-up" style={{ animationDelay: '0.17s' }}>
+          <RepeatMealsButton onApplied={refreshLog} />
+        </div>
+
         {/* 7. Today's Meals */}
         <div className="animate-slide-up" style={{ animationDelay: '0.18s' }}>
           <TodayMeals log={log} onRefresh={refreshLog} dayState={dayState} />
@@ -490,8 +495,56 @@ export default function Dashboard() {
 
       <MonikaFab onDashboardRefresh={refreshLog} />
 
+      {/* Weekly Weight Check-In (Sunday prompt) */}
+      <WeeklyWeightCheckIn defaultWeight={profile.weightKg} onDone={refreshLog} />
+
       <WhyAdjustedModal open={whyModalOpen} onClose={() => setWhyModalOpen(false)} />
       <MissedDayPrompt open={missedPromptOpen} onClose={() => setMissedPromptOpen(false)} missedDate={missedDate} />
+
+      {/* Drop-Off Defense Modal */}
+      <Dialog open={!!dropOffModal} onOpenChange={(v) => !v && setDropOffModal(null)}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <span>👋</span> Welcome Back!
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              {dropOffModal?.message}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 pt-2">
+            <Button variant="ghost" className="flex-1" onClick={() => { dismissDropOff(); setDropOffModal(null); }}>
+              Dismiss
+            </Button>
+            <Button className="flex-1" onClick={() => { dismissDropOff(); setDropOffModal(null); refreshLog(); toast.success('Plan restarted! Let\'s go! 💪'); }}>
+              🚀 Restart
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Hard Boundary Alert Modal */}
+      <Dialog open={!!hardBoundaryModal} onOpenChange={(v) => !v && setHardBoundaryModal(null)}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <ShieldAlert className="w-4 h-4 text-destructive" /> Weekly Alert
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              {hardBoundaryModal?.message}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">{hardBoundaryModal?.suggestion}</p>
+          <div className="flex gap-2 pt-2">
+            <Button variant="ghost" className="flex-1" onClick={() => { dismissHardBoundary(); setHardBoundaryModal(null); }}>
+              Not now
+            </Button>
+            <Button className="flex-1" onClick={() => { applyHardReset(); setHardBoundaryModal(null); toast.success('Plan reset for tomorrow — 15% lighter day ahead'); refreshProfile(); }}>
+              Reset Plan
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Supplement Sheets */}
       <SupplementLogSheet
