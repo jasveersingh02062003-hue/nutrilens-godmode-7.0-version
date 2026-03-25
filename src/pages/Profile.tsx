@@ -329,6 +329,16 @@ export default function Profile() {
               >
                 Reset Counters
               </button>
+              <button
+                onClick={() => {
+                  const results = runAllDiagnostics();
+                  setDiagnosticResults(results);
+                  setShowDiagnostic(true);
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-accent text-accent-foreground"
+              >
+                Test Calorie Engine
+              </button>
             </div>
           </div>
         )}
