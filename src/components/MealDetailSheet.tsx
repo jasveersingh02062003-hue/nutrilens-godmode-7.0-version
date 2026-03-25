@@ -26,6 +26,8 @@ import SmartAdjustmentCard from '@/components/SmartAdjustmentCard';
 import ManualAdjustmentSheet from '@/components/ManualAdjustmentSheet';
 import { computeSmartAdjustment, applySmartAdjustment, type AdjustmentResult } from '@/lib/smart-adjustment';
 import { resolveMealVisualState } from '@/lib/meal-state-service';
+import PESBreakdownModal from '@/components/PESBreakdownModal';
+import { getBudgetSettings } from '@/lib/expense-store';
 
 interface Props {
   open: boolean;
@@ -51,6 +53,8 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
   const [showManualAdjust, setShowManualAdjust] = useState(false);
   const [adjustmentResult, setAdjustmentResult] = useState<AdjustmentResult | null>(null);
   const [adjustmentDismissed, setAdjustmentDismissed] = useState(false);
+  const [pendingPESItem, setPendingPESItem] = useState<FoodItem | null>(null);
+  const [showPESBreakdown, setShowPESBreakdown] = useState(false);
   const [, setTick] = useState(0);
   const forceUpdate = useCallback(() => setTick(t => t + 1), []);
 
@@ -234,6 +238,20 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
   }
 
   function handleAddItem(item: FoodItem) {
+    // Check if item has cost info for PES display
+    const itemCost = item.itemCost || 0;
+    if (itemCost > 0) {
+      // Show PES breakdown before saving
+      setPendingPESItem(item);
+      setShowPESBreakdown(true);
+      setAddSheetOpen(false);
+      return;
+    }
+    // No cost → save directly
+    saveItemToMeal(item);
+  }
+
+  function saveItemToMeal(item: FoodItem) {
     const updatedLog = { ...log };
     const existingMeal = updatedLog.meals.find(m => m.type === mealType);
     if (existingMeal) {
@@ -247,16 +265,18 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
         id: Date.now().toString(),
         type: mealType as MealEntry['type'],
         items: [item],
-        totalCalories: item.calories,
-        totalProtein: item.protein,
-        totalCarbs: item.carbs,
-        totalFat: item.fat,
+        totalCalories: item.calories * item.quantity,
+        totalProtein: item.protein * item.quantity,
+        totalCarbs: item.carbs * item.quantity,
+        totalFat: item.fat * item.quantity,
         time: new Date().toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' }),
       };
       updatedLog.meals.push(newMeal);
     }
     saveDailyLog(updatedLog);
     setAddSheetOpen(false);
+    setPendingPESItem(null);
+    setShowPESBreakdown(false);
     onChanged();
     forceUpdate();
   }
@@ -868,6 +888,27 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
           />
         );
       })()}
+
+      {/* PES Breakdown Modal for manual food adds */}
+      {pendingPESItem && (
+        <PESBreakdownModal
+          open={showPESBreakdown}
+          food={{
+            name: pendingPESItem.name,
+            cost: pendingPESItem.itemCost || 0,
+            protein: Math.round(pendingPESItem.protein * pendingPESItem.quantity),
+            carbs: Math.round(pendingPESItem.carbs * pendingPESItem.quantity),
+            fat: Math.round(pendingPESItem.fat * pendingPESItem.quantity),
+            calories: Math.round(pendingPESItem.calories * pendingPESItem.quantity),
+          }}
+          mealLabel={mealLabel}
+          onConfirm={() => saveItemToMeal(pendingPESItem)}
+          onEdit={() => {
+            setShowPESBreakdown(false);
+            setPendingPESItem(null);
+          }}
+        />
+      )}
     </>
   );
 }

@@ -5,6 +5,7 @@
 
 import { DailyLog, UserProfile } from '@/lib/store';
 import { calculateBurnBreakdown } from '@/lib/burn-service';
+import { getDailyAdjustments } from '@/lib/meal-targets';
 
 // ── Types ──
 
@@ -176,6 +177,16 @@ export function recalculateDay(profile: UserProfile | null, log: DailyLog): DayS
     pendingSlots.forEach((slot, i) => {
       slot.targetKcal = Math.round(remaining * (rawWeights[i] / weightSum));
     });
+  }
+
+  // Apply explicit redistribution adjustments (from user-triggered redistribution)
+  const adjustments = getDailyAdjustments(date);
+  for (const slot of slots) {
+    const storeType = toStoreMealType(slot.name);
+    const adj = adjustments[storeType] || adjustments[slot.name];
+    if (adj && adj.calories > 0) {
+      slot.targetKcal += adj.calories;
+    }
   }
 
   return {
