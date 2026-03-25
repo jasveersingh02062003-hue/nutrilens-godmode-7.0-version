@@ -43,7 +43,7 @@ export function getFutureDayPlan(
 
   const planEntry = state.adjustmentPlan.find(e => e.date === date);
   const adjustment = planEntry?.adjust || 0;
-  const adjustedTarget = Math.max(0, baseTarget + adjustment);
+  const adjustedTarget = Math.max(1200, baseTarget + adjustment);
 
   // Protein stays locked
   const protein = proteinTarget;
