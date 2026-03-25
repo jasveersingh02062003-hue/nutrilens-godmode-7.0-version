@@ -355,6 +355,40 @@ export default function Profile() {
         <SkinConcernsSheet open={showSkinConcerns} onClose={() => setShowSkinConcerns(false)} />
         <UpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} onUpgraded={() => setCurrentPlan(getPlan())} />
         <PlansPage open={showPlans} onClose={() => setShowPlans(false)} onPlanChanged={() => setCurrentPlan(getPlan())} />
+
+        {/* Calorie Engine Diagnostic Modal */}
+        <Dialog open={showDiagnostic} onOpenChange={setShowDiagnostic}>
+          <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Zap className="w-5 h-5 text-primary" /> Calorie Engine Diagnostic
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 mt-2">
+              {diagnosticResults.map((r, i) => (
+                <div key={i} className={`rounded-xl border p-3 space-y-1.5 ${r.passed ? 'border-green-500/30 bg-green-500/5' : 'border-destructive/30 bg-destructive/5'}`}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">{r.passed ? '✅' : '❌'}</span>
+                    <p className="text-xs font-bold text-foreground">{r.name}</p>
+                    <span className={`ml-auto text-[10px] font-semibold ${r.passed ? 'text-green-600' : 'text-destructive'}`}>
+                      {r.passed ? 'PASS' : 'FAIL'}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground"><strong>Expected:</strong> {r.expected}</p>
+                  <p className="text-[10px] text-muted-foreground"><strong>Actual:</strong> {r.actual}</p>
+                  <p className="text-[10px] text-muted-foreground/70">{r.details}</p>
+                </div>
+              ))}
+              {diagnosticResults.length > 0 && (
+                <p className="text-center text-[10px] text-muted-foreground pt-1">
+                  {diagnosticResults.every(r => r.passed)
+                    ? '🎉 All tests passed — engine is working correctly!'
+                    : `⚠️ ${diagnosticResults.filter(r => !r.passed).length} test(s) failed`}
+                </p>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
