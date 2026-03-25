@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Phone, ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Mail, Phone, ArrowLeft, Eye, EyeOff, Loader2, FlaskConical } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import heroImg from '@/assets/hero-nutrition.jpg';
+import { seedDemoData } from '@/lib/seed-demo-data';
 
 type AuthMode = 'welcome' | 'login' | 'signup' | 'phone-otp';
 
