@@ -3,6 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Input } from '@/components/ui/input';
 import { Search, Plus } from 'lucide-react';
 import { searchIndianFoods, indianFoodToFoodItem } from '@/lib/indian-foods';
+import { estimateCost } from '@/lib/price-database';
 import type { FoodItem } from '@/lib/store';
 
 interface Props {
@@ -39,11 +40,17 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
           )}
           {results.map(food => {
             const item = indianFoodToFoodItem(food);
+            // Auto-estimate cost for PES display
+            const cost = estimateCost([{ name: food.name, quantity: 1, unit: food.servingUnit }]);
             return (
               <button
                 key={food.id}
                 onClick={() => {
-                  onAdd({ ...item, id: Date.now().toString() + Math.random().toString(36).slice(2, 5) });
+                  onAdd({
+                    ...item,
+                    id: Date.now().toString() + Math.random().toString(36).slice(2, 5),
+                    itemCost: cost || 0,
+                  });
                   setQuery('');
                 }}
                 className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 active:scale-[0.98] transition-all"
@@ -52,6 +59,7 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
                   <p className="text-sm font-medium text-foreground">{food.name}</p>
                   <p className="text-[11px] text-muted-foreground">
                     {food.hindi} · {food.defaultServing}{food.servingUnit} · {item.calories} kcal
+                    {cost ? ` · ₹${cost}` : ''}
                   </p>
                 </div>
                 <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
