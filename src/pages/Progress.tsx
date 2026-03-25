@@ -33,7 +33,7 @@ import { useUserProfile } from '@/contexts/UserProfileContext';
 import { getPlan, isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
-import { getDailyBalances, getCalorieBankSummary, getAdjustmentPlan, getMonthlyStats, getWeekendPattern, type DailyBalanceEntry } from '@/lib/calorie-correction';
+import { getDailyBalances, getCalorieBankSummary, getAdjustmentPlan, getMonthlyStats, getWeekendPattern, getCalorieBankState, type DailyBalanceEntry } from '@/lib/calorie-correction';
 
 type AdherenceStatus = 'green' | 'yellow' | 'red' | 'gray';
 
@@ -133,18 +133,22 @@ export default function ProgressPage() {
     return d.toISOString().split('T')[0];
   }, []);
 
+  const bankState = useMemo(() => getCalorieBankState(), [refreshKey]);
+
   const calendarDays = useMemo(() => {
-    const days: { day: number; dateStr: string; status: AdherenceStatus; isToday: boolean; isFuture: boolean; locked: boolean }[] = [];
+    const days: { day: number; dateStr: string; status: AdherenceStatus; isToday: boolean; isFuture: boolean; locked: boolean; adjustment: number }[] = [];
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${viewDate.getFullYear()}-${String(viewDate.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const isFuture = dateStr > todayStr;
       const isToday = dateStr === todayStr;
       const locked = !premium && dateStr < threeDaysAgo;
       const status: AdherenceStatus = isFuture || locked ? 'gray' : getAdherence(dateStr, goal, waterGoal, logDatesSet);
-      days.push({ day: d, dateStr, status, isToday, isFuture, locked });
+      const planEntry = isFuture ? bankState.adjustmentPlan.find(e => e.date === dateStr) : undefined;
+      const adjustment = planEntry?.adjust || 0;
+      days.push({ day: d, dateStr, status, isToday, isFuture, locked, adjustment });
     }
     return days;
-  }, [monthOffset, refreshKey, logDatesSet, goal, waterGoal, premium, threeDaysAgo]);
+  }, [monthOffset, refreshKey, logDatesSet, goal, waterGoal, premium, threeDaysAgo, bankState]);
 
   const weeklyData = useMemo(() => {
     return logs.slice(0, 7).reverse().map(l => {
@@ -214,6 +218,9 @@ export default function ProgressPage() {
                 {d.status !== 'gray' && (
                   <div className={`w-1.5 h-1.5 rounded-full mt-0.5 ${dotColors[d.status]}`} />
                 )}
+                {d.isFuture && d.adjustment !== 0 && (
+                  <span className="text-[8px] leading-none mt-0.5">{d.adjustment < 0 ? '🔻' : '🔺'}</span>
+                )}
               </button>
             ))}
           </div>
@@ -222,6 +229,8 @@ export default function ProgressPage() {
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-accent" /> Partial</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-destructive" /> Off Track</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-muted border border-border" /> No Data</span>
+            <span className="flex items-center gap-1">🔻 Reduced</span>
+            <span className="flex items-center gap-1">🔺 Recovery</span>
           </div>
           {!premium && (
             <button

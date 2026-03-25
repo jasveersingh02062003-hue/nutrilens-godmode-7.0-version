@@ -17,6 +17,7 @@ export interface DailyBalanceEntry {
   actual: number;
   diff: number;
   bankAfter: number;
+  adjustedTarget?: number;
 }
 
 export interface AdjustmentPlanEntry {
@@ -482,12 +483,18 @@ export function processEndOfDay(profile: UserProfile | null): void {
     const originalTarget = p.dailyCalories || 1600;
     const diff = totals.eaten - originalTarget;
 
+    // Compute frozen adjustedTarget for yesterday
+    const yesterdayPlanEntry = state.adjustmentPlan.find(e => e.date === yesterday);
+    const frozenAdjustedTarget = originalTarget + (yesterdayPlanEntry?.adjust || 0);
+
     const existingIdx = state.dailyBalances.findIndex(b => b.date === yesterday);
     if (existingIdx < 0 && totals.eaten > 0) {
       state.dailyBalances.push({
-        date: yesterday, target: originalTarget, actual: totals.eaten, diff, bankAfter: state.calorieBank + diff,
+        date: yesterday, target: originalTarget, actual: totals.eaten, diff, bankAfter: state.calorieBank + diff, adjustedTarget: frozenAdjustedTarget,
       });
       state.calorieBank += diff;
+    } else if (existingIdx >= 0 && !state.dailyBalances[existingIdx].adjustedTarget) {
+      state.dailyBalances[existingIdx].adjustedTarget = frozenAdjustedTarget;
     }
 
     // Balance streak: |diff| <= 100 → increment, else reset
