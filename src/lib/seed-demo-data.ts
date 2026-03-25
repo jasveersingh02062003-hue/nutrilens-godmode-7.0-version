@@ -389,8 +389,11 @@ export function seedDemoData() {
   // 3. Calorie bank
   localStorage.setItem(BANK_KEY, JSON.stringify(generateCalorieBank()));
 
-  // 4. Weight history (separate verified entries)
+  // 4. Weight history (12 weeks of verified weekly entries)
   localStorage.setItem(WEIGHT_HISTORY_KEY, JSON.stringify(generateWeightHistory()));
+
+  // 4b. Progress photos (6 photos across 12 weeks)
+  localStorage.setItem(PHOTOS_KEY, JSON.stringify(generateProgressPhotos()));
 
   // 5. Streaks
   localStorage.setItem(STREAKS_KEY, JSON.stringify(generateStreaks()));
