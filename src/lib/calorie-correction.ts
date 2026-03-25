@@ -517,7 +517,9 @@ export function processEndOfDay(profile: UserProfile | null): void {
 
   state.lastProcessedDate = today;
 
-  if (state.dailyBalances.length > 30) state.dailyBalances = state.dailyBalances.slice(-30);
+   if (state.dailyBalances.length > 30) state.dailyBalances = state.dailyBalances.slice(-30);
+  // Prune old adjustment sources
+  if (state.adjustmentSources.length > 30) state.adjustmentSources = state.adjustmentSources.slice(-30);
 
   // Clean old special days (older than 30 days)
   const cutoff = new Date();
