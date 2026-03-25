@@ -239,7 +239,28 @@ function generateWeightHistory(): WeightEntry[] {
   }
   return entries;
 }
-  return entries;
+
+function generateProgressPhotos(): ProgressPhoto[] {
+  const photos: ProgressPhoto[] = [];
+  const types: ProgressPhoto['type'][] = ['front', 'side', 'back', 'front', 'side', 'front'];
+  const captions = ['Week 1 start 💪', 'Side view week 2', 'Back progress week 3', 'Week 5 front', 'Week 7 side check', 'Week 10 — feeling great! 🎉'];
+  // Use placeholder SVG data URLs for demo (small colored rectangles)
+  const colors = ['#E8D5B7', '#D4C4A8', '#C9B99A', '#BFB08E', '#B5A782', '#AB9E76'];
+  for (let i = 0; i < 6; i++) {
+    const daysAgo = (5 - i) * 14; // every 2 weeks
+    const color = colors[i];
+    // Create a tiny SVG data URL as placeholder
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="300" viewBox="0 0 200 300"><rect fill="${color}" width="200" height="300"/><text x="100" y="140" text-anchor="middle" fill="#555" font-size="14" font-family="sans-serif">Progress</text><text x="100" y="165" text-anchor="middle" fill="#555" font-size="12" font-family="sans-serif">${types[i]}</text><text x="100" y="190" text-anchor="middle" fill="#888" font-size="10" font-family="sans-serif">Week ${(i + 1) * 2}</text></svg>`;
+    const dataUrl = `data:image/svg+xml;base64,${btoa(svg)}`;
+    photos.push({
+      id: `demo_photo_${uid()}`,
+      dataUrl,
+      type: types[i],
+      caption: captions[i],
+      date: dateStr(daysAgo),
+    });
+  }
+  return photos;
 }
 
 function generateCalorieBank() {
