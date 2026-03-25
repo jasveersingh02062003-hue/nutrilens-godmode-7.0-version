@@ -1,76 +1,56 @@
 
 
-# Plan: After-Dinner Notification with Surplus/Deficit Spreading
+# Plan: Fix After-Dinner Notification — Pure Function + In-Place Modal
 
-## Overview
-Add a dedicated after-dinner notification that fires when the user logs dinner. It summarizes today's surplus/deficit, how it spreads over upcoming days, and tomorrow's adjusted target. A "Details" button opens the existing `AdjustmentExplanationModal`.
+## Problem
+1. `getDinnerNotificationSummary()` has hidden dependencies (calls `getProfile()`, `loadState()`, `getDailyLog()` internally) — hard to test and risks stale state
+2. LogFood navigates to `/dashboard?showAdjustment=true` instead of showing the modal in-place — bad UX after dinner logging
+3. MealDetailSheet edit/delete doesn't reset the notification guard, so re-edits can't re-trigger
 
 ## Changes
 
-### 1. Add `getDinnerNotificationSummary()` to `src/lib/calorie-correction.ts`
+### 1. `src/lib/calorie-correction.ts` — Make `getDinnerNotificationSummary` a pure function
 
-New exported function at the end of the file. Uses existing `loadState()`, `getEffectiveDate()`, `getAdjustedDailyTarget()`, and `getProfile()`.
-
-```typescript
-export function getDinnerNotificationSummary(): {
-  message: string;
-  tomorrowTarget: number;
-} | null
-```
-
-Logic:
-- Get today's totals and original target from profile
-- Compute diff (actual - target)
-- If |diff| < 50, return null (balanced)
-- For surplus: message says "+X kcal today → reducing ~Y kcal/day over next 4 days"
-- For deficit: message says "-X kcal today → tomorrow increased by ~Y kcal"
-- Append tomorrow's adjusted target
-- Append pending adjustments from previous days if any exist in the adjustment plan
-- Uses a once-per-day localStorage guard: `nutrilens_dinner_notif_${date}`
-
-### 2. Modify `src/pages/LogFood.tsx` (lines ~180-196)
-
-After the existing `updateCalorieBank()` call (line 181), add dinner-specific notification logic:
+Replace current signature (lines 785-836) with explicit parameters:
 
 ```typescript
-// After updateCalorieBank() and existing toasts:
-if (mealType === 'dinner') {
-  const dinnerKey = `nutrilens_dinner_notif_${targetDate || new Date().toISOString().split('T')[0]}`;
-  if (!localStorage.getItem(dinnerKey)) {
-    const summary = getDinnerNotificationSummary();
-    if (summary) {
-      toast('Plan updated ⚖️', {
-        description: summary.message,
-        duration: 8000,
-        action: {
-          label: 'Details',
-          onClick: () => {
-            // Navigate to dashboard where modal can open
-            navigate('/dashboard?showAdjustment=true');
-          }
-        }
-      });
-      localStorage.setItem(dinnerKey, '1');
-    }
-  }
-}
+export function getDinnerNotificationSummary(
+  today: string,
+  actualCalories: number,
+  targetCalories: number,
+  state: CalorieBankState
+): { message: string; tomorrowTarget: number } | null
 ```
 
-Import `getDinnerNotificationSummary` from calorie-correction.
+- Accepts today's date, actual eaten, original target, and current state explicitly
+- Same internal logic (surplus spreads over 4+ days, deficit partial recovery)
+- Computes `tomorrowTarget` from `state.adjustmentPlan` entries for tomorrow
+- No more internal `getProfile()`, `loadState()`, `getDailyLog()` calls
 
-### 3. Modify `src/pages/Dashboard.tsx`
+### 2. `src/pages/LogFood.tsx` — Show modal in-place, no navigation
 
-On mount, check for `?showAdjustment=true` URL param. If present, auto-open the `AdjustmentExplanationModal` and clear the param.
+- Add state: `const [adjModalOpen, setAdjModalOpen] = useState(false)` and `const [adjDetails, setAdjDetails] = useState(null)`
+- Import `getAdjustmentDetails`, `loadState` (or equivalent), `AdjustmentExplanationModal`
+- In the dinner notification block (lines 194-208):
+  - Call `getDinnerNotificationSummary(today, actualCal, targetCal, state)` with explicit args
+  - Toast action opens modal in-place via `setAdjModalOpen(true)` instead of `navigate('/dashboard?showAdjustment=true')`
+- Render `<AdjustmentExplanationModal>` at the bottom of the component JSX
+- Keep existing navigation to dashboard after `commitMeal` completes (line 212)
 
-### 4. Modify `src/components/MealDetailSheet.tsx`
+### 3. `src/components/MealDetailSheet.tsx` — Update calls + clear guard on edit
 
-Add the same dinner notification logic after the existing `updateCalorieBank()` calls (lines 172, 199, 285) — when editing/deleting dinner items, re-check and potentially show the notification.
+- Update all 3 `getDinnerNotificationSummary()` calls to pass explicit parameters
+- Before re-calling notification logic on dinner edit/delete, remove the localStorage guard so the notification can re-fire with updated data
+
+### 4. `src/pages/Dashboard.tsx` — Remove `showAdjustment` URL param handling
+
+Remove the auto-open-modal-on-param logic since we no longer navigate with that param from LogFood.
 
 ## Files Modified
-| File | Action |
+| File | Change |
 |------|--------|
-| `src/lib/calorie-correction.ts` | Add `getDinnerNotificationSummary()` |
-| `src/pages/LogFood.tsx` | Add dinner notification after meal save |
-| `src/pages/Dashboard.tsx` | Handle `?showAdjustment=true` to auto-open modal |
-| `src/components/MealDetailSheet.tsx` | Add dinner notification on edit/delete |
+| `src/lib/calorie-correction.ts` | Refactor `getDinnerNotificationSummary` to pure function |
+| `src/pages/LogFood.tsx` | In-place modal, explicit function args |
+| `src/components/MealDetailSheet.tsx` | Explicit args, guard reset on edit |
+| `src/pages/Dashboard.tsx` | Remove `showAdjustment` param handling |
 
