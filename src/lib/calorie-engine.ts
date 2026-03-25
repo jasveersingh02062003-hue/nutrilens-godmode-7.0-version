@@ -5,6 +5,7 @@
 
 import { DailyLog, UserProfile } from '@/lib/store';
 import { calculateBurnBreakdown } from '@/lib/burn-service';
+import { getDailyAdjustments } from '@/lib/meal-targets';
 
 // ── Types ──
 
