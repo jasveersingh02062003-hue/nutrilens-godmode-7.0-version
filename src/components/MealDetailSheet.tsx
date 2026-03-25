@@ -28,6 +28,7 @@ import { computeSmartAdjustment, applySmartAdjustment, type AdjustmentResult } f
 import { resolveMealVisualState } from '@/lib/meal-state-service';
 import PESBreakdownModal from '@/components/PESBreakdownModal';
 import { getBudgetSettings } from '@/lib/expense-store';
+import { updateCalorieBank } from '@/lib/calorie-correction';
 
 interface Props {
   open: boolean;
@@ -275,6 +276,7 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
       updatedLog.meals.push(newMeal);
     }
     saveDailyLog(updatedLog);
+    updateCalorieBank(updatedLog, profile);
     setAddSheetOpen(false);
     setPendingPESItem(null);
     setShowPESBreakdown(false);

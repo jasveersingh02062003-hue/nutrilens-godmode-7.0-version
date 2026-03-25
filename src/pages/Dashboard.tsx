@@ -48,7 +48,7 @@ import PESExplanationCard from '@/components/PESExplanationCard';
 import WeeklyFeedbackCard from '@/components/WeeklyFeedbackCard';
 import { shouldGenerateSummary, generateWeeklySummary, scheduleWeeklyNotification } from '@/lib/weekly-feedback';
 import { hasBrowserPermission } from '@/lib/notifications';
-import { getRecoveredTargets, type RecoveryAdjustment } from '@/lib/meal-recovery';
+import { processEndOfDay, getAdjustedDailyTarget, getProteinTarget, getCorrectionMessage, isTargetAdjusted } from '@/lib/calorie-correction';
 export default function Dashboard() {
   const navigate = useNavigate();
   const { profile, refreshProfile } = useUserProfile();
@@ -64,8 +64,7 @@ export default function Dashboard() {
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('tutorial_seen'));
   const [showPESExplanation, setShowPESExplanation] = useState(() => !localStorage.getItem('pes_explanation_seen'));
   const [budgetAlert, setBudgetAlert] = useState<(BudgetAlertResult & { timestamp: number; date: string }) | null>(getLatestBudgetAlert());
-  const [recovery, setRecovery] = useState<RecoveryAdjustment | null>(null);
-  const [adjustedTargets, setAdjustedTargets] = useState<{ cal: number; protein: number } | null>(null);
+  const [showCorrectionBadge, setShowCorrectionBadge] = useState(false);
 
   const plannerProfile = getMealPlannerProfile();
   const plannerIncomplete = !plannerProfile || !plannerProfile.onboardingComplete;
@@ -113,12 +112,13 @@ export default function Dashboard() {
         }
       }
     }
-    // Meal recovery from yesterday
+    // Smart Calorie Correction Engine — day rollover + toast
     if (profile) {
-      const { adjustedCal, adjustedProtein, recovery: rec } = getRecoveredTargets(profile.dailyCalories, profile.dailyProtein);
-      if (rec) {
-        setRecovery(rec);
-        setAdjustedTargets({ cal: adjustedCal, protein: adjustedProtein });
+      processEndOfDay(profile);
+      setShowCorrectionBadge(isTargetAdjusted(profile));
+      const correctionMsg = getCorrectionMessage();
+      if (correctionMsg) {
+        toast.info(correctionMsg.message);
       }
     }
     // Weekly feedback engine
@@ -246,13 +246,13 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Meal Recovery Banner */}
-        {recovery && (
+        {/* Calorie Correction Badge */}
+        {showCorrectionBadge && (
           <div className="animate-fade-in">
             <div className="flex items-center gap-3 rounded-2xl px-4 py-3 border bg-primary/10 border-primary/20">
-              <span className="text-sm">🔄</span>
-              <p className="text-[11px] font-medium text-foreground">{recovery.reason}</p>
-              <button onClick={() => setRecovery(null)} className="shrink-0">
+              <span className="text-sm">⚖️</span>
+              <p className="text-[11px] font-medium text-foreground">Adjusted for balance — your plan adapts to keep you on track</p>
+              <button onClick={() => setShowCorrectionBadge(false)} className="shrink-0">
                 <X className="w-3.5 h-3.5 text-muted-foreground" />
               </button>
             </div>
@@ -298,7 +298,7 @@ export default function Dashboard() {
 
         {/* 3. Macros */}
         <div className="flex gap-2 animate-slide-up">
-          <MacroCard label="Protein" current={totals.protein} goal={adjustedTargets?.protein || profile.dailyProtein} variant="coral" icon="protein" />
+          <MacroCard label="Protein" current={totals.protein} goal={getProteinTarget(profile)} variant="coral" icon="protein" />
           <MacroCard label="Carbs" current={totals.carbs} goal={profile.dailyCarbs} variant="primary" icon="carbs" />
           <MacroCard label="Fats" current={totals.fat} goal={profile.dailyFat} variant="gold" icon="fat" />
         </div>

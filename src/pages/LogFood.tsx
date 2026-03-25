@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { checkBudgetAfterMeal } from '@/lib/budget-service';
 import UnitPicker from '@/components/UnitPicker';
 import { calculateNutrition, getUnitOptionsForFood } from '@/lib/unit-conversion';
+import { updateCalorieBank } from '@/lib/calorie-correction';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -175,6 +176,9 @@ export default function LogFood() {
       else if (alert.level === 'overspend') toast.error(alert.message);
       else if (alert.level === 'overspend_severe') toast.error(alert.message);
     }
+
+    // Update calorie bank after logging
+    updateCalorieBank();
 
     setContextPickerOpen(false);
     setShowPES(false);

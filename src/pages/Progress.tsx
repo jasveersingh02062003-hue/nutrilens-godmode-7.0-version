@@ -31,6 +31,7 @@ import { useUserProfile } from '@/contexts/UserProfileContext';
 import { getPlan, isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
+import { getDailyBalances, getCalorieBankSummary } from '@/lib/calorie-correction';
 
 type AdherenceStatus = 'green' | 'yellow' | 'red' | 'gray';
 
@@ -254,6 +255,9 @@ export default function ProgressPage() {
         >
           <FileText className="w-4 h-4 text-muted-foreground" /> Enter Blood Report
         </button>
+
+        {/* Calorie Balance History */}
+        <CalorieBalanceCard />
 
         {/* Weekly Overview */}
         <div className="card-elevated p-4">
