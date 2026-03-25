@@ -63,9 +63,13 @@ export function adjustMealPlan(
 
   if (calorieDiff > 0) {
     // REDUCE calories: scale down portions, prioritize keeping high-protein items
+    // Sort by PES (if available) or proteinDensity ascending — remove lowest-value items first
     const sortedIndices = flexibleItems
-      .map((item, idx) => ({ idx, proteinDensity: item.protein / Math.max(1, item.calories) }))
-      .sort((a, b) => a.proteinDensity - b.proteinDensity);
+      .map((item, idx) => ({
+        idx,
+        sortKey: (item as any).pes != null ? (item as any).pes : item.protein / Math.max(1, item.calories),
+      }))
+      .sort((a, b) => a.sortKey - b.sortKey);
 
     let remaining = calorieDiff;
 
@@ -90,9 +94,13 @@ export function adjustMealPlan(
     }
   } else {
     // INCREASE calories: scale up high-protein items first
+    // Sort by PES (if available) or proteinDensity descending — boost highest-value items first
     const sortedIndices = flexibleItems
-      .map((item, idx) => ({ idx, proteinDensity: item.protein / Math.max(1, item.calories) }))
-      .sort((a, b) => b.proteinDensity - a.proteinDensity);
+      .map((item, idx) => ({
+        idx,
+        sortKey: (item as any).pes != null ? (item as any).pes : item.protein / Math.max(1, item.calories),
+      }))
+      .sort((a, b) => b.sortKey - a.sortKey);
 
     let remaining = Math.abs(calorieDiff);
 
