@@ -153,6 +153,8 @@ export default function Dashboard() {
     if (boundary) setHardBoundaryModal(boundary);
     // Update last log date
     updateLastLogDate();
+    // Start proactive notification checks
+    startProactiveChecks();
   }, [profile, navigate]);
 
   useEffect(() => {
