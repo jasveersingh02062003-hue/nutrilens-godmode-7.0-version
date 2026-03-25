@@ -42,6 +42,9 @@ export default function LogFood() {
   const recognitionRef = useRef<any>(null);
   const [contextPickerOpen, setContextPickerOpen] = useState(false);
   const [mealCost, setMealCost] = useState<MealCost | null>(null);
+  const [showPES, setShowPES] = useState(false);
+  const [pendingSource, setPendingSource] = useState<MealSource | null | undefined>(undefined);
+  const [pendingCookingMethod, setPendingCookingMethod] = useState<CookingMethod | null | undefined>(undefined);
 
   const mealLabels: Record<MealType, string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack' };
   
