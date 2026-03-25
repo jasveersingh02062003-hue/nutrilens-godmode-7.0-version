@@ -20,7 +20,7 @@ import { getDailyLog, getDailyTotals, addWater, DailyLog, SupplementEntry, getTo
 import { recalculateDay } from '@/lib/calorie-engine';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { getGreeting } from '@/lib/nutrition';
-import MonikaFab from '@/components/MonikaFab';
+
 import TodayMealPlan from '@/components/TodayMealPlan';
 import ConsistencyCard from '@/components/ConsistencyCard';
 import CoachCard from '@/components/CoachCard';
@@ -477,7 +477,7 @@ export default function Dashboard() {
         <Zap className="w-5 h-5" />
       </button>
 
-      <MonikaFab onDashboardRefresh={refreshLog} />
+      
 
       <WhyAdjustedModal open={whyModalOpen} onClose={() => setWhyModalOpen(false)} />
       <MissedDayPrompt open={missedPromptOpen} onClose={() => setMissedPromptOpen(false)} missedDate={missedDate} />
