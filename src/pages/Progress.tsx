@@ -31,7 +31,7 @@ import { useUserProfile } from '@/contexts/UserProfileContext';
 import { getPlan, isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
-import { getDailyBalances, getCalorieBankSummary } from '@/lib/calorie-correction';
+import { getDailyBalances, getCalorieBankSummary, getAdjustmentPlan, getMonthlyStats, getWeekendPattern, type DailyBalanceEntry } from '@/lib/calorie-correction';
 
 type AdherenceStatus = 'green' | 'yellow' | 'red' | 'gray';
 
