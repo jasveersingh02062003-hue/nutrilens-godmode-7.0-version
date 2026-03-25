@@ -156,10 +156,10 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
       return {
         ...m,
         items: filtered,
-        totalCalories: filtered.reduce((s, i) => s + i.calories, 0),
-        totalProtein: filtered.reduce((s, i) => s + i.protein, 0),
-        totalCarbs: filtered.reduce((s, i) => s + i.carbs, 0),
-        totalFat: filtered.reduce((s, i) => s + i.fat, 0),
+        totalCalories: filtered.reduce((s, i) => s + i.calories * i.quantity, 0),
+        totalProtein: filtered.reduce((s, i) => s + i.protein * i.quantity, 0),
+        totalCarbs: filtered.reduce((s, i) => s + i.carbs * i.quantity, 0),
+        totalFat: filtered.reduce((s, i) => s + i.fat * i.quantity, 0),
       };
     }).filter(m => m.items.length > 0);
     saveDailyLog(updatedLog);
