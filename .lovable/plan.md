@@ -1,120 +1,70 @@
 
 
-# Plan: Add 10 Critical Retention & Results Features
+# Plan: Add Adjustment Source Tracking & Enhanced Explanation UI
 
-This is a large feature set. The plan creates 7 new library modules and 4 new UI components, plus integrates everything into the existing Dashboard and Progress pages.
+## Overview
 
-## Architecture Overview
+Enhance the calorie correction engine to track **which past days caused each adjustment**, then surface this through an improved explanation modal and a morning toast notification. This replaces the current `WhyAdjustedModal` with a richer `AdjustmentExplanationModal`.
 
-All features use localStorage for state (consistent with existing patterns). New lib modules handle logic; UI is surfaced via toast, modals, and cards on existing pages.
+## Changes
 
+### 1. Extend Data Model in `src/lib/calorie-correction.ts`
+
+- Add new types: `AdjustmentSource` and `AdjustmentSourceMap`
+- Add `adjustmentSources: AdjustmentSourceMap[]` to `CalorieBankState` and `DEFAULT_STATE`
+- Modify `buildAdjustmentPlan()` to also return source entries (pass the source date + surplus amount through)
+- Modify `updateCalorieBank()`: when building surplus or deficit plans, record source entries linking each target date back to the source date and its contribution
+- Merge sources in `mergePlans()` (or a new `mergeSources()` helper)
+- Add two new exported functions:
+  - `getAdjustmentExplanation(date?)` → returns a plain-text string summarizing why today's target changed (e.g., "On Monday, you ate +400 kcal over target → spread across 4 days")
+  - `getAdjustmentDetails()` → returns structured data: `{ recentSurplusDays, futureAdjustments }` with sources per day
+
+### 2. New Component: `src/components/AdjustmentExplanationModal.tsx`
+
+- Uses existing `Dialog` component (consistent with `WhyAdjustedModal`)
+- Sections:
+  - **Header**: "Why your calories changed ⚖️" with summary message
+  - **Source days**: List of past days with their surplus/deficit amounts, formatted with date-fns
+  - **Future plan**: Each upcoming adjusted day showing total adjustment and which source days contributed
+  - **Protein lock note**: Same as current WhyAdjustedModal
+- Replace usage of `WhyAdjustedModal` in Dashboard with this new modal
+
+### 3. Dashboard Integration (`src/pages/Dashboard.tsx`)
+
+- Replace `WhyAdjustedModal` import with `AdjustmentExplanationModal`
+- On mount (inside existing profile useEffect), call `getAdjustmentExplanation()`. If non-null, show a morning toast via `toast()` with the explanation text and a "Details" action button that opens the modal
+- The existing ⚖️ badge click handler (`setWhyModalOpen(true)`) now opens the new modal with data from `getAdjustmentDetails()`
+- Remove old `WhyAdjustedModal` import
+
+### 4. Cleanup
+
+- `WhyAdjustedModal.tsx` can be deleted (replaced by the new component)
+
+## Technical Details
+
+**Source tracking structure:**
 ```text
-New Lib Modules              New UI Components
-─────────────────            ──────────────────
-protein-rescue.ts            ProteinRescueCard.tsx
-hard-boundary.ts             WeeklyWeightCheckIn.tsx
-weekly-weight-checkin.ts     RepeatMealsButton.tsx
-plateau-handler.ts           IdentityBadgesCard.tsx
-identity-badges.ts
-drop-off-defense.ts
-budget-impact.ts
+AdjustmentSource {
+  sourceDate: string      // day the surplus/deficit occurred
+  surplus: number          // the diff on that day
+  appliedAdjustment: number // how much of it applies to target day
+}
+
+AdjustmentSourceMap {
+  targetDate: string
+  sources: AdjustmentSource[]
+}
 ```
 
-## Feature Breakdown
+**Storage:** Persisted inside the existing `nutrilens_calorie_bank` localStorage key (as part of CalorieBankState). Sources array is pruned alongside dailyBalances (keep last 30 days).
 
-### 1. Protein Guarantee System
-- **New file**: `src/lib/protein-rescue.ts`
-  - `checkProteinRescue(profile, totals)`: returns rescue options if hour >= 18 and remaining protein > 40g
-  - Two hardcoded high-protein Indian options under ₹40 (eggs+curd, soya snack)
-  - Cooldown via `localStorage` key `protein_rescue_dismissed_at`
-- **New component**: `src/components/ProteinRescueCard.tsx`
-  - Persistent card (not just toast) with "Add to Dinner" buttons
-  - On click: creates a MealEntry and adds via `addMealToLog`
-- **Integration**: Add to Dashboard below the Protein Priority Card, conditionally rendered
+**Backward compat:** `loadState()` already spreads `DEFAULT_STATE` over parsed data, so the new `adjustmentSources: []` default handles old state gracefully.
 
-### 2. Hard Boundary Layer
-- **New file**: `src/lib/hard-boundary.ts`
-  - `checkWeeklySurplus()`: sums last 7 daily balances from calorie-correction engine
-  - If surplus > 1000 kcal, returns alert data
-  - `applyHardReset(profile)`: reduces next day target by 15%, stores in localStorage
-- **Integration**: Dashboard `useEffect` on load — show a Dialog modal with "Reset Plan" button
-
-### 3. Weekly Weight Check-In
-- **New file**: `src/lib/weekly-weight-checkin.ts`
-  - `shouldPromptWeightCheckin()`: true if Sunday and no check-in this week
-  - `computeWeightFeedback(newWeight, lastWeight, weeklyDeficit)`: returns expected vs actual + message
-- **New component**: `src/components/WeeklyWeightCheckIn.tsx`
-  - Modal with weight input, shows feedback after submission
-  - Stores via existing `addWeightEntry` from weight-history.ts
-- **Integration**: Dashboard renders modal conditionally on load
-
-### 4. Plateau Handling
-- **New file**: `src/lib/plateau-handler.ts`
-  - `detectPlateau()`: checks weight entries for <0.2kg change over 10+ days
-  - `applyPlateauAdjustment(profile)`: reduces calories by 5-8%, preserves protein target
-  - Stores adjustment record in `nutrilens_plateau_adjustments`
-- **Integration**: Called inside weekly weight check-in after weight submission; shows toast explanation
-
-### 5. PES Reinforcement
-- **No new file** — add logic directly in `src/components/SwapSimulatorSheet.tsx`
-- After a swap is applied, compute `newPES / oldPES` ratio
-- If ratio > 1.5, show `toast.success("Nice choice 👏 You picked a Xx better protein value meal")`
-
-### 6. Identity Shift Badges
-- **New file**: `src/lib/identity-badges.ts`
-  - Badge definitions: "Protein Pro" (7-day protein ≥90%), "Budget Master" (month spend ≤90%), "Consistency King" (14-day streak), "Hydration Hero" (7-day water goal)
-  - `checkIdentityBadges()`: evaluates and stores earned badges in `nutrilens_identity_badges`
-- **New component**: `src/components/IdentityBadgesCard.tsx`
-  - Shows earned badges with celebratory modal on first unlock
-- **Integration**: Progress page — new card section
-
-### 7. Cumulative Budget Impact
-- **New file**: `src/lib/budget-impact.ts`
-  - `getMonthlySavings()`: totalBudget - totalSpent for current month
-  - `savingsToEquivalents(amount)`: converts to eggs (₹7), chicken kg (₹200), etc.
-- **Integration**: Progress page — new "Monthly Savings" card below BudgetInsightsCard
-
-### 8. Drop-Off Defense
-- **New file**: `src/lib/drop-off-defense.ts`
-  - `checkDropOff()`: compares today vs last logged date; if gap ≥ 3 days returns re-engagement data
-  - `markRestart()`: resets the flag
-- **Integration**: Dashboard `useEffect` — show Dialog modal with "Welcome back" message and "Restart" button
-
-### 9. Repeat Yesterday's Meals
-- **New component**: `src/components/RepeatMealsButton.tsx`
-  - Button that copies yesterday's meals to today
-  - Uses `getDailyLog(yesterdayKey)` and `addMealToLog` for each meal
-  - Only shows if yesterday had ≥1 meal and today has 0 meals
-- **Integration**: Dashboard, above Today's Meals section
-
-### 10. Proactive Notifications
-- **Extend** `src/lib/notifications.ts`
-  - Add `startProactiveChecks(profile)`: sets intervals for:
-    - 1 PM: generic high-protein lunch suggestion (toast or browser notification)
-    - 6 PM: protein remaining check (reuses protein-rescue logic)
-    - Saturday 9 AM: weekend risk toast
-  - Uses existing `hasBrowserPermission()` and Notification API
-- **Integration**: Called in `AppLayout` useEffect alongside existing notification scheduler
-
-## Implementation Order
-
-1. Create all 7 lib modules (independent, parallelizable)
-2. Create 4 new UI components
-3. Integrate into Dashboard.tsx (features 1, 2, 3, 8, 9)
-4. Integrate into Progress.tsx (features 6, 7)
-5. Extend SwapSimulatorSheet (feature 5)
-6. Extend notifications.ts (feature 10)
-7. Wire plateau handler into weekly check-in (feature 4)
-
-## Data Storage (all localStorage)
-
-| Key | Purpose |
-|-----|---------|
-| `nutrilens_protein_rescue_dismissed` | Cooldown timestamp |
-| `nutrilens_hard_boundary_log` | Array of reset events |
-| `nutrilens_weekly_checkin_last` | Last check-in week |
-| `nutrilens_plateau_adjustments` | Plateau adjustment records |
-| `nutrilens_identity_badges` | Earned identity badges |
-| `nutrilens_last_log_date` | For drop-off detection |
-| `nutrilens_proactive_notif_last` | Last notification timestamps |
+## Files Modified
+| File | Action |
+|------|--------|
+| `src/lib/calorie-correction.ts` | Add types, source tracking in updateCalorieBank, two new export functions |
+| `src/components/AdjustmentExplanationModal.tsx` | New file — enhanced explanation modal |
+| `src/pages/Dashboard.tsx` | Swap WhyAdjustedModal → AdjustmentExplanationModal, add morning toast |
+| `src/components/WhyAdjustedModal.tsx` | Delete (replaced) |
 
