@@ -948,6 +948,7 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
           }}
         />
       )}
+      <AdjustmentExplanationModal open={adjModalOpen} onClose={() => setAdjModalOpen(false)} />
     </>
   );
 }
