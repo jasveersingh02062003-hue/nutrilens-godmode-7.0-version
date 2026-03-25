@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import PostOnboardingTutorial from '@/components/PostOnboardingTutorial';
 import { runWeeklyAdaptation as runGoalAdaptation, applyAdaptation } from '@/lib/goal-engine';
-import { Bell, ClipboardList, X, ShieldAlert, Zap } from 'lucide-react';
+import { Bell, ClipboardList, X, ShieldAlert } from 'lucide-react';
 import WhyAdjustedModal from '@/components/WhyAdjustedModal';
 import MissedDayPrompt from '@/components/MissedDayPrompt';
-import QuickLogSheet from '@/components/QuickLogSheet';
+import MonikaFab from '@/components/MonikaFab';
 import TimeInsightCard from '@/components/TimeInsightCard';
 import { updateDailyBehaviorStats, runWeeklyAdaptation, isSurvivalModeActive } from '@/lib/behavior-stats';
 import { useNavigate } from 'react-router-dom';
@@ -77,7 +77,7 @@ export default function Dashboard() {
   const [whyModalOpen, setWhyModalOpen] = useState(false);
   const [missedPromptOpen, setMissedPromptOpen] = useState(false);
   const [missedDate, setMissedDate] = useState('');
-  const [quickLogOpen, setQuickLogOpen] = useState(false);
+  
 
   const plannerProfile = getMealPlannerProfile();
   const plannerIncomplete = !plannerProfile || !plannerProfile.onboardingComplete;
@@ -468,20 +468,10 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Quick Log FAB (Fix 11) */}
-      <button
-        onClick={() => setQuickLogOpen(true)}
-        className="fixed bottom-24 left-4 z-40 w-12 h-12 rounded-full bg-accent text-accent-foreground shadow-lg flex items-center justify-center active:scale-90 transition-transform"
-        title="Quick Log"
-      >
-        <Zap className="w-5 h-5" />
-      </button>
-
-      
+      <MonikaFab onDashboardRefresh={refreshLog} />
 
       <WhyAdjustedModal open={whyModalOpen} onClose={() => setWhyModalOpen(false)} />
       <MissedDayPrompt open={missedPromptOpen} onClose={() => setMissedPromptOpen(false)} missedDate={missedDate} />
-      <QuickLogSheet open={quickLogOpen} onClose={() => setQuickLogOpen(false)} onSaved={refreshLog} />
 
       {/* Supplement Sheets */}
       <SupplementLogSheet
