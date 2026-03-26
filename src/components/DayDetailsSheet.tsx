@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Plus, Minus, Droplets, Dumbbell, Scale, Camera, Notebook,
-  Utensils, Pill, Trash2, CalendarDays, ChevronRight, Lock, Sparkles, DollarSign, Pencil, IndianRupee
+  Utensils, Pill, Trash2, CalendarDays, ChevronRight, Lock, Sparkles, DollarSign, Pencil, IndianRupee,
+  TrendingUp, TrendingDown, CheckCircle2
 } from 'lucide-react';
 import {
   getDailyLog, getDailyTotals, DailyLog,
   addWaterForDate, removeWaterForDate, deleteMealFromLog,
-  deleteSupplementFromLog, deleteActivityFromLog, saveJournalNote
+  deleteSupplementFromLog, deleteActivityFromLog, saveJournalNote, toLocalDateKey
 } from '@/lib/store';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { getExpensesForDate, deleteManualExpense, type Expense } from '@/lib/expense-store';
@@ -16,8 +17,11 @@ import { CATEGORY_CONFIG } from '@/lib/budget-service';
 import { ACTIVITY_TYPES } from '@/lib/activities';
 import { getSourceEmoji, getSourceLabel } from '@/lib/context-learning';
 import { generateDayInsight } from '@/lib/day-insights';
-import { getDailyBalances, computeAdjustmentMap, getCorrectionMode, type DailyBalanceEntry } from '@/lib/calorie-correction';
+import { getDailyBalances, computeAdjustmentMap, computeAdjustedTarget, getCorrectionMode, type DailyBalanceEntry } from '@/lib/calorie-correction';
 import { getFutureDayPlan, getAdjustmentBreakdownForDate, getExplanationMessage } from '@/lib/calendar-helpers';
+import ActivityLogSheet from '@/components/ActivityLogSheet';
+import SupplementLogSheet from '@/components/SupplementLogSheet';
+import FullScreenMemory from '@/components/FullScreenMemory';
 import ActivityLogSheet from '@/components/ActivityLogSheet';
 import SupplementLogSheet from '@/components/SupplementLogSheet';
 import FullScreenMemory from '@/components/FullScreenMemory';
@@ -43,7 +47,7 @@ export default function DayDetailsSheet({ open, date, onClose, onChanged }: Prop
   const [showSupplementSheet, setShowSupplementSheet] = useState(false);
   const [fullScreenMealId, setFullScreenMealId] = useState<string | null>(null);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = toLocalDateKey();
   const isFuture = date > todayStr;
   const isToday = date === todayStr;
 
@@ -56,6 +60,18 @@ export default function DayDetailsSheet({ open, date, onClose, onChanged }: Prop
   useEffect(() => {
     if (open) reload();
   }, [open, date, reload]);
+
+  // Realtime: listen while open so edits elsewhere reflect instantly
+  useEffect(() => {
+    if (!open) return;
+    const handler = () => reload();
+    window.addEventListener('nutrilens:update', handler);
+    window.addEventListener('storage', handler);
+    return () => {
+      window.removeEventListener('nutrilens:update', handler);
+      window.removeEventListener('storage', handler);
+    };
+  }, [open, reload]);
 
   if (!open || !log) return null;
 
