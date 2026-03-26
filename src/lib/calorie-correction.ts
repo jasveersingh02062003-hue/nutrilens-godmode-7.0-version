@@ -236,8 +236,12 @@ export function computeAdjustmentMap(
   const adjMap: Record<string, number> = {};
 
   for (const day of pastLogs) {
-    const target = day.target || baseTarget;
-    const diff = day.actual - target;
+    // Guard: skip incomplete days (< 300 kcal logged)
+    if (!day.actual || day.actual < 300) continue;
+
+    // Use effectiveTarget to prevent double correction distortion
+    const effectiveTarget = day.adjustedTarget ?? day.target ?? baseTarget;
+    const diff = day.actual - effectiveTarget;
     if (Math.abs(diff) < 50) continue;
 
     if (diff > 0) {
@@ -296,8 +300,12 @@ export function computeBreakdownForDate(
   const result: AdjustmentSource[] = [];
 
   for (const day of pastLogs) {
-    const target = day.target || baseTarget;
-    const diff = day.actual - target;
+    // Guard: skip incomplete days (< 300 kcal logged)
+    if (!day.actual || day.actual < 300) continue;
+
+    // Use effectiveTarget to prevent double correction distortion
+    const effectiveTarget = day.adjustedTarget ?? day.target ?? baseTarget;
+    const diff = day.actual - effectiveTarget;
     if (Math.abs(diff) < 50) continue;
 
     let contribution = 0;
@@ -337,7 +345,7 @@ export function computeDinnerSummary(
   actualCalories: number,
   targetCalories: number,
   allBalances: DailyBalanceEntry[]
-): { message: string; tomorrowTarget: number; pendingAdjustment: number } | null {
+): { message: string; tomorrowTarget: number; tomorrowImpact: number; next3DaysImpact: number; totalPending: number } | null {
   const diff = actualCalories - targetCalories;
   if (Math.abs(diff) < 50) return null;
 
@@ -367,18 +375,21 @@ export function computeDinnerSummary(
   const tomorrowTarget = computeAdjustedTarget(tomorrow, targetCalories, allPast);
 
   // Pending adjustments for future dates
-  const adjMap = computeAdjustmentMap(allPast.filter(b => b.actual > 0), targetCalories);
-  const pending = Object.entries(adjMap)
-    .filter(([d]) => d > today)
-    .reduce((sum, [, val]) => sum + val, 0);
+  const adjMap = computeAdjustmentMap(allPast.filter(b => b.actual >= 300), targetCalories);
+  const futureEntries = Object.entries(adjMap).filter(([d]) => d > today).sort(([a], [b]) => a.localeCompare(b));
+  
+  const tomorrowImpact = adjMap[tomorrow] || 0;
+  const next3Days = futureEntries.slice(0, 3);
+  const next3DaysImpact = next3Days.reduce((sum, [, val]) => sum + val, 0);
+  const totalPending = futureEntries.reduce((sum, [, val]) => sum + val, 0);
 
-  if (Math.abs(pending) > 0) {
-    message += `\n\n(${Math.abs(Math.round(pending))} kcal still being balanced from previous days.)`;
+  if (Math.abs(totalPending) > 0) {
+    message += `\n\n(${Math.abs(Math.round(totalPending))} kcal still being balanced from previous days.)`;
   }
 
   message += `\n\n👉 Tomorrow's target: ~${tomorrowTarget} kcal`;
 
-  return { message, tomorrowTarget, pendingAdjustment: pending };
+  return { message, tomorrowTarget, tomorrowImpact, next3DaysImpact, totalPending };
 }
 
 // ══════════════════════════════════════════════
@@ -422,6 +433,14 @@ export function updateCalorieBank(log?: DailyLog, profile?: UserProfile | null):
   const dayType = state.specialDays[today] || 'normal';
 
   if (dayType === 'fasting') return;
+
+  // Freeze guard: if day changed since last process, freeze yesterday first
+  if (state.lastProcessedDate && state.lastProcessedDate < today && state.lastProcessedDate !== today) {
+    processEndOfDay(p);
+    // Re-load state after processEndOfDay mutated it
+    const freshState = loadState();
+    Object.assign(state, freshState);
+  }
 
   const diff = totals.eaten - originalTarget;
 
@@ -500,6 +519,7 @@ export function processEndOfDay(profile: UserProfile | null): void {
 
   if (state.lastProcessedDate === today) return;
 
+  // Freeze timing: triggered on first app open after midnight OR first meal of new day
   if (state.lastProcessedDate && state.lastProcessedDate < today) {
     const yesterday = state.lastProcessedDate;
     const yesterdayLog = getDailyLog(yesterday);
@@ -784,10 +804,12 @@ export function getAdjustmentDetails(): {
   const pastLogs = state.dailyBalances.filter(b => b.date < today && b.actual > 0);
   const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
 
-  // Source days
+  // Source days — use effectiveTarget
   const sourceMap = new Map<string, number>();
   for (const day of pastLogs) {
-    const diff = day.actual - (day.target || baseTarget);
+    if (!day.actual || day.actual < 300) continue;
+    const effectiveTarget = day.adjustedTarget ?? day.target ?? baseTarget;
+    const diff = day.actual - effectiveTarget;
     if (Math.abs(diff) >= 50) {
       sourceMap.set(day.date, Math.round(diff));
     }
