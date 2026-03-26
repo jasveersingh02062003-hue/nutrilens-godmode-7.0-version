@@ -219,12 +219,15 @@ export function computeAdjustmentMap(
 
     if (diff > 0) {
       const spreadDays = diff > 800 ? 5 : 4;
-      const perDay = Math.round(diff / spreadDays);
+      // Exact distribution — no rounding drift
+      const base = Math.floor(diff / spreadDays);
+      const remainder = diff % spreadDays;
       for (let i = 1; i <= spreadDays; i++) {
         const targetDate = getFutureDate(day.date, i);
         if (!sourceTracker.has(targetDate)) sourceTracker.set(targetDate, new Set());
         if (sourceTracker.get(targetDate)!.has(day.date)) continue;
         sourceTracker.get(targetDate)!.add(day.date);
+        const perDay = base + (i <= remainder ? 1 : 0);
         adjMap[targetDate] = (adjMap[targetDate] || 0) - perDay;
       }
     } else {
@@ -388,6 +391,9 @@ export function getDailyBalances(baseTarget?: number): DailyBalanceEntry[] {
       diff,
       adjustedTarget,
     });
+
+    // Debug trace — catch math issues during dev
+    console.debug('[CalorieEngine] Balance:', { date, actual: totals.eaten, baseTarget: target, diff: Math.round(diff) });
   }
 
   return balances;
@@ -580,12 +586,11 @@ export function getBalanceStreak(): number {
   const today = getEffectiveDate();
 
   let streak = 0;
-  // Walk backwards from yesterday
+  // Walk backwards from yesterday — always measure against baseTarget
   for (let i = balances.length - 1; i >= 0; i--) {
     const b = balances[i];
     if (b.date >= today) continue;
-    const effectiveTarget = b.adjustedTarget || b.target;
-    const effectiveDiff = b.actual - effectiveTarget;
+    const effectiveDiff = b.actual - b.target; // ALWAYS baseTarget, never adjustedTarget
     if (Math.abs(effectiveDiff) <= 100) {
       streak++;
     } else {
@@ -743,8 +748,8 @@ export function validateAdjustmentIntegrity(
     warnings.push(`Adjustment mismatch: total=${totalAdj}, expected≈${expectedNet}`);
   }
 
-  // Debug trace
-  console.log('[CalorieEngine] Validation:', {
+  // Loud failure during dev
+  console.error('[CalorieEngine] Validation:', {
     totalSurplus: Math.round(totalSurplus),
     totalRecovery: Math.round(totalRecovery),
     totalAdjustments: Math.round(totalAdj),
@@ -756,26 +761,3 @@ export function validateAdjustmentIntegrity(
   return { valid: warnings.length === 0, warnings };
 }
 
-// ── Legacy compatibility shims ──
-
-/** @deprecated Use syncDailyBalance instead */
-export const updateCalorieBank = syncDailyBalance;
-
-/** @deprecated Use getTodayAdjustmentStatus instead */
-export function getCalorieBankSummary() {
-  const s = getTodayAdjustmentStatus();
-  return { bank: s.adjustment, status: s.status, message: s.message };
-}
-
-/** @deprecated Use getDailyBalances directly */
-export function getCalorieBankState() {
-  const balances = getDailyBalances();
-  const prefs = loadPrefs();
-  return {
-    dailyBalances: balances,
-    specialDays: prefs.specialDays,
-    lastProcessedDate: getEffectiveDate(),
-    autoAdjustMeals: prefs.autoAdjustMeals,
-    balanceStreak: getBalanceStreak(),
-  };
-}

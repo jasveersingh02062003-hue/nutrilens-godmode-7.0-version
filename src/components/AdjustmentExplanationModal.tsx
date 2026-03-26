@@ -10,13 +10,10 @@ interface Props {
 export default function AdjustmentExplanationModal({ open, onClose }: Props) {
   const details = getAdjustmentDetails();
 
-  // Compute status message from today's adjustments
-  const totalFutureAdj = details.futureAdjustments.reduce((s, a) => s + a.adjustment, 0);
-  const statusMessage = totalFutureAdj === 0
-    ? 'Your intake is well balanced — no adjustments needed.'
-    : totalFutureAdj < 0
-      ? `${Math.abs(totalFutureAdj)} kcal being reduced across ${details.futureAdjustments.length} days to balance surplus.`
-      : `${totalFutureAdj} kcal being added across ${details.futureAdjustments.length} days to recover from deficit.`;
+  const hasAdjustments = details.futureAdjustments.length > 0;
+  const statusMessage = hasAdjustments
+    ? 'Your plan adjusts day-by-day based on recent intake.'
+    : 'Your intake is well balanced — no adjustments needed.';
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
