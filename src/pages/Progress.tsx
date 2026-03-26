@@ -33,7 +33,7 @@ import { useUserProfile } from '@/contexts/UserProfileContext';
 import { getPlan, isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
-import { getDailyBalances, getCalorieBankSummary, getAdjustmentPlan, getMonthlyStats, getWeekendPattern, getCalorieBankState, computeAdjustmentMap, type DailyBalanceEntry } from '@/lib/calorie-correction';
+import { getDailyBalances, getCalorieBankSummary, getMonthlyStats, getWeekendPattern, getCalorieBankState, computeAdjustmentMap, type DailyBalanceEntry } from '@/lib/calorie-correction';
 
 type AdherenceStatus = 'green' | 'yellow' | 'red' | 'gray';
 
@@ -601,23 +601,30 @@ function CalorieBalanceCard() {
             </span>
           </div>
 
-          {/* Balance meter */}
-          <div>
-            <div className="h-3 bg-secondary rounded-full overflow-hidden relative">
-              <div className="absolute inset-y-0 left-1/2 w-px bg-border z-10" />
-              <div
-                className={`h-full rounded-full transition-all duration-700 ease-out ${summary.bank >= 0 ? 'bg-accent' : 'bg-primary'}`}
-                style={{
-                  width: `${Math.abs(bankPct - 50)}%`,
-                  marginLeft: summary.bank < 0 ? `${bankPct}%` : '50%',
-                }}
-              />
-            </div>
-            <div className="flex justify-between mt-1 text-[9px] text-muted-foreground">
-              <span>-2000</span>
-              <span>0</span>
-              <span>+2000</span>
-            </div>
+          {/* Balance meter — based on monthly net */}
+          {(() => {
+            const bankClamped = Math.max(-2000, Math.min(2000, monthlyStats.netBalance));
+            const bankPct = Math.round(((bankClamped + 2000) / 4000) * 100);
+            return (
+              <div>
+                <div className="h-3 bg-secondary rounded-full overflow-hidden relative">
+                  <div className="absolute inset-y-0 left-1/2 w-px bg-border z-10" />
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ease-out ${monthlyStats.netBalance >= 0 ? 'bg-accent' : 'bg-primary'}`}
+                    style={{
+                      width: `${Math.abs(bankPct - 50)}%`,
+                      marginLeft: monthlyStats.netBalance < 0 ? `${bankPct}%` : '50%',
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between mt-1 text-[9px] text-muted-foreground">
+                  <span>-2000</span>
+                  <span>0</span>
+                  <span>+2000</span>
+                </div>
+              </div>
+            );
+          })()}
           </div>
 
           {/* Behavioral insight */}
