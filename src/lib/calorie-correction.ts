@@ -811,10 +811,11 @@ export function getAdjustmentDetails(): {
  */
 export function validateAdjustmentIntegrity(
   pastLogs: DailyBalanceEntry[],
-  baseTarget: number
+  baseTarget: number,
+  tdee: number = 2000
 ): { valid: boolean; warnings: string[] } {
   const warnings: string[] = [];
-  const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee);
 
   // Check 1: No single day exceeds ±300
   for (const [date, val] of Object.entries(adjMap)) {

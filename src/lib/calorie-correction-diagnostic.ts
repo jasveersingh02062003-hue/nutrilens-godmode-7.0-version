@@ -3,7 +3,7 @@
 // Uses actual engine functions to avoid logic drift
 // ============================================
 
-import { computeAdjustmentMap, MAX_ADJUSTMENT_PER_DAY, type DailyBalanceEntry } from './calorie-correction';
+import { computeAdjustmentMap, computeSafeSpreadDays, MAX_ADJUSTMENT_PER_DAY, type DailyBalanceEntry } from './calorie-correction';
 
 export interface TestResult {
   name: string;
