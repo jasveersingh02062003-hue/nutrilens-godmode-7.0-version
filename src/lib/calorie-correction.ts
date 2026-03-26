@@ -541,20 +541,22 @@ export function processEndOfDay(profile: UserProfile | null): void {
       state.balanceStreak = 0;
     }
 
-    // Clean expired adjustment plan entries
+    // Clean expired adjustment plan entries and sources
     state.adjustmentPlan = state.adjustmentPlan.filter(e => e.date >= today);
+    state.adjustmentSources = state.adjustmentSources.filter(s => s.targetDate >= today);
 
     if (state.adjustmentDaysRemaining > 0) state.adjustmentDaysRemaining--;
 
     // Rebuild plan if bank still positive and plan is empty
-    if (state.adjustmentPlan.length === 0 && state.calorieBank > 50) {
+    // Use yesterday's diff (not cumulative bank) to avoid stacking
+    if (state.adjustmentPlan.length === 0 && diff > 50) {
       const [minDays, maxDays] = MODE_CONFIG[state.correctionMode].recoveryDays;
       const days = Math.min(maxDays + 2, Math.max(minDays, state.consecutiveSurplusDays + minDays));
-      const { plan: newPlan, sources: newSources } = buildAdjustmentPlan(state.calorieBank, originalTarget, today, Math.min(7, days), state.correctionMode, yesterday);
+      const { plan: newPlan, sources: newSources } = buildAdjustmentPlan(diff, originalTarget, today, Math.min(7, days), state.correctionMode, yesterday);
       state.adjustmentPlan = mergePlans(state.adjustmentPlan, newPlan);
       state.adjustmentSources = mergeSources(state.adjustmentSources, newSources);
       state.adjustmentDaysRemaining = days;
-      state.adjustmentPerDay = Math.min(state.calorieBank / days, originalTarget * MODE_CONFIG[state.correctionMode].surplusCap);
+      state.adjustmentPerDay = Math.min(diff / days, originalTarget * MODE_CONFIG[state.correctionMode].surplusCap);
     }
   }
 
