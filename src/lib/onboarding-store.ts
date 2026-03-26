@@ -2,6 +2,8 @@
 
 import { saveProfile, type UserProfile } from './store';
 import { calculateBMR } from './nutrition';
+import { getActivityMultiplier, calculateTDEEFromWorkExercise } from './nutrition';
+import { saveBudgetSettings } from './expense-store';
 import type { OnboardingGoalResult } from './goal-engine';
 
 const PROGRESS_KEY = 'nutrilens_onboarding_progress';
@@ -70,8 +72,11 @@ export function saveOnboardingData(data: OnboardingData) {
   // Save new nested structure
   localStorage.setItem(USER_KEY, JSON.stringify(data));
 
-  // Save legacy profile for backward compat with rest of app
+  // Compute ACTUAL TDEE (not goal calories) for profile
   const bmr = calculateBMR(data.basic.weightKg, data.basic.heightCm, data.basic.age, data.basic.gender);
+  const tdee = Math.round(calculateTDEEFromWorkExercise(bmr, data.activity.work, data.activity.exercise));
+
+  // Save legacy profile for backward compat with rest of app
   const profile: UserProfile = {
     name: data.basic.name,
     gender: data.basic.gender,
@@ -110,8 +115,19 @@ export function saveOnboardingData(data: OnboardingData) {
     dailyFat: data.goals.macros.fat,
     bmi: +(data.basic.weightKg / ((data.basic.heightCm / 100) ** 2)).toFixed(1),
     bmr,
-    tdee: data.goals.calories,
+    tdee, // ← ACTUAL TDEE, not goal calories
     skinConcerns: data.health.skin !== 'none' ? { [data.health.skin]: true } : undefined,
   };
   saveProfile(profile);
+
+  // Wire budget settings to expense-store if user enabled budget
+  if (data.lifestyle.budget.enabled && data.lifestyle.budget.amount > 0) {
+    const dailyAmount = data.lifestyle.budget.amount;
+    saveBudgetSettings({
+      weeklyBudget: Math.round(dailyAmount * 7),
+      monthlyBudget: Math.round(dailyAmount * 30),
+      period: 'week',
+      currency: '₹',
+    });
+  }
 }
