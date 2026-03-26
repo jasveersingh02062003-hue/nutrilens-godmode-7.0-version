@@ -90,7 +90,7 @@ export default function CalorieRing({ dayState, proteinRemaining }: Props) {
             </div>
             {totalBurned > 0 && (
               <p className="text-[9px] text-muted-foreground mt-0.5">
-                {baseTarget} base + {totalBurned} burned
+                {adjustedTarget} base + {totalBurned} burned
               </p>
             )}
             <p className={`text-[10px] font-semibold mt-1 ${dayColor}`}>
