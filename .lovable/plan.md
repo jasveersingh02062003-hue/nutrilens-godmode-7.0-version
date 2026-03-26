@@ -1,47 +1,57 @@
 
-Goal
 
-- Remove the last hidden correction cache and make every calorie summary, weekly total, and adjustment preview come straight from raw logs.
+# Plan: Harden Calorie Correction Engine
 
-What I found
+## What's wrong now
 
-- `src/lib/calorie-correction.ts` still persists `dailyBalances` / `lastProcessedDate` in `nutrilens_calorie_bank`, so the engine is not fully stateless yet.
-- `src/pages/Progress.tsx` mixes `b.diff` (base-target math) with `b.adjustedTarget` (planned-target math) in the same weekly card, which explains contradictory totals like inflated weekly net vs smaller real meal surplus.
-- `src/components/AdjustmentExplanationModal.tsx` still shows cumulative “X kcal across Y days” copy, which is exactly the fake aggregate the audit wants removed.
-- `src/lib/hard-boundary.ts`, `src/lib/weekly-weight-checkin.ts`, `src/lib/seed-demo-data.ts`, and `src/components/QuickLogSheet.tsx` still depend on the old cached balance layer or deprecated aliases.
+The engine is mostly stateless, but has these remaining issues:
 
-Plan
+1. **Rounding drift** in `computeAdjustmentMap` — `Math.round(diff / spreadDays)` loses calories (e.g., 385/4 = 96*4 = 384, losing 1 kcal). Over many days this accumulates.
 
-1. Rebuild `src/lib/calorie-correction.ts`
-- Delete the persisted correction cache (`dailyBalances`) and deprecated compatibility helpers.
-- Keep only non-correction preferences in storage (day type, auto-adjust, cutoff).
-- Derive all balance rows from raw logs on demand using `getDailyTotals`.
-- Make `processEndOfDay` the only correction write: freeze `adjustedTarget` onto that closed day’s log.
-- Add shared pure helpers for:
-  - raw day balance derivation
-  - weekly/monthly totals from raw logs
-  - `computeAdjustmentMap`, `computeAdjustedTarget`, source breakdown
-  - validation + debug trace logging (`{ date, actual, baseTarget, diff }`)
+2. **`getBalanceStreak` uses `adjustedTarget` in logic** (line 587) — violates the rule that `adjustedTarget` is UI-only, never used in diff/logic calculations.
 
-2. Separate math responsibilities cleanly
-- Source/correction math always uses `actual - baseTarget`.
-- Today/future planning uses computed `adjustedTarget`.
-- Weekly/monthly summaries use raw actuals + base targets only, so the totals match the audit math.
-- Past-day explanation views can still show frozen planned targets, but they won’t be reused as source diffs.
+3. **`AdjustmentExplanationModal` shows cumulative totals** (line 14-19) — "X kcal being reduced across Y days" is exactly the aggregate number that misleads users.
 
-3. Update UI consumers
-- `src/pages/Progress.tsx`: rebuild the weekly card, monthly stats, future markers, and weekend pattern from raw-log helpers instead of cached balances.
-- `src/components/AdjustmentExplanationModal.tsx`: remove cumulative adjustment totals and show only live per-day adjustments with source breakdown.
-- `src/components/DayDetailsSheet.tsx` and `src/lib/calendar-helpers.ts`: use the new helpers so future previews and past explanations stay consistent.
-- `src/pages/Dashboard.tsx`: keep rollover behavior, but stop depending on cached correction-state semantics.
+4. **Legacy shims still exported** — `updateCalorieBank`, `getCalorieBankSummary`, `getCalorieBankState` remain as deprecated exports. No callers exist, so they should be deleted.
 
-4. Remove legacy write paths
-- `src/pages/LogFood.tsx`, `src/components/MealDetailSheet.tsx`, `src/components/QuickLogSheet.tsx`: after saving food, only save the log and refresh UI; no correction-cache mutation.
-- `src/lib/seed-demo-data.ts`: stop writing `BANK_KEY`; seed raw logs and freeze historical `adjustedTarget` directly into those logs.
-- `src/lib/hard-boundary.ts` and `src/lib/weekly-weight-checkin.ts`: move to the same raw-log weekly helpers so alerts/check-ins use identical math as the Progress page.
+5. **Debug trace logging missing** — No `console.log({ date, actual, baseTarget, diff })` trace in `getDailyBalances` to catch math issues during dev.
 
-Technical notes
+6. **Validation uses `console.log` not `console.error`** — soft warnings instead of loud failures.
 
-- The biggest current bug source is not the spread formula anymore; it’s the app still combining two different target systems in one UI.
-- The UI callback registry can remain as a refresh trigger, but it must not carry any correction data.
-- If historical calorie goals need to stay exact after future goal changes, the safe extension is to snapshot that day’s base target on the closed log; otherwise this rebuild can consistently use the active goal across the current dataset.
+## Changes
+
+### 1. `src/lib/calorie-correction.ts`
+
+**Fix rounding drift** in `computeAdjustmentMap` (line 222):
+```typescript
+// Replace: const perDay = Math.round(diff / spreadDays);
+// With exact distribution:
+const base = Math.floor(diff / spreadDays);
+const remainder = diff % spreadDays;
+// In loop: use (base + (i <= remainder ? 1 : 0))
+```
+
+**Fix `getBalanceStreak`** (line 587): Change from using `adjustedTarget` to using `baseTarget` only — streak measures adherence to the base goal, not the adjusted one.
+
+**Add debug trace** in `getDailyBalances`: Log each day's `{ date, actual, baseTarget, diff }` when building balances.
+
+**Harden validation** (line 747): Change `console.log` to `console.error` for the validation output so failures are loud.
+
+**Delete legacy shims** (lines 759-781): Remove `updateCalorieBank`, `getCalorieBankSummary`, `getCalorieBankState` — no callers remain.
+
+### 2. `src/components/AdjustmentExplanationModal.tsx`
+
+Remove the cumulative summary line (lines 14-19). Replace with a simple status: "Your plan adjusts day-by-day based on recent intake." The per-day breakdown below already shows the exact numbers.
+
+### 3. `src/pages/Progress.tsx`
+
+Remove the duplicate comment on line 442-443 ("Weekly totals — use adjustedTarget when available" followed by "Weekly totals — always use baseTarget for honest math"). Keep only the correct comment.
+
+## Files modified
+
+| File | Change |
+|------|--------|
+| `src/lib/calorie-correction.ts` | Fix rounding; fix streak logic; add trace logging; harden validation; delete legacy shims |
+| `src/components/AdjustmentExplanationModal.tsx` | Remove cumulative total display |
+| `src/pages/Progress.tsx` | Clean duplicate comment |
+
