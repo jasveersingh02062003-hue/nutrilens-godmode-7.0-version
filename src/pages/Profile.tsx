@@ -14,7 +14,7 @@ import NotificationSettingsPanel from '@/components/NotificationSettingsPanel';
 import SkinConcernsSheet from '@/components/SkinConcernsSheet';
 import { getTrackingMode, setTrackingMode, type TrackingMode } from '@/lib/smart-adjustment';
 import { getCorrections } from '@/lib/corrections';
-import { getCorrectionMode, setCorrectionMode, getAutoAdjust, setAutoAdjust, type CorrectionMode } from '@/lib/calorie-correction';
+import { getAutoAdjust, setAutoAdjust } from '@/lib/calorie-correction';
 import HealthCardSheet from '@/components/HealthCardSheet';
 import { getCoachSettings } from '@/lib/coach';
 import { Sparkles, Brain, Flower2 } from 'lucide-react';

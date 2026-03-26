@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import { checkBudgetAfterMeal } from '@/lib/budget-service';
 import UnitPicker from '@/components/UnitPicker';
 import { calculateNutrition, getUnitOptionsForFood } from '@/lib/unit-conversion';
-import { updateCalorieBank, getContextualMealToast, getDinnerNotificationSummary, getCalorieBankState, computeAdjustmentMap } from '@/lib/calorie-correction';
+import { syncDailyBalance, getContextualMealToast, getDinnerNotificationSummary } from '@/lib/calorie-correction';
 import AdjustmentExplanationModal from '@/components/AdjustmentExplanationModal';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -179,8 +179,8 @@ export default function LogFood() {
       else if (alert.level === 'overspend_severe') toast.error(alert.message);
     }
 
-    // Update calorie bank after logging
-    updateCalorieBank();
+    // Sync daily balance after logging
+    syncDailyBalance();
 
     // Meal completion toast with protein progress (Fix 6)
     const profile2 = getProfile();
@@ -201,8 +201,7 @@ export default function LogFood() {
         const updatedLog = getDailyLog(todayKey);
         const updatedTotals = getDailyTotals(updatedLog);
         const origTarget = profile2?.dailyCalories || 1600;
-        const bankState = getCalorieBankState();
-        const summary = getDinnerNotificationSummary(todayKey, updatedTotals.eaten, origTarget, bankState);
+        const summary = getDinnerNotificationSummary(todayKey, updatedTotals.eaten, origTarget);
         if (summary) {
           toast('Plan updated ⚖️', {
             description: summary.message,
