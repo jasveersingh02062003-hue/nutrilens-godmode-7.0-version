@@ -93,8 +93,15 @@ function getDynamicMessage(
   const proteinPct = protein / Math.max(1, targetProtein);
   const remaining = targetCal - eaten;
 
-  // Morning - nothing logged
-  if (eaten === 0 && hour < 11) return "Good morning! Ready to start logging? 🌞";
+  // Yesterday check — comeback message
+  if (eaten === 0 && hour < 11) {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yKey = yesterday.toISOString().split('T')[0];
+    const yLog = getDailyLog(yKey);
+    if (yLog.meals.length === 0) return "Let's get back on track today 💪";
+    return "Good morning! Ready to start logging? 🌞";
+  }
 
   // Protein behind in afternoon
   if (proteinPct < 0.4 && hour > 14) return "You're behind on protein — add some! 💪";
