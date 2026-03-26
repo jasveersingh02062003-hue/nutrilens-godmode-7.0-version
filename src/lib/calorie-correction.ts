@@ -710,7 +710,7 @@ export function processEndOfDay(profile: UserProfile | null): void {
   }
   savePrefs(prefs);
 
-  notifyUICallbacks();
+  recomputeCalorieEngine();
 }
 
 // ══════════════════════════════════════════════
