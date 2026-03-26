@@ -133,7 +133,7 @@ function generateMealsForCalories(targetCalories: number, dayIndex: number): Mea
   const bfQty = Math.max(0.5, Math.round((bfCal / bfFood.cal) * 10) / 10);
   const bfItems: FoodItem[] = [{
     id: uid(), name: bfFood.name, calories: bfFood.cal, protein: bfFood.p,
-    carbs: bfFood.c, fat: bfFood.f, fiber: 3, quantity: bfQty, emoji: bfFood.emoji,
+    carbs: bfFood.c, fat: bfFood.f, fiber: 3, quantity: bfQty, unit: 'serving', emoji: bfFood.emoji,
     confidenceScore: 0.85 + Math.random() * 0.1,
   }];
   const bfTotal = Math.round(bfFood.cal * bfQty);
@@ -151,7 +151,7 @@ function generateMealsForCalories(targetCalories: number, dayIndex: number): Mea
   const lnQty = Math.max(0.5, Math.round((lnCal / lnFood.cal) * 10) / 10);
   const lnItems: FoodItem[] = [{
     id: uid(), name: lnFood.name, calories: lnFood.cal, protein: lnFood.p,
-    carbs: lnFood.c, fat: lnFood.f, fiber: 5, quantity: lnQty, emoji: lnFood.emoji,
+    carbs: lnFood.c, fat: lnFood.f, fiber: 5, quantity: lnQty, unit: 'serving', emoji: lnFood.emoji,
     confidenceScore: 0.80 + Math.random() * 0.15,
   }];
   const lnTotal = Math.round(lnFood.cal * lnQty);
@@ -168,8 +168,8 @@ function generateMealsForCalories(targetCalories: number, dayIndex: number): Mea
   const snFood = FOOD_POOL.snack[snIdx];
   const snFood2 = FOOD_POOL.snack[(snIdx + 1) % FOOD_POOL.snack.length];
   const snItems: FoodItem[] = [
-    { id: uid(), name: snFood.name, calories: snFood.cal, protein: snFood.p, carbs: snFood.c, fat: snFood.f, fiber: 1, quantity: 1, emoji: snFood.emoji, confidenceScore: 0.75 },
-    ...(dayIndex % 2 === 0 ? [{ id: uid(), name: snFood2.name, calories: snFood2.cal, protein: snFood2.p, carbs: snFood2.c, fat: snFood2.f, fiber: 1, quantity: 1, emoji: snFood2.emoji, confidenceScore: 0.70 }] : []),
+    { id: uid(), name: snFood.name, calories: snFood.cal, protein: snFood.p, carbs: snFood.c, fat: snFood.f, fiber: 1, quantity: 1, unit: 'serving', emoji: snFood.emoji, confidenceScore: 0.75 },
+    ...(dayIndex % 2 === 0 ? [{ id: uid(), name: snFood2.name, calories: snFood2.cal, protein: snFood2.p, carbs: snFood2.c, fat: snFood2.f, fiber: 1, quantity: 1, unit: 'serving', emoji: snFood2.emoji, confidenceScore: 0.70 }] : []),
   ];
   const snTotal = snItems.reduce((s, i) => s + i.calories * i.quantity, 0);
   meals.push({
@@ -186,7 +186,7 @@ function generateMealsForCalories(targetCalories: number, dayIndex: number): Mea
   const dnQty = Math.max(0.5, Math.round((dnCal / dnFood.cal) * 10) / 10);
   const dnItems: FoodItem[] = [{
     id: uid(), name: dnFood.name, calories: dnFood.cal, protein: dnFood.p,
-    carbs: dnFood.c, fat: dnFood.f, fiber: 4, quantity: dnQty, emoji: dnFood.emoji,
+    carbs: dnFood.c, fat: dnFood.f, fiber: 4, quantity: dnQty, unit: 'serving', emoji: dnFood.emoji,
     confidenceScore: 0.82 + Math.random() * 0.12,
   }];
   const dnTotal = Math.round(dnFood.cal * dnQty);
