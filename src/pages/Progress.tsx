@@ -625,7 +625,6 @@ function CalorieBalanceCard() {
               </div>
             );
           })()}
-          </div>
 
           {/* Behavioral insight */}
           {weekendPattern.detected && (
