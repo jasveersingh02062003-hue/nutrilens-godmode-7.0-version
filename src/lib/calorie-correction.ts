@@ -203,14 +203,19 @@ export function computeDailyCalories(log: DailyLog): number {
  * diff = actual - baseTarget (ALWAYS against base, never adjusted)
  * No duplicate sources. Safety capped at -400 per day.
  */
+export const MAX_ADJUSTMENT_PER_DAY = 300;
+
 export function computeAdjustmentMap(
   pastLogs: DailyBalanceEntry[],
   baseTarget: number
 ): Record<string, number> {
   const adjMap: Record<string, number> = {};
   const sourceTracker = new Map<string, Set<string>>();
+  const today = getEffectiveDate();
 
   for (const day of pastLogs) {
+    // 🔒 INVARIANT: only finalized past days generate adjustments
+    if (day.date >= today) continue;
     if (!day.actual || day.actual < 300) continue;
 
     // diff = actual - baseTarget (ALWAYS vs base, NEVER adjusted)
@@ -219,9 +224,10 @@ export function computeAdjustmentMap(
 
     if (diff > 0) {
       const spreadDays = diff > 800 ? 5 : 4;
-      // Exact distribution — no rounding drift
-      const base = Math.floor(diff / spreadDays);
-      const remainder = diff % spreadDays;
+      // Sign-safe exact distribution — no rounding drift
+      const absDiff = Math.abs(diff);
+      const base = Math.floor(absDiff / spreadDays);
+      const remainder = absDiff % spreadDays;
       for (let i = 1; i <= spreadDays; i++) {
         const targetDate = getFutureDate(day.date, i);
         if (!sourceTracker.has(targetDate)) sourceTracker.set(targetDate, new Set());
@@ -241,9 +247,38 @@ export function computeAdjustmentMap(
     }
   }
 
-  // 🔒 HARD SAFETY CLAMP — no day exceeds -400
-  for (const [date, val] of Object.entries(adjMap)) {
-    if (val < -400) adjMap[date] = -400;
+  // 🔒 CLAMP WITH REDISTRIBUTION — conserve calories exactly
+  let leftover = 0;
+  const dates = Object.keys(adjMap).sort();
+
+  // Pass 1: clamp and track leftover
+  for (const date of dates) {
+    const raw = adjMap[date];
+    const clamped = Math.max(-MAX_ADJUSTMENT_PER_DAY, Math.min(MAX_ADJUSTMENT_PER_DAY, raw));
+    leftover += raw - clamped;
+    adjMap[date] = clamped;
+  }
+
+  // Pass 2: redistribute leftover across days with remaining capacity
+  if (Math.abs(leftover) > 0) {
+    const sign = leftover < 0 ? -1 : 1;
+    let absLeftover = Math.abs(leftover);
+    for (const date of dates) {
+      if (absLeftover < 1) break;
+      const current = adjMap[date];
+      const capacity = MAX_ADJUSTMENT_PER_DAY - Math.abs(current);
+      if (capacity <= 0) continue;
+      // Only redistribute in the same direction as leftover
+      if (sign < 0 && current > 0) continue;
+      if (sign > 0 && current < 0) continue;
+      const shift = Math.min(capacity, absLeftover);
+      adjMap[date] += shift * sign;
+      absLeftover -= shift;
+    }
+    // If still leftover after redistribution, it's lost — log it
+    if (absLeftover > 1) {
+      console.error('[CalorieEngine] Clamp redistribution lost calories:', Math.round(absLeftover));
+    }
   }
 
   return adjMap;
@@ -297,9 +332,13 @@ export function computeBreakdownForDate(
 
     if (diff > 0) {
       const spreadDays = diff > 800 ? 5 : 4;
-      const perDay = Math.round(diff / spreadDays);
+      // Exact distribution — matches computeAdjustmentMap exactly
+      const absDiff = Math.abs(diff);
+      const base = Math.floor(absDiff / spreadDays);
+      const remainder = absDiff % spreadDays;
       for (let i = 1; i <= spreadDays; i++) {
         if (getFutureDate(day.date, i) === targetDate) {
+          const perDay = base + (i <= remainder ? 1 : 0);
           contribution -= perDay;
         }
       }
@@ -394,6 +433,38 @@ export function getDailyBalances(baseTarget?: number): DailyBalanceEntry[] {
 
     // Debug trace — catch math issues during dev
     console.debug('[CalorieEngine] Balance:', { date, actual: totals.eaten, baseTarget: target, diff: Math.round(diff) });
+  }
+
+  // 🔒 RECONCILIATION CHECK — verify conservation invariant
+  const today = getEffectiveDate();
+  const pastOnly = balances.filter(b => b.date < today && b.actual >= 300);
+  const adjMap = computeAdjustmentMap(pastOnly, target);
+
+  // Expected: sum of all surplus reductions + deficit recoveries
+  let expectedAdj = 0;
+  for (const day of pastOnly) {
+    const diff = day.actual - target;
+    if (diff > 50) {
+      expectedAdj -= diff; // surplus → negative adjustment
+    } else if (diff < -50) {
+      expectedAdj += Math.min(Math.round(Math.abs(diff) * 0.3), 250); // deficit → positive recovery
+    }
+  }
+
+  const totalAdj = Object.values(adjMap).reduce((s, v) => s + v, 0);
+  if (Math.abs(totalAdj - expectedAdj) > 1) {
+    console.error('[CalorieEngine] RECONCILIATION MISMATCH:', {
+      expectedAdj: Math.round(expectedAdj),
+      totalAdj: Math.round(totalAdj),
+      delta: Math.round(totalAdj - expectedAdj),
+    });
+  }
+
+  // Verify per-day clamp integrity
+  for (const [date, val] of Object.entries(adjMap)) {
+    if (Math.abs(val) > MAX_ADJUSTMENT_PER_DAY) {
+      console.error('[CalorieEngine] CLAMP VIOLATION:', { date, val });
+    }
   }
 
   return balances;
@@ -725,10 +796,10 @@ export function validateAdjustmentIntegrity(
   const warnings: string[] = [];
   const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
 
-  // Check 1: No single day exceeds -400
+  // Check 1: No single day exceeds ±300
   for (const [date, val] of Object.entries(adjMap)) {
-    if (val < -400) {
-      warnings.push(`Day ${date} has adjustment ${val} exceeding -400 limit`);
+    if (Math.abs(val) > MAX_ADJUSTMENT_PER_DAY) {
+      warnings.push(`Day ${date} has adjustment ${val} exceeding ±${MAX_ADJUSTMENT_PER_DAY} limit`);
     }
   }
 
