@@ -14,7 +14,7 @@ import NotificationSettingsPanel from '@/components/NotificationSettingsPanel';
 import SkinConcernsSheet from '@/components/SkinConcernsSheet';
 import { getTrackingMode, setTrackingMode, type TrackingMode } from '@/lib/smart-adjustment';
 import { getCorrections } from '@/lib/corrections';
-import { getAutoAdjust, setAutoAdjust, getCorrectionMode, setCorrectionMode, type CorrectionMode } from '@/lib/calorie-correction';
+import { getAutoAdjust, setAutoAdjust, getCorrectionMode, setCorrectionMode, getModeImpactPreview, type CorrectionMode } from '@/lib/calorie-correction';
 import HealthCardSheet from '@/components/HealthCardSheet';
 import { getCoachSettings } from '@/lib/coach';
 import { Sparkles, Brain, Flower2 } from 'lucide-react';
@@ -75,7 +75,14 @@ export default function Profile() {
     const next = order[(idx + 1) % order.length];
     setCorrectionMode(next);
     setCorrectionModeState(next);
-    toast.success(`Correction mode: ${next.charAt(0).toUpperCase() + next.slice(1)}`);
+    
+    const impact = getModeImpactPreview(next);
+    const modeLabel = next.charAt(0).toUpperCase() + next.slice(1);
+    if (impact.totalSurplus > 0) {
+      toast.success(`${modeLabel} mode: ~${impact.dailyChange} kcal/day over ${impact.spreadDays} days`);
+    } else {
+      toast.success(`Correction mode: ${modeLabel}`);
+    }
   };
 
   const handleAutoAdjustToggle = () => {
