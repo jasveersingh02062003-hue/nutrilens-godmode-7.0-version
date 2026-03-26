@@ -700,10 +700,11 @@ export function getTodayAdjustmentStatus(): {
   const today = getEffectiveDate();
   const p = getProfile();
   const baseTarget = p?.dailyCalories || 1600;
+  const tdee = p?.tdee || baseTarget;
 
   const allBalances = getDailyBalances(baseTarget);
   const pastLogs = allBalances.filter(b => b.date < today && b.actual >= 300);
-  const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee);
   const todayAdj = adjMap[today] || 0;
 
   if (Math.abs(todayAdj) < 10) {
@@ -742,9 +743,10 @@ export function getAdjustmentExplanation(date?: string): string | null {
   const d = date || getEffectiveDate();
   const p = getProfile();
   const baseTarget = p?.dailyCalories || 1600;
+  const tdee = p?.tdee || baseTarget;
   const allBalances = getDailyBalances(baseTarget);
   const pastLogs = allBalances.filter(b => b.date < d && b.actual >= 300);
-  const breakdown = computeBreakdownForDate(d, pastLogs, baseTarget);
+  const breakdown = computeBreakdownForDate(d, pastLogs, baseTarget, tdee);
 
   if (breakdown.length === 0) return null;
 
@@ -771,9 +773,10 @@ export function getAdjustmentDetails(): {
   const today = getEffectiveDate();
   const p = getProfile();
   const baseTarget = p?.dailyCalories || 1600;
+  const tdee = p?.tdee || baseTarget;
   const allBalances = getDailyBalances(baseTarget);
   const pastLogs = allBalances.filter(b => b.date < today && b.actual >= 300);
-  const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee);
 
   // Source days
   const sourceMap = new Map<string, number>();
@@ -795,7 +798,7 @@ export function getAdjustmentDetails(): {
   const futureAdjustments = futureDates.map(([date, adjustment]) => ({
     date,
     adjustment,
-    sources: computeBreakdownForDate(date, pastLogs, baseTarget),
+    sources: computeBreakdownForDate(date, pastLogs, baseTarget, tdee),
   }));
 
   return { recentSurplusDays, futureAdjustments };
