@@ -439,7 +439,6 @@ function CalorieBalanceCard() {
   const last14 = balances.slice(-14);
   const maxAbs = Math.max(1, ...last14.map(b => Math.abs(b.diff)));
 
-  // Weekly totals — use adjustedTarget when available
   // Weekly totals — always use baseTarget for honest math
   const weeklyTarget = last7.reduce((s, b) => s + b.target, 0);
   const weeklyActual = last7.reduce((s, b) => s + b.actual, 0);
