@@ -41,18 +41,14 @@ export function saveWeeklySummary(summary: WeeklySummary) {
   saveSummaries(all.slice(0, 12));
 }
 
-function getLastSundayRange(): { start: string; end: string } {
+function getCurrentWeekRange(): { start: string; end: string } {
   const now = new Date();
-  const day = now.getDay(); // 0=Sun
-  // End = last Sunday (or today if Sunday)
-  const endDate = new Date(now);
-  if (day !== 0) endDate.setDate(now.getDate() - day);
-  // Start = Monday before that
-  const startDate = new Date(endDate);
-  startDate.setDate(endDate.getDate() - 6);
+  const end = now.toISOString().split('T')[0];
+  const startDate = new Date(now);
+  startDate.setDate(now.getDate() - 6);
   return {
     start: startDate.toISOString().split('T')[0],
-    end: endDate.toISOString().split('T')[0],
+    end,
   };
 }
 
@@ -70,7 +66,7 @@ function getLogsForRange(start: string, end: string): DailyLog[] {
 }
 
 export function generateWeeklySummary(): WeeklySummary {
-  const { start, end } = getLastSundayRange();
+  const { start, end } = getCurrentWeekRange();
   const profile = getProfile();
   const plannerProfile = getMealPlannerProfile();
   const budgetSettings = getBudgetSettings();
@@ -293,13 +289,10 @@ export function autoFixNextWeek(summary: WeeklySummary): { changes: string[]; ap
 }
 
 export function shouldGenerateSummary(): boolean {
-  const now = new Date();
-  const day = now.getDay(); // 0 = Sunday
-  // Generate on Sunday or any day if no summary exists for the previous week
-  const { start } = getLastSundayRange();
+  const { start } = getCurrentWeekRange();
   const summaries = getWeeklySummaries();
   const exists = summaries.some(s => s.weekStart === start);
-  return !exists && (day === 0 || summaries.length === 0);
+  return !exists;
 }
 
 export function scheduleWeeklyNotification(summary?: WeeklySummary) {

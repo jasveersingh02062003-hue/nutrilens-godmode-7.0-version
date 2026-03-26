@@ -208,9 +208,20 @@ export function computeDailyCalories(log: DailyLog): number {
  */
 export const MAX_ADJUSTMENT_PER_DAY = 300;
 
+/**
+ * Compute safe number of days to spread a surplus over.
+ * Keeps daily reduction ≤ min(300, 10% of TDEE), capped at 14 days, floor 4.
+ */
+export function computeSafeSpreadDays(surplus: number, tdee: number): number {
+  const maxDailyReduction = Math.min(300, Math.round(tdee * 0.1));
+  let days = Math.ceil(surplus / Math.max(1, maxDailyReduction));
+  return Math.max(4, Math.min(days, 14));
+}
+
 export function computeAdjustmentMap(
   pastLogs: DailyBalanceEntry[],
-  baseTarget: number
+  baseTarget: number,
+  tdee: number = 2000
 ): Record<string, number> {
   const adjMap: Record<string, number> = {};
   const sourceTracker = new Map<string, Set<string>>();
@@ -226,7 +237,7 @@ export function computeAdjustmentMap(
     if (Math.abs(diff) < 50) continue;
 
     if (diff > 0) {
-      const spreadDays = diff > 800 ? 5 : 4;
+      const spreadDays = computeSafeSpreadDays(diff, tdee);
       // Sign-safe exact distribution — no rounding drift
       const absDiff = Math.abs(diff);
       const base = Math.floor(absDiff / spreadDays);
@@ -282,7 +293,14 @@ export function computeAdjustmentMap(
     if (absLeftover > 1) {
       console.error('[CalorieEngine] Adjustment overflow capped — conservation loss:',
         Math.round(absLeftover), 'kcal');
-      // Intentionally NOT extending to new dates — keeps system predictable
+    }
+  }
+
+  // 🔒 Floor protection: ensure no day's adjusted target drops below 1200 kcal
+  for (const date of dates) {
+    const tentative = baseTarget + adjMap[date];
+    if (tentative < 1200) {
+      adjMap[date] = 1200 - baseTarget; // weakest possible reduction
     }
   }
 
@@ -297,7 +315,8 @@ export function computeAdjustmentMap(
 export function computeAdjustedTarget(
   date: string,
   baseTarget: number,
-  allBalances: DailyBalanceEntry[]
+  allBalances: DailyBalanceEntry[],
+  tdee: number = 2000
 ): number {
   const today = getEffectiveDate();
 
@@ -312,7 +331,7 @@ export function computeAdjustedTarget(
 
   // Compute from logs strictly before this date
   const pastLogs = allBalances.filter(b => b.date < date && b.actual >= 300);
-  const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee);
   const adjustment = adjMap[date] || 0;
   return Math.round(clamp(baseTarget + adjustment, 1200, baseTarget * 1.15));
 }
@@ -323,7 +342,8 @@ export function computeAdjustedTarget(
 export function computeBreakdownForDate(
   targetDate: string,
   pastLogs: DailyBalanceEntry[],
-  baseTarget: number
+  baseTarget: number,
+  tdee: number = 2000
 ): AdjustmentSource[] {
   const result: AdjustmentSource[] = [];
 
@@ -336,7 +356,7 @@ export function computeBreakdownForDate(
     let contribution = 0;
 
     if (diff > 0) {
-      const spreadDays = diff > 800 ? 5 : 4;
+      const spreadDays = computeSafeSpreadDays(diff, tdee);
       // Exact distribution — matches computeAdjustmentMap exactly
       const absDiff = Math.abs(diff);
       const base = Math.floor(absDiff / spreadDays);
@@ -381,7 +401,8 @@ export function computeDinnerSummary(
   let message = '';
 
   if (diff > 0) {
-    const spreadDays = diff > 800 ? 5 : 4;
+    const tdeeVal = allBalances.length > 0 ? (allBalances[0]?.target || 2000) : 2000;
+    const spreadDays = computeSafeSpreadDays(diff, tdeeVal);
     const perDay = Math.round(diff / spreadDays);
     message = `You ate +${Math.round(diff)} kcal over target today.\n\n→ We'll reduce ~${perDay} kcal/day over the next ${spreadDays} days.`;
   } else {
@@ -416,6 +437,7 @@ export function computeDinnerSummary(
 export function getDailyBalances(baseTarget?: number): DailyBalanceEntry[] {
   const p = getProfile();
   const target = baseTarget || p?.dailyCalories || 1600;
+  const tdee = p?.tdee || target;
   const frozenTargets = loadFrozenTargets();
   const dates = getAllLogDates().sort();
 
@@ -443,7 +465,7 @@ export function getDailyBalances(baseTarget?: number): DailyBalanceEntry[] {
   // 🔒 RECONCILIATION — pure identity check: Σ(diff) + Σ(adj) ≈ 0
   const today = getEffectiveDate();
   const pastOnly = balances.filter(b => b.date < today && b.actual >= 300);
-  const adjMap = computeAdjustmentMap(pastOnly, target);
+  const adjMap = computeAdjustmentMap(pastOnly, target, tdee);
 
   const totalDiff = pastOnly.reduce((sum, d) => {
     const diff = d.actual - target;
@@ -539,6 +561,7 @@ export function getAdjustedDailyTarget(profile: UserProfile | null): number {
   if (!p) return 1600;
 
   const baseTarget = p.dailyCalories || 1600;
+  const tdee = p.tdee || baseTarget;
   const prefs = loadPrefs();
   const today = getEffectiveDate();
   const dayType = prefs.specialDays[today] || 'normal';
@@ -548,7 +571,7 @@ export function getAdjustedDailyTarget(profile: UserProfile | null): number {
   if (!prefs.autoAdjustMeals) return baseTarget;
 
   const allBalances = getDailyBalances(baseTarget);
-  return computeAdjustedTarget(today, baseTarget, allBalances);
+  return computeAdjustedTarget(today, baseTarget, allBalances, tdee);
 }
 
 /**
@@ -580,7 +603,7 @@ export function processEndOfDay(profile: UserProfile | null): void {
 
   // Compute and freeze yesterday's adjusted target
   const allBalances = getDailyBalances(baseTarget);
-  const frozenTarget = computeAdjustedTarget(yesterday, baseTarget, allBalances);
+  const frozenTarget = computeAdjustedTarget(yesterday, baseTarget, allBalances, p.tdee || baseTarget);
   frozen[yesterday] = frozenTarget;
 
   // Clean old entries (keep last 60 days)
@@ -677,10 +700,11 @@ export function getTodayAdjustmentStatus(): {
   const today = getEffectiveDate();
   const p = getProfile();
   const baseTarget = p?.dailyCalories || 1600;
+  const tdee = p?.tdee || baseTarget;
 
   const allBalances = getDailyBalances(baseTarget);
   const pastLogs = allBalances.filter(b => b.date < today && b.actual >= 300);
-  const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee);
   const todayAdj = adjMap[today] || 0;
 
   if (Math.abs(todayAdj) < 10) {
@@ -719,9 +743,10 @@ export function getAdjustmentExplanation(date?: string): string | null {
   const d = date || getEffectiveDate();
   const p = getProfile();
   const baseTarget = p?.dailyCalories || 1600;
+  const tdee = p?.tdee || baseTarget;
   const allBalances = getDailyBalances(baseTarget);
   const pastLogs = allBalances.filter(b => b.date < d && b.actual >= 300);
-  const breakdown = computeBreakdownForDate(d, pastLogs, baseTarget);
+  const breakdown = computeBreakdownForDate(d, pastLogs, baseTarget, tdee);
 
   if (breakdown.length === 0) return null;
 
@@ -748,9 +773,10 @@ export function getAdjustmentDetails(): {
   const today = getEffectiveDate();
   const p = getProfile();
   const baseTarget = p?.dailyCalories || 1600;
+  const tdee = p?.tdee || baseTarget;
   const allBalances = getDailyBalances(baseTarget);
   const pastLogs = allBalances.filter(b => b.date < today && b.actual >= 300);
-  const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee);
 
   // Source days
   const sourceMap = new Map<string, number>();
@@ -772,7 +798,7 @@ export function getAdjustmentDetails(): {
   const futureAdjustments = futureDates.map(([date, adjustment]) => ({
     date,
     adjustment,
-    sources: computeBreakdownForDate(date, pastLogs, baseTarget),
+    sources: computeBreakdownForDate(date, pastLogs, baseTarget, tdee),
   }));
 
   return { recentSurplusDays, futureAdjustments };
@@ -785,10 +811,11 @@ export function getAdjustmentDetails(): {
  */
 export function validateAdjustmentIntegrity(
   pastLogs: DailyBalanceEntry[],
-  baseTarget: number
+  baseTarget: number,
+  tdee: number = 2000
 ): { valid: boolean; warnings: string[] } {
   const warnings: string[] = [];
-  const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee);
 
   // Check 1: No single day exceeds ±300
   for (const [date, val] of Object.entries(adjMap)) {

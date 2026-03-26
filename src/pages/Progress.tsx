@@ -33,7 +33,7 @@ import { useUserProfile } from '@/contexts/UserProfileContext';
 import { getPlan, isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
-import { getDailyBalances, getTodayAdjustmentStatus, getMonthlyStats, getWeekendPattern, computeAdjustmentMap, type DailyBalanceEntry } from '@/lib/calorie-correction';
+import { getDailyBalances, getTodayAdjustmentStatus, getMonthlyStats, getWeekendPattern, computeAdjustmentMap, computeSafeSpreadDays, type DailyBalanceEntry } from '@/lib/calorie-correction';
 
 
 type AdherenceStatus = 'green' | 'yellow' | 'red' | 'gray';
@@ -137,11 +137,12 @@ export default function ProgressPage() {
   const allBalances = useMemo(() => getDailyBalances(), [refreshKey]);
   const baseTarget = profile?.dailyCalories || 2000;
 
+  const tdee = profile?.tdee || baseTarget;
   // Compute adjustment map deterministically from past balances (exclude today)
   const adjMap = useMemo(() => {
     const pastLogs = allBalances.filter((b: DailyBalanceEntry) => b.date < todayStr && b.actual >= 300);
-    return computeAdjustmentMap(pastLogs, baseTarget);
-  }, [allBalances, baseTarget, todayStr]);
+    return computeAdjustmentMap(pastLogs, baseTarget, tdee);
+  }, [allBalances, baseTarget, todayStr, tdee]);
 
   const calendarDays = useMemo(() => {
     const days: { day: number; dateStr: string; status: AdherenceStatus; isToday: boolean; isFuture: boolean; locked: boolean; adjustment: number }[] = [];
@@ -430,8 +431,9 @@ function CalorieBalanceCard() {
   // Compute adjMap for future adjustments display
   const profile = getProfile();
   const baseTarget = profile?.dailyCalories || 1600;
+  const tdee = profile?.tdee || baseTarget;
   const pastLogs = balances.filter(b => b.date < todayStr && b.actual >= 300);
-  const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee);
 
   if (balances.length === 0) return null;
 

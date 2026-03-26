@@ -488,15 +488,16 @@ function EmptyState({ text }: { text: string }) {
 function FutureDayPlanSection({ date, profile }: { date: string; profile: any }) {
   const allBalances = getDailyBalances();
   const baseTarget = profile?.dailyCalories || 1600;
+  const tdee = profile?.tdee || baseTarget;
   
   const { plan, breakdown } = useMemo(() => {
     const pastLogs = allBalances.filter((b: DailyBalanceEntry) => b.date < date && b.actual >= 300);
-    const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
+    const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee);
     return {
       plan: getFutureDayPlan(date, profile, adjMap),
       breakdown: getAdjustmentBreakdownForDate(date, pastLogs, baseTarget),
     };
-  }, [date, baseTarget, allBalances]);
+  }, [date, baseTarget, tdee, allBalances]);
   
   const explanation = getExplanationMessage(breakdown);
   const hasAdjustment = plan.adjustment !== 0;
