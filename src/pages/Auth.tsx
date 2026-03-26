@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Phone, ArrowLeft, Eye, EyeOff, Loader2, FlaskConical } from 'lucide-react';
+import { Mail, Phone, ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import heroImg from '@/assets/hero-nutrition.jpg';
-import { seedDemoData } from '@/lib/seed-demo-data';
+
 
 type AuthMode = 'welcome' | 'login' | 'signup' | 'phone-otp';
 
@@ -103,11 +103,6 @@ export default function Auth() {
     if (error) toast.error(error.message);
   };
 
-  const handleDemo = () => {
-    seedDemoData();
-    toast.success('Demo data loaded! Explore the app.');
-    navigate('/dashboard');
-  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -149,10 +144,6 @@ export default function Auth() {
                 </button>
               </div>
 
-              <button onClick={handleDemo} className="w-full py-3 rounded-xl bg-muted border border-border flex items-center justify-center gap-2 text-sm font-medium text-muted-foreground hover:bg-accent/50 transition-colors">
-                <FlaskConical className="w-4 h-4" />
-                Try Demo (14 days of sample data)
-              </button>
             </div>
           </motion.div>
         )}
