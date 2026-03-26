@@ -33,7 +33,7 @@ import { useUserProfile } from '@/contexts/UserProfileContext';
 import { getPlan, isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
-import { getDailyBalances, getCalorieBankSummary, getAdjustmentPlan, getMonthlyStats, getWeekendPattern, getCalorieBankState, type DailyBalanceEntry } from '@/lib/calorie-correction';
+import { getDailyBalances, getCalorieBankSummary, getAdjustmentPlan, getMonthlyStats, getWeekendPattern, getCalorieBankState, computeAdjustmentMap, type DailyBalanceEntry } from '@/lib/calorie-correction';
 
 type AdherenceStatus = 'green' | 'yellow' | 'red' | 'gray';
 
@@ -134,6 +134,13 @@ export default function ProgressPage() {
   }, []);
 
   const bankState = useMemo(() => getCalorieBankState(), [refreshKey]);
+  const baseTarget = profile?.dailyCalories || 2000;
+
+  // Compute adjustment map deterministically from past balances
+  const adjMap = useMemo(() => {
+    const pastLogs = bankState.dailyBalances.filter((b: DailyBalanceEntry) => b.actual > 0);
+    return computeAdjustmentMap(pastLogs, baseTarget);
+  }, [bankState, baseTarget]);
 
   const calendarDays = useMemo(() => {
     const days: { day: number; dateStr: string; status: AdherenceStatus; isToday: boolean; isFuture: boolean; locked: boolean; adjustment: number }[] = [];
@@ -143,12 +150,11 @@ export default function ProgressPage() {
       const isToday = dateStr === todayStr;
       const locked = !premium && dateStr < threeDaysAgo;
       const status: AdherenceStatus = isFuture || locked ? 'gray' : getAdherence(dateStr, goal, waterGoal, logDatesSet);
-      const planEntry = isFuture ? bankState.adjustmentPlan.find(e => e.date === dateStr) : undefined;
-      const adjustment = planEntry?.adjust || 0;
+      const adjustment = isFuture ? (adjMap[dateStr] || 0) : 0;
       days.push({ day: d, dateStr, status, isToday, isFuture, locked, adjustment });
     }
     return days;
-  }, [monthOffset, refreshKey, logDatesSet, goal, waterGoal, premium, threeDaysAgo, bankState]);
+  }, [monthOffset, refreshKey, logDatesSet, goal, waterGoal, premium, threeDaysAgo, adjMap]);
 
   const weeklyData = useMemo(() => {
     return logs.slice(0, 7).reverse().map(l => {

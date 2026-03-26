@@ -16,7 +16,7 @@ import { CATEGORY_CONFIG } from '@/lib/budget-service';
 import { ACTIVITY_TYPES } from '@/lib/activities';
 import { getSourceEmoji, getSourceLabel } from '@/lib/context-learning';
 import { generateDayInsight } from '@/lib/day-insights';
-import { getCalorieBankState } from '@/lib/calorie-correction';
+import { getCalorieBankState, computeAdjustmentMap, type DailyBalanceEntry } from '@/lib/calorie-correction';
 import { getFutureDayPlan, getAdjustmentBreakdownForDate, getExplanationMessage } from '@/lib/calendar-helpers';
 import ActivityLogSheet from '@/components/ActivityLogSheet';
 import SupplementLogSheet from '@/components/SupplementLogSheet';
@@ -487,8 +487,11 @@ function EmptyState({ text }: { text: string }) {
 
 function FutureDayPlanSection({ date, profile }: { date: string; profile: any }) {
   const state = getCalorieBankState();
-  const plan = getFutureDayPlan(date, profile, state);
-  const breakdown = getAdjustmentBreakdownForDate(date, state);
+  const baseTarget = profile?.dailyCalories || 1600;
+  const pastLogs = state.dailyBalances.filter((b: DailyBalanceEntry) => b.date < date && b.actual > 0);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
+  const plan = getFutureDayPlan(date, profile, adjMap);
+  const breakdown = getAdjustmentBreakdownForDate(date, pastLogs, baseTarget);
   const explanation = getExplanationMessage(breakdown);
   const hasAdjustment = plan.adjustment !== 0;
 
