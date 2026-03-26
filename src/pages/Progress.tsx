@@ -244,7 +244,7 @@ export default function ProgressPage() {
               >
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-semibold border transition-colors group-active:scale-90 relative
                   ${d.isToday ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''}
-                  ${cellColors[d.status]}`}>
+                  ${balanceCellColors[d.balance]}`}>
                   {d.day}
                   {premium && datesWithPhotos.has(d.dateStr) && (
                     <Camera className="w-2 h-2 text-primary absolute -top-0.5 -right-0.5" />
@@ -253,19 +253,25 @@ export default function ProgressPage() {
                     <IndianRupee className="w-2 h-2 text-accent absolute -top-0.5 -right-0.5" />
                   )}
                 </div>
-                {d.status !== 'gray' && (
-                  <div className={`w-1.5 h-1.5 rounded-full mt-0.5 ${dotColors[d.status]}`} />
+                {d.balance !== 'no-data' && d.balance !== 'future-reduced' && d.balance !== 'future-recovery' && (
+                  <div className={`w-1.5 h-1.5 rounded-full mt-0.5 ${balanceDotColors[d.balance]}`} />
                 )}
-                {d.isFuture && d.adjustment !== 0 && (
-                  <span className="text-[8px] leading-none mt-0.5">{d.adjustment < 0 ? '🔻' : '🔺'}</span>
+                {(d.balance === 'future-reduced' || d.balance === 'future-recovery') && (
+                  <span className="text-[8px] leading-none mt-0.5">{d.balance === 'future-reduced' ? '🔻' : '🔺'}</span>
+                )}
+                {/* Show small kcal diff label for past surplus/deficit */}
+                {(d.balance === 'surplus' || d.balance === 'deficit') && d.diff !== 0 && (
+                  <span className={`text-[7px] leading-none mt-0.5 font-bold ${d.balance === 'surplus' ? 'text-destructive' : 'text-accent'}`}>
+                    {d.diff > 0 ? '+' : ''}{d.diff}
+                  </span>
                 )}
               </button>
             ))}
           </div>
           <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border text-[10px] text-muted-foreground flex-wrap">
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary" /> On Track</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-accent" /> Partial</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-destructive" /> Off Track</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary" /> Balanced</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-destructive" /> Surplus</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-accent" /> Deficit</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-muted border border-border" /> No Data</span>
             <span className="flex items-center gap-1">🔻 Reduced</span>
             <span className="flex items-center gap-1">🔺 Recovery</span>
