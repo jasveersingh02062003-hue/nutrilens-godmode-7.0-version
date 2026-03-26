@@ -1,85 +1,47 @@
 
+Goal
 
-# Plan: Clean Rebuild of Calorie Correction Engine
+- Remove the last hidden correction cache and make every calorie summary, weekly total, and adjustment preview come straight from raw logs.
 
-## Problem Summary
-Despite prior refactoring, the engine still has critical bugs:
-- `updateCalorieBank` computes `diff` against `originalTarget` instead of `effectiveTarget`, producing wrong daily balances
-- Cumulative `calorieBank` number is still maintained and displayed ("Remaining: 2388 kcal")
-- No per-day adjustment cap (-400 max), allowing -918 kcal spikes
-- Today's data included in own adjustment computation (Progress.tsx line 141)
-- `getCalorieBankSummary` exposes cumulative bank state to UI
+What I found
 
-## Changes
+- `src/lib/calorie-correction.ts` still persists `dailyBalances` / `lastProcessedDate` in `nutrilens_calorie_bank`, so the engine is not fully stateless yet.
+- `src/pages/Progress.tsx` mixes `b.diff` (base-target math) with `b.adjustedTarget` (planned-target math) in the same weekly card, which explains contradictory totals like inflated weekly net vs smaller real meal surplus.
+- `src/components/AdjustmentExplanationModal.tsx` still shows cumulative “X kcal across Y days” copy, which is exactly the fake aggregate the audit wants removed.
+- `src/lib/hard-boundary.ts`, `src/lib/weekly-weight-checkin.ts`, `src/lib/seed-demo-data.ts`, and `src/components/QuickLogSheet.tsx` still depend on the old cached balance layer or deprecated aliases.
 
-### 1. `src/lib/calorie-correction.ts` — Core fixes
+Plan
 
-**`computeAdjustmentMap`** — Add per-day clamp:
-```typescript
-// After computing all adjustments, clamp each day
-for (const [date, val] of Object.entries(adjMap)) {
-  if (val < -400) adjMap[date] = -400;  // Safety cap
-}
-```
+1. Rebuild `src/lib/calorie-correction.ts`
+- Delete the persisted correction cache (`dailyBalances`) and deprecated compatibility helpers.
+- Keep only non-correction preferences in storage (day type, auto-adjust, cutoff).
+- Derive all balance rows from raw logs on demand using `getDailyTotals`.
+- Make `processEndOfDay` the only correction write: freeze `adjustedTarget` onto that closed day’s log.
+- Add shared pure helpers for:
+  - raw day balance derivation
+  - weekly/monthly totals from raw logs
+  - `computeAdjustmentMap`, `computeAdjustedTarget`, source breakdown
+  - validation + debug trace logging (`{ date, actual, baseTarget, diff }`)
 
-**`updateCalorieBank`** — Fix diff to use effectiveTarget:
-```typescript
-// Line 445: change from
-const diff = totals.eaten - originalTarget;
-// to
-const adjustedTarget = computeAdjustedTarget(today, originalTarget, state.dailyBalances);
-const diff = totals.eaten - adjustedTarget;
-```
-Also store `adjustedTarget` on the balance entry.
+2. Separate math responsibilities cleanly
+- Source/correction math always uses `actual - baseTarget`.
+- Today/future planning uses computed `adjustedTarget`.
+- Weekly/monthly summaries use raw actuals + base targets only, so the totals match the audit math.
+- Past-day explanation views can still show frozen planned targets, but they won’t be reused as source diffs.
 
-**`processEndOfDay`** — Same fix for diff:
-```typescript
-const diff = totals.eaten - frozenAdjustedTarget; // not originalTarget
-```
+3. Update UI consumers
+- `src/pages/Progress.tsx`: rebuild the weekly card, monthly stats, future markers, and weekend pattern from raw-log helpers instead of cached balances.
+- `src/components/AdjustmentExplanationModal.tsx`: remove cumulative adjustment totals and show only live per-day adjustments with source breakdown.
+- `src/components/DayDetailsSheet.tsx` and `src/lib/calendar-helpers.ts`: use the new helpers so future previews and past explanations stay consistent.
+- `src/pages/Dashboard.tsx`: keep rollover behavior, but stop depending on cached correction-state semantics.
 
-**`getCalorieBankSummary`** — Replace cumulative bank display with computed status:
-- Instead of showing `state.calorieBank` (cumulative, fake), compute today's adjustment from `computeAdjustmentMap` and show status as "Surplus", "Deficit", or "On Track" based on today's diff only.
+4. Remove legacy write paths
+- `src/pages/LogFood.tsx`, `src/components/MealDetailSheet.tsx`, `src/components/QuickLogSheet.tsx`: after saving food, only save the log and refresh UI; no correction-cache mutation.
+- `src/lib/seed-demo-data.ts`: stop writing `BANK_KEY`; seed raw logs and freeze historical `adjustedTarget` directly into those logs.
+- `src/lib/hard-boundary.ts` and `src/lib/weekly-weight-checkin.ts`: move to the same raw-log weekly helpers so alerts/check-ins use identical math as the Progress page.
 
-**Remove `getAdjustmentPlan`** — It returns "pending" data that feeds confusing UI. Replace callers with direct `computeAdjustmentMap` usage.
+Technical notes
 
-**Add validation function**:
-```typescript
-export function validateAdjustmentIntegrity(pastLogs, baseTarget): { valid: boolean; warnings: string[] }
-```
-Checks: total future adjustments roughly equals total past surplus minus recovery; no single day exceeds -400; no duplicate sources.
-
-### 2. `src/pages/Progress.tsx` — Exclude today from adjMap
-
-Line 141: Change filter from `b.actual > 0` to `b.date < todayStr && b.actual >= 300`:
-```typescript
-const adjMap = useMemo(() => {
-  const todayStr = new Date().toISOString().split('T')[0];
-  const pastLogs = bankState.dailyBalances.filter(
-    (b: DailyBalanceEntry) => b.date < todayStr && b.actual >= 300
-  );
-  return computeAdjustmentMap(pastLogs, baseTarget);
-}, [bankState, baseTarget]);
-```
-
-### 3. `src/pages/Dashboard.tsx` — Remove "Remaining" / "Pending" UI
-
-The `getCalorieBankSummary` return already feeds into UI. With the fix in step 1, it will show status-based labels ("Surplus", "Deficit", "On Track") instead of cumulative numbers.
-
-### 4. `src/components/DayDetailsSheet.tsx` — Status labels
-
-In `FutureDayPlanSection`, change the adjustment badge text to use "Surplus" / "Deficit" terminology instead of raw adjustment numbers when the adjustment is from a specific source.
-
-### 5. `src/components/AdjustmentExplanationModal.tsx` — Remove cumulative display
-
-Check if this modal shows cumulative bank numbers and replace with per-day computed breakdown.
-
-## Files Modified
-
-| File | Change |
-|------|--------|
-| `src/lib/calorie-correction.ts` | Fix diff calculations to use effectiveTarget; add -400 clamp per day in adjMap; fix `getCalorieBankSummary`; add validation function; remove `getAdjustmentPlan` |
-| `src/pages/Progress.tsx` | Exclude today from adjMap computation; filter `actual >= 300` |
-| `src/pages/Dashboard.tsx` | Remove any "Remaining" / cumulative correction display |
-| `src/components/DayDetailsSheet.tsx` | Use status labels (Surplus/Deficit/On Track) |
-| `src/components/AdjustmentExplanationModal.tsx` | Remove cumulative bank display if present |
-
+- The biggest current bug source is not the spread formula anymore; it’s the app still combining two different target systems in one UI.
+- The UI callback registry can remain as a refresh trigger, but it must not carry any correction data.
+- If historical calorie goals need to stay exact after future goal changes, the safe extension is to snapshot that day’s base target on the closed log; otherwise this rebuild can consistently use the active goal across the current dataset.
