@@ -501,6 +501,69 @@ function EmptyState({ text }: { text: string }) {
   return <p className="text-[10px] text-muted-foreground text-center py-2">{text}</p>;
 }
 
+function DayBalanceSummary({ date, eaten, profile }: { date: string; eaten: number; profile: any }) {
+  const baseTarget = profile?.dailyCalories || 1600;
+  const tdee = profile?.tdee || baseTarget;
+  const allBalances = useMemo(() => getDailyBalances(baseTarget), [baseTarget, date]);
+  
+  const adjustedTarget = useMemo(() => {
+    return computeAdjustedTarget(date, baseTarget, allBalances, tdee, getCorrectionMode());
+  }, [date, baseTarget, allBalances, tdee]);
+
+  const diff = eaten - adjustedTarget;
+  const isAdjusted = Math.abs(adjustedTarget - baseTarget) > 10;
+  
+  let statusLabel: string;
+  let statusColor: string;
+  let StatusIcon: typeof TrendingUp;
+  
+  if (Math.abs(diff) <= adjustedTarget * 0.1) {
+    statusLabel = 'On Track ✅';
+    statusColor = 'text-primary';
+    StatusIcon = CheckCircle2;
+  } else if (diff > 0) {
+    statusLabel = `+${Math.round(diff)} kcal surplus`;
+    statusColor = 'text-destructive';
+    StatusIcon = TrendingUp;
+  } else {
+    statusLabel = `${Math.round(diff)} kcal deficit`;
+    statusColor = 'text-accent';
+    StatusIcon = TrendingDown;
+  }
+
+  return (
+    <div className={`p-3.5 rounded-xl border ${
+      diff > adjustedTarget * 0.1 ? 'bg-destructive/5 border-destructive/15' :
+      diff < -(adjustedTarget * 0.1) ? 'bg-accent/5 border-accent/15' :
+      'bg-primary/5 border-primary/15'
+    }`}>
+      <div className="flex items-center gap-2 mb-2">
+        <StatusIcon className={`w-4 h-4 ${statusColor}`} />
+        <p className={`text-xs font-bold ${statusColor}`}>{statusLabel}</p>
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div>
+          <p className="text-sm font-bold text-foreground">{eaten}</p>
+          <p className="text-[9px] text-muted-foreground">Eaten</p>
+        </div>
+        <div>
+          <p className="text-sm font-bold text-foreground">{adjustedTarget}</p>
+          <p className="text-[9px] text-muted-foreground">{isAdjusted ? 'Adj. Target' : 'Target'}</p>
+        </div>
+        <div>
+          <p className={`text-sm font-bold ${statusColor}`}>{diff > 0 ? '+' : ''}{Math.round(diff)}</p>
+          <p className="text-[9px] text-muted-foreground">Diff</p>
+        </div>
+      </div>
+      {isAdjusted && (
+        <p className="text-[10px] text-muted-foreground mt-2 text-center">
+          Original target: {baseTarget} kcal · Adjusted: {adjustedTarget} kcal
+        </p>
+      )}
+    </div>
+  );
+}
+
 function FutureDayPlanSection({ date, profile }: { date: string; profile: any }) {
   const allBalances = getDailyBalances();
   const baseTarget = profile?.dailyCalories || 1600;
