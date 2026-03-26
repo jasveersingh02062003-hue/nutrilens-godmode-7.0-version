@@ -493,7 +493,7 @@ export function getDailyBalances(baseTarget?: number): DailyBalanceEntry[] {
   // 🔒 RECONCILIATION — pure identity check: Σ(diff) + Σ(adj) ≈ 0
   const today = getEffectiveDate();
   const pastOnly = balances.filter(b => b.date < today && b.actual >= 300);
-  const adjMap = computeAdjustmentMap(pastOnly, target, tdee);
+  const adjMap = computeAdjustmentMap(pastOnly, target, tdee, getCorrectionMode());
 
   const totalDiff = pastOnly.reduce((sum, d) => {
     const diff = d.actual - target;
@@ -632,7 +632,7 @@ export function processEndOfDay(profile: UserProfile | null): void {
 
   // Compute and freeze yesterday's adjusted target
   const allBalances = getDailyBalances(baseTarget);
-  const frozenTarget = computeAdjustedTarget(yesterday, baseTarget, allBalances, p.tdee || baseTarget);
+  const frozenTarget = computeAdjustedTarget(yesterday, baseTarget, allBalances, p.tdee || baseTarget, getCorrectionMode());
   frozen[yesterday] = frozenTarget;
 
   // Clean old entries (keep last 60 days)
