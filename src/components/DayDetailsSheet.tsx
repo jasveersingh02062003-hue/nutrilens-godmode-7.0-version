@@ -16,7 +16,7 @@ import { CATEGORY_CONFIG } from '@/lib/budget-service';
 import { ACTIVITY_TYPES } from '@/lib/activities';
 import { getSourceEmoji, getSourceLabel } from '@/lib/context-learning';
 import { generateDayInsight } from '@/lib/day-insights';
-import { getDailyBalances, computeAdjustmentMap, type DailyBalanceEntry } from '@/lib/calorie-correction';
+import { getDailyBalances, computeAdjustmentMap, getCorrectionMode, type DailyBalanceEntry } from '@/lib/calorie-correction';
 import { getFutureDayPlan, getAdjustmentBreakdownForDate, getExplanationMessage } from '@/lib/calendar-helpers';
 import ActivityLogSheet from '@/components/ActivityLogSheet';
 import SupplementLogSheet from '@/components/SupplementLogSheet';
@@ -492,7 +492,7 @@ function FutureDayPlanSection({ date, profile }: { date: string; profile: any })
   
   const { plan, breakdown } = useMemo(() => {
     const pastLogs = allBalances.filter((b: DailyBalanceEntry) => b.date < date && b.actual >= 300);
-    const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee);
+    const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee, getCorrectionMode());
     return {
       plan: getFutureDayPlan(date, profile, adjMap),
       breakdown: getAdjustmentBreakdownForDate(date, pastLogs, baseTarget),
