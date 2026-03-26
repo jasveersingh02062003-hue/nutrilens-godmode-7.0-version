@@ -462,7 +462,7 @@ function CalorieBalanceCard() {
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
               summary.status === 'surplus' ? 'bg-accent/10 text-accent' : 'bg-primary/10 text-primary'
             }`}>
-              {summary.status === 'surplus' ? 'Surplus' : 'Deficit'}: {Math.abs(summary.bank)} kcal
+              {summary.status === 'surplus' ? 'Surplus' : 'Deficit'}: {Math.abs(summary.adjustment)} kcal
             </span>
           )}
         </div>
