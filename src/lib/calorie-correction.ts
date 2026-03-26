@@ -261,7 +261,7 @@ export function computeAdjustmentMap(
     if (Math.abs(diff) < 50) continue;
 
     if (diff > 0) {
-      const spreadDays = computeSafeSpreadDays(diff, tdee);
+      const spreadDays = computeSafeSpreadDays(diff, tdee, mode);
       // Sign-safe exact distribution — no rounding drift
       const absDiff = Math.abs(diff);
       const base = Math.floor(absDiff / spreadDays);
@@ -289,10 +289,12 @@ export function computeAdjustmentMap(
   let leftover = 0;
   const dates = Object.keys(adjMap).sort();
 
+  const maxAdj = computeMaxDailyAdjustment(tdee, mode);
+
   // Pass 1: clamp and track leftover
   for (const date of dates) {
     const raw = adjMap[date];
-    const clamped = Math.max(-MAX_ADJUSTMENT_PER_DAY, Math.min(MAX_ADJUSTMENT_PER_DAY, raw));
+    const clamped = Math.max(-maxAdj, Math.min(maxAdj, raw));
     leftover += raw - clamped;
     adjMap[date] = clamped;
   }
@@ -304,7 +306,7 @@ export function computeAdjustmentMap(
     for (const date of dates) {
       if (absLeftover < 1) break;
       const current = adjMap[date];
-      const capacity = MAX_ADJUSTMENT_PER_DAY - Math.abs(current);
+      const capacity = maxAdj - Math.abs(current);
       if (capacity <= 0) continue;
       // Only redistribute in the same direction as leftover
       if (sign < 0 && current > 0) continue;
@@ -501,8 +503,9 @@ export function getDailyBalances(baseTarget?: number): DailyBalanceEntry[] {
   }
 
   // Verify per-day clamp integrity
+  const maxAdj = computeMaxDailyAdjustment(tdee, getCorrectionMode());
   for (const [date, val] of Object.entries(adjMap)) {
-    if (Math.abs(val) > MAX_ADJUSTMENT_PER_DAY) {
+    if (Math.abs(val) > maxAdj) {
       console.error('[CalorieEngine] CLAMP VIOLATION:', { date, val });
     }
   }
@@ -836,15 +839,17 @@ export function getAdjustmentDetails(): {
 export function validateAdjustmentIntegrity(
   pastLogs: DailyBalanceEntry[],
   baseTarget: number,
-  tdee: number = 2000
+  tdee: number = 2000,
+  mode: CorrectionMode = 'balanced'
 ): { valid: boolean; warnings: string[] } {
   const warnings: string[] = [];
-  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee, mode);
+  const maxAdj = computeMaxDailyAdjustment(tdee, mode);
 
-  // Check 1: No single day exceeds ±300
+  // Check 1: No single day exceeds mode cap
   for (const [date, val] of Object.entries(adjMap)) {
-    if (Math.abs(val) > MAX_ADJUSTMENT_PER_DAY) {
-      warnings.push(`Day ${date} has adjustment ${val} exceeding ±${MAX_ADJUSTMENT_PER_DAY} limit`);
+    if (Math.abs(val) > maxAdj) {
+      warnings.push(`Day ${date} has adjustment ${val} exceeding ±${maxAdj} limit`);
     }
   }
 
