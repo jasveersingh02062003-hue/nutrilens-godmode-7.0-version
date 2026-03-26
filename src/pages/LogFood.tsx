@@ -636,6 +636,11 @@ export default function LogFood() {
         onEdit={() => { setShowPES(false); }}
       />
       <AdjustmentExplanationModal open={adjModalOpen} onClose={() => setAdjModalOpen(false)} />
+      <LastMealConfirmSheet
+        open={lastMealSheetOpen}
+        onClose={() => { setLastMealSheetOpen(false); navigate(targetDate ? '/progress' : '/dashboard'); }}
+        todayKey={targetDate || new Date().toISOString().split('T')[0]}
+      />
     </div>
   );
 }

@@ -127,6 +127,19 @@ export default function ProgressPage() {
     }
   }, [stats]);
 
+  // Real-time sync: listen for meal log updates
+  useEffect(() => {
+    const handleUpdate = () => refresh();
+    window.addEventListener('nutrilens:update', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    const interval = setInterval(refresh, 2000);
+    return () => {
+      window.removeEventListener('nutrilens:update', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+      clearInterval(interval);
+    };
+  }, [refresh]);
+
   // For free users, only show last 3 days
   const threeDaysAgo = useMemo(() => {
     const d = new Date();
