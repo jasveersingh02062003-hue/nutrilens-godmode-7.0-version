@@ -437,6 +437,7 @@ export function computeDinnerSummary(
 export function getDailyBalances(baseTarget?: number): DailyBalanceEntry[] {
   const p = getProfile();
   const target = baseTarget || p?.dailyCalories || 1600;
+  const tdee = p?.tdee || target;
   const frozenTargets = loadFrozenTargets();
   const dates = getAllLogDates().sort();
 
@@ -464,7 +465,7 @@ export function getDailyBalances(baseTarget?: number): DailyBalanceEntry[] {
   // 🔒 RECONCILIATION — pure identity check: Σ(diff) + Σ(adj) ≈ 0
   const today = getEffectiveDate();
   const pastOnly = balances.filter(b => b.date < today && b.actual >= 300);
-  const adjMap = computeAdjustmentMap(pastOnly, target);
+  const adjMap = computeAdjustmentMap(pastOnly, target, tdee);
 
   const totalDiff = pastOnly.reduce((sum, d) => {
     const diff = d.actual - target;
@@ -560,6 +561,7 @@ export function getAdjustedDailyTarget(profile: UserProfile | null): number {
   if (!p) return 1600;
 
   const baseTarget = p.dailyCalories || 1600;
+  const tdee = p.tdee || baseTarget;
   const prefs = loadPrefs();
   const today = getEffectiveDate();
   const dayType = prefs.specialDays[today] || 'normal';
@@ -569,7 +571,7 @@ export function getAdjustedDailyTarget(profile: UserProfile | null): number {
   if (!prefs.autoAdjustMeals) return baseTarget;
 
   const allBalances = getDailyBalances(baseTarget);
-  return computeAdjustedTarget(today, baseTarget, allBalances);
+  return computeAdjustedTarget(today, baseTarget, allBalances, tdee);
 }
 
 /**
@@ -601,7 +603,7 @@ export function processEndOfDay(profile: UserProfile | null): void {
 
   // Compute and freeze yesterday's adjusted target
   const allBalances = getDailyBalances(baseTarget);
-  const frozenTarget = computeAdjustedTarget(yesterday, baseTarget, allBalances);
+  const frozenTarget = computeAdjustedTarget(yesterday, baseTarget, allBalances, p.tdee || baseTarget);
   frozen[yesterday] = frozenTarget;
 
   // Clean old entries (keep last 60 days)
