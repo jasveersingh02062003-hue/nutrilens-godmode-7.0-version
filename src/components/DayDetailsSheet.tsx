@@ -16,7 +16,7 @@ import { CATEGORY_CONFIG } from '@/lib/budget-service';
 import { ACTIVITY_TYPES } from '@/lib/activities';
 import { getSourceEmoji, getSourceLabel } from '@/lib/context-learning';
 import { generateDayInsight } from '@/lib/day-insights';
-import { getCalorieBankState, computeAdjustmentMap, type DailyBalanceEntry } from '@/lib/calorie-correction';
+import { getDailyBalances, computeAdjustmentMap, type DailyBalanceEntry } from '@/lib/calorie-correction';
 import { getFutureDayPlan, getAdjustmentBreakdownForDate, getExplanationMessage } from '@/lib/calendar-helpers';
 import ActivityLogSheet from '@/components/ActivityLogSheet';
 import SupplementLogSheet from '@/components/SupplementLogSheet';
@@ -486,17 +486,17 @@ function EmptyState({ text }: { text: string }) {
 }
 
 function FutureDayPlanSection({ date, profile }: { date: string; profile: any }) {
-  const state = getCalorieBankState();
+  const allBalances = getDailyBalances();
   const baseTarget = profile?.dailyCalories || 1600;
   
   const { plan, breakdown } = useMemo(() => {
-    const pastLogs = state.dailyBalances.filter((b: DailyBalanceEntry) => b.date < date && b.actual >= 300);
+    const pastLogs = allBalances.filter((b: DailyBalanceEntry) => b.date < date && b.actual >= 300);
     const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
     return {
       plan: getFutureDayPlan(date, profile, adjMap),
       breakdown: getAdjustmentBreakdownForDate(date, pastLogs, baseTarget),
     };
-  }, [date, baseTarget, state.dailyBalances]);
+  }, [date, baseTarget, allBalances]);
   
   const explanation = getExplanationMessage(breakdown);
   const hasAdjustment = plan.adjustment !== 0;
