@@ -1,103 +1,111 @@
 
 
-# Plan: Extended-Horizon Calorie Correction Engine
+# Plan: Adaptive Calorie Correction Engine with User-Controlled Intensity
 
 ## Summary
 
-Upgrade the correction engine from a fixed 4-5 day spread to a dynamic 7-14 day spread based on TDEE, fix weekly summary date ranges, and ensure all future adjustment days show indicators on the calendar.
+Wire the correction mode setting (Aggressive/Balanced/Relaxed) into the engine so it actually controls the spread algorithm, persist it in localStorage, and update all callers.
+
+## Current State
+
+- `correctionMode` in `Profile.tsx` is **local React state only** — resets to `'balanced'` on every mount, never saved, never read by the engine
+- Engine uses `computeSafeSpreadDays(surplus, tdee)` with a fixed formula: `min(300, tdee * 0.1)` — ignores any mode
+- The mode names in Profile are `['balanced', 'aggressive', 'flexible']` but the prompt uses `['aggressive', 'balanced', 'relaxed']`
 
 ## Changes
 
-### 1. `src/lib/calorie-correction.ts` — Dynamic Spread Algorithm
+### 1. `src/lib/calorie-correction.ts` — Mode-Aware Engine
 
-**Replace** the fixed `spreadDays = diff > 800 ? 5 : 4` logic in `computeAdjustmentMap` (line 229) with:
+Add a `CorrectionMode` type and persistence:
 
-```
-function computeSafeSpreadDays(surplus: number, tdee: number): number {
-  const maxDailyReduction = Math.min(300, Math.round(tdee * 0.1));
-  let days = Math.ceil(surplus / maxDailyReduction);
-  return Math.max(4, Math.min(days, 14)); // floor 4, cap 14
+```typescript
+export type CorrectionMode = 'aggressive' | 'balanced' | 'relaxed';
+
+const CORRECTION_MODE_KEY = 'nutrilens_correction_mode';
+
+export function getCorrectionMode(): CorrectionMode {
+  return (localStorage.getItem(CORRECTION_MODE_KEY) as CorrectionMode) || 'balanced';
+}
+
+export function setCorrectionMode(mode: CorrectionMode) {
+  localStorage.setItem(CORRECTION_MODE_KEY, mode);
+  notifyUICallbacks(); // instant UI refresh
 }
 ```
 
-- Add `tdee` parameter to `computeAdjustmentMap` signature (default 2000)
-- Use `computeSafeSpreadDays(Math.abs(diff), tdee)` for surplus spreading
-- Apply same change in `computeBreakdownForDate` and `computeDinnerSummary` for consistency
-- Deficit recovery stays unchanged (single-day, capped at 250)
+Replace `computeSafeSpreadDays` to use mode:
 
-**Update all callers** of `computeAdjustmentMap` to pass TDEE from profile:
-- `getDailyBalances` — reads `profile.tdee`
-- `computeAdjustedTarget` — new `tdee` param
-- `getAdjustmentDetails`, `getTodayAdjustmentStatus`, `getAdjustedDailyTarget`
+```typescript
+function computeMaxDailyAdjustment(tdee: number, mode: CorrectionMode): number {
+  const caps = { aggressive: 0.25, balanced: 0.20, relaxed: 0.10 };
+  const absoluteMax = { aggressive: 500, balanced: 400, relaxed: 300 };
+  return Math.min(Math.round(tdee * caps[mode]), absoluteMax[mode]);
+}
 
-### 2. `src/lib/calorie-correction.ts` — Floor Protection During Spread
-
-In the clamping pass (line 253-287), after computing `adjMap`, add a floor check:
-
-```
-// Floor check: if baseTarget + adjustment < 1200, reduce adjustment
-for (const date of dates) {
-  const tentative = baseTarget + adjMap[date];
-  if (tentative < 1200) {
-    adjMap[date] = 1200 - baseTarget; // weakest possible reduction
-  }
+export function computeSafeSpreadDays(surplus: number, tdee: number, mode: CorrectionMode = 'balanced'): number {
+  const maxDaily = computeMaxDailyAdjustment(tdee, mode);
+  let days = Math.ceil(surplus / Math.max(1, maxDaily));
+  return Math.max(2, Math.min(days, 14));
 }
 ```
 
-This prevents the spread from ever pushing a day below 1200 kcal.
+Update `MAX_ADJUSTMENT_PER_DAY` from a constant to a function call — all references in `computeAdjustmentMap` clamping pass will use `computeMaxDailyAdjustment(tdee, mode)`.
 
-### 3. `src/lib/weekly-feedback.ts` — Fix Weekly Date Range
+Update `computeAdjustmentMap` signature to accept `mode`:
 
-`getLastSundayRange()` (line 44-57) computes Mon→Sun (last completed week). The user wants **last 7 days from today** (rolling window).
-
-**Replace** with:
-```
-function getCurrentWeekRange(): { start: string; end: string } {
-  const now = new Date();
-  const end = now.toISOString().split('T')[0];
-  const startDate = new Date(now);
-  startDate.setDate(now.getDate() - 6);
-  return { start: startDate.toISOString().split('T')[0], end };
-}
+```typescript
+export function computeAdjustmentMap(
+  pastLogs: DailyBalanceEntry[],
+  baseTarget: number,
+  tdee: number = 2000,
+  mode: CorrectionMode = 'balanced'
+): Record<string, number>
 ```
 
-Update `generateWeeklySummary` and `shouldGenerateSummary` to use this rolling window.
+All internal callers (`getDailyBalances`, `computeAdjustedTarget`, `getAdjustmentDetails`, `getTodayAdjustmentStatus`, etc.) will read `getCorrectionMode()` and pass it through.
 
-### 4. `src/pages/Progress.tsx` — Weekly Overview Uses Last 7 Days
+### 2. `src/pages/Profile.tsx` — Persist Mode
 
-The `weeklyData` (line 160-165) already uses `logs.slice(0, 7)` from `getRecentLogs(30)`, which is the last 7 days. This is correct.
+- Replace `correctionModeState` init from `'balanced'` to `getCorrectionMode()`
+- Replace `handleCorrectionModeChange` to call `setCorrectionMode(next)` 
+- Rename `'flexible'` to `'relaxed'` in the cycle order
+- Import `getCorrectionMode`, `setCorrectionMode`, `CorrectionMode` from calorie-correction
 
-The `CalorieBalanceCard` `last7` (line 438) uses `balances.slice(-7)` — also the last 7 logged days. Needs verification that this matches the rolling 7-day window (may skip days with no data). Add a comment noting this behavior.
+### 3. `src/lib/calorie-correction-diagnostic.ts` — Update Tests
 
-### 5. `src/lib/calorie-correction-diagnostic.ts` — Update Tests for Dynamic Spread
+Update test expectations to account for mode-based caps (tests should use `'balanced'` mode explicitly).
 
-Update test expectations to match the new dynamic spread:
-- Test 1 (700 surplus, TDEE ~2000): `maxReduction = min(300, 200) = 200`, spread = `ceil(700/200) = 4` days
-- Test 3 (1800 total surplus): spread across more days now
+### 4. Callers in Other Files
 
-### 6. `src/lib/calendar-helpers.ts` — No Changes Needed
+Update these to pass mode through where they call `computeAdjustmentMap` or `computeBreakdownForDate`:
+- `src/pages/Progress.tsx`
+- `src/components/DayDetailsSheet.tsx`
 
-Already uses `computeAdjustmentMap` which will automatically return the extended horizon. The calendar in `Progress.tsx` already renders `🔻`/`🔺` for all future days with non-zero adjustment (line 228-230).
+They already pass `tdee`; add `getCorrectionMode()` as the 4th arg.
 
-### 7. Real-Time Sync — Already Working
+### 5. Weekly Summary — Already Fixed
 
-`syncDailyBalance()` triggers `notifyUICallbacks()` which re-renders Dashboard. The Dashboard's `handleBankUpdate` callback (line 185-191) re-reads all state. No changes needed — the architecture is already reactive.
+The rolling 7-day window was implemented in the previous change. No further work needed.
+
+### 6. Real-Time Sync — Already Working
+
+`syncDailyBalance()` calls `notifyUICallbacks()`. `setCorrectionMode()` will also call it. Dashboard already subscribes via `onCalorieBankUpdate`. No changes needed.
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
-| `src/lib/calorie-correction.ts` | Add `computeSafeSpreadDays`, update `computeAdjustmentMap`/`computeBreakdownForDate`/`computeDinnerSummary` to use dynamic spread + TDEE param, add 1200 floor protection |
-| `src/lib/weekly-feedback.ts` | Change `getLastSundayRange` to rolling 7-day window |
-| `src/lib/calorie-correction-diagnostic.ts` | Update test expectations for dynamic spread |
-| `src/lib/calendar-helpers.ts` | Pass TDEE to `computeAdjustmentMap` calls |
-| `src/pages/Progress.tsx` | Pass TDEE to `computeAdjustmentMap` call in `CalorieBalanceCard` |
+| `src/lib/calorie-correction.ts` | Add `CorrectionMode` type, persistence, `computeMaxDailyAdjustment`, update spread/clamp logic to be mode-aware |
+| `src/pages/Profile.tsx` | Wire correction mode to engine persistence, rename `flexible` → `relaxed` |
+| `src/lib/calorie-correction-diagnostic.ts` | Pass mode to test calls |
+| `src/pages/Progress.tsx` | Pass `getCorrectionMode()` to engine calls |
+| `src/components/DayDetailsSheet.tsx` | Pass `getCorrectionMode()` to engine calls |
 
 ## What's NOT Changing
 
-- Deficit recovery logic (single-day, 30%, cap 250) — unchanged
-- Protein lock — unchanged  
-- Safety floor 1200 kcal — reinforced
-- UI callback architecture — already working
-- Calendar visualization — already shows all future days
+- Deficit recovery (single-day, 30%, cap 250) — unchanged
+- Protein lock — unchanged
+- 1200 kcal safety floor — unchanged
+- UI callback architecture — already reactive
+- Weekly summary date range — already fixed to rolling 7 days
 
