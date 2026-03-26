@@ -430,7 +430,7 @@ export function computeDinnerSummary(
 
   if (diff > 0) {
     const tdeeVal = allBalances.length > 0 ? (allBalances[0]?.target || 2000) : 2000;
-    const spreadDays = computeSafeSpreadDays(diff, tdeeVal);
+    const spreadDays = computeSafeSpreadDays(diff, tdeeVal, getCorrectionMode());
     const perDay = Math.round(diff / spreadDays);
     message = `You ate +${Math.round(diff)} kcal over target today.\n\n→ We'll reduce ~${perDay} kcal/day over the next ${spreadDays} days.`;
   } else {
@@ -446,7 +446,7 @@ export function computeDinnerSummary(
   const allPast = [...allBalances.filter(b => b.date !== today), todayBalance];
 
   const tomorrow = getFutureDate(today, 1);
-  const tomorrowTarget = computeAdjustedTarget(tomorrow, baseTarget, allPast);
+  const tomorrowTarget = computeAdjustedTarget(tomorrow, baseTarget, allPast, undefined, getCorrectionMode());
 
   message += `\n\n👉 Tomorrow's target: ~${tomorrowTarget} kcal`;
 
