@@ -27,6 +27,8 @@ export interface AdjustmentBreakdownEntry {
   sourceDate: string;
   surplus: number;
   appliedAdjustment: number;
+  reason: string;        // e.g. "Ate +400 kcal over target"
+  impactLabel: string;   // e.g. "→ -100 kcal today"
 }
 
 const clamp = (val: number, min: number, max: number) => Math.max(min, Math.min(max, val));
@@ -91,14 +93,21 @@ export function getAdjustmentBreakdownForDate(
   const grouped = new Map<string, AdjustmentBreakdownEntry>();
   for (const s of sources) {
     const existing = grouped.get(s.sourceDate);
+    const direction = s.surplus > 0 ? 'over' : 'under';
+    const reason = `Ate ${s.surplus > 0 ? '+' : ''}${Math.abs(s.surplus)} kcal ${direction} target`;
+    const impactLabel = `→ ${s.appliedAdjustment > 0 ? '+' : ''}${s.appliedAdjustment} kcal`;
     if (existing) {
       existing.surplus = s.surplus;
       existing.appliedAdjustment += s.appliedAdjustment;
+      existing.reason = reason;
+      existing.impactLabel = `→ ${existing.appliedAdjustment > 0 ? '+' : ''}${existing.appliedAdjustment} kcal`;
     } else {
       grouped.set(s.sourceDate, {
         sourceDate: s.sourceDate,
         surplus: s.surplus,
         appliedAdjustment: s.appliedAdjustment,
+        reason,
+        impactLabel,
       });
     }
   }

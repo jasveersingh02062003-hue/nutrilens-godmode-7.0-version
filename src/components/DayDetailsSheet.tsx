@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -488,10 +488,16 @@ function EmptyState({ text }: { text: string }) {
 function FutureDayPlanSection({ date, profile }: { date: string; profile: any }) {
   const state = getCalorieBankState();
   const baseTarget = profile?.dailyCalories || 1600;
-  const pastLogs = state.dailyBalances.filter((b: DailyBalanceEntry) => b.date < date && b.actual > 0);
-  const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
-  const plan = getFutureDayPlan(date, profile, adjMap);
-  const breakdown = getAdjustmentBreakdownForDate(date, pastLogs, baseTarget);
+  
+  const { plan, breakdown } = useMemo(() => {
+    const pastLogs = state.dailyBalances.filter((b: DailyBalanceEntry) => b.date < date && b.actual >= 300);
+    const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
+    return {
+      plan: getFutureDayPlan(date, profile, adjMap),
+      breakdown: getAdjustmentBreakdownForDate(date, pastLogs, baseTarget),
+    };
+  }, [date, baseTarget, state.dailyBalances]);
+  
   const explanation = getExplanationMessage(breakdown);
   const hasAdjustment = plan.adjustment !== 0;
 
@@ -546,11 +552,14 @@ function FutureDayPlanSection({ date, profile }: { date: string; profile: any })
                 weekday: 'short', month: 'short', day: 'numeric',
               });
               return (
-                <div key={i} className="flex items-center justify-between text-[11px]">
-                  <span className="text-muted-foreground">{dayLabel}</span>
-                  <span className={`font-semibold ${b.surplus > 0 ? 'text-destructive' : 'text-primary'}`}>
-                    {b.surplus > 0 ? '+' : ''}{b.surplus} kcal → {b.appliedAdjustment > 0 ? '+' : ''}{b.appliedAdjustment}
-                  </span>
+                <div key={i} className="flex flex-col gap-0.5 text-[11px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">{dayLabel}</span>
+                    <span className={`font-semibold ${b.surplus > 0 ? 'text-destructive' : 'text-primary'}`}>
+                      {b.impactLabel}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground/70">{b.reason}</span>
                 </div>
               );
             })}
