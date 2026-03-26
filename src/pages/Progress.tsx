@@ -34,6 +34,7 @@ import { getPlan, isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
 import { getDailyBalances, getTodayAdjustmentStatus, getMonthlyStats, getWeekendPattern, computeAdjustmentMap, type DailyBalanceEntry } from '@/lib/calorie-correction';
+import { getProfile } from '@/lib/store';
 
 type AdherenceStatus = 'green' | 'yellow' | 'red' | 'gray';
 
@@ -427,7 +428,8 @@ function CalorieBalanceCard() {
   const todayStr = new Date().toISOString().split('T')[0];
 
   // Compute adjMap for future adjustments display
-  const baseTarget = balances.length > 0 ? balances[0].target : 1600;
+  const profile = getProfile();
+  const baseTarget = profile?.dailyCalories || 1600;
   const pastLogs = balances.filter(b => b.date < todayStr && b.actual >= 300);
   const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
 
@@ -438,7 +440,8 @@ function CalorieBalanceCard() {
   const maxAbs = Math.max(1, ...last14.map(b => Math.abs(b.diff)));
 
   // Weekly totals — use adjustedTarget when available
-  const weeklyTarget = last7.reduce((s, b) => s + (b.adjustedTarget || b.target), 0);
+  // Weekly totals — always use baseTarget for honest math
+  const weeklyTarget = last7.reduce((s, b) => s + b.target, 0);
   const weeklyActual = last7.reduce((s, b) => s + b.actual, 0);
   const weeklyNet = weeklyActual - weeklyTarget;
 
@@ -510,7 +513,7 @@ function CalorieBalanceCard() {
               return (
                 <div key={i} className="grid grid-cols-5 gap-0 text-[10px] px-2 py-1.5 border-t border-border">
                   <span className="font-medium text-foreground">{fmtDay(b.date)}</span>
-                  <span className="text-right text-muted-foreground">{b.adjustedTarget || b.target}</span>
+                  <span className="text-right text-muted-foreground">{b.target}</span>
                   <span className="text-right text-foreground font-medium">{b.actual}</span>
                   <span className={`text-right font-semibold ${b.diff > 0 ? 'text-accent' : b.diff < 0 ? 'text-primary' : 'text-foreground'}`}>
                     {b.diff > 0 ? '+' : ''}{b.diff}
