@@ -8,7 +8,7 @@ import { computeAdjustedTarget, type DailyBalanceEntry } from './calorie-correct
 
 const PROFILE_KEY = 'nutrilens_profile';
 const LOG_KEY_PREFIX = 'nutrilens_log_';
-const BANK_KEY = 'nutrilens_calorie_bank';
+const FROZEN_TARGETS_KEY = 'nutrilens_frozen_targets';
 const WEIGHT_HISTORY_KEY = 'nutrilens_weight_history';
 const STREAKS_KEY = 'nutrilens_streaks';
 const PLANNER_PROFILE_KEY = 'nutrilens_meal_planner_profile';
@@ -78,126 +78,127 @@ const MEAL_PHOTOS: Record<string, string[]> = {
 const FOOD_POOL = {
   breakfast: [
     { name: 'Poha', cal: 250, p: 5, c: 40, f: 8, emoji: '🍚' },
-    { name: 'Paratha', cal: 300, p: 7, c: 35, f: 15, emoji: '🫓' },
-    { name: 'Idli', cal: 150, p: 4, c: 28, f: 1, emoji: '🫓' },
-    { name: 'Upma', cal: 220, p: 5, c: 32, f: 8, emoji: '🍚' },
-    { name: 'Oats', cal: 200, p: 7, c: 35, f: 4, emoji: '🥣' },
-    { name: 'Moong Dal Chilla', cal: 180, p: 12, c: 22, f: 4, emoji: '🫓' },
-    { name: 'Chai', cal: 60, p: 2, c: 8, f: 2, emoji: '☕' },
-    { name: 'Coffee', cal: 80, p: 2, c: 10, f: 3, emoji: '☕' },
-    { name: 'Curd', cal: 80, p: 4, c: 5, f: 4, emoji: '🥛' },
-    { name: 'Lassi', cal: 180, p: 6, c: 22, f: 7, emoji: '🥛' },
+    { name: 'Idli (3 pcs)', cal: 180, p: 6, c: 36, f: 1, emoji: '🥣' },
+    { name: 'Paratha with Curd', cal: 350, p: 10, c: 45, f: 14, emoji: '🫓' },
+    { name: 'Upma', cal: 220, p: 5, c: 35, f: 7, emoji: '🍲' },
+    { name: 'Masala Dosa', cal: 300, p: 7, c: 42, f: 12, emoji: '🥞' },
   ],
   lunch: [
-    { name: 'Dal Rice', cal: 400, p: 15, c: 55, f: 10, emoji: '🍛' },
-    { name: 'Rajma Rice', cal: 420, p: 16, c: 58, f: 10, emoji: '🍛' },
-    { name: 'Biryani', cal: 550, p: 20, c: 65, f: 18, emoji: '🍚' },
-    { name: 'Chole Bhature', cal: 520, p: 16, c: 55, f: 24, emoji: '🍛' },
-    { name: 'Chicken Rice Bowl', cal: 480, p: 32, c: 50, f: 12, emoji: '🍗' },
-    { name: 'Butter Chicken + Naan', cal: 710, p: 37, c: 52, f: 38, emoji: '🍗' },
-    { name: 'Sabzi', cal: 120, p: 4, c: 12, f: 6, emoji: '🥗' },
-    { name: 'Raita', cal: 60, p: 3, c: 4, f: 3, emoji: '🥛' },
-    { name: 'Salad Bowl', cal: 280, p: 12, c: 20, f: 14, emoji: '🥗' },
+    { name: 'Dal + Rice', cal: 420, p: 15, c: 65, f: 10, emoji: '🍛' },
+    { name: 'Rajma Chawal', cal: 450, p: 18, c: 70, f: 8, emoji: '🫘' },
+    { name: 'Roti + Paneer Bhurji', cal: 400, p: 20, c: 40, f: 18, emoji: '🧀' },
+    { name: 'Chicken Curry + Rice', cal: 500, p: 30, c: 55, f: 15, emoji: '🍗' },
+    { name: 'Chole + 2 Roti', cal: 380, p: 16, c: 55, f: 10, emoji: '🫘' },
   ],
   dinner: [
-    { name: 'Roti + Paneer Sabzi', cal: 340, p: 18, c: 28, f: 19, emoji: '🧀' },
-    { name: 'Roti + Chicken Curry', cal: 470, p: 32, c: 30, f: 25, emoji: '🍗' },
-    { name: 'Khichdi', cal: 320, p: 12, c: 45, f: 8, emoji: '🍚' },
-    { name: 'Dosa + Sambar', cal: 310, p: 10, c: 46, f: 9, emoji: '🫓' },
-    { name: 'Fish Curry + Rice', cal: 460, p: 27, c: 46, f: 19, emoji: '🐟' },
-    { name: 'Paneer Tikka + Roti', cal: 440, p: 24, c: 28, f: 27, emoji: '🧀' },
-    { name: 'Egg Bhurji + Roti', cal: 320, p: 18, c: 24, f: 17, emoji: '🥚' },
-    { name: 'Curd Rice', cal: 280, p: 8, c: 45, f: 6, emoji: '🍚' },
+    { name: 'Roti + Palak Dal', cal: 350, p: 14, c: 48, f: 10, emoji: '🥬' },
+    { name: 'Egg Bhurji + 2 Roti', cal: 380, p: 18, c: 40, f: 16, emoji: '🍳' },
+    { name: 'Veg Biryani', cal: 450, p: 12, c: 65, f: 14, emoji: '🍚' },
+    { name: 'Grilled Chicken + Salad', cal: 320, p: 35, c: 10, f: 14, emoji: '🥗' },
+    { name: 'Khichdi', cal: 280, p: 10, c: 45, f: 6, emoji: '🍲' },
   ],
   snack: [
-    { name: 'Apple + Peanuts', cal: 250, p: 7, c: 26, f: 14, emoji: '🍎' },
-    { name: 'Samosa', cal: 250, p: 4, c: 25, f: 15, emoji: '🥟' },
-    { name: 'Sprouts Chaat', cal: 150, p: 8, c: 18, f: 4, emoji: '🌱' },
-    { name: 'Banana + Almonds', cal: 185, p: 4, c: 30, f: 7, emoji: '🍌' },
-    { name: 'Makhana', cal: 100, p: 3, c: 18, f: 1, emoji: '🌸' },
-    { name: 'Gulab Jamun', cal: 180, p: 2, c: 28, f: 7, emoji: '🍩' },
-    { name: 'Protein Shake', cal: 150, p: 25, c: 8, f: 2, emoji: '🥤' },
-    { name: 'Green Tea', cal: 5, p: 0, c: 1, f: 0, emoji: '🍵' },
+    { name: 'Chai + Biscuits', cal: 120, p: 2, c: 18, f: 5, emoji: '☕' },
+    { name: 'Banana', cal: 100, p: 1, c: 25, f: 0, emoji: '🍌' },
+    { name: 'Mixed Nuts (30g)', cal: 180, p: 5, c: 8, f: 15, emoji: '🥜' },
+    { name: 'Samosa (1 pc)', cal: 250, p: 4, c: 30, f: 14, emoji: '🥟' },
+    { name: 'Sprout Chaat', cal: 150, p: 8, c: 20, f: 4, emoji: '🥗' },
+    { name: 'Makhana (roasted)', cal: 80, p: 3, c: 12, f: 2, emoji: '🍿' },
   ],
 };
 
-function uid(): string {
-  return Math.random().toString(36).slice(2, 10);
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
 function getMonday(dateStr: string): string {
-  const d = new Date(dateStr);
+  const d = new Date(dateStr + 'T00:00:00');
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().split('T')[0];
+  const monday = new Date(d);
+  monday.setDate(diff);
+  return monday.toISOString().split('T')[0];
 }
 
-function food(item: typeof FOOD_POOL.breakfast[0], qty = 1): FoodItem {
-  return {
-    id: uid(), name: item.name, calories: item.cal, protein: item.p,
-    carbs: item.c, fat: item.f, quantity: qty, unit: 'serving',
-    emoji: item.emoji, confidenceScore: 0.9,
-  };
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
-/**
- * Generate meals that sum to the target calorie total.
- * Distributes: ~20% breakfast, ~35% lunch, ~10% snack, ~35% dinner.
- */
-function generateMealsForCalories(totalCal: number, dayIndex: number): MealEntry[] {
-  const bCal = Math.round(totalCal * 0.20);
-  const lCal = Math.round(totalCal * 0.35);
-  const sCal = Math.round(totalCal * 0.10);
-  const dCal = totalCal - bCal - lCal - sCal;
+function generateMealsForCalories(targetCalories: number, dayIndex: number): MealEntry[] {
+  const meals: MealEntry[] = [];
+  let remaining = targetCalories;
 
-  const pickItems = (pool: typeof FOOD_POOL.breakfast, targetCal: number): FoodItem[] => {
-    const items: FoodItem[] = [];
-    let remaining = targetCal;
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
-    for (const item of shuffled) {
-      if (remaining <= 0) break;
-      if (item.cal <= remaining + 50) {
-        items.push(food(item));
-        remaining -= item.cal;
-      }
-    }
-    // If still short, adjust last item quantity
-    if (items.length > 0 && Math.abs(remaining) > 30) {
-      const last = items[items.length - 1];
-      const scale = (last.calories + remaining) / last.calories;
-      if (scale > 0.3) {
-        last.quantity = Math.round(scale * 100) / 100;
-      }
-    }
-    return items;
-  };
+  const bfFood = FOOD_POOL.breakfast[dayIndex % FOOD_POOL.breakfast.length];
+  const bfCal = Math.min(bfFood.cal, remaining * 0.25);
+  const bfQty = Math.max(0.5, Math.round((bfCal / bfFood.cal) * 10) / 10);
+  const bfItems: FoodItem[] = [{
+    id: uid(), name: bfFood.name, calories: bfFood.cal, protein: bfFood.p,
+    carbs: bfFood.c, fat: bfFood.f, fiber: 3, quantity: bfQty, unit: 'serving', emoji: bfFood.emoji,
+    confidenceScore: 0.85 + Math.random() * 0.1,
+  }];
+  const bfTotal = Math.round(bfFood.cal * bfQty);
+  meals.push({
+    id: uid(), type: 'breakfast', items: bfItems,
+    totalCalories: bfTotal, totalProtein: Math.round(bfFood.p * bfQty),
+    totalCarbs: Math.round(bfFood.c * bfQty), totalFat: Math.round(bfFood.f * bfQty),
+    time: '08:30',
+    photo: dayIndex % 3 === 0 ? pickRandom(MEAL_PHOTOS.breakfast) : undefined,
+  });
+  remaining -= bfTotal;
 
-  const makeMeal = (type: MealEntry['type'], items: FoodItem[], hour: number): MealEntry => {
-    const totalCalories = items.reduce((s, i) => s + i.calories * i.quantity, 0);
-    const totalProtein = items.reduce((s, i) => s + i.protein * i.quantity, 0);
-    const totalCarbs = items.reduce((s, i) => s + i.carbs * i.quantity, 0);
-    const totalFat = items.reduce((s, i) => s + i.fat * i.quantity, 0);
-    const photos = MEAL_PHOTOS[type] || MEAL_PHOTOS.lunch;
-    return {
-      id: uid(), type, items,
-      totalCalories: Math.round(totalCalories),
-      totalProtein: Math.round(totalProtein),
-      totalCarbs: Math.round(totalCarbs),
-      totalFat: Math.round(totalFat),
-      time: `${hour.toString().padStart(2, '0')}:00`,
-      photo: photos[dayIndex % photos.length],
-      cost: { amount: Math.round(Math.random() * 80 + 20), currency: '₹' },
-      source: { category: dayIndex % 3 === 0 ? 'restaurant' : 'home' },
-    };
-  };
+  const lnFood = FOOD_POOL.lunch[dayIndex % FOOD_POOL.lunch.length];
+  const lnCal = Math.min(lnFood.cal, remaining * 0.5);
+  const lnQty = Math.max(0.5, Math.round((lnCal / lnFood.cal) * 10) / 10);
+  const lnItems: FoodItem[] = [{
+    id: uid(), name: lnFood.name, calories: lnFood.cal, protein: lnFood.p,
+    carbs: lnFood.c, fat: lnFood.f, fiber: 5, quantity: lnQty, unit: 'serving', emoji: lnFood.emoji,
+    confidenceScore: 0.80 + Math.random() * 0.15,
+  }];
+  const lnTotal = Math.round(lnFood.cal * lnQty);
+  meals.push({
+    id: uid(), type: 'lunch', items: lnItems,
+    totalCalories: lnTotal, totalProtein: Math.round(lnFood.p * lnQty),
+    totalCarbs: Math.round(lnFood.c * lnQty), totalFat: Math.round(lnFood.f * lnQty),
+    time: '13:00',
+    photo: dayIndex % 4 === 1 ? pickRandom(MEAL_PHOTOS.lunch) : undefined,
+  });
+  remaining -= lnTotal;
 
-  return [
-    makeMeal('breakfast', pickItems(FOOD_POOL.breakfast, bCal), 8),
-    makeMeal('lunch', pickItems(FOOD_POOL.lunch, lCal), 13),
-    makeMeal('snack', pickItems(FOOD_POOL.snack, sCal), 16),
-    makeMeal('dinner', pickItems(FOOD_POOL.dinner, dCal), 20),
+  const snIdx = dayIndex % FOOD_POOL.snack.length;
+  const snFood = FOOD_POOL.snack[snIdx];
+  const snFood2 = FOOD_POOL.snack[(snIdx + 1) % FOOD_POOL.snack.length];
+  const snItems: FoodItem[] = [
+    { id: uid(), name: snFood.name, calories: snFood.cal, protein: snFood.p, carbs: snFood.c, fat: snFood.f, fiber: 1, quantity: 1, unit: 'serving', emoji: snFood.emoji, confidenceScore: 0.75 },
+    ...(dayIndex % 2 === 0 ? [{ id: uid(), name: snFood2.name, calories: snFood2.cal, protein: snFood2.p, carbs: snFood2.c, fat: snFood2.f, fiber: 1, quantity: 1, unit: 'serving', emoji: snFood2.emoji, confidenceScore: 0.70 }] : []),
   ];
+  const snTotal = snItems.reduce((s, i) => s + i.calories * i.quantity, 0);
+  meals.push({
+    id: uid(), type: 'snack', items: snItems,
+    totalCalories: snTotal, totalProtein: snItems.reduce((s, i) => s + i.protein, 0),
+    totalCarbs: snItems.reduce((s, i) => s + i.carbs, 0), totalFat: snItems.reduce((s, i) => s + i.fat, 0),
+    time: '16:30',
+    photo: dayIndex % 5 === 2 ? pickRandom(MEAL_PHOTOS.snack) : undefined,
+  });
+  remaining -= snTotal;
+
+  const dnFood = FOOD_POOL.dinner[dayIndex % FOOD_POOL.dinner.length];
+  const dnCal = Math.max(200, remaining);
+  const dnQty = Math.max(0.5, Math.round((dnCal / dnFood.cal) * 10) / 10);
+  const dnItems: FoodItem[] = [{
+    id: uid(), name: dnFood.name, calories: dnFood.cal, protein: dnFood.p,
+    carbs: dnFood.c, fat: dnFood.f, fiber: 4, quantity: dnQty, unit: 'serving', emoji: dnFood.emoji,
+    confidenceScore: 0.82 + Math.random() * 0.12,
+  }];
+  const dnTotal = Math.round(dnFood.cal * dnQty);
+  meals.push({
+    id: uid(), type: 'dinner', items: dnItems,
+    totalCalories: dnTotal, totalProtein: Math.round(dnFood.p * dnQty),
+    totalCarbs: Math.round(dnFood.c * dnQty), totalFat: Math.round(dnFood.f * dnQty),
+    time: '20:30',
+    photo: dayIndex % 3 === 2 ? pickRandom(MEAL_PHOTOS.dinner) : undefined,
+  });
+
+  return meals;
 }
 
 function generateProfile(): UserProfile {
@@ -243,7 +244,6 @@ function generateProfile(): UserProfile {
 
 function generateDailyLog(entry: { date: string; actualCalories: number }, dayIndex: number): DailyLog {
   const meals = generateMealsForCalories(entry.actualCalories, dayIndex);
-  // Weight: gradual trend from 62.0 with fluctuations
   const baseWeight = 62.0 - (dayIndex * 0.04);
   const fluctuation = Math.sin(dayIndex * 1.3) * 0.3;
   const weight = Math.round((baseWeight + fluctuation) * 10) / 10;
@@ -319,20 +319,24 @@ function generateProgressPhotos(): ProgressPhoto[] {
 }
 
 /**
- * Sequential freeze: compute adjustedTarget for each day in order,
- * using the engine's own computeAdjustedTarget with accumulated balances.
+ * Sequential freeze: compute adjustedTarget for each historical day.
+ * Returns frozen targets map to store separately (no BANK_KEY).
  */
-function generateCalorieBankWithFreeze(): {
-  balances: DailyBalanceEntry[];
-  bankState: Record<string, unknown>;
-} {
+function generateFrozenTargets(): Record<string, number> {
+  const frozenTargets: Record<string, number> = {};
   const balances: DailyBalanceEntry[] = [];
 
   for (const entry of STRESS_DATASET) {
-    // Compute adjustedTarget using all prior balances
-    const adjustedTarget = computeAdjustedTarget(entry.date, BASE_TARGET, balances);
-    // diff = actual - baseTarget (deterministic model)
+    // diff = actual - baseTarget (deterministic)
     const diff = entry.actualCalories - BASE_TARGET;
+
+    // Compute adjustedTarget from prior balances
+    const pastLogs = balances.filter(b => b.date < entry.date && b.actual >= 300);
+    const adjMap = computeAdjustmentMapLocal(pastLogs, BASE_TARGET);
+    const adjustment = adjMap[entry.date] || 0;
+    const adjustedTarget = Math.round(Math.max(1200, Math.min(BASE_TARGET * 1.15, BASE_TARGET + adjustment)));
+
+    frozenTargets[entry.date] = adjustedTarget;
 
     balances.push({
       date: entry.date,
@@ -343,17 +347,52 @@ function generateCalorieBankWithFreeze(): {
     });
   }
 
-  return {
-    balances,
-    bankState: {
-      dailyBalances: balances,
-      autoAdjustMeals: true,
-      dayCutoffHour: 3,
-      specialDays: {},
-      balanceStreak: 3,
-      lastProcessedDate: '2026-03-25',
-    },
-  };
+  return frozenTargets;
+}
+
+// Local copy of computeAdjustmentMap to avoid circular dependency issues at seed time
+function computeAdjustmentMapLocal(
+  pastLogs: DailyBalanceEntry[],
+  baseTarget: number
+): Record<string, number> {
+  const adjMap: Record<string, number> = {};
+  const sourceTracker = new Map<string, Set<string>>();
+
+  for (const day of pastLogs) {
+    if (!day.actual || day.actual < 300) continue;
+    const diff = day.actual - baseTarget;
+    if (Math.abs(diff) < 50) continue;
+
+    if (diff > 0) {
+      const spreadDays = diff > 800 ? 5 : 4;
+      const perDay = Math.round(diff / spreadDays);
+      for (let i = 1; i <= spreadDays; i++) {
+        const d = new Date(day.date + 'T12:00:00');
+        d.setDate(d.getDate() + i);
+        const targetDate = d.toISOString().split('T')[0];
+        if (!sourceTracker.has(targetDate)) sourceTracker.set(targetDate, new Set());
+        if (sourceTracker.get(targetDate)!.has(day.date)) continue;
+        sourceTracker.get(targetDate)!.add(day.date);
+        adjMap[targetDate] = (adjMap[targetDate] || 0) - perDay;
+      }
+    } else {
+      const recovery = Math.min(Math.round(Math.abs(diff) * 0.3), 250);
+      const d = new Date(day.date + 'T12:00:00');
+      d.setDate(d.getDate() + 1);
+      const targetDate = d.toISOString().split('T')[0];
+      if (!sourceTracker.has(targetDate)) sourceTracker.set(targetDate, new Set());
+      if (!sourceTracker.get(targetDate)!.has(day.date)) {
+        sourceTracker.get(targetDate)!.add(day.date);
+        adjMap[targetDate] = (adjMap[targetDate] || 0) + recovery;
+      }
+    }
+  }
+
+  for (const [, val] of Object.entries(adjMap)) {
+    if (val < -400) adjMap[Object.keys(adjMap).find(k => adjMap[k] === val)!] = -400;
+  }
+
+  return adjMap;
 }
 
 function generateStreaks() {
@@ -440,9 +479,12 @@ export function seedDemoData() {
     localStorage.setItem(LOG_KEY_PREFIX + entry.date, JSON.stringify(log));
   });
 
-  // 3. Calorie bank with sequential freeze (exercises the engine)
-  const { bankState } = generateCalorieBankWithFreeze();
-  localStorage.setItem(BANK_KEY, JSON.stringify(bankState));
+  // 3. Frozen targets (NO BANK_KEY — engine derives everything from raw logs)
+  const frozenTargets = generateFrozenTargets();
+  localStorage.setItem(FROZEN_TARGETS_KEY, JSON.stringify(frozenTargets));
+
+  // Clean up old BANK_KEY if present
+  localStorage.removeItem('nutrilens_calorie_bank');
 
   // 4. Weight history (12 weeks)
   localStorage.setItem(WEIGHT_HISTORY_KEY, JSON.stringify(generateWeightHistory()));

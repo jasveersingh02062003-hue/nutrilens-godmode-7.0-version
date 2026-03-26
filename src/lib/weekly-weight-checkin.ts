@@ -1,6 +1,7 @@
 // ==========================================
 // NutriLens AI – Weekly Weight Check-In
 // Prompts on Sunday for weight + gives feedback
+// Derived from raw logs — no cached state
 // ==========================================
 
 import { getWeightEntries, addWeightEntry, getWeekStart, type WeightEntry } from './weight-history';
@@ -10,7 +11,7 @@ const LAST_CHECKIN_KEY = 'nutrilens_weekly_checkin_last';
 
 export function shouldPromptWeightCheckin(): boolean {
   const now = new Date();
-  if (now.getDay() !== 0) return false; // Only Sunday
+  if (now.getDay() !== 0) return false;
 
   const lastCheckin = localStorage.getItem(LAST_CHECKIN_KEY);
   const thisWeek = getWeekStart(now.toISOString().split('T')[0]);
@@ -35,7 +36,7 @@ export function computeWeightFeedback(newWeight: number): WeightFeedback {
   const lastEntry = entries.length > 0 ? entries[entries.length - 1] : null;
   const lastWeight = lastEntry ? lastEntry.weight : newWeight;
 
-  // Calculate expected loss from calorie deficit
+  // Calculate expected loss from calorie deficit (derived from raw logs)
   const balances = getDailyBalances();
   const last7 = balances.slice(-7);
   const weeklyDeficit = last7.reduce((sum, b) => sum + b.diff, 0);

@@ -3,7 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { Button } from '@/components/ui/button';
 import { searchIndianFoods, indianFoodToFoodItem } from '@/lib/indian-foods';
 import { addMealToLog, type MealEntry, type FoodItem } from '@/lib/store';
-import { updateCalorieBank } from '@/lib/calorie-correction';
+import { syncDailyBalance } from '@/lib/calorie-correction';
 import { toast } from 'sonner';
 
 interface Props {
@@ -62,7 +62,7 @@ export default function QuickLogSheet({ open, onClose, onSaved }: Props) {
     };
 
     addMealToLog(meal);
-    updateCalorieBank();
+    syncDailyBalance();
     toast.success(`Quick log saved ✅ ${items.length} item${items.length !== 1 ? 's' : ''} added`);
     setText('');
     setSaving(false);
