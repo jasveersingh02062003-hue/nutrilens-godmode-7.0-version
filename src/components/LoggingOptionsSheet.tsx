@@ -3,6 +3,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Camera, Mic, Search, ScanBarcode } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { canUseVoiceScan, incrementVoiceScan, getRemainingVoiceScans, canUseBarcodeScan, incrementBarcodeScan, getRemainingBarcodeScans } from '@/lib/subscription-service';
+import { setLastLogMode } from '@/lib/widget-data';
 import UpgradePrompt from '@/components/UpgradePrompt';
 
 interface Props {
@@ -42,6 +43,7 @@ export default function LoggingOptionsSheet({ open, onClose, mealType, mealLabel
       incrementBarcodeScan();
     }
 
+    setLastLogMode(key);
     onClose();
     if (key === 'camera') {
       navigate(`/?meal=${mealType}${dateParam}`);
