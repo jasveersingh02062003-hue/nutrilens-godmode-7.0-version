@@ -1,9 +1,9 @@
 // ============================================
-// Calendar Helpers — Pure functions for future day planning
-// Past = stored, Future = computed live
+// Calendar Helpers — Pure functions for calendar UI
+// Uses deterministic computation from calorie-correction
 // ============================================
 
-import type { CalorieBankState, AdjustmentSource } from '@/lib/calorie-correction';
+import { computeAdjustmentMap, computeBreakdownForDate, type DailyBalanceEntry, type AdjustmentSource } from '@/lib/calorie-correction';
 
 interface ProfileLike {
   dailyCalories?: number;
@@ -29,21 +29,23 @@ export interface AdjustmentBreakdownEntry {
   appliedAdjustment: number;
 }
 
+const clamp = (val: number, min: number, max: number) => Math.max(min, Math.min(max, val));
+
 /**
  * Compute the adjusted plan for a future date.
+ * Accepts a precomputed adjMap (Record<string, number>) instead of CalorieBankState.
  * Protein stays fixed; remaining calories split 75% carbs / 25% fat.
  */
 export function getFutureDayPlan(
   date: string,
   profile: ProfileLike | null,
-  state: CalorieBankState
+  adjMap: Record<string, number>
 ): FutureDayPlan {
   const baseTarget = profile?.dailyCalories || 1600;
   const proteinTarget = profile?.dailyProtein || 60;
 
-  const planEntry = state.adjustmentPlan.find(e => e.date === date);
-  const adjustment = planEntry?.adjust || 0;
-  const adjustedTarget = Math.max(1200, baseTarget + adjustment);
+  const adjustment = adjMap[date] || 0;
+  const adjustedTarget = Math.round(clamp(baseTarget + adjustment, 1200, baseTarget * 1.15));
 
   // Protein stays locked
   const protein = proteinTarget;
@@ -55,12 +57,12 @@ export function getFutureDayPlan(
   const fats = Math.round((remaining * 0.25) / 9);
 
   return {
-    calories: Math.round(adjustedTarget),
+    calories: adjustedTarget,
     protein,
     carbs,
     fats,
     adjustment,
-    adjustedTarget: Math.round(adjustedTarget),
+    adjustedTarget,
   };
 }
 
@@ -77,19 +79,20 @@ export function getDayStatus(actual: number, adjustedTarget: number): DayStatus 
 
 /**
  * Get the breakdown of which past days caused the adjustment for a given date.
+ * Delegates to the pure computeBreakdownForDate.
  */
 export function getAdjustmentBreakdownForDate(
-  date: string,
-  state: CalorieBankState
+  targetDate: string,
+  pastLogs: DailyBalanceEntry[],
+  baseTarget: number
 ): AdjustmentBreakdownEntry[] {
-  const sourceMap = state.adjustmentSources.find(s => s.targetDate === date);
-  if (!sourceMap) return [];
+  const sources = computeBreakdownForDate(targetDate, pastLogs, baseTarget);
   // Group by sourceDate to prevent duplicate entries in UI
   const grouped = new Map<string, AdjustmentBreakdownEntry>();
-  for (const s of sourceMap.sources) {
+  for (const s of sources) {
     const existing = grouped.get(s.sourceDate);
     if (existing) {
-      existing.surplus = s.surplus; // use latest value
+      existing.surplus = s.surplus;
       existing.appliedAdjustment += s.appliedAdjustment;
     } else {
       grouped.set(s.sourceDate, {
