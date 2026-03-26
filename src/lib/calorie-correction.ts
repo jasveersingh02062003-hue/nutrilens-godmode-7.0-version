@@ -342,7 +342,8 @@ export function computeAdjustedTarget(
   date: string,
   baseTarget: number,
   allBalances: DailyBalanceEntry[],
-  tdee: number = 2000
+  tdee: number = 2000,
+  mode: CorrectionMode = 'balanced'
 ): number {
   const today = getEffectiveDate();
 
@@ -357,7 +358,7 @@ export function computeAdjustedTarget(
 
   // Compute from logs strictly before this date
   const pastLogs = allBalances.filter(b => b.date < date && b.actual >= 300);
-  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee, mode);
   const adjustment = adjMap[date] || 0;
   return Math.round(clamp(baseTarget + adjustment, 1200, baseTarget * 1.15));
 }
@@ -369,7 +370,8 @@ export function computeBreakdownForDate(
   targetDate: string,
   pastLogs: DailyBalanceEntry[],
   baseTarget: number,
-  tdee: number = 2000
+  tdee: number = 2000,
+  mode: CorrectionMode = 'balanced'
 ): AdjustmentSource[] {
   const result: AdjustmentSource[] = [];
 
@@ -382,7 +384,7 @@ export function computeBreakdownForDate(
     let contribution = 0;
 
     if (diff > 0) {
-      const spreadDays = computeSafeSpreadDays(diff, tdee);
+      const spreadDays = computeSafeSpreadDays(diff, tdee, mode);
       // Exact distribution — matches computeAdjustmentMap exactly
       const absDiff = Math.abs(diff);
       const base = Math.floor(absDiff / spreadDays);
