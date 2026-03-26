@@ -1,58 +1,71 @@
 
 
-# Plan: Final 3 Hardening Fixes
-
-## What's still wrong
-
-1. **Clamp breaks conservation** — clamping to ±300 without redistributing the remainder means calories get silently lost. The reconciliation check will flag this as a mismatch.
-
-2. **Today boundary not enforced inside `computeAdjustmentMap`** — relies on callers to filter. The function itself must reject `day.date >= today`.
-
-3. **`computeBreakdownForDate` still uses `Math.round`** — diverges from the exact distribution in `computeAdjustmentMap`, so the UI explanation won't match the actual adjustment.
-
-4. **Reconciliation check missing from `getDailyBalances`** — debug trace exists but no automatic conservation verification.
-
-5. **Validation thresholds still reference -400** — should be ±300 to match the new clamp.
+# Plan: Final Integrity Hardening — 3 Remaining Gaps
 
 ## Changes — all in `src/lib/calorie-correction.ts`
 
-### 1. Clamp with redistribution (lines 244-248)
+### 1. Replace reconciliation with pure mathematical identity (lines 443-461)
 
-Replace simple clamp with a two-pass redistribution loop:
-- First pass: apply ideal adjustments, clamp each day to ±300, track any leftover.
-- Second pass: redistribute leftover across days that still have capacity (within ±300).
-- This preserves total conservation while keeping per-day limits safe.
+Remove the duplicated logic that recomputes `expectedAdj` by replaying surplus/deficit rules. Instead, use the single invariant: the adjMap already IS the engine's output — just verify conservation via identity check and per-day clamp.
 
-### 2. Today boundary inside `computeAdjustmentMap` (line 213)
-
-Add explicit guard at the top of the loop:
 ```typescript
-const today = getEffectiveDate();
-// inside loop:
-if (day.date >= today) continue;
+// Replace lines 443-461 with:
+const totalAdj = Object.values(adjMap).reduce((s, v) => s + v, 0);
+
+// Single-source reconciliation: adjMap is the truth, verify it matches raw diffs
+let expectedAdj = 0;
+for (const day of pastOnly) {
+  const diff = day.actual - target;
+  if (diff > 50) expectedAdj -= diff;
+  else if (diff < -50) expectedAdj += Math.min(Math.round(Math.abs(diff) * 0.3), 250);
+}
+if (Math.abs(totalAdj - expectedAdj) > 1) {
+  console.error('[CalorieEngine] RECONCILIATION MISMATCH:', { expectedAdj, totalAdj });
+}
 ```
 
-### 3. Fix `computeBreakdownForDate` to use exact distribution (lines 298-305)
+The structure is already correct. The key fix is: no tolerance drift — strict `> 1` threshold (already done). Keep this as-is.
 
-Replace `Math.round(diff / spreadDays)` with the same `Math.floor` + remainder logic used in `computeAdjustmentMap`, and determine which slot index corresponds to `targetDate` to return the exact per-day value.
+### 2. Remove overflow extension, cap silently instead (lines 278-281)
 
-### 4. Add reconciliation check at end of `getDailyBalances` (after line 397)
+Replace the `console.error` with a hard cap — do NOT extend to synthetic future dates. Extending creates unbounded forward drift and confusing UX. If capacity is exhausted, accept the loss and log it. The system stays predictable.
 
-After building all balances, compute the adjustment map from past-only logs and verify:
 ```typescript
-const totalDiff = sum of all surplus diffs (>50) as negative + recovery diffs (<-50) as positive
-const totalAdj = sum of adjMap values
-if (Math.abs(totalDiff - totalAdj) > 1) console.error(...)
+// Replace lines 278-281:
+if (absLeftover > 1) {
+  console.error('[CalorieEngine] Adjustment overflow capped — conservation loss:', 
+    Math.round(absLeftover), 'kcal');
+  // Intentionally NOT extending to new dates — keeps system predictable
+}
 ```
-Also verify no single adjMap entry exceeds ±300.
 
-### 5. Update validation thresholds (lines 728-733)
+This is effectively what's already there. The key decision: **do not add overflow extension logic**. The current behavior (log and accept) is the correct choice for UX predictability.
 
-Change `-400` references to `-300` / `300` to match the new clamp.
+### 3. Tighten validation tolerance (line 818)
+
+```typescript
+// Change from:
+if (Math.abs(totalAdj - expectedNet) > Math.abs(expectedNet) * 0.1 + 50)
+// To:
+if (Math.abs(totalAdj - expectedNet) > 1)
+```
+
+### 4. Add empty adjMap check (after line 804)
+
+```typescript
+// After clamp check, add:
+const totalDiff = pastLogs.reduce((s, d) => {
+  const diff = d.actual - baseTarget;
+  return Math.abs(diff) > 50 ? s + diff : s;
+}, 0);
+if (Object.keys(adjMap).length === 0 && Math.abs(totalDiff) > 50) {
+  warnings.push('Missing adjustments for non-zero diff');
+}
+```
 
 ## Files modified
 
 | File | Change |
 |------|--------|
-| `src/lib/calorie-correction.ts` | Clamp redistribution; today guard; breakdown exact math; reconciliation check; updated thresholds |
+| `src/lib/calorie-correction.ts` | Tighten validation to ±1 kcal; add empty adjMap check; keep overflow as cap-not-extend |
 
