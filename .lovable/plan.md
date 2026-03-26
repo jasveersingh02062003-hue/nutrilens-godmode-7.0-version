@@ -1,71 +1,71 @@
 
 
-# Plan: Final Integrity Hardening — 3 Remaining Gaps
+# Plan: Full System Sync Audit & Alignment
 
-## Changes — all in `src/lib/calorie-correction.ts`
+## Issues Found
 
-### 1. Replace reconciliation with pure mathematical identity (lines 443-461)
+### 1. Supplement calories missing from correction engine (CRITICAL)
 
-Remove the duplicated logic that recomputes `expectedAdj` by replaying surplus/deficit rules. Instead, use the single invariant: the adjMap already IS the engine's output — just verify conservation via identity check and per-day clamp.
+`getDailyTotals()` in `store.ts` (line 259-264) includes supplement calories in `eaten`. But `computeDailyCalories()` in `calorie-correction.ts` (line 195-198) only sums meal items — supplements are excluded.
 
-```typescript
-// Replace lines 443-461 with:
-const totalAdj = Object.values(adjMap).reduce((s, v) => s + v, 0);
+This means:
+- Dashboard shows correct total (via `getDailyTotals`)
+- Correction engine sees a **lower** number → under-corrects surpluses
+- Conservation identity `Σ(diff) + Σ(adj) ≈ 0` operates on wrong data
 
-// Single-source reconciliation: adjMap is the truth, verify it matches raw diffs
-let expectedAdj = 0;
-for (const day of pastOnly) {
-  const diff = day.actual - target;
-  if (diff > 50) expectedAdj -= diff;
-  else if (diff < -50) expectedAdj += Math.min(Math.round(Math.abs(diff) * 0.3), 250);
-}
-if (Math.abs(totalAdj - expectedAdj) > 1) {
-  console.error('[CalorieEngine] RECONCILIATION MISMATCH:', { expectedAdj, totalAdj });
-}
-```
+**Fix**: Update `computeDailyCalories` to include supplements, matching `getDailyTotals`.
 
-The structure is already correct. The key fix is: no tolerance drift — strict `> 1` threshold (already done). Keep this as-is.
+---
 
-### 2. Remove overflow extension, cap silently instead (lines 278-281)
+### 2. Diagnostic tests use stale math (DRIFT RISK)
 
-Replace the `console.error` with a hard cap — do NOT extend to synthetic future dates. Extending creates unbounded forward drift and confusing UX. If capacity is exhausted, accept the loss and log it. The system stays predictable.
+`calorie-correction-diagnostic.ts` replicates correction logic locally with different constants:
+- Uses `capPct = 0.20` (20% of base) instead of the engine's `MAX_ADJUSTMENT_PER_DAY = 300`
+- Uses `recoveryFactor = 0.40` instead of the engine's `0.3`
+- Uses `buildMockPlan` with a percentage-based cap, not the fixed ±300 clamp
 
-```typescript
-// Replace lines 278-281:
-if (absLeftover > 1) {
-  console.error('[CalorieEngine] Adjustment overflow capped — conservation loss:', 
-    Math.round(absLeftover), 'kcal');
-  // Intentionally NOT extending to new dates — keeps system predictable
-}
-```
+These tests will pass with wrong math, giving false confidence.
 
-This is effectively what's already there. The key decision: **do not add overflow extension logic**. The current behavior (log and accept) is the correct choice for UX predictability.
+**Fix**: Rewrite the 3 diagnostic tests to use the actual engine functions (`computeAdjustmentMap`, `computeBreakdownForDate`) with mock data, not replicated local math.
 
-### 3. Tighten validation tolerance (line 818)
+---
 
-```typescript
-// Change from:
-if (Math.abs(totalAdj - expectedNet) > Math.abs(expectedNet) * 0.1 + 50)
-// To:
-if (Math.abs(totalAdj - expectedNet) > 1)
-```
+### 3. `getMealLogged` uses stored totals instead of recomputing (DATA INTEGRITY)
 
-### 4. Add empty adjMap check (after line 804)
+`meal-targets.ts` line 48 uses `m.totalCalories` (stored value) instead of recomputing from items. The `store.ts` comment on line 244 explicitly warns against this: "SAFETY: Always recompute totals from items."
 
-```typescript
-// After clamp check, add:
-const totalDiff = pastLogs.reduce((s, d) => {
-  const diff = d.actual - baseTarget;
-  return Math.abs(diff) > 50 ? s + diff : s;
-}, 0);
-if (Object.keys(adjMap).length === 0 && Math.abs(totalDiff) > 50) {
-  warnings.push('Missing adjustments for non-zero diff');
-}
-```
+**Fix**: Recompute from items in `getMealLogged`, same pattern as `getDailyTotals`.
 
-## Files modified
+---
 
-| File | Change |
-|------|--------|
-| `src/lib/calorie-correction.ts` | Tighten validation to ±1 kcal; add empty adjMap check; keep overflow as cap-not-extend |
+### 4. `calorie-engine.ts` labels adjusted target as `baseTarget` (NAMING CONFUSION)
+
+In `recalculateDay` (line 127), `baseTarget` is actually the **adjusted** target from `getAdjustedDailyTarget()`. This violates the separation of concerns rule:
+- `baseTarget` = original profile target (truth)
+- `adjustedTarget` = after correction engine (UI only)
+
+The variable name is misleading — downstream code that reads `dayState.baseTarget` thinks it's the original, but it's already adjusted.
+
+**Fix**: Rename to `adjustedTarget` in `DayState` and `recalculateDay`, or add a separate `originalTarget` field from `profile.dailyCalories`.
+
+---
+
+### 5. `console.error` fires unconditionally in validation (NOISE)
+
+`validateAdjustmentIntegrity` (line 818) always calls `console.error` even when validation passes. Should be `console.debug` for passing cases.
+
+**Fix**: Change line 818 to `console.debug` (or only log on failure).
+
+---
+
+## Changes by File
+
+| File | Changes |
+|------|---------|
+| `src/lib/calorie-correction.ts` | Add supplement calories to `computeDailyCalories`; fix validation log level |
+| `src/lib/calorie-correction-diagnostic.ts` | Rewrite 3 tests to use actual engine functions with mock `DailyBalanceEntry[]` and `MAX_ADJUSTMENT_PER_DAY = 300` |
+| `src/lib/meal-targets.ts` | Recompute `getMealLogged` from items instead of stored totals |
+| `src/lib/calorie-engine.ts` | Rename `baseTarget` → `adjustedTarget` in `DayState` interface; add `originalTarget` field from profile |
+| `src/pages/Dashboard.tsx` | Update references from `dayState.baseTarget` to `dayState.adjustedTarget` |
+| Any other file using `dayState.baseTarget` | Update references |
 
