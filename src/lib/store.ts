@@ -226,7 +226,7 @@ export function getWeightHistory(days: number = 30): Array<{ date: string; weigh
   for (let i = 0; i < days; i++) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const key = d.toISOString().split('T')[0];
+    const key = toLocalDateKey(d);
     const log = getDailyLog(key);
     if (log.weight != null && log.weight > 0) {
       entries.push({ date: log.date, weight: log.weight, unit: log.weightUnit || 'kg' });
@@ -302,7 +302,7 @@ export function getRecentLogs(days: number): DailyLog[] {
   for (let i = 0; i < days; i++) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const key = d.toISOString().split('T')[0];
+    const key = toLocalDateKey(d);
     logs.push(getDailyLog(key));
   }
   return logs;
