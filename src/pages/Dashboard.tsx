@@ -186,13 +186,16 @@ export default function Dashboard() {
 
   useEffect(() => {
     const interval = setInterval(() => {
+      // Midnight rollover check
+      const nowKey = getTodayKey();
+      if (nowKey !== log.date) window.location.reload();
       setLog(getDailyLog());
       setBudgetAlert(getLatestBudgetAlert());
       const { milestones } = checkAndUpdateStreaks();
       for (const m of milestones) {
         toast.success(`${m.milestone.emoji} ${m.milestone.label}! ${m.type} streak: ${m.milestone.target} days!`);
       }
-    }, 2000);
+    }, 10000);
 
     // Reactive UI sync from calorie correction engine
     const handleBankUpdate = () => {
@@ -204,9 +207,20 @@ export default function Dashboard() {
     };
     onCalorieBankUpdate(handleBankUpdate);
 
+    // Also listen for nutrilens:update (fired by saveDailyLog centralized recompute)
+    const handleGlobalUpdate = () => {
+      setLog(getDailyLog());
+    };
+    window.addEventListener('nutrilens:update', handleGlobalUpdate);
+    window.addEventListener('storage', handleGlobalUpdate);
+    window.addEventListener('focus', handleGlobalUpdate);
+
     return () => {
       clearInterval(interval);
       offCalorieBankUpdate(handleBankUpdate);
+      window.removeEventListener('nutrilens:update', handleGlobalUpdate);
+      window.removeEventListener('storage', handleGlobalUpdate);
+      window.removeEventListener('focus', handleGlobalUpdate);
     };
   }, [profile]);
 

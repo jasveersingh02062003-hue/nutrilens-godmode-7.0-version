@@ -33,39 +33,50 @@ import { useUserProfile } from '@/contexts/UserProfileContext';
 import { getPlan, isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
-import { getDailyBalances, getTodayAdjustmentStatus, getMonthlyStats, getWeekendPattern, computeAdjustmentMap, computeSafeSpreadDays, getCorrectionMode, type DailyBalanceEntry } from '@/lib/calorie-correction';
+import { getDailyBalances, getTodayAdjustmentStatus, getMonthlyStats, getWeekendPattern, computeAdjustmentMap, computeSafeSpreadDays, getCorrectionMode, computeAdjustedTarget, type DailyBalanceEntry } from '@/lib/calorie-correction';
+import { toLocalDateKey } from '@/lib/store';
 
 
-type AdherenceStatus = 'green' | 'yellow' | 'red' | 'gray';
+type DayBalance = 'surplus' | 'deficit' | 'balanced' | 'no-data' | 'future-reduced' | 'future-recovery';
 
-function getAdherence(dateStr: string, goal: number, waterGoal: number, logDatesSet: Set<string>): AdherenceStatus {
-  if (!logDatesSet.has(dateStr)) return 'gray';
-  const log = getDailyLog(dateStr);
-  const totals = getDailyTotals(log);
-  if (totals.eaten === 0 && log.waterCups === 0) return 'gray';
+function computeDayBalance(dateStr: string, todayStr: string, logDatesSet: Set<string>, baseTarget: number, allBalances: DailyBalanceEntry[], adjMap: Record<string, number>): { status: DayBalance; diff: number } {
+  const isFuture = dateStr > todayStr;
 
-  const calRatio = Math.abs(totals.eaten - goal) / goal;
-  const withinTen = calRatio <= 0.1;
-  const withinTwenty = calRatio <= 0.2;
-  const waterMet = log.waterCups >= waterGoal;
+  if (isFuture) {
+    const adj = adjMap[dateStr] || 0;
+    if (adj < -10) return { status: 'future-reduced', diff: adj };
+    if (adj > 10) return { status: 'future-recovery', diff: adj };
+    return { status: 'no-data', diff: 0 };
+  }
 
-  if (withinTen && waterMet) return 'green';
-  if ((withinTen && !waterMet) || (withinTwenty && waterMet)) return 'yellow';
-  return 'red';
+  const entry = allBalances.find(b => b.date === dateStr);
+  if (!entry || entry.actual === 0) return { status: 'no-data', diff: 0 };
+
+  // For past/today: compare actual vs adjusted or base target
+  const target = entry.adjustedTarget || baseTarget;
+  const diff = entry.actual - target;
+
+  if (Math.abs(diff) <= target * 0.1) return { status: 'balanced', diff: Math.round(diff) };
+  if (diff > 0) return { status: 'surplus', diff: Math.round(diff) };
+  return { status: 'deficit', diff: Math.round(diff) };
 }
 
-const dotColors: Record<AdherenceStatus, string> = {
-  green: 'bg-primary',
-  yellow: 'bg-accent',
-  red: 'bg-destructive',
-  gray: 'bg-transparent',
+const balanceDotColors: Record<DayBalance, string> = {
+  surplus: 'bg-destructive',
+  deficit: 'bg-accent',
+  balanced: 'bg-primary',
+  'no-data': 'bg-transparent',
+  'future-reduced': 'bg-transparent',
+  'future-recovery': 'bg-transparent',
 };
 
-const cellColors: Record<AdherenceStatus, string> = {
-  green: 'bg-primary/10 text-primary border-primary/20',
-  yellow: 'bg-accent/10 text-accent border-accent/20',
-  red: 'bg-destructive/10 text-destructive border-destructive/20',
-  gray: 'bg-transparent text-foreground border-transparent',
+const balanceCellColors: Record<DayBalance, string> = {
+  surplus: 'bg-destructive/10 text-destructive border-destructive/20',
+  deficit: 'bg-accent/10 text-accent border-accent/20',
+  balanced: 'bg-primary/10 text-primary border-primary/20',
+  'no-data': 'bg-transparent text-foreground border-transparent',
+  'future-reduced': 'bg-muted/50 text-muted-foreground border-border',
+  'future-recovery': 'bg-muted/50 text-muted-foreground border-border',
 };
 
 export default function ProgressPage() {
@@ -84,7 +95,7 @@ export default function ProgressPage() {
   const refresh = useCallback(() => setRefreshKey(k => k + 1), []);
 
   const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
+  const todayStr = toLocalDateKey(today);
   const viewDate = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
   const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
   const firstDayOfWeek = viewDate.getDay();
@@ -127,24 +138,31 @@ export default function ProgressPage() {
     }
   }, [stats]);
 
-  // Real-time sync: listen for meal log updates
+  // Real-time sync: listen for meal log updates + focus + midnight
   useEffect(() => {
     const handleUpdate = () => refresh();
     window.addEventListener('nutrilens:update', handleUpdate);
     window.addEventListener('storage', handleUpdate);
-    const interval = setInterval(refresh, 2000);
+    window.addEventListener('focus', handleUpdate);
+    const interval = setInterval(() => {
+      // Midnight rollover check
+      const nowKey = toLocalDateKey();
+      if (nowKey !== todayStr) window.location.reload();
+      refresh();
+    }, 10000);
     return () => {
       window.removeEventListener('nutrilens:update', handleUpdate);
       window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('focus', handleUpdate);
       clearInterval(interval);
     };
-  }, [refresh]);
+  }, [refresh, todayStr]);
 
   // For free users, only show last 3 days
   const threeDaysAgo = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() - 3);
-    return d.toISOString().split('T')[0];
+    return toLocalDateKey(d);
   }, []);
 
   const allBalances = useMemo(() => getDailyBalances(), [refreshKey]);
@@ -158,18 +176,17 @@ export default function ProgressPage() {
   }, [allBalances, baseTarget, todayStr, tdee]);
 
   const calendarDays = useMemo(() => {
-    const days: { day: number; dateStr: string; status: AdherenceStatus; isToday: boolean; isFuture: boolean; locked: boolean; adjustment: number }[] = [];
+    const days: { day: number; dateStr: string; balance: DayBalance; diff: number; isToday: boolean; isFuture: boolean; locked: boolean }[] = [];
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${viewDate.getFullYear()}-${String(viewDate.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const isFuture = dateStr > todayStr;
       const isToday = dateStr === todayStr;
       const locked = !premium && dateStr < threeDaysAgo;
-      const status: AdherenceStatus = isFuture || locked ? 'gray' : getAdherence(dateStr, goal, waterGoal, logDatesSet);
-      const adjustment = isFuture ? (adjMap[dateStr] || 0) : 0;
-      days.push({ day: d, dateStr, status, isToday, isFuture, locked, adjustment });
+      const { status: balance, diff } = locked ? { status: 'no-data' as DayBalance, diff: 0 } : computeDayBalance(dateStr, todayStr, logDatesSet, baseTarget, allBalances, adjMap);
+      days.push({ day: d, dateStr, balance, diff, isToday, isFuture, locked });
     }
     return days;
-  }, [monthOffset, refreshKey, logDatesSet, goal, waterGoal, premium, threeDaysAgo, adjMap]);
+  }, [monthOffset, refreshKey, logDatesSet, baseTarget, premium, threeDaysAgo, adjMap, allBalances, todayStr]);
 
   const weeklyData = useMemo(() => {
     return logs.slice(0, 7).reverse().map(l => {
@@ -227,7 +244,7 @@ export default function ProgressPage() {
               >
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-semibold border transition-colors group-active:scale-90 relative
                   ${d.isToday ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''}
-                  ${cellColors[d.status]}`}>
+                  ${balanceCellColors[d.balance]}`}>
                   {d.day}
                   {premium && datesWithPhotos.has(d.dateStr) && (
                     <Camera className="w-2 h-2 text-primary absolute -top-0.5 -right-0.5" />
@@ -236,19 +253,25 @@ export default function ProgressPage() {
                     <IndianRupee className="w-2 h-2 text-accent absolute -top-0.5 -right-0.5" />
                   )}
                 </div>
-                {d.status !== 'gray' && (
-                  <div className={`w-1.5 h-1.5 rounded-full mt-0.5 ${dotColors[d.status]}`} />
+                {d.balance !== 'no-data' && d.balance !== 'future-reduced' && d.balance !== 'future-recovery' && (
+                  <div className={`w-1.5 h-1.5 rounded-full mt-0.5 ${balanceDotColors[d.balance]}`} />
                 )}
-                {d.isFuture && d.adjustment !== 0 && (
-                  <span className="text-[8px] leading-none mt-0.5">{d.adjustment < 0 ? '🔻' : '🔺'}</span>
+                {(d.balance === 'future-reduced' || d.balance === 'future-recovery') && (
+                  <span className="text-[8px] leading-none mt-0.5">{d.balance === 'future-reduced' ? '🔻' : '🔺'}</span>
+                )}
+                {/* Show small kcal diff label for past surplus/deficit */}
+                {(d.balance === 'surplus' || d.balance === 'deficit') && d.diff !== 0 && (
+                  <span className={`text-[7px] leading-none mt-0.5 font-bold ${d.balance === 'surplus' ? 'text-destructive' : 'text-accent'}`}>
+                    {d.diff > 0 ? '+' : ''}{d.diff}
+                  </span>
                 )}
               </button>
             ))}
           </div>
           <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border text-[10px] text-muted-foreground flex-wrap">
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary" /> On Track</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-accent" /> Partial</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-destructive" /> Off Track</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary" /> Balanced</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-destructive" /> Surplus</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-accent" /> Deficit</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-muted border border-border" /> No Data</span>
             <span className="flex items-center gap-1">🔻 Reduced</span>
             <span className="flex items-center gap-1">🔺 Recovery</span>

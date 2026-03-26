@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Plus, Minus, Droplets, Dumbbell, Scale, Camera, Notebook,
-  Utensils, Pill, Trash2, CalendarDays, ChevronRight, Lock, Sparkles, DollarSign, Pencil, IndianRupee
+  Utensils, Pill, Trash2, CalendarDays, ChevronRight, Lock, Sparkles, DollarSign, Pencil, IndianRupee,
+  TrendingUp, TrendingDown, CheckCircle2
 } from 'lucide-react';
 import {
   getDailyLog, getDailyTotals, DailyLog,
   addWaterForDate, removeWaterForDate, deleteMealFromLog,
-  deleteSupplementFromLog, deleteActivityFromLog, saveJournalNote
+  deleteSupplementFromLog, deleteActivityFromLog, saveJournalNote, toLocalDateKey
 } from '@/lib/store';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { getExpensesForDate, deleteManualExpense, type Expense } from '@/lib/expense-store';
@@ -16,7 +17,7 @@ import { CATEGORY_CONFIG } from '@/lib/budget-service';
 import { ACTIVITY_TYPES } from '@/lib/activities';
 import { getSourceEmoji, getSourceLabel } from '@/lib/context-learning';
 import { generateDayInsight } from '@/lib/day-insights';
-import { getDailyBalances, computeAdjustmentMap, getCorrectionMode, type DailyBalanceEntry } from '@/lib/calorie-correction';
+import { getDailyBalances, computeAdjustmentMap, computeAdjustedTarget, getCorrectionMode, type DailyBalanceEntry } from '@/lib/calorie-correction';
 import { getFutureDayPlan, getAdjustmentBreakdownForDate, getExplanationMessage } from '@/lib/calendar-helpers';
 import ActivityLogSheet from '@/components/ActivityLogSheet';
 import SupplementLogSheet from '@/components/SupplementLogSheet';
@@ -43,7 +44,7 @@ export default function DayDetailsSheet({ open, date, onClose, onChanged }: Prop
   const [showSupplementSheet, setShowSupplementSheet] = useState(false);
   const [fullScreenMealId, setFullScreenMealId] = useState<string | null>(null);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = toLocalDateKey();
   const isFuture = date > todayStr;
   const isToday = date === todayStr;
 
@@ -56,6 +57,18 @@ export default function DayDetailsSheet({ open, date, onClose, onChanged }: Prop
   useEffect(() => {
     if (open) reload();
   }, [open, date, reload]);
+
+  // Realtime: listen while open so edits elsewhere reflect instantly
+  useEffect(() => {
+    if (!open) return;
+    const handler = () => reload();
+    window.addEventListener('nutrilens:update', handler);
+    window.addEventListener('storage', handler);
+    return () => {
+      window.removeEventListener('nutrilens:update', handler);
+      window.removeEventListener('storage', handler);
+    };
+  }, [open, reload]);
 
   if (!open || !log) return null;
 
@@ -144,6 +157,9 @@ export default function DayDetailsSheet({ open, date, onClose, onChanged }: Prop
             </div>
 
             {isFuture && <FutureDayPlanSection date={date} profile={profile} />}
+
+            {/* Day Balance Summary — past & today */}
+            {!isFuture && totals.eaten > 0 && <DayBalanceSummary date={date} eaten={totals.eaten} profile={profile} />}
 
             {/* Monica Insight */}
             {insight && !isFuture && (
@@ -483,6 +499,69 @@ function Section({ icon, title, count, children }: { icon: React.ReactNode; titl
 
 function EmptyState({ text }: { text: string }) {
   return <p className="text-[10px] text-muted-foreground text-center py-2">{text}</p>;
+}
+
+function DayBalanceSummary({ date, eaten, profile }: { date: string; eaten: number; profile: any }) {
+  const baseTarget = profile?.dailyCalories || 1600;
+  const tdee = profile?.tdee || baseTarget;
+  const allBalances = useMemo(() => getDailyBalances(baseTarget), [baseTarget, date]);
+  
+  const adjustedTarget = useMemo(() => {
+    return computeAdjustedTarget(date, baseTarget, allBalances, tdee, getCorrectionMode());
+  }, [date, baseTarget, allBalances, tdee]);
+
+  const diff = eaten - adjustedTarget;
+  const isAdjusted = Math.abs(adjustedTarget - baseTarget) > 10;
+  
+  let statusLabel: string;
+  let statusColor: string;
+  let StatusIcon: typeof TrendingUp;
+  
+  if (Math.abs(diff) <= adjustedTarget * 0.1) {
+    statusLabel = 'On Track ✅';
+    statusColor = 'text-primary';
+    StatusIcon = CheckCircle2;
+  } else if (diff > 0) {
+    statusLabel = `+${Math.round(diff)} kcal surplus`;
+    statusColor = 'text-destructive';
+    StatusIcon = TrendingUp;
+  } else {
+    statusLabel = `${Math.round(diff)} kcal deficit`;
+    statusColor = 'text-accent';
+    StatusIcon = TrendingDown;
+  }
+
+  return (
+    <div className={`p-3.5 rounded-xl border ${
+      diff > adjustedTarget * 0.1 ? 'bg-destructive/5 border-destructive/15' :
+      diff < -(adjustedTarget * 0.1) ? 'bg-accent/5 border-accent/15' :
+      'bg-primary/5 border-primary/15'
+    }`}>
+      <div className="flex items-center gap-2 mb-2">
+        <StatusIcon className={`w-4 h-4 ${statusColor}`} />
+        <p className={`text-xs font-bold ${statusColor}`}>{statusLabel}</p>
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div>
+          <p className="text-sm font-bold text-foreground">{eaten}</p>
+          <p className="text-[9px] text-muted-foreground">Eaten</p>
+        </div>
+        <div>
+          <p className="text-sm font-bold text-foreground">{adjustedTarget}</p>
+          <p className="text-[9px] text-muted-foreground">{isAdjusted ? 'Adj. Target' : 'Target'}</p>
+        </div>
+        <div>
+          <p className={`text-sm font-bold ${statusColor}`}>{diff > 0 ? '+' : ''}{Math.round(diff)}</p>
+          <p className="text-[9px] text-muted-foreground">Diff</p>
+        </div>
+      </div>
+      {isAdjusted && (
+        <p className="text-[10px] text-muted-foreground mt-2 text-center">
+          Original target: {baseTarget} kcal · Adjusted: {adjustedTarget} kcal
+        </p>
+      )}
+    </div>
+  );
 }
 
 function FutureDayPlanSection({ date, profile }: { date: string; profile: any }) {

@@ -178,7 +178,13 @@ export function saveProfile(profile: UserProfile) {
 }
 
 export function getTodayKey(): string {
-  return new Date().toISOString().split('T')[0];
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+/** Normalize any Date to local YYYY-MM-DD */
+export function toLocalDateKey(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export function getDailyLog(date?: string): DailyLog {
@@ -203,6 +209,8 @@ export function saveDailyLog(log: DailyLog) {
   localStorage.setItem(LOG_KEY_PREFIX + log.date, JSON.stringify(log));
   // Fire-and-forget cloud sync
   import('@/lib/daily-log-sync').then(m => m.syncDailyLogToCloud(log)).catch(() => {});
+  // Centralized recompute + UI refresh after every mutation
+  import('@/lib/calorie-correction').then(m => m.recomputeCalorieEngine()).catch(() => {});
 }
 
 export function logWeight(date: string, weight: number, unit: 'kg' | 'lbs' = 'kg') {
@@ -218,7 +226,7 @@ export function getWeightHistory(days: number = 30): Array<{ date: string; weigh
   for (let i = 0; i < days; i++) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const key = d.toISOString().split('T')[0];
+    const key = toLocalDateKey(d);
     const log = getDailyLog(key);
     if (log.weight != null && log.weight > 0) {
       entries.push({ date: log.date, weight: log.weight, unit: log.weightUnit || 'kg' });
@@ -294,7 +302,7 @@ export function getRecentLogs(days: number): DailyLog[] {
   for (let i = 0; i < days; i++) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const key = d.toISOString().split('T')[0];
+    const key = toLocalDateKey(d);
     logs.push(getDailyLog(key));
   }
   return logs;
