@@ -28,7 +28,7 @@ import { computeSmartAdjustment, applySmartAdjustment, type AdjustmentResult } f
 import { resolveMealVisualState } from '@/lib/meal-state-service';
 import PESBreakdownModal from '@/components/PESBreakdownModal';
 import { getBudgetSettings } from '@/lib/expense-store';
-import { updateCalorieBank, getContextualMealToast, getDinnerNotificationSummary, getCalorieBankState, computeAdjustmentMap } from '@/lib/calorie-correction';
+import { syncDailyBalance, getContextualMealToast, getDinnerNotificationSummary } from '@/lib/calorie-correction';
 import AdjustmentExplanationModal from '@/components/AdjustmentExplanationModal';
 
 interface Props {
@@ -171,17 +171,16 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
       };
     }).filter(m => m.items.length > 0);
     saveDailyLog(updatedLog);
-    updateCalorieBank(updatedLog, profile);
+    syncDailyBalance(updatedLog, profile);
     const mealToast = getContextualMealToast();
     if (mealToast) toast(mealToast.message, { duration: 4000 });
     // Dinner notification on delete
     if (mealType === 'dinner') {
       const dinnerKey = `nutrilens_dinner_notif_${date}`;
-      localStorage.removeItem(dinnerKey); // allow re-trigger after edit
+      localStorage.removeItem(dinnerKey);
       const updatedTotals2 = { eaten: updatedLog.meals.reduce((s, m) => s + m.totalCalories, 0) };
       const origTarget = profile?.dailyCalories || 1600;
-      const bankState = getCalorieBankState();
-      const summary = getDinnerNotificationSummary(date, updatedTotals2.eaten, origTarget, bankState);
+      const summary = getDinnerNotificationSummary(date, updatedTotals2.eaten, origTarget);
       if (summary) {
         toast('Plan updated ⚖️', { description: summary.message, duration: 8000, action: { label: 'Details', onClick: () => setAdjModalOpen(true) } });
         localStorage.setItem(dinnerKey, '1');
@@ -211,7 +210,7 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
       };
     });
     saveDailyLog(updatedLog);
-    updateCalorieBank(updatedLog, profile);
+    syncDailyBalance(updatedLog, profile);
     const mealToast = getContextualMealToast();
     if (mealToast) toast(mealToast.message, { duration: 4000 });
     onChanged();
@@ -297,17 +296,16 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
       updatedLog.meals.push(newMeal);
     }
     saveDailyLog(updatedLog);
-    updateCalorieBank(updatedLog, profile);
+    syncDailyBalance(updatedLog, profile);
     const mealToast = getContextualMealToast();
     if (mealToast) toast(mealToast.message, { duration: 4000 });
     // Dinner notification on add
     if (mealType === 'dinner') {
       const dinnerKey = `nutrilens_dinner_notif_${date}`;
-      localStorage.removeItem(dinnerKey); // allow re-trigger after edit
+      localStorage.removeItem(dinnerKey);
       const addTotals = { eaten: updatedLog.meals.reduce((s, m) => s + m.totalCalories, 0) };
       const origTarget = profile?.dailyCalories || 1600;
-      const bankState = getCalorieBankState();
-      const summary = getDinnerNotificationSummary(date, addTotals.eaten, origTarget, bankState);
+      const summary = getDinnerNotificationSummary(date, addTotals.eaten, origTarget);
       if (summary) {
         toast('Plan updated ⚖️', { description: summary.message, duration: 8000, action: { label: 'Details', onClick: () => setAdjModalOpen(true) } });
         localStorage.setItem(dinnerKey, '1');

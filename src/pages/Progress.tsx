@@ -33,7 +33,7 @@ import { useUserProfile } from '@/contexts/UserProfileContext';
 import { getPlan, isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
-import { getDailyBalances, getCalorieBankSummary, getMonthlyStats, getWeekendPattern, getCalorieBankState, computeAdjustmentMap, type DailyBalanceEntry } from '@/lib/calorie-correction';
+import { getDailyBalances, getTodayAdjustmentStatus, getMonthlyStats, getWeekendPattern, computeAdjustmentMap, type DailyBalanceEntry } from '@/lib/calorie-correction';
 
 type AdherenceStatus = 'green' | 'yellow' | 'red' | 'gray';
 
@@ -133,14 +133,14 @@ export default function ProgressPage() {
     return d.toISOString().split('T')[0];
   }, []);
 
-  const bankState = useMemo(() => getCalorieBankState(), [refreshKey]);
+  const allBalances = useMemo(() => getDailyBalances(), [refreshKey]);
   const baseTarget = profile?.dailyCalories || 2000;
 
   // Compute adjustment map deterministically from past balances (exclude today)
   const adjMap = useMemo(() => {
-    const pastLogs = bankState.dailyBalances.filter((b: DailyBalanceEntry) => b.date < todayStr && b.actual >= 300);
+    const pastLogs = allBalances.filter((b: DailyBalanceEntry) => b.date < todayStr && b.actual >= 300);
     return computeAdjustmentMap(pastLogs, baseTarget);
-  }, [bankState, baseTarget, todayStr]);
+  }, [allBalances, baseTarget, todayStr]);
 
   const calendarDays = useMemo(() => {
     const days: { day: number; dateStr: string; status: AdherenceStatus; isToday: boolean; isFuture: boolean; locked: boolean; adjustment: number }[] = [];
@@ -420,7 +420,7 @@ function MonthlySavingsCard() {
 function CalorieBalanceCard() {
   const [view, setView] = useState<'weekly' | 'monthly'>('weekly');
   const balances = getDailyBalances();
-  const summary = getCalorieBankSummary();
+  const summary = getTodayAdjustmentStatus();
   const monthlyStats = getMonthlyStats();
   const weekendPattern = getWeekendPattern();
   const [showPlanDetails, setShowPlanDetails] = useState(false);
@@ -462,7 +462,7 @@ function CalorieBalanceCard() {
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
               summary.status === 'surplus' ? 'bg-accent/10 text-accent' : 'bg-primary/10 text-primary'
             }`}>
-              {summary.status === 'surplus' ? 'Surplus' : 'Deficit'}: {Math.abs(summary.bank)} kcal
+              {summary.status === 'surplus' ? 'Surplus' : 'Deficit'}: {Math.abs(summary.adjustment)} kcal
             </span>
           )}
         </div>

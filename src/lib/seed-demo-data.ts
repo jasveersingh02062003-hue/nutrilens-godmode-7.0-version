@@ -331,50 +331,26 @@ function generateCalorieBankWithFreeze(): {
   for (const entry of STRESS_DATASET) {
     // Compute adjustedTarget using all prior balances
     const adjustedTarget = computeAdjustedTarget(entry.date, BASE_TARGET, balances);
-    const diff = entry.actualCalories - adjustedTarget;
-    let bankAfter = balances.reduce((s, b) => s + b.diff, 0) + diff;
-    bankAfter = Math.max(-500, Math.min(1000, bankAfter));
+    // diff = actual - baseTarget (deterministic model)
+    const diff = entry.actualCalories - BASE_TARGET;
 
     balances.push({
       date: entry.date,
       target: BASE_TARGET,
       actual: entry.actualCalories,
       diff,
-      bankAfter: Math.round(bankAfter),
       adjustedTarget,
     });
-  }
-
-  // Build adjustment plan for future days
-  const lastBank = balances[balances.length - 1]?.bankAfter || 0;
-  const adjustmentPlan: Array<{ date: string; adjust: number }> = [];
-  if (lastBank > 100) {
-    const days = 4;
-    const perDay = Math.round(lastBank / days);
-    for (let i = 1; i <= days; i++) {
-      const d = new Date('2026-03-25');
-      d.setDate(d.getDate() + i);
-      adjustmentPlan.push({ date: d.toISOString().split('T')[0], adjust: -perDay });
-    }
   }
 
   return {
     balances,
     bankState: {
-      calorieBank: Math.round(lastBank),
-      maxBank: 1000,
-      recoveryDays: 5,
       dailyBalances: balances,
-      adjustmentPlan,
-      correctionMode: 'balanced',
       autoAdjustMeals: true,
       dayCutoffHour: 3,
       specialDays: {},
       balanceStreak: 3,
-      adherenceLog: balances.slice(-7).map(b => ({
-        date: b.date, target: b.target, actual: b.actual,
-        score: Math.max(0, 100 - Math.abs(b.diff) / 10),
-      })),
       lastProcessedDate: '2026-03-25',
     },
   };
