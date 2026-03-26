@@ -138,24 +138,31 @@ export default function ProgressPage() {
     }
   }, [stats]);
 
-  // Real-time sync: listen for meal log updates
+  // Real-time sync: listen for meal log updates + focus + midnight
   useEffect(() => {
     const handleUpdate = () => refresh();
     window.addEventListener('nutrilens:update', handleUpdate);
     window.addEventListener('storage', handleUpdate);
-    const interval = setInterval(refresh, 2000);
+    window.addEventListener('focus', handleUpdate);
+    const interval = setInterval(() => {
+      // Midnight rollover check
+      const nowKey = toLocalDateKey();
+      if (nowKey !== todayStr) window.location.reload();
+      refresh();
+    }, 10000);
     return () => {
       window.removeEventListener('nutrilens:update', handleUpdate);
       window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('focus', handleUpdate);
       clearInterval(interval);
     };
-  }, [refresh]);
+  }, [refresh, todayStr]);
 
   // For free users, only show last 3 days
   const threeDaysAgo = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() - 3);
-    return d.toISOString().split('T')[0];
+    return toLocalDateKey(d);
   }, []);
 
   const allBalances = useMemo(() => getDailyBalances(), [refreshKey]);
@@ -169,18 +176,17 @@ export default function ProgressPage() {
   }, [allBalances, baseTarget, todayStr, tdee]);
 
   const calendarDays = useMemo(() => {
-    const days: { day: number; dateStr: string; status: AdherenceStatus; isToday: boolean; isFuture: boolean; locked: boolean; adjustment: number }[] = [];
+    const days: { day: number; dateStr: string; balance: DayBalance; diff: number; isToday: boolean; isFuture: boolean; locked: boolean }[] = [];
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${viewDate.getFullYear()}-${String(viewDate.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const isFuture = dateStr > todayStr;
       const isToday = dateStr === todayStr;
       const locked = !premium && dateStr < threeDaysAgo;
-      const status: AdherenceStatus = isFuture || locked ? 'gray' : getAdherence(dateStr, goal, waterGoal, logDatesSet);
-      const adjustment = isFuture ? (adjMap[dateStr] || 0) : 0;
-      days.push({ day: d, dateStr, status, isToday, isFuture, locked, adjustment });
+      const { status: balance, diff } = locked ? { status: 'no-data' as DayBalance, diff: 0 } : computeDayBalance(dateStr, todayStr, logDatesSet, baseTarget, allBalances, adjMap);
+      days.push({ day: d, dateStr, balance, diff, isToday, isFuture, locked });
     }
     return days;
-  }, [monthOffset, refreshKey, logDatesSet, goal, waterGoal, premium, threeDaysAgo, adjMap]);
+  }, [monthOffset, refreshKey, logDatesSet, baseTarget, premium, threeDaysAgo, adjMap, allBalances, todayStr]);
 
   const weeklyData = useMemo(() => {
     return logs.slice(0, 7).reverse().map(l => {
