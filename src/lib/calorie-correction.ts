@@ -1,7 +1,7 @@
 // ============================================
 // Smart Calorie Correction Engine
-// Rolling "calorie bank" with adjustment plans
-// Production-hardened with modes, adherence, confidence, streaks
+// Deterministic: daily logs = source of truth
+// Adjustments recomputed from raw logs, never stored incrementally
 // ============================================
 
 import { getDailyLog, getDailyTotals, getProfile, getRecentLogs, type UserProfile, type DailyLog } from '@/lib/store';
@@ -45,7 +45,6 @@ export interface CalorieBankState {
   dailyBalances: DailyBalanceEntry[];
   consecutiveSurplusDays: number;
   consecutiveDeficitDays: number;
-  // Production fields
   correctionMode: CorrectionMode;
   autoAdjustMeals: boolean;
   dayCutoffHour: number;
@@ -108,7 +107,6 @@ function loadState(): CalorieBankState {
   if (!raw) return { ...DEFAULT_STATE };
   try {
     const parsed = JSON.parse(raw);
-    // Backward compat: migrate old dailyBalances format
     if (parsed.dailyBalances?.length && typeof parsed.dailyBalances[0].target === 'undefined') {
       parsed.dailyBalances = parsed.dailyBalances.map((b: any) => ({
         date: b.date, target: 0, actual: 0, diff: b.diff ?? 0, bankAfter: 0,
@@ -122,6 +120,16 @@ function loadState(): CalorieBankState {
 
 function saveState(state: CalorieBankState): void {
   localStorage.setItem(BANK_KEY, JSON.stringify(state));
+}
+
+// ── Utility ──
+
+const clamp = (val: number, min: number, max: number) => Math.max(min, Math.min(max, val));
+
+function getFutureDate(date: string, offset: number): string {
+  const d = new Date(date + 'T12:00:00');
+  d.setDate(d.getDate() + offset);
+  return d.toISOString().split('T')[0];
 }
 
 // ── Time-Based Day Cutoff ──
@@ -199,7 +207,7 @@ export function getAverageConfidence(log?: DailyLog): number {
 export function getAdherenceScore(): { score: number; label: string } {
   const logs = getRecentLogs(7);
   let mealsLogged = 0;
-  const mealsPlanned = 7 * 3; // 3 meals/day for 7 days
+  const mealsPlanned = 7 * 3;
   for (const log of logs) {
     mealsLogged += log.meals.length;
   }
@@ -209,30 +217,175 @@ export function getAdherenceScore(): { score: number; label: string } {
   return { score, label };
 }
 
-// ── Helper: build adjustment plan ──
+// ══════════════════════════════════════════════
+// DETERMINISTIC PURE FUNCTIONS
+// These compute adjustments from raw daily logs.
+// No side effects, no localStorage access.
+// ══════════════════════════════════════════════
 
-function buildAdjustmentPlan(surplus: number, originalTarget: number, startDate: string, days: number, mode: CorrectionMode, sourceDate?: string): { plan: AdjustmentPlanEntry[]; sources: AdjustmentSourceMap[] } {
-  const config = MODE_CONFIG[mode];
-  const maxPerDay = originalTarget * config.surplusCap;
-  const perDay = Math.min(surplus / days, maxPerDay);
-  const plan: AdjustmentPlanEntry[] = [];
-  const sources: AdjustmentSourceMap[] = [];
-  const start = new Date(startDate);
-  for (let i = 1; i <= days; i++) {
-    const d = new Date(start);
-    d.setDate(d.getDate() + i);
-    const targetDate = d.toISOString().split('T')[0];
-    const adjustAmount = -Math.round(perDay);
-    plan.push({ date: targetDate, adjust: adjustAmount });
-    if (sourceDate) {
-      sources.push({
-        targetDate,
-        sources: [{ sourceDate, surplus, appliedAdjustment: adjustAmount }],
+/**
+ * Compute a merged adjustment map from past daily logs.
+ * Returns Record<string, number> — date → total adjustment in kcal.
+ * Surplus: spread over 4-5 days as negative adjustments.
+ * Deficit: 30% recovery on next day (capped at 250), positive adjustment.
+ */
+export function computeAdjustmentMap(
+  pastLogs: DailyBalanceEntry[],
+  baseTarget: number
+): Record<string, number> {
+  const adjMap: Record<string, number> = {};
+
+  for (const day of pastLogs) {
+    const target = day.target || baseTarget;
+    const diff = day.actual - target;
+    if (Math.abs(diff) < 50) continue;
+
+    if (diff > 0) {
+      // Surplus: spread reduction
+      const spreadDays = diff > 800 ? 5 : 4;
+      const perDay = Math.round(diff / spreadDays);
+      for (let i = 1; i <= spreadDays; i++) {
+        const targetDate = getFutureDate(day.date, i);
+        adjMap[targetDate] = (adjMap[targetDate] || 0) - perDay;
+      }
+    } else {
+      // Deficit: partial recovery on next day
+      const recovery = Math.min(Math.round(Math.abs(diff) * 0.3), 250);
+      const targetDate = getFutureDate(day.date, 1);
+      adjMap[targetDate] = (adjMap[targetDate] || 0) + recovery;
+    }
+  }
+
+  return adjMap;
+}
+
+/**
+ * Compute the adjusted calorie target for a given date.
+ * For past dates with a frozen adjustedTarget, returns that.
+ * Otherwise recomputes from daily balances before that date.
+ */
+export function computeAdjustedTarget(
+  date: string,
+  baseTarget: number,
+  allBalances: DailyBalanceEntry[]
+): number {
+  const today = getEffectiveDate();
+
+  // Past day with frozen target
+  if (date < today) {
+    const entry = allBalances.find(b => b.date === date);
+    if (entry?.adjustedTarget) return entry.adjustedTarget;
+  }
+
+  // Compute from logs before this date
+  const pastLogs = allBalances.filter(b => b.date < date && b.actual > 0);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
+  const adjustment = adjMap[date] || 0;
+  return Math.round(clamp(baseTarget + adjustment, 1200, baseTarget * 1.15));
+}
+
+/**
+ * Compute adjustment breakdown for a target date — which past days contribute to it.
+ * Returns one entry per source day (grouped).
+ */
+export function computeBreakdownForDate(
+  targetDate: string,
+  pastLogs: DailyBalanceEntry[],
+  baseTarget: number
+): AdjustmentSource[] {
+  const result: AdjustmentSource[] = [];
+
+  for (const day of pastLogs) {
+    const target = day.target || baseTarget;
+    const diff = day.actual - target;
+    if (Math.abs(diff) < 50) continue;
+
+    let contribution = 0;
+
+    if (diff > 0) {
+      const spreadDays = diff > 800 ? 5 : 4;
+      const perDay = Math.round(diff / spreadDays);
+      for (let i = 1; i <= spreadDays; i++) {
+        if (getFutureDate(day.date, i) === targetDate) {
+          contribution -= perDay;
+        }
+      }
+    } else {
+      const recovery = Math.min(Math.round(Math.abs(diff) * 0.3), 250);
+      if (getFutureDate(day.date, 1) === targetDate) {
+        contribution += recovery;
+      }
+    }
+
+    if (contribution !== 0) {
+      result.push({
+        sourceDate: day.date,
+        surplus: Math.round(diff),
+        appliedAdjustment: contribution,
       });
     }
   }
-  return { plan, sources };
+
+  return result;
 }
+
+/**
+ * Compute dinner notification summary — pure function.
+ */
+export function computeDinnerSummary(
+  today: string,
+  actualCalories: number,
+  targetCalories: number,
+  allBalances: DailyBalanceEntry[]
+): { message: string; tomorrowTarget: number; pendingAdjustment: number } | null {
+  const diff = actualCalories - targetCalories;
+  if (Math.abs(diff) < 50) return null;
+
+  let message = '';
+
+  if (diff > 0) {
+    const spreadDays = diff > 800 ? 5 : 4;
+    const perDay = Math.round(diff / spreadDays);
+    message = `You ate +${Math.round(diff)} kcal over target today.\n\n→ We'll reduce ~${perDay} kcal/day over the next ${spreadDays} days.`;
+  } else {
+    const deficit = Math.abs(diff);
+    const recovery = Math.min(Math.round(deficit * 0.3), 250);
+    message = `You ate ${Math.round(deficit)} kcal less than your target.\n\n→ Tomorrow's calories will increase by ~${recovery} kcal.`;
+  }
+
+  // Include today's entry in balances for tomorrow's computation
+  const todayBalance: DailyBalanceEntry = {
+    date: today,
+    target: targetCalories,
+    actual: actualCalories,
+    diff,
+    bankAfter: 0,
+  };
+  const allPast = [...allBalances.filter(b => b.date !== today), todayBalance];
+
+  const tomorrow = getFutureDate(today, 1);
+  const tomorrowTarget = computeAdjustedTarget(tomorrow, targetCalories, allPast);
+
+  // Pending adjustments for future dates
+  const adjMap = computeAdjustmentMap(allPast.filter(b => b.actual > 0), targetCalories);
+  const pending = Object.entries(adjMap)
+    .filter(([d]) => d > today)
+    .reduce((sum, [, val]) => sum + val, 0);
+
+  if (Math.abs(pending) > 0) {
+    message += `\n\n(${Math.abs(Math.round(pending))} kcal still being balanced from previous days.)`;
+  }
+
+  message += `\n\n👉 Tomorrow's target: ~${tomorrowTarget} kcal`;
+
+  return { message, tomorrowTarget, pendingAdjustment: pending };
+}
+
+// ══════════════════════════════════════════════
+// STATEFUL FUNCTIONS (localStorage access)
+// Simplified — only update balances and streaks.
+// Adjustment plans are NO LONGER stored/patched.
+// ══════════════════════════════════════════════
 
 // ── UI Update Callbacks ──
 
@@ -252,68 +405,9 @@ function notifyUICallbacks(): void {
   }
 }
 
-// ── Plan Merging ──
-
-function mergePlans(existing: AdjustmentPlanEntry[], newEntries: AdjustmentPlanEntry[]): AdjustmentPlanEntry[] {
-  const merged = [...existing];
-  for (const newEntry of newEntries) {
-    const idx = merged.findIndex(e => e.date === newEntry.date);
-    if (idx !== -1) {
-      merged[idx] = { ...merged[idx], adjust: merged[idx].adjust + newEntry.adjust };
-    } else {
-      merged.push(newEntry);
-    }
-  }
-  return merged.sort((a, b) => a.date.localeCompare(b.date));
-}
-
-function mergeSources(existing: AdjustmentSourceMap[], newEntries: AdjustmentSourceMap[]): AdjustmentSourceMap[] {
-  const merged = [...existing];
-  for (const entry of newEntries) {
-    const idx = merged.findIndex(e => e.targetDate === entry.targetDate);
-    if (idx !== -1) {
-      // Deduplicate by sourceDate — replace existing source entry instead of appending
-      for (const newSrc of entry.sources) {
-        const srcIdx = merged[idx].sources.findIndex(s => s.sourceDate === newSrc.sourceDate);
-        if (srcIdx !== -1) {
-          merged[idx].sources[srcIdx] = newSrc; // REPLACE, not append
-        } else {
-          merged[idx].sources.push(newSrc);
-        }
-      }
-    } else {
-      merged.push(entry);
-    }
-  }
-  return merged.sort((a, b) => a.targetDate.localeCompare(b.targetDate));
-}
-
 /**
- * Strip all adjustment plan entries and sources that originated from a given sourceDate.
- * Then rebuild adjustmentPlan from remaining sources.
- */
-function stripSourceDay(state: CalorieBankState, sourceDate: string): void {
-  // Remove this sourceDate's contributions from all source maps
-  for (const srcMap of state.adjustmentSources) {
-    srcMap.sources = srcMap.sources.filter(s => s.sourceDate !== sourceDate);
-  }
-  // Remove empty source maps
-  state.adjustmentSources = state.adjustmentSources.filter(s => s.sources.length > 0);
-  // Rebuild adjustmentPlan from remaining sources
-  const planMap = new Map<string, number>();
-  for (const srcMap of state.adjustmentSources) {
-    const totalAdj = srcMap.sources.reduce((sum, s) => sum + s.appliedAdjustment, 0);
-    planMap.set(srcMap.targetDate, (planMap.get(srcMap.targetDate) || 0) + totalAdj);
-  }
-  state.adjustmentPlan = Array.from(planMap.entries())
-    .map(([date, adjust]) => ({ date, adjust }))
-    .sort((a, b) => a.date.localeCompare(b.date));
-}
-
-// ── Core Functions ──
-
-/**
- * Update calorie bank after any meal mutation (add/edit/delete).
+ * Update calorie bank after any meal mutation.
+ * Now only updates dailyBalances + streaks. No plan building.
  */
 export function updateCalorieBank(log?: DailyLog, profile?: UserProfile | null): void {
   const p = profile || getProfile();
@@ -326,19 +420,14 @@ export function updateCalorieBank(log?: DailyLog, profile?: UserProfile | null):
 
   const state = loadState();
   const dayType = state.specialDays[today] || 'normal';
-  const mode = state.correctionMode;
-  const config = MODE_CONFIG[mode];
 
-  // Fasting day — no bank update
   if (dayType === 'fasting') return;
 
   const diff = totals.eaten - originalTarget;
 
-  // Find existing balance for today
   const existingIdx = state.dailyBalances.findIndex(b => b.date === today);
   const previousDiff = existingIdx >= 0 ? state.dailyBalances[existingIdx].diff : 0;
 
-  // Update bank: remove old diff for today, add new
   state.calorieBank = state.calorieBank - previousDiff + diff;
 
   const entry: DailyBalanceEntry = {
@@ -351,12 +440,11 @@ export function updateCalorieBank(log?: DailyLog, profile?: UserProfile | null):
     state.dailyBalances.push(entry);
   }
 
-  // Keep only last 30 days
   if (state.dailyBalances.length > 30) {
     state.dailyBalances = state.dailyBalances.slice(-30);
   }
 
-  // Track consecutive surplus/deficit days
+  // Track consecutive surplus/deficit
   if (diff > 0) {
     state.consecutiveSurplusDays = state.lastProcessedDate !== today ? state.consecutiveSurplusDays + 1 : state.consecutiveSurplusDays;
     state.consecutiveDeficitDays = 0;
@@ -368,77 +456,13 @@ export function updateCalorieBank(log?: DailyLog, profile?: UserProfile | null):
     state.consecutiveDeficitDays = 0;
   }
 
-  // Cheat day — track bank but don't create adjustment plan
-  if (dayType === 'cheat') {
-    saveState(state);
-    return;
-  }
-
-  // Confidence-based softening
-  const confidence = getAverageConfidence(dailyLog);
-  const confMultiplier = confidence < 0.7 ? 0.7 : 1;
-
-  // Failure handling: if 3+ consecutive surplus days, reduce intensity
-  const failureMultiplier = state.consecutiveSurplusDays > 3 ? 0.7 : 1;
-  const effectiveMultiplier = confMultiplier * failureMultiplier;
-
-  // Adherence-based softening
-  const adherence = getAdherenceScore();
-  const adherenceMultiplier = adherence.score < 0.5 ? 0.7 : 1;
-
-  const totalMultiplier = effectiveMultiplier * adherenceMultiplier;
-
-  // ── CLEAR-AND-REBUILD from today's diff ──
-  // 1. Strip all existing adjustments sourced from today (prevents stacking)
-  stripSourceDay(state, today);
-
-  // 2. Prune past entries
-  state.adjustmentPlan = state.adjustmentPlan.filter(e => e.date >= today);
-  state.adjustmentSources = state.adjustmentSources.filter(s => s.targetDate >= today);
-
-  // 3. Build new plan from today's DIFF only (not cumulative calorieBank)
-  if (diff > 50) {
-    const [minDays, maxDays] = config.recoveryDays;
-    const days = Math.min(maxDays + (state.consecutiveSurplusDays > 3 ? 2 : 0), Math.max(minDays, state.consecutiveSurplusDays + minDays));
-    const effectiveDiff = diff * totalMultiplier;
-    const { plan: newPlan, sources: newSources } = buildAdjustmentPlan(effectiveDiff, originalTarget, today, Math.min(7, days), mode, today);
-    // Dampen plan entries if consecutive surplus > 3
-    if (state.consecutiveSurplusDays > 3) {
-      newPlan.forEach(p => p.adjust = Math.round(p.adjust * 0.7));
-      newSources.forEach(s => s.sources.forEach(src => src.appliedAdjustment = Math.round(src.appliedAdjustment * 0.7)));
-    }
-    state.adjustmentPlan = mergePlans(state.adjustmentPlan, newPlan);
-    state.adjustmentSources = mergeSources(state.adjustmentSources, newSources);
-    state.adjustmentDaysRemaining = days;
-    state.adjustmentPerDay = Math.min(effectiveDiff / days, originalTarget * config.surplusCap);
-  } else if (diff < -50) {
-    // Deficit: single-day partial recovery for tomorrow
-    let recoveryFactor = config.deficitRecovery;
-    if (state.consecutiveDeficitDays > 3) {
-      recoveryFactor *= 0.5;
-    }
-    const recovery = Math.abs(diff) * recoveryFactor * totalMultiplier;
-    const maxRecovery = originalTarget * 0.15;
-    const adjust = Math.round(Math.min(recovery, maxRecovery));
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
-    const newDeficitPlan = [{ date: tomorrowStr, adjust }];
-    const newDeficitSources: AdjustmentSourceMap[] = [{
-      targetDate: tomorrowStr,
-      sources: [{ sourceDate: today, surplus: diff, appliedAdjustment: adjust }],
-    }];
-    state.adjustmentPlan = mergePlans(state.adjustmentPlan, newDeficitPlan);
-    state.adjustmentSources = mergeSources(state.adjustmentSources, newDeficitSources);
-  }
-  // If |diff| < 50: no new entries from today — entries from other days are preserved
-
   saveState(state);
   notifyUICallbacks();
 }
 
 /**
- * Get today's adjusted daily calorie target based on calorie bank.
+ * Get today's adjusted daily calorie target.
+ * Now delegates to the pure computeAdjustedTarget.
  */
 export function getAdjustedDailyTarget(profile: UserProfile | null): number {
   const p = profile || getProfile();
@@ -449,48 +473,11 @@ export function getAdjustedDailyTarget(profile: UserProfile | null): number {
   const today = getEffectiveDate();
   const dayType = state.specialDays[today] || 'normal';
 
-  // Special day type handling
   if (dayType === 'fasting') return 0;
   if (dayType === 'cheat') return originalTarget;
   if (!state.autoAdjustMeals) return originalTarget;
 
-  const mode = state.correctionMode;
-  const config = MODE_CONFIG[mode];
-
-  // Recovery day: half-intensity
-  const intensityMultiplier = dayType === 'recovery' ? 0.5 : 1;
-
-  // Check explicit adjustment plan first
-  const planEntry = state.adjustmentPlan.find(e => e.date === today);
-  if (planEntry) {
-    const adjusted = originalTarget + Math.round(planEntry.adjust * intensityMultiplier);
-    const floor = originalTarget * 0.80;
-    const ceiling = originalTarget * 1.15;
-    return Math.round(Math.max(floor, Math.min(ceiling, adjusted)));
-  }
-
-  if (Math.abs(state.calorieBank) < 50) return originalTarget;
-
-  if (state.calorieBank > 0) {
-    const [minDays, maxDays] = config.recoveryDays;
-    const recoveryDays = Math.max(
-      state.adjustmentDaysRemaining > 0 ? state.adjustmentDaysRemaining : minDays,
-      Math.min(maxDays, state.consecutiveSurplusDays + minDays)
-    );
-    const maxAdjustment = originalTarget * config.surplusCap;
-    const adjustment = Math.min(state.calorieBank / recoveryDays, maxAdjustment) * intensityMultiplier;
-    const nextTarget = originalTarget - adjustment;
-    const floor = originalTarget * 0.80;
-    return Math.round(Math.max(floor, nextTarget));
-  }
-
-  // DEFICIT: partial recovery
-  const recoveryAmount = Math.abs(state.calorieBank) * config.deficitRecovery;
-  const maxRecovery = originalTarget * 0.15;
-  const recovery = Math.min(recoveryAmount, maxRecovery) * intensityMultiplier;
-  const nextTarget = originalTarget + recovery;
-  const ceiling = originalTarget * 1.15;
-  return Math.round(Math.min(ceiling, nextTarget));
+  return computeAdjustedTarget(today, originalTarget, state.dailyBalances);
 }
 
 /**
@@ -502,6 +489,7 @@ export function getProteinTarget(profile: UserProfile | null): number {
 
 /**
  * Process end-of-day / day rollover.
+ * Freezes adjustedTarget on yesterday's log.
  */
 export function processEndOfDay(profile: UserProfile | null): void {
   const p = profile || getProfile();
@@ -519,9 +507,8 @@ export function processEndOfDay(profile: UserProfile | null): void {
     const originalTarget = p.dailyCalories || 1600;
     const diff = totals.eaten - originalTarget;
 
-    // Compute frozen adjustedTarget for yesterday
-    const yesterdayPlanEntry = state.adjustmentPlan.find(e => e.date === yesterday);
-    const frozenAdjustedTarget = originalTarget + (yesterdayPlanEntry?.adjust || 0);
+    // Freeze adjustedTarget using deterministic computation
+    const frozenAdjustedTarget = computeAdjustedTarget(yesterday, originalTarget, state.dailyBalances);
 
     const existingIdx = state.dailyBalances.findIndex(b => b.date === yesterday);
     if (existingIdx < 0 && totals.eaten > 0) {
@@ -533,7 +520,7 @@ export function processEndOfDay(profile: UserProfile | null): void {
       state.dailyBalances[existingIdx].adjustedTarget = frozenAdjustedTarget;
     }
 
-    // Balance streak: |diff| <= 100 → increment, else reset
+    // Balance streak
     const lastEntry = state.dailyBalances.find(b => b.date === yesterday);
     if (lastEntry && Math.abs(lastEntry.diff) <= 100) {
       state.balanceStreak++;
@@ -541,32 +528,14 @@ export function processEndOfDay(profile: UserProfile | null): void {
       state.balanceStreak = 0;
     }
 
-    // Clean expired adjustment plan entries and sources
-    state.adjustmentPlan = state.adjustmentPlan.filter(e => e.date >= today);
-    state.adjustmentSources = state.adjustmentSources.filter(s => s.targetDate >= today);
-
     if (state.adjustmentDaysRemaining > 0) state.adjustmentDaysRemaining--;
-
-    // Rebuild plan if bank still positive and plan is empty
-    // Use yesterday's diff (not cumulative bank) to avoid stacking
-    if (state.adjustmentPlan.length === 0 && diff > 50) {
-      const [minDays, maxDays] = MODE_CONFIG[state.correctionMode].recoveryDays;
-      const days = Math.min(maxDays + 2, Math.max(minDays, state.consecutiveSurplusDays + minDays));
-      const { plan: newPlan, sources: newSources } = buildAdjustmentPlan(diff, originalTarget, today, Math.min(7, days), state.correctionMode, yesterday);
-      state.adjustmentPlan = mergePlans(state.adjustmentPlan, newPlan);
-      state.adjustmentSources = mergeSources(state.adjustmentSources, newSources);
-      state.adjustmentDaysRemaining = days;
-      state.adjustmentPerDay = Math.min(diff / days, originalTarget * MODE_CONFIG[state.correctionMode].surplusCap);
-    }
   }
 
   state.lastProcessedDate = today;
 
-   if (state.dailyBalances.length > 30) state.dailyBalances = state.dailyBalances.slice(-30);
-  // Prune old adjustment sources
-  if (state.adjustmentSources.length > 30) state.adjustmentSources = state.adjustmentSources.slice(-30);
+  if (state.dailyBalances.length > 30) state.dailyBalances = state.dailyBalances.slice(-30);
 
-  // Clean old special days (older than 30 days)
+  // Clean old special days
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 30);
   const cutoffStr = cutoff.toISOString().split('T')[0];
@@ -577,6 +546,10 @@ export function processEndOfDay(profile: UserProfile | null): void {
   saveState(state);
   notifyUICallbacks();
 }
+
+// ══════════════════════════════════════════════
+// QUERY FUNCTIONS (read state, use pure functions)
+// ══════════════════════════════════════════════
 
 /**
  * Get summary of calorie bank for UI display.
@@ -606,23 +579,31 @@ export function getCalorieBankSummary(): {
 }
 
 /**
- * Get daily balances for the last 30 days (enriched format).
+ * Get daily balances for the last 30 days.
  */
 export function getDailyBalances(): DailyBalanceEntry[] {
   return [...loadState().dailyBalances].sort((a, b) => a.date.localeCompare(b.date));
 }
 
 /**
- * Get the active adjustment plan entries.
+ * Get the active adjustment plan entries — computed from daily balances.
  */
 export function getAdjustmentPlan(): AdjustmentPlanEntry[] {
   const state = loadState();
   const today = getEffectiveDate();
-  return state.adjustmentPlan.filter(e => e.date >= today);
+  const p = getProfile();
+  const baseTarget = p?.dailyCalories || 1600;
+  const pastLogs = state.dailyBalances.filter(b => b.date < today && b.actual > 0);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
+
+  return Object.entries(adjMap)
+    .filter(([date]) => date >= today)
+    .map(([date, adjust]) => ({ date, adjust }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 /**
- * Get monthly stats for a given month (defaults to current).
+ * Get monthly stats for a given month.
  */
 export function getMonthlyStats(month?: string): MonthlyStats {
   const state = loadState();
@@ -640,7 +621,7 @@ export function getMonthlyStats(month?: string): MonthlyStats {
 }
 
 /**
- * Check if surplus days cluster on weekends (Sat/Sun).
+ * Check if surplus days cluster on weekends.
  */
 export function getWeekendPattern(): { detected: boolean; message: string } {
   const state = loadState();
@@ -660,7 +641,7 @@ export function getWeekendPattern(): { detected: boolean; message: string } {
 }
 
 /**
- * Get user-friendly correction message for toast notifications.
+ * Get user-friendly correction message.
  */
 export function getCorrectionMessage(): { type: 'surplus' | 'deficit'; message: string } | null {
   const state = loadState();
@@ -677,7 +658,7 @@ export function getCorrectionMessage(): { type: 'surplus' | 'deficit'; message: 
 }
 
 /**
- * Get contextual toast after a meal is logged (for immediate feedback).
+ * Get contextual toast after a meal is logged.
  */
 export function getContextualMealToast(): { type: 'surplus' | 'deficit'; message: string } | null {
   const p = getProfile();
@@ -763,22 +744,22 @@ export function getEngineResponse(profile?: UserProfile | null, log?: DailyLog):
 // ── Adjustment Explanation Functions ──
 
 /**
- * Get a plain-text explanation of why today's target changed.
+ * Get a plain-text explanation of why a date's target changed.
+ * Now uses deterministic computation.
  */
 export function getAdjustmentExplanation(date?: string): string | null {
   const state = loadState();
   const d = date || getEffectiveDate();
-  const sourceMap = state.adjustmentSources.find(s => s.targetDate === d);
-  if (!sourceMap || sourceMap.sources.length === 0) return null;
+  const p = getProfile();
+  const baseTarget = p?.dailyCalories || 1600;
+  const pastLogs = state.dailyBalances.filter(b => b.date < d && b.actual > 0);
+  const breakdown = computeBreakdownForDate(d, pastLogs, baseTarget);
 
-  const grouped: Record<string, number> = {};
-  for (const src of sourceMap.sources) {
-    grouped[src.sourceDate] = (grouped[src.sourceDate] || 0) + src.surplus;
-  }
+  if (breakdown.length === 0) return null;
 
-  const lines = Object.entries(grouped).map(([srcDate, surplus]) => {
-    const dayName = new Date(srcDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' });
-    return `On ${dayName}, you ate ${surplus > 0 ? '+' : ''}${surplus} kcal ${surplus > 0 ? 'over' : 'under'} target`;
+  const lines = breakdown.map(b => {
+    const dayName = new Date(b.sourceDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' });
+    return `On ${dayName}, you ate ${b.surplus > 0 ? '+' : ''}${b.surplus} kcal ${b.surplus > 0 ? 'over' : 'under'} target`;
   });
 
   return `${lines.join('. ')}. Your plan adjusted to keep you on track.`;
@@ -786,6 +767,7 @@ export function getAdjustmentExplanation(date?: string): string | null {
 
 /**
  * Get structured adjustment details for the explanation modal.
+ * Now uses deterministic computation.
  */
 export function getAdjustmentDetails(): {
   recentSurplusDays: Array<{ date: string; surplus: number }>;
@@ -797,89 +779,55 @@ export function getAdjustmentDetails(): {
 } {
   const state = loadState();
   const today = getEffectiveDate();
-  const activeSources = state.adjustmentSources.filter(s => s.targetDate >= today);
+  const p = getProfile();
+  const baseTarget = p?.dailyCalories || 1600;
+  const pastLogs = state.dailyBalances.filter(b => b.date < today && b.actual > 0);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
 
-  // Deduplicate source days
+  // Source days
   const sourceMap = new Map<string, number>();
-  for (const entry of activeSources) {
-    for (const src of entry.sources) {
-      sourceMap.set(src.sourceDate, src.surplus);
+  for (const day of pastLogs) {
+    const diff = day.actual - (day.target || baseTarget);
+    if (Math.abs(diff) >= 50) {
+      sourceMap.set(day.date, Math.round(diff));
     }
   }
   const recentSurplusDays = Array.from(sourceMap.entries())
     .map(([date, surplus]) => ({ date, surplus }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  // Future adjustments with sources
-  const futureAdjustments = activeSources.map(entry => {
-    const totalAdj = entry.sources.reduce((sum, s) => sum + s.appliedAdjustment, 0);
-    return {
-      date: entry.targetDate,
-      adjustment: totalAdj,
-      sources: entry.sources,
-    };
-  });
+  // Future adjustments with breakdowns
+  const futureDates = Object.entries(adjMap)
+    .filter(([d]) => d >= today)
+    .sort(([a], [b]) => a.localeCompare(b));
+
+  const futureAdjustments = futureDates.map(([date, adjustment]) => ({
+    date,
+    adjustment,
+    sources: computeBreakdownForDate(date, pastLogs, baseTarget),
+  }));
 
   return { recentSurplusDays, futureAdjustments };
 }
 
 /**
- * Get after-dinner notification summary — pure function.
- * Pass explicit values to avoid hidden state dependencies.
+ * Get after-dinner notification summary.
+ * Delegates to pure computeDinnerSummary.
  */
 export function getDinnerNotificationSummary(
   today: string,
   actualCalories: number,
   targetCalories: number,
-  state: CalorieBankState
+  _state?: CalorieBankState
 ): { message: string; tomorrowTarget: number } | null {
-  const diff = actualCalories - targetCalories;
-
-  // Don't notify for balanced days
-  if (Math.abs(diff) < 50) return null;
-
-  const mode = state.correctionMode;
-  const config = MODE_CONFIG[mode];
-
-  let message = '';
-
-  if (diff > 0) {
-    const [minDays] = config.recoveryDays;
-    const spreadDays = Math.max(minDays, 4);
-    const perDay = Math.round(diff / spreadDays);
-    message = `You ate +${Math.round(diff)} kcal over target today.\n\n→ We'll reduce ~${perDay} kcal/day over the next ${spreadDays} days.`;
-  } else {
-    const deficit = Math.abs(diff);
-    const recovery = Math.min(
-      Math.round(deficit * config.deficitRecovery),
-      Math.round(targetCalories * 0.15)
-    );
-    message = `You ate ${Math.round(deficit)} kcal less than your target.\n\n→ Tomorrow's calories will increase by ~${recovery} kcal.`;
-  }
-
-  // Pending adjustments from previous days
-  const pendingAdj = state.adjustmentPlan
-    .filter(e => e.date > today)
-    .reduce((sum, e) => sum + Math.abs(e.adjust), 0);
-
-  if (pendingAdj > 0) {
-    message += `\n\n(${pendingAdj} kcal still being balanced from previous days.)`;
-  }
-
-  // Tomorrow's adjusted target = base target + tomorrow's adjustment
-  const tomorrow = new Date(today + 'T00:00:00');
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().split('T')[0];
-  const tomorrowAdj = state.adjustmentPlan.find(e => e.date === tomorrowStr)?.adjust || 0;
-  const tomorrowTarget = targetCalories + tomorrowAdj;
-
-  message += `\n\n👉 Tomorrow's target: ~${Math.round(tomorrowTarget)} kcal`;
-
-  return { message, tomorrowTarget };
+  const state = _state || loadState();
+  const result = computeDinnerSummary(today, actualCalories, targetCalories, state.dailyBalances);
+  if (!result) return null;
+  return { message: result.message, tomorrowTarget: result.tomorrowTarget };
 }
 
 /**
- * Load the current calorie bank state (exposed for callers that need to pass it to pure functions).
+ * Load the current calorie bank state.
  */
 export function getCalorieBankState(): CalorieBankState {
   return loadState();
