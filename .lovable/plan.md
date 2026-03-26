@@ -1,111 +1,70 @@
 
 
-# Plan: Adaptive Calorie Correction Engine with User-Controlled Intensity
+# Plan: QuickLog Widget Page
 
 ## Summary
 
-Wire the correction mode setting (Aggressive/Balanced/Relaxed) into the engine so it actually controls the spread algorithm, persist it in localStorage, and update all callers.
+Build a `/quicklog` route in the main app (not a separate HTML file — this is a React/Vite project) that serves as a lightweight, PWA-installable widget view for zero-friction meal logging. It reads today's data from localStorage, shows remaining calories/protein, four meal buttons with time-aware highlighting, and routes to existing logging flows.
 
-## Current State
+## Why Not `widget.html`
 
-- `correctionMode` in `Profile.tsx` is **local React state only** — resets to `'balanced'` on every mount, never saved, never read by the engine
-- Engine uses `computeSafeSpreadDays(surplus, tdee)` with a fixed formula: `min(300, tdee * 0.1)` — ignores any mode
-- The mode names in Profile are `['balanced', 'aggressive', 'flexible']` but the prompt uses `['aggressive', 'balanced', 'relaxed']`
+This is a Vite/React SPA. A standalone HTML file won't have access to the build system, Tailwind, or shared utilities. Instead, we build a dedicated `/quicklog` route that:
+- Can be added to home screen as a PWA shortcut
+- Shares all existing localStorage data and logging infrastructure
+- Uses existing components (LoggingOptionsSheet) for mode selection
 
 ## Changes
 
-### 1. `src/lib/calorie-correction.ts` — Mode-Aware Engine
+### 1. `src/pages/QuickLog.tsx` — New Widget Page
 
-Add a `CorrectionMode` type and persistence:
+Compact, mobile-first page (max-w-md, no bottom nav):
+- **Header**: App icon + "QuickLog" title
+- **Stats row**: 🔥 remaining calories ring + 💪 remaining protein badge
+- **Dynamic message**: Time-aware nudge (e.g., "Time for lunch!" or "You're on track today")
+- **4 meal buttons** (breakfast/lunch/dinner/snack):
+  - Each shows emoji, label, time hint
+  - Status badge: ✅ if meal logged, ⏰ if current slot, dimmed if past & missed
+  - Tap opens `LoggingOptionsSheet` (camera/voice/manual/barcode — reuses existing component)
+- **Auto-refresh**: Listens to `storage` event + polls every 30s to catch same-tab updates
+- Reads from `getProfile()`, `getDailyLog()`, `getDailyTotals()` — existing store functions
 
-```typescript
-export type CorrectionMode = 'aggressive' | 'balanced' | 'relaxed';
+### 2. `src/App.tsx` — Add Route
 
-const CORRECTION_MODE_KEY = 'nutrilens_correction_mode';
+- Add `/quicklog` route: `<Route path="/quicklog" element={<ProtectedRoute><QuickLog /></ProtectedRoute>} />`
+- Add `/quicklog` to `HIDE_NAV_ROUTES` so bottom nav doesn't show
+- Handle deep link query params: if URL has `?meal=lunch&mode=camera`, auto-open the logging flow for that meal
 
-export function getCorrectionMode(): CorrectionMode {
-  return (localStorage.getItem(CORRECTION_MODE_KEY) as CorrectionMode) || 'balanced';
-}
+### 3. `src/lib/widget-data.ts` — Widget Helper
 
-export function setCorrectionMode(mode: CorrectionMode) {
-  localStorage.setItem(CORRECTION_MODE_KEY, mode);
-  notifyUICallbacks(); // instant UI refresh
-}
-```
+- `getWidgetData()`: Returns `{ remainingCalories, remainingProtein, meals: [{type, status, logged}] }`
+- `getMealStatus(type)`: Returns `'completed'` | `'current'` | `'pending'` | `'missed'` based on time + log data
+- `getDynamicMessage()`: Time-aware motivational message based on progress
 
-Replace `computeSafeSpreadDays` to use mode:
+### 4. Deep Link Support in QuickLog
 
-```typescript
-function computeMaxDailyAdjustment(tdee: number, mode: CorrectionMode): number {
-  const caps = { aggressive: 0.25, balanced: 0.20, relaxed: 0.10 };
-  const absoluteMax = { aggressive: 500, balanced: 400, relaxed: 300 };
-  return Math.min(Math.round(tdee * caps[mode]), absoluteMax[mode]);
-}
+- On mount, parse `searchParams` for `meal` and `mode`
+- If `mode=smart`, auto-open LoggingOptionsSheet for that meal
+- If `mode=camera`, navigate directly to `/?meal={meal}`
+- If `mode=voice`, navigate to `/log?meal={meal}&mode=voice`
+- If `mode=manual`, navigate to `/log?meal={meal}`
 
-export function computeSafeSpreadDays(surplus: number, tdee: number, mode: CorrectionMode = 'balanced'): number {
-  const maxDaily = computeMaxDailyAdjustment(tdee, mode);
-  let days = Math.ceil(surplus / Math.max(1, maxDaily));
-  return Math.max(2, Math.min(days, 14));
-}
-```
+### 5. PWA Shortcut Hint
 
-Update `MAX_ADJUSTMENT_PER_DAY` from a constant to a function call — all references in `computeAdjustmentMap` clamping pass will use `computeMaxDailyAdjustment(tdee, mode)`.
+- Add a small "Add to Home Screen" instruction banner at bottom of QuickLog page
+- Uses existing app PWA capabilities (if configured) or shows browser instructions
 
-Update `computeAdjustmentMap` signature to accept `mode`:
+## Files
 
-```typescript
-export function computeAdjustmentMap(
-  pastLogs: DailyBalanceEntry[],
-  baseTarget: number,
-  tdee: number = 2000,
-  mode: CorrectionMode = 'balanced'
-): Record<string, number>
-```
-
-All internal callers (`getDailyBalances`, `computeAdjustedTarget`, `getAdjustmentDetails`, `getTodayAdjustmentStatus`, etc.) will read `getCorrectionMode()` and pass it through.
-
-### 2. `src/pages/Profile.tsx` — Persist Mode
-
-- Replace `correctionModeState` init from `'balanced'` to `getCorrectionMode()`
-- Replace `handleCorrectionModeChange` to call `setCorrectionMode(next)` 
-- Rename `'flexible'` to `'relaxed'` in the cycle order
-- Import `getCorrectionMode`, `setCorrectionMode`, `CorrectionMode` from calorie-correction
-
-### 3. `src/lib/calorie-correction-diagnostic.ts` — Update Tests
-
-Update test expectations to account for mode-based caps (tests should use `'balanced'` mode explicitly).
-
-### 4. Callers in Other Files
-
-Update these to pass mode through where they call `computeAdjustmentMap` or `computeBreakdownForDate`:
-- `src/pages/Progress.tsx`
-- `src/components/DayDetailsSheet.tsx`
-
-They already pass `tdee`; add `getCorrectionMode()` as the 4th arg.
-
-### 5. Weekly Summary — Already Fixed
-
-The rolling 7-day window was implemented in the previous change. No further work needed.
-
-### 6. Real-Time Sync — Already Working
-
-`syncDailyBalance()` calls `notifyUICallbacks()`. `setCorrectionMode()` will also call it. Dashboard already subscribes via `onCalorieBankUpdate`. No changes needed.
-
-## Files Modified
-
-| File | Change |
+| File | Action |
 |------|--------|
-| `src/lib/calorie-correction.ts` | Add `CorrectionMode` type, persistence, `computeMaxDailyAdjustment`, update spread/clamp logic to be mode-aware |
-| `src/pages/Profile.tsx` | Wire correction mode to engine persistence, rename `flexible` → `relaxed` |
-| `src/lib/calorie-correction-diagnostic.ts` | Pass mode to test calls |
-| `src/pages/Progress.tsx` | Pass `getCorrectionMode()` to engine calls |
-| `src/components/DayDetailsSheet.tsx` | Pass `getCorrectionMode()` to engine calls |
+| `src/pages/QuickLog.tsx` | Create — widget page |
+| `src/lib/widget-data.ts` | Create — data helpers |
+| `src/App.tsx` | Edit — add route + hide nav |
 
-## What's NOT Changing
+## Not Included (Out of Scope)
 
-- Deficit recovery (single-day, 30%, cap 250) — unchanged
-- Protein lock — unchanged
-- 1200 kcal safety floor — unchanged
-- UI callback architecture — already reactive
-- Weekly summary date range — already fixed to rolling 7 days
+- Separate `widget.html` — incompatible with React/Vite architecture
+- Custom `CameraLog`/`VoiceLog`/`ManualLog` components — existing `CameraHome` and `LogFood` pages already handle all modes via query params
+- Custom `logMeal` function — existing `addMealToLog` + `syncDailyBalance` already handle this
+- Haptic feedback — `navigator.vibrate` can be added later as enhancement
 
