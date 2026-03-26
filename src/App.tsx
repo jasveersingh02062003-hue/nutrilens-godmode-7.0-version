@@ -54,7 +54,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-const HIDE_NAV_ROUTES = ['/onboarding'];
+const HIDE_NAV_ROUTES = ['/onboarding', '/quicklog'];
 
 function AppLayout() {
   const location = useLocation();
@@ -85,6 +85,7 @@ function AppLayout() {
         <Route path="/food-archive" element={<ProtectedRoute><div className="max-w-lg mx-auto"><FoodArchive /></div></ProtectedRoute>} />
         <Route path="/pantry" element={<ProtectedRoute><Pantry /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><div className="max-w-lg mx-auto"><Profile /></div></ProtectedRoute>} />
+        <Route path="/quicklog" element={<ProtectedRoute><QuickLog /></ProtectedRoute>} />
         <Route path="/camera" element={<Navigate to="/" replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
