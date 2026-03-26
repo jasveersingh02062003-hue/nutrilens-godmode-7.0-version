@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      city_prices: {
+        Row: {
+          avg_price: number
+          city: string
+          id: string
+          item_name: string
+          max_price: number | null
+          min_price: number | null
+          price_date: string
+          report_count: number | null
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          avg_price: number
+          city: string
+          id?: string
+          item_name: string
+          max_price?: number | null
+          min_price?: number | null
+          price_date?: string
+          report_count?: number | null
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          avg_price?: number
+          city?: string
+          id?: string
+          item_name?: string
+          max_price?: number | null
+          min_price?: number | null
+          price_date?: string
+          report_count?: number | null
+          source?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       daily_logs: {
         Row: {
           created_at: string
@@ -41,6 +80,36 @@ export type Database = {
         }
         Relationships: []
       }
+      price_reports: {
+        Row: {
+          city: string
+          id: string
+          item_name: string
+          price_per_unit: number
+          reported_at: string
+          unit: string
+          user_id: string
+        }
+        Insert: {
+          city: string
+          id?: string
+          item_name: string
+          price_per_unit: number
+          reported_at?: string
+          unit?: string
+          user_id: string
+        }
+        Update: {
+          city?: string
+          id?: string
+          item_name?: string
+          price_per_unit?: number
+          reported_at?: string
+          unit?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           activity_level: string | null
@@ -50,6 +119,7 @@ export type Database = {
           bmr: number | null
           budget: Json | null
           caffeine: string | null
+          city: string | null
           coach_settings: Json | null
           conditions: Json | null
           cooking_habits: string | null
@@ -96,6 +166,7 @@ export type Database = {
           bmr?: number | null
           budget?: Json | null
           caffeine?: string | null
+          city?: string | null
           coach_settings?: Json | null
           conditions?: Json | null
           cooking_habits?: string | null
@@ -142,6 +213,7 @@ export type Database = {
           bmr?: number | null
           budget?: Json | null
           caffeine?: string | null
+          city?: string | null
           coach_settings?: Json | null
           conditions?: Json | null
           cooking_habits?: string | null

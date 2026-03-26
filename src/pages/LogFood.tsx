@@ -19,6 +19,8 @@ import UnitPicker from '@/components/UnitPicker';
 import { calculateNutrition, getUnitOptionsForFood } from '@/lib/unit-conversion';
 import { syncDailyBalance, getContextualMealToast, getDinnerNotificationSummary } from '@/lib/calorie-correction';
 import AdjustmentExplanationModal from '@/components/AdjustmentExplanationModal';
+import LivePriceBanner from '@/components/LivePriceBanner';
+import { reportPrice } from '@/lib/live-price-service';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -581,10 +583,22 @@ export default function LogFood() {
             {/* Validation Engine Feedback */}
             <ValidationFeedback result={validationResult} />
 
+            {/* Live Price Banners for volatile items */}
+            {selected.map(item => (
+              <LivePriceBanner key={`price-${item.id}`} itemName={item.name} />
+            ))}
+
             {/* Cost Suggestion Banner */}
             <CostSuggestionBanner
               items={selected.map(f => ({ name: f.name, quantity: f.quantity, unit: f.unit }))}
-              onCostConfirm={(amount) => setMealCost({ amount, currency: '₹' })}
+              onCostConfirm={(amount) => {
+                setMealCost({ amount, currency: '₹' });
+                // Crowdsource: report individual item prices
+                for (const item of selected) {
+                  const perUnitCost = amount / selected.length;
+                  reportPrice(item.name, perUnitCost, item.unit).catch(() => {});
+                }
+              }}
               onFree={() => setMealCost({ amount: 0, currency: '₹' })}
             />
 
