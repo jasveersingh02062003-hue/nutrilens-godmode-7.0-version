@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { getAdjustmentDetails, getCalorieBankSummary } from '@/lib/calorie-correction';
+import { getAdjustmentDetails } from '@/lib/calorie-correction';
 import { format } from 'date-fns';
 
 interface Props {
@@ -9,7 +9,14 @@ interface Props {
 
 export default function AdjustmentExplanationModal({ open, onClose }: Props) {
   const details = getAdjustmentDetails();
-  const summary = getCalorieBankSummary();
+
+  // Compute status message from today's adjustments
+  const totalFutureAdj = details.futureAdjustments.reduce((s, a) => s + a.adjustment, 0);
+  const statusMessage = totalFutureAdj === 0
+    ? 'Your intake is well balanced — no adjustments needed.'
+    : totalFutureAdj < 0
+      ? `${Math.abs(totalFutureAdj)} kcal being reduced across ${details.futureAdjustments.length} days to balance surplus.`
+      : `${totalFutureAdj} kcal being added across ${details.futureAdjustments.length} days to recover from deficit.`;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -19,7 +26,7 @@ export default function AdjustmentExplanationModal({ open, onClose }: Props) {
             <span>⚖️</span> Why your calories changed
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            {summary.message}
+            {statusMessage}
           </DialogDescription>
         </DialogHeader>
 
@@ -33,7 +40,7 @@ export default function AdjustmentExplanationModal({ open, onClose }: Props) {
                 <p className="text-xs text-foreground flex-1">
                   <span className="font-semibold">{format(new Date(d.date + 'T00:00:00'), 'EEEE, MMM d')}</span>
                   {' — '}
-                  {d.surplus > 0 ? '+' : ''}{d.surplus} kcal {d.surplus > 0 ? 'over' : 'under'} target
+                  {d.surplus > 0 ? 'Surplus' : 'Deficit'}: {Math.abs(d.surplus)} kcal
                 </p>
               </div>
             ))}
@@ -50,7 +57,7 @@ export default function AdjustmentExplanationModal({ open, onClose }: Props) {
                   <span className="text-xs font-medium text-foreground">
                     {format(new Date(adj.date + 'T00:00:00'), 'EEE, MMM d')}
                   </span>
-                  <span className={`text-xs font-bold ${adj.adjustment < 0 ? 'text-coral' : 'text-primary'}`}>
+                  <span className={`text-xs font-bold ${adj.adjustment < 0 ? 'text-destructive' : 'text-primary'}`}>
                     {adj.adjustment > 0 ? '+' : ''}{adj.adjustment} kcal
                   </span>
                 </div>
