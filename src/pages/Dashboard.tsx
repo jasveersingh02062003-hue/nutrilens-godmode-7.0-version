@@ -165,6 +165,19 @@ export default function Dashboard() {
     // Hard boundary check
     const boundary = checkWeeklySurplus();
     if (boundary) setHardBoundaryModal(boundary);
+    // Morning recovery prompt — check if yesterday had <300 kcal
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayKey = yesterday.toISOString().split('T')[0];
+    const recoveryDismissed = localStorage.getItem(`nutrilens_missed_ack_${yesterdayKey}`);
+    if (!recoveryDismissed) {
+      const yLog = getDailyLog(yesterdayKey);
+      const yTotals = getDailyTotals(yLog);
+      if (yTotals.eaten < 300) {
+        setMissedDate(yesterdayKey);
+        setMissedPromptOpen(true);
+      }
+    }
     // Update last log date
     updateLastLogDate();
     // Start proactive notification checks

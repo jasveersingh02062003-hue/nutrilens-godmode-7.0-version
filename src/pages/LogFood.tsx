@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
+import LastMealConfirmSheet from '@/components/LastMealConfirmSheet';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Camera, Mic, MicOff, Search, ArrowLeft, Plus, Minus, Check, X, Loader2, AlertTriangle } from 'lucide-react';
 import { addMealToLog, addMealToLogForDate, FoodItem, MealEntry, MealSource, MealCost, CookingMethod } from '@/lib/store';
@@ -50,6 +51,7 @@ export default function LogFood() {
   const [pendingSource, setPendingSource] = useState<MealSource | null | undefined>(undefined);
   const [pendingCookingMethod, setPendingCookingMethod] = useState<CookingMethod | null | undefined>(undefined);
   const [adjModalOpen, setAdjModalOpen] = useState(false);
+  const [lastMealSheetOpen, setLastMealSheetOpen] = useState(false);
 
   const mealLabels: Record<MealType, string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack' };
   
