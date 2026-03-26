@@ -43,7 +43,7 @@ export default function Profile() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [trackingModeState, setTrackingModeState] = useState<TrackingMode>(getTrackingMode());
   const [currentPlan, setCurrentPlan] = useState<Plan>(() => { checkAndExpireTrial(); return getPlan(); });
-  const [correctionModeState, setCorrectionModeState] = useState<CorrectionMode>(getCorrectionMode());
+  const [correctionModeState, setCorrectionModeState] = useState<string>('balanced');
   const [autoAdjustState, setAutoAdjustState] = useState(getAutoAdjust());
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showPlans, setShowPlans] = useState(false);
@@ -70,10 +70,9 @@ export default function Profile() {
   };
 
   const handleCorrectionModeChange = () => {
-    const order: CorrectionMode[] = ['balanced', 'aggressive', 'flexible'];
+    const order = ['balanced', 'aggressive', 'flexible'];
     const idx = order.indexOf(correctionModeState);
     const next = order[(idx + 1) % order.length];
-    setCorrectionMode(next);
     setCorrectionModeState(next);
     toast.success(`Correction mode: ${next.charAt(0).toUpperCase() + next.slice(1)}`);
   };
