@@ -33,7 +33,7 @@ import { useUserProfile } from '@/contexts/UserProfileContext';
 import { getPlan, isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
-import { getDailyBalances, getTodayAdjustmentStatus, getMonthlyStats, getWeekendPattern, computeAdjustmentMap, computeSafeSpreadDays, type DailyBalanceEntry } from '@/lib/calorie-correction';
+import { getDailyBalances, getTodayAdjustmentStatus, getMonthlyStats, getWeekendPattern, computeAdjustmentMap, computeSafeSpreadDays, getCorrectionMode, type DailyBalanceEntry } from '@/lib/calorie-correction';
 
 
 type AdherenceStatus = 'green' | 'yellow' | 'red' | 'gray';
@@ -141,7 +141,7 @@ export default function ProgressPage() {
   // Compute adjustment map deterministically from past balances (exclude today)
   const adjMap = useMemo(() => {
     const pastLogs = allBalances.filter((b: DailyBalanceEntry) => b.date < todayStr && b.actual >= 300);
-    return computeAdjustmentMap(pastLogs, baseTarget, tdee);
+    return computeAdjustmentMap(pastLogs, baseTarget, tdee, getCorrectionMode());
   }, [allBalances, baseTarget, todayStr, tdee]);
 
   const calendarDays = useMemo(() => {
@@ -433,7 +433,7 @@ function CalorieBalanceCard() {
   const baseTarget = profile?.dailyCalories || 1600;
   const tdee = profile?.tdee || baseTarget;
   const pastLogs = balances.filter(b => b.date < todayStr && b.actual >= 300);
-  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee, getCorrectionMode());
 
   if (balances.length === 0) return null;
 

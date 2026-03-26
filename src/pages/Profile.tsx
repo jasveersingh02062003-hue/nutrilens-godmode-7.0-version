@@ -14,7 +14,7 @@ import NotificationSettingsPanel from '@/components/NotificationSettingsPanel';
 import SkinConcernsSheet from '@/components/SkinConcernsSheet';
 import { getTrackingMode, setTrackingMode, type TrackingMode } from '@/lib/smart-adjustment';
 import { getCorrections } from '@/lib/corrections';
-import { getAutoAdjust, setAutoAdjust } from '@/lib/calorie-correction';
+import { getAutoAdjust, setAutoAdjust, getCorrectionMode, setCorrectionMode, type CorrectionMode } from '@/lib/calorie-correction';
 import HealthCardSheet from '@/components/HealthCardSheet';
 import { getCoachSettings } from '@/lib/coach';
 import { Sparkles, Brain, Flower2 } from 'lucide-react';
@@ -43,7 +43,7 @@ export default function Profile() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [trackingModeState, setTrackingModeState] = useState<TrackingMode>(getTrackingMode());
   const [currentPlan, setCurrentPlan] = useState<Plan>(() => { checkAndExpireTrial(); return getPlan(); });
-  const [correctionModeState, setCorrectionModeState] = useState<string>('balanced');
+  const [correctionModeState, setCorrectionModeState] = useState<CorrectionMode>(getCorrectionMode());
   const [autoAdjustState, setAutoAdjustState] = useState(getAutoAdjust());
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showPlans, setShowPlans] = useState(false);
@@ -70,9 +70,10 @@ export default function Profile() {
   };
 
   const handleCorrectionModeChange = () => {
-    const order = ['balanced', 'aggressive', 'flexible'];
+    const order: CorrectionMode[] = ['balanced', 'aggressive', 'relaxed'];
     const idx = order.indexOf(correctionModeState);
     const next = order[(idx + 1) % order.length];
+    setCorrectionMode(next);
     setCorrectionModeState(next);
     toast.success(`Correction mode: ${next.charAt(0).toUpperCase() + next.slice(1)}`);
   };
@@ -103,7 +104,7 @@ export default function Profile() {
     { icon: Package, label: 'My Pantry', sub: 'Track grocery inventory', action: () => navigate('/pantry') },
     { icon: Flower2, label: 'Skin Health', sub: skinSub(), action: () => setShowSkinConcerns(true) },
     { icon: SlidersHorizontal, label: 'Tracking Mode', sub: trackingModeState === 'flex' ? 'Flex – gentle adjustments' : 'Strict – tighter limits', action: handleTrackingModeToggle },
-    { icon: Zap, label: 'Correction Mode', sub: `${correctionModeState.charAt(0).toUpperCase() + correctionModeState.slice(1)} – ${correctionModeState === 'aggressive' ? 'fast recovery' : correctionModeState === 'flexible' ? 'minimal correction' : 'moderate'}`, action: handleCorrectionModeChange },
+    { icon: Zap, label: 'Correction Mode', sub: `${correctionModeState.charAt(0).toUpperCase() + correctionModeState.slice(1)} – ${correctionModeState === 'aggressive' ? 'fast recovery' : correctionModeState === 'relaxed' ? 'minimal correction' : 'moderate'}`, action: handleCorrectionModeChange },
     { icon: SlidersHorizontal, label: 'Auto Adjust Meals', sub: autoAdjustState ? 'On – meals adjust automatically' : 'Off – manual control', action: handleAutoAdjustToggle },
     { icon: Crown, label: 'Subscription', sub: currentPlan === 'free' ? (hasUsedTrial() && hasTrialExpired() ? 'Trial expired – Upgrade' : 'Free plan – Upgrade') : (isTrialActive() ? `Pro trial – ${getTrialDaysRemaining()} days left` : `${currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1)} plan`), action: () => setShowPlans(true) },
     { icon: Activity, label: 'Google Fit', sub: 'Sync steps and activity', action: () => setShowGoogleFit(true) },

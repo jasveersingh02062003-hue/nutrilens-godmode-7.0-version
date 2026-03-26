@@ -204,24 +204,48 @@ export function computeDailyCalories(log: DailyLog): number {
 /**
  * Compute a merged adjustment map from past daily logs.
  * diff = actual - baseTarget (ALWAYS against base, never adjusted)
- * No duplicate sources. Safety capped at -400 per day.
+ * No duplicate sources. Safety capped per mode.
  */
-export const MAX_ADJUSTMENT_PER_DAY = 300;
+
+// ── Correction Mode (User-Controlled Intensity) ──
+
+export type CorrectionMode = 'aggressive' | 'balanced' | 'relaxed';
+
+const CORRECTION_MODE_KEY = 'nutrilens_correction_mode';
+
+export function getCorrectionMode(): CorrectionMode {
+  return (localStorage.getItem(CORRECTION_MODE_KEY) as CorrectionMode) || 'balanced';
+}
+
+export function setCorrectionMode(mode: CorrectionMode) {
+  localStorage.setItem(CORRECTION_MODE_KEY, mode);
+  notifyUICallbacks(); // instant UI refresh
+}
+
+/**
+ * Compute the maximum daily adjustment based on TDEE and correction mode.
+ */
+export function computeMaxDailyAdjustment(tdee: number, mode: CorrectionMode): number {
+  const caps: Record<CorrectionMode, number> = { aggressive: 0.25, balanced: 0.20, relaxed: 0.10 };
+  const absoluteMax: Record<CorrectionMode, number> = { aggressive: 500, balanced: 400, relaxed: 300 };
+  return Math.min(Math.round(tdee * caps[mode]), absoluteMax[mode]);
+}
 
 /**
  * Compute safe number of days to spread a surplus over.
- * Keeps daily reduction ≤ min(300, 10% of TDEE), capped at 14 days, floor 4.
+ * Uses mode-aware daily cap. Floor 2, cap 14.
  */
-export function computeSafeSpreadDays(surplus: number, tdee: number): number {
-  const maxDailyReduction = Math.min(300, Math.round(tdee * 0.1));
-  let days = Math.ceil(surplus / Math.max(1, maxDailyReduction));
-  return Math.max(4, Math.min(days, 14));
+export function computeSafeSpreadDays(surplus: number, tdee: number, mode: CorrectionMode = 'balanced'): number {
+  const maxDaily = computeMaxDailyAdjustment(tdee, mode);
+  let days = Math.ceil(surplus / Math.max(1, maxDaily));
+  return Math.max(2, Math.min(days, 14));
 }
 
 export function computeAdjustmentMap(
   pastLogs: DailyBalanceEntry[],
   baseTarget: number,
-  tdee: number = 2000
+  tdee: number = 2000,
+  mode: CorrectionMode = 'balanced'
 ): Record<string, number> {
   const adjMap: Record<string, number> = {};
   const sourceTracker = new Map<string, Set<string>>();
@@ -237,7 +261,7 @@ export function computeAdjustmentMap(
     if (Math.abs(diff) < 50) continue;
 
     if (diff > 0) {
-      const spreadDays = computeSafeSpreadDays(diff, tdee);
+      const spreadDays = computeSafeSpreadDays(diff, tdee, mode);
       // Sign-safe exact distribution — no rounding drift
       const absDiff = Math.abs(diff);
       const base = Math.floor(absDiff / spreadDays);
@@ -265,10 +289,12 @@ export function computeAdjustmentMap(
   let leftover = 0;
   const dates = Object.keys(adjMap).sort();
 
+  const maxAdj = computeMaxDailyAdjustment(tdee, mode);
+
   // Pass 1: clamp and track leftover
   for (const date of dates) {
     const raw = adjMap[date];
-    const clamped = Math.max(-MAX_ADJUSTMENT_PER_DAY, Math.min(MAX_ADJUSTMENT_PER_DAY, raw));
+    const clamped = Math.max(-maxAdj, Math.min(maxAdj, raw));
     leftover += raw - clamped;
     adjMap[date] = clamped;
   }
@@ -280,7 +306,7 @@ export function computeAdjustmentMap(
     for (const date of dates) {
       if (absLeftover < 1) break;
       const current = adjMap[date];
-      const capacity = MAX_ADJUSTMENT_PER_DAY - Math.abs(current);
+      const capacity = maxAdj - Math.abs(current);
       if (capacity <= 0) continue;
       // Only redistribute in the same direction as leftover
       if (sign < 0 && current > 0) continue;
@@ -316,7 +342,8 @@ export function computeAdjustedTarget(
   date: string,
   baseTarget: number,
   allBalances: DailyBalanceEntry[],
-  tdee: number = 2000
+  tdee: number = 2000,
+  mode: CorrectionMode = 'balanced'
 ): number {
   const today = getEffectiveDate();
 
@@ -331,7 +358,7 @@ export function computeAdjustedTarget(
 
   // Compute from logs strictly before this date
   const pastLogs = allBalances.filter(b => b.date < date && b.actual >= 300);
-  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee, mode);
   const adjustment = adjMap[date] || 0;
   return Math.round(clamp(baseTarget + adjustment, 1200, baseTarget * 1.15));
 }
@@ -343,7 +370,8 @@ export function computeBreakdownForDate(
   targetDate: string,
   pastLogs: DailyBalanceEntry[],
   baseTarget: number,
-  tdee: number = 2000
+  tdee: number = 2000,
+  mode: CorrectionMode = 'balanced'
 ): AdjustmentSource[] {
   const result: AdjustmentSource[] = [];
 
@@ -356,7 +384,7 @@ export function computeBreakdownForDate(
     let contribution = 0;
 
     if (diff > 0) {
-      const spreadDays = computeSafeSpreadDays(diff, tdee);
+      const spreadDays = computeSafeSpreadDays(diff, tdee, mode);
       // Exact distribution — matches computeAdjustmentMap exactly
       const absDiff = Math.abs(diff);
       const base = Math.floor(absDiff / spreadDays);
@@ -402,7 +430,7 @@ export function computeDinnerSummary(
 
   if (diff > 0) {
     const tdeeVal = allBalances.length > 0 ? (allBalances[0]?.target || 2000) : 2000;
-    const spreadDays = computeSafeSpreadDays(diff, tdeeVal);
+    const spreadDays = computeSafeSpreadDays(diff, tdeeVal, getCorrectionMode());
     const perDay = Math.round(diff / spreadDays);
     message = `You ate +${Math.round(diff)} kcal over target today.\n\n→ We'll reduce ~${perDay} kcal/day over the next ${spreadDays} days.`;
   } else {
@@ -418,7 +446,7 @@ export function computeDinnerSummary(
   const allPast = [...allBalances.filter(b => b.date !== today), todayBalance];
 
   const tomorrow = getFutureDate(today, 1);
-  const tomorrowTarget = computeAdjustedTarget(tomorrow, baseTarget, allPast);
+  const tomorrowTarget = computeAdjustedTarget(tomorrow, baseTarget, allPast, undefined, getCorrectionMode());
 
   message += `\n\n👉 Tomorrow's target: ~${tomorrowTarget} kcal`;
 
@@ -465,7 +493,7 @@ export function getDailyBalances(baseTarget?: number): DailyBalanceEntry[] {
   // 🔒 RECONCILIATION — pure identity check: Σ(diff) + Σ(adj) ≈ 0
   const today = getEffectiveDate();
   const pastOnly = balances.filter(b => b.date < today && b.actual >= 300);
-  const adjMap = computeAdjustmentMap(pastOnly, target, tdee);
+  const adjMap = computeAdjustmentMap(pastOnly, target, tdee, getCorrectionMode());
 
   const totalDiff = pastOnly.reduce((sum, d) => {
     const diff = d.actual - target;
@@ -477,8 +505,9 @@ export function getDailyBalances(baseTarget?: number): DailyBalanceEntry[] {
   }
 
   // Verify per-day clamp integrity
+  const maxAdj = computeMaxDailyAdjustment(tdee, getCorrectionMode());
   for (const [date, val] of Object.entries(adjMap)) {
-    if (Math.abs(val) > MAX_ADJUSTMENT_PER_DAY) {
+    if (Math.abs(val) > maxAdj) {
       console.error('[CalorieEngine] CLAMP VIOLATION:', { date, val });
     }
   }
@@ -571,7 +600,7 @@ export function getAdjustedDailyTarget(profile: UserProfile | null): number {
   if (!prefs.autoAdjustMeals) return baseTarget;
 
   const allBalances = getDailyBalances(baseTarget);
-  return computeAdjustedTarget(today, baseTarget, allBalances, tdee);
+  return computeAdjustedTarget(today, baseTarget, allBalances, tdee, getCorrectionMode());
 }
 
 /**
@@ -603,7 +632,7 @@ export function processEndOfDay(profile: UserProfile | null): void {
 
   // Compute and freeze yesterday's adjusted target
   const allBalances = getDailyBalances(baseTarget);
-  const frozenTarget = computeAdjustedTarget(yesterday, baseTarget, allBalances, p.tdee || baseTarget);
+  const frozenTarget = computeAdjustedTarget(yesterday, baseTarget, allBalances, p.tdee || baseTarget, getCorrectionMode());
   frozen[yesterday] = frozenTarget;
 
   // Clean old entries (keep last 60 days)
@@ -704,7 +733,7 @@ export function getTodayAdjustmentStatus(): {
 
   const allBalances = getDailyBalances(baseTarget);
   const pastLogs = allBalances.filter(b => b.date < today && b.actual >= 300);
-  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee, getCorrectionMode());
   const todayAdj = adjMap[today] || 0;
 
   if (Math.abs(todayAdj) < 10) {
@@ -746,7 +775,7 @@ export function getAdjustmentExplanation(date?: string): string | null {
   const tdee = p?.tdee || baseTarget;
   const allBalances = getDailyBalances(baseTarget);
   const pastLogs = allBalances.filter(b => b.date < d && b.actual >= 300);
-  const breakdown = computeBreakdownForDate(d, pastLogs, baseTarget, tdee);
+  const breakdown = computeBreakdownForDate(d, pastLogs, baseTarget, tdee, getCorrectionMode());
 
   if (breakdown.length === 0) return null;
 
@@ -776,7 +805,7 @@ export function getAdjustmentDetails(): {
   const tdee = p?.tdee || baseTarget;
   const allBalances = getDailyBalances(baseTarget);
   const pastLogs = allBalances.filter(b => b.date < today && b.actual >= 300);
-  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee, getCorrectionMode());
 
   // Source days
   const sourceMap = new Map<string, number>();
@@ -798,7 +827,7 @@ export function getAdjustmentDetails(): {
   const futureAdjustments = futureDates.map(([date, adjustment]) => ({
     date,
     adjustment,
-    sources: computeBreakdownForDate(date, pastLogs, baseTarget, tdee),
+    sources: computeBreakdownForDate(date, pastLogs, baseTarget, tdee, getCorrectionMode()),
   }));
 
   return { recentSurplusDays, futureAdjustments };
@@ -812,15 +841,17 @@ export function getAdjustmentDetails(): {
 export function validateAdjustmentIntegrity(
   pastLogs: DailyBalanceEntry[],
   baseTarget: number,
-  tdee: number = 2000
+  tdee: number = 2000,
+  mode: CorrectionMode = 'balanced'
 ): { valid: boolean; warnings: string[] } {
   const warnings: string[] = [];
-  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee, mode);
+  const maxAdj = computeMaxDailyAdjustment(tdee, mode);
 
-  // Check 1: No single day exceeds ±300
+  // Check 1: No single day exceeds mode cap
   for (const [date, val] of Object.entries(adjMap)) {
-    if (Math.abs(val) > MAX_ADJUSTMENT_PER_DAY) {
-      warnings.push(`Day ${date} has adjustment ${val} exceeding ±${MAX_ADJUSTMENT_PER_DAY} limit`);
+    if (Math.abs(val) > maxAdj) {
+      warnings.push(`Day ${date} has adjustment ${val} exceeding ±${maxAdj} limit`);
     }
   }
 
