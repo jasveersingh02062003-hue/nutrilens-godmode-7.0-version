@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Trophy, TrendingUp, Scale, Share2, Camera, IndianRupee, FileText, Crown } from 'lucide-react';
-import { getRecentLogs, getDailyTotals, getDailyLog, getAllLogDates } from '@/lib/store';
+import { getRecentLogs, getDailyTotals, getDailyLog, getAllLogDates, getProfile } from '@/lib/store';
 import { hasExpensesOnDate } from '@/lib/expense-store';
 import { Flame, BarChart3 } from 'lucide-react';
 import { getWeeklySummaries, type WeeklySummary } from '@/lib/weekly-feedback';
@@ -34,7 +34,7 @@ import { getPlan, isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
 import { getDailyBalances, getTodayAdjustmentStatus, getMonthlyStats, getWeekendPattern, computeAdjustmentMap, type DailyBalanceEntry } from '@/lib/calorie-correction';
-import { getProfile } from '@/lib/store';
+
 
 type AdherenceStatus = 'green' | 'yellow' | 'red' | 'gray';
 
