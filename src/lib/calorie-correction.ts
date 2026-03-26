@@ -437,29 +437,18 @@ export function getDailyBalances(baseTarget?: number): DailyBalanceEntry[] {
     console.debug('[CalorieEngine] Balance:', { date, actual: totals.eaten, baseTarget: target, diff: Math.round(diff) });
   }
 
-  // 🔒 RECONCILIATION CHECK — verify conservation invariant
+  // 🔒 RECONCILIATION — pure identity check: Σ(diff) + Σ(adj) ≈ 0
   const today = getEffectiveDate();
   const pastOnly = balances.filter(b => b.date < today && b.actual >= 300);
   const adjMap = computeAdjustmentMap(pastOnly, target);
 
-  // Expected: sum of all surplus reductions + deficit recoveries
-  let expectedAdj = 0;
-  for (const day of pastOnly) {
-    const diff = day.actual - target;
-    if (diff > 50) {
-      expectedAdj -= diff; // surplus → negative adjustment
-    } else if (diff < -50) {
-      expectedAdj += Math.min(Math.round(Math.abs(diff) * 0.3), 250); // deficit → positive recovery
-    }
-  }
-
+  const totalDiff = pastOnly.reduce((sum, d) => {
+    const diff = d.actual - target;
+    return Math.abs(diff) > 50 ? sum + diff : sum;
+  }, 0);
   const totalAdj = Object.values(adjMap).reduce((s, v) => s + v, 0);
-  if (Math.abs(totalAdj - expectedAdj) > 1) {
-    console.error('[CalorieEngine] RECONCILIATION MISMATCH:', {
-      expectedAdj: Math.round(expectedAdj),
-      totalAdj: Math.round(totalAdj),
-      delta: Math.round(totalAdj - expectedAdj),
-    });
+  if (Math.abs(totalDiff + totalAdj) > 1) {
+    console.error('[CalorieEngine] Conservation broken:', { totalDiff: Math.round(totalDiff), totalAdj: Math.round(totalAdj) });
   }
 
   // Verify per-day clamp integrity
@@ -806,28 +795,23 @@ export function validateAdjustmentIntegrity(
   }
 
   // Check: adjMap should not be empty when significant diffs exist
-  const totalDiff = pastLogs.reduce((s, d) => {
+  const hasSignificantDiff = pastLogs.some(d => {
     const diff = d.actual - baseTarget;
-    return Math.abs(diff) > 50 ? s + diff : s;
-  }, 0);
-  if (Object.keys(adjMap).length === 0 && Math.abs(totalDiff) > 50) {
+    return Math.abs(diff) > 50;
+  });
+  if (Object.keys(adjMap).length === 0 && hasSignificantDiff) {
     warnings.push('Missing adjustments for non-zero diff');
   }
 
-  // Check 2: Total adjustments ≈ total surplus - total recovery
-  let totalSurplus = 0;
-  let totalRecovery = 0;
-  for (const day of pastLogs) {
-    if (!day.actual || day.actual < 300) continue;
-    const diff = day.actual - baseTarget;
-    if (diff > 50) totalSurplus += diff;
-    else if (diff < -50) totalRecovery += Math.min(Math.round(Math.abs(diff) * 0.3), 250);
-  }
-
+  // Check 2: Conservation identity — Σ(diff) + Σ(adj) ≈ 0
+  const totalDiff = pastLogs.reduce((sum, d) => {
+    if (!d.actual || d.actual < 300) return sum;
+    const diff = d.actual - baseTarget;
+    return Math.abs(diff) > 50 ? sum + diff : sum;
+  }, 0);
   const totalAdj = Object.values(adjMap).reduce((s, v) => s + v, 0);
-  const expectedNet = -totalSurplus + totalRecovery;
-  if (Math.abs(totalAdj - expectedNet) > 1) {
-    warnings.push(`Adjustment mismatch: total=${totalAdj}, expected=${expectedNet}`);
+  if (Math.abs(totalDiff + totalAdj) > 1) {
+    warnings.push(`Conservation broken: totalDiff=${Math.round(totalDiff)}, totalAdj=${Math.round(totalAdj)}`);
   }
 
   // Loud failure during dev
