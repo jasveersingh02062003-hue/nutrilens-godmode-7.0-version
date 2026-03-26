@@ -816,10 +816,9 @@ export function validateAdjustmentIntegrity(
 
   // Loud failure during dev
   console.error('[CalorieEngine] Validation:', {
-    totalSurplus: Math.round(totalSurplus),
-    totalRecovery: Math.round(totalRecovery),
+    totalDiff: Math.round(totalDiff),
     totalAdjustments: Math.round(totalAdj),
-    expectedNet: Math.round(expectedNet),
+    conservationDelta: Math.round(totalDiff + totalAdj),
     daysInMap: Object.keys(adjMap).length,
     valid: warnings.length === 0,
   });
