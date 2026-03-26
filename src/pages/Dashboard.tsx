@@ -411,6 +411,22 @@ export default function Dashboard() {
           <TimeInsightCard />
         </div>
 
+        {/* Surplus/Deficit Live Indicator */}
+        {dayState.totalConsumed > 0 && (
+          <div className="animate-fade-in">
+            <div className={`flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 border ${
+              dayState.remaining >= 0
+                ? 'bg-primary/5 border-primary/15'
+                : 'bg-destructive/5 border-destructive/15'
+            }`}>
+              <span className="text-sm">{dayState.remaining >= 0 ? '🟢' : '🔴'}</span>
+              <span className={`text-sm font-bold ${dayState.remaining >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                {dayState.remaining >= 0 ? `${Math.round(dayState.remaining)} kcal remaining` : `+${Math.abs(Math.round(dayState.remaining))} kcal over target`}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* 2. Calorie Ring */}
         <div className="animate-scale-in">
           <CalorieRing dayState={dayState} proteinRemaining={Math.max(0, getProteinTarget(profile) - totals.protein)} />
