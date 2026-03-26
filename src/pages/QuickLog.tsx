@@ -1,37 +1,72 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { getWidgetData, type MealSlot, type MealSlotData } from '@/lib/widget-data';
+import { getWidgetData, type MealSlot, type MealSlotData, getLastLogMode, trackQuickLogVisit, getQuickLogVisits } from '@/lib/widget-data';
 import LoggingOptionsSheet from '@/components/LoggingOptionsSheet';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, ArrowLeft } from 'lucide-react';
 
 const STATUS_STYLES: Record<string, string> = {
   completed: 'border-primary/40 bg-primary/5 opacity-80',
+  late_completed: 'border-amber-400/40 bg-amber-50/10 opacity-85',
   current: 'border-primary bg-primary/10 ring-2 ring-primary/20',
   pending: 'border-border bg-card',
   missed: 'border-border bg-muted/30 opacity-50',
 };
+
+interface FeedbackData {
+  calories: number;
+  protein: number;
+  mealLabel: string;
+}
 
 export default function QuickLog() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [data, setData] = useState(() => getWidgetData());
   const [sheetMeal, setSheetMeal] = useState<{ type: string; label: string } | null>(null);
+  const [feedback, setFeedback] = useState<FeedbackData | null>(null);
+  const prevDataRef = useRef(data);
+  const visits = useRef(0);
 
-  const refresh = useCallback(() => setData(getWidgetData()), []);
+  const refresh = useCallback(() => {
+    const newData = getWidgetData();
+    const prev = prevDataRef.current;
 
-  // Auto-refresh: storage events + 30s poll
+    // Detect new logging → show feedback
+    for (const meal of newData.meals) {
+      const prevMeal = prev.meals.find(m => m.type === meal.type);
+      if (prevMeal && meal.loggedCalories > prevMeal.loggedCalories) {
+        setFeedback({
+          calories: meal.loggedCalories - prevMeal.loggedCalories,
+          protein: meal.loggedProtein - (prevMeal.loggedProtein || 0),
+          mealLabel: meal.label,
+        });
+        setTimeout(() => setFeedback(null), 3000);
+        break;
+      }
+    }
+
+    prevDataRef.current = newData;
+    setData(newData);
+  }, []);
+
+  // Event-driven refresh (no polling)
   useEffect(() => {
-    const onStorage = () => refresh();
-    window.addEventListener('storage', onStorage);
-    const interval = setInterval(refresh, 30000);
+    const handler = () => refresh();
+    window.addEventListener('nutrilens:update', handler);
+    window.addEventListener('storage', handler);
     return () => {
-      window.removeEventListener('storage', onStorage);
-      clearInterval(interval);
+      window.removeEventListener('nutrilens:update', handler);
+      window.removeEventListener('storage', handler);
     };
   }, [refresh]);
 
-  // Deep link handling
+  // Track visits for PWA hint
+  useEffect(() => {
+    visits.current = trackQuickLogVisit();
+  }, []);
+
+  // Deep link handling → unified /log route
   useEffect(() => {
     const meal = searchParams.get('meal') as MealSlot | null;
     const mode = searchParams.get('mode');
@@ -40,12 +75,9 @@ export default function QuickLog() {
     const label = meal.charAt(0).toUpperCase() + meal.slice(1);
     if (mode === 'camera') {
       navigate(`/?meal=${meal}`, { replace: true });
-    } else if (mode === 'voice') {
-      navigate(`/log?meal=${meal}&mode=voice`, { replace: true });
-    } else if (mode === 'manual') {
-      navigate(`/log?meal=${meal}`, { replace: true });
+    } else if (mode) {
+      navigate(`/log?meal=${meal}&mode=${mode}`, { replace: true });
     } else {
-      // smart or no mode — open sheet
       setSheetMeal({ type: meal, label });
     }
   }, [searchParams, navigate]);
@@ -57,6 +89,7 @@ export default function QuickLog() {
 
   const calPct = Math.min(1, 1 - data.remainingCalories / Math.max(1, data.totalCalories));
   const protPct = Math.min(1, 1 - data.remainingProtein / Math.max(1, data.totalProtein));
+  const showPwaHint = getQuickLogVisits() >= 3 && !window.matchMedia('(display-mode: standalone)').matches;
 
   return (
     <div className="min-h-screen bg-background flex items-start justify-center px-4 pt-6 pb-10">
@@ -74,6 +107,25 @@ export default function QuickLog() {
           </div>
         </div>
 
+        {/* Inline feedback after logging */}
+        <AnimatePresence>
+          {feedback && (
+            <motion.div
+              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.95 }}
+              className="rounded-2xl bg-primary/10 border border-primary/20 p-4 text-center"
+            >
+              <p className="text-sm font-semibold text-primary">
+                ✅ {feedback.mealLabel} logged!
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                +{feedback.calories} kcal · +{feedback.protein}g protein
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Stats */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -86,11 +138,13 @@ export default function QuickLog() {
               <div className="relative w-16 h-16">
                 <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
                   <circle cx="18" cy="18" r="15.5" fill="none" strokeWidth="3" className="stroke-muted" />
-                  <circle
+                  <motion.circle
                     cx="18" cy="18" r="15.5" fill="none" strokeWidth="3"
                     strokeDasharray={`${calPct * 97.4} 97.4`}
                     strokeLinecap="round"
-                    className="stroke-primary transition-all duration-700"
+                    className="stroke-primary"
+                    animate={{ strokeDasharray: `${calPct * 97.4} 97.4` }}
+                    transition={{ duration: 0.7 }}
                   />
                 </svg>
                 <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-foreground">
@@ -98,7 +152,14 @@ export default function QuickLog() {
                 </span>
               </div>
               <div className="text-center">
-                <p className="text-lg font-bold text-foreground">{data.remainingCalories}</p>
+                <motion.p
+                  key={data.remainingCalories}
+                  initial={{ scale: 1.2 }}
+                  animate={{ scale: 1 }}
+                  className="text-lg font-bold text-foreground"
+                >
+                  {data.remainingCalories}
+                </motion.p>
                 <p className="text-[10px] text-muted-foreground">kcal left</p>
               </div>
             </div>
@@ -108,11 +169,13 @@ export default function QuickLog() {
               <div className="relative w-16 h-16">
                 <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
                   <circle cx="18" cy="18" r="15.5" fill="none" strokeWidth="3" className="stroke-muted" />
-                  <circle
+                  <motion.circle
                     cx="18" cy="18" r="15.5" fill="none" strokeWidth="3"
                     strokeDasharray={`${protPct * 97.4} 97.4`}
                     strokeLinecap="round"
-                    className="stroke-secondary transition-all duration-700"
+                    className="stroke-secondary"
+                    animate={{ strokeDasharray: `${protPct * 97.4} 97.4` }}
+                    transition={{ duration: 0.7 }}
                   />
                 </svg>
                 <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-foreground">
@@ -120,7 +183,14 @@ export default function QuickLog() {
                 </span>
               </div>
               <div className="text-center">
-                <p className="text-lg font-bold text-foreground">{data.remainingProtein}g</p>
+                <motion.p
+                  key={data.remainingProtein}
+                  initial={{ scale: 1.2 }}
+                  animate={{ scale: 1 }}
+                  className="text-lg font-bold text-foreground"
+                >
+                  {data.remainingProtein}g
+                </motion.p>
                 <p className="text-[10px] text-muted-foreground">protein left</p>
               </div>
             </div>
@@ -144,6 +214,9 @@ export default function QuickLog() {
               {slot.status === 'completed' && (
                 <span className="absolute top-2 right-2 text-xs">✅</span>
               )}
+              {slot.status === 'late_completed' && (
+                <span className="absolute top-2 right-2 text-[10px]">⏰✔</span>
+              )}
               {slot.status === 'current' && (
                 <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary animate-pulse" />
               )}
@@ -157,10 +230,17 @@ export default function QuickLog() {
           ))}
         </div>
 
-        {/* PWA hint */}
-        <div className="text-center text-[10px] text-muted-foreground/60 pt-2">
-          💡 Add this page to your home screen for instant access
-        </div>
+        {/* PWA hint - only after 3+ visits */}
+        {showPwaHint && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1 }}
+            className="text-center text-[10px] text-muted-foreground/60 pt-2"
+          >
+            💡 Add this page to your home screen for instant access
+          </motion.div>
+        )}
       </div>
 
       {/* Logging sheet */}

@@ -629,6 +629,8 @@ function notifyUICallbacks(): void {
   for (const cb of uiUpdateCallbacks) {
     try { cb(); } catch {}
   }
+  // Also dispatch global event for QuickLog widget and other listeners
+  try { window.dispatchEvent(new Event('nutrilens:update')); } catch {}
 }
 
 /**

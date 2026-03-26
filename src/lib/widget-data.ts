@@ -1,7 +1,7 @@
 import { getProfile, getDailyLog, getDailyTotals, getTodayKey } from '@/lib/store';
 
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
-export type MealStatus = 'completed' | 'current' | 'pending' | 'missed';
+export type MealStatus = 'completed' | 'late_completed' | 'current' | 'pending' | 'missed';
 
 export interface MealSlotData {
   type: MealSlot;
@@ -10,6 +10,7 @@ export interface MealSlotData {
   timeHint: string;
   status: MealStatus;
   loggedCalories: number;
+  loggedProtein: number;
 }
 
 export interface WidgetData {
@@ -33,8 +34,10 @@ const SLOT_ORDER: MealSlot[] = ['breakfast', 'lunch', 'snack', 'dinner'];
 export function getMealStatus(type: MealSlot, loggedTypes: Set<string>): MealStatus {
   const hour = new Date().getHours();
   const meta = SLOT_META[type];
+  const isLogged = loggedTypes.has(type);
 
-  if (loggedTypes.has(type)) return 'completed';
+  if (isLogged && hour >= meta.endHour) return 'late_completed';
+  if (isLogged) return 'completed';
   if (hour >= meta.startHour && hour < meta.endHour) return 'current';
   if (hour >= meta.endHour) return 'missed';
   return 'pending';
@@ -52,9 +55,9 @@ export function getWidgetData(): WidgetData {
 
   const meals: MealSlotData[] = SLOT_ORDER.map(type => {
     const meta = SLOT_META[type];
-    const mealCals = log.meals
-      .filter(m => m.type === type)
-      .reduce((s, m) => s + m.items.reduce((a, i) => a + (i.calories || 0) * (i.quantity || 1), 0), 0);
+    const mealItems = log.meals.filter(m => m.type === type);
+    const mealCals = mealItems.reduce((s, m) => s + m.items.reduce((a, i) => a + (i.calories || 0) * (i.quantity || 1), 0), 0);
+    const mealProtein = mealItems.reduce((s, m) => s + m.items.reduce((a, i) => a + (i.protein || 0) * (i.quantity || 1), 0), 0);
 
     return {
       type,
@@ -63,6 +66,7 @@ export function getWidgetData(): WidgetData {
       timeHint: meta.timeHint,
       status: getMealStatus(type, loggedTypes),
       loggedCalories: Math.round(mealCals),
+      loggedProtein: Math.round(mealProtein),
     };
   });
 
@@ -85,17 +89,62 @@ function getDynamicMessage(
   meals: MealSlotData[]
 ): string {
   const hour = new Date().getHours();
-  const pct = eaten / Math.max(1, targetCal);
-  const currentMeal = meals.find(m => m.status === 'current');
+  const calPct = eaten / Math.max(1, targetCal);
   const proteinPct = protein / Math.max(1, targetProtein);
+  const remaining = targetCal - eaten;
 
+  // Morning - nothing logged
   if (eaten === 0 && hour < 11) return "Good morning! Ready to start logging? 🌞";
-  if (currentMeal && currentMeal.status === 'current' && !meals.some(m => m.type === currentMeal.type && m.loggedCalories > 0)) {
+
+  // Protein behind in afternoon
+  if (proteinPct < 0.4 && hour > 14) return "You're behind on protein — add some! 💪";
+
+  // Under-eating at night
+  if (hour >= 20 && remaining > 800) return "You're under-eating today — fuel up 🍽️";
+
+  // Over target
+  if (calPct > 1.05) {
+    const dinnerPending = meals.find(m => m.type === 'dinner' && (m.status === 'pending' || m.status === 'current'));
+    if (dinnerPending) return "Over target — keep dinner light tonight 🧘";
+    return "You've gone over target — stay mindful 🧘";
+  }
+
+  // Almost at target
+  if (calPct > 0.9 && calPct <= 1.05) return "Almost at your target — great job! 🎯";
+
+  // Current meal prompt
+  const currentMeal = meals.find(m => m.status === 'current');
+  if (currentMeal && currentMeal.loggedCalories === 0) {
     return `Time for ${currentMeal.label.toLowerCase()}! 🍽️`;
   }
-  if (proteinPct < 0.3 && hour > 14) return "Low protein so far — add some! 💪";
-  if (pct > 0.9 && pct <= 1.05) return "Almost at your target — great job! 🎯";
-  if (pct > 1.05) return "You've gone over target — stay mindful 🧘";
-  if (pct > 0.5) return "You're on track today! Keep going 💚";
+
+  // Mid-day on track
+  if (calPct > 0.5) return "You're on track today! Keep going 💚";
+
   return "Keep logging to stay on track 📋";
+}
+
+/** Dispatch global event for QuickLog and other listeners */
+export function notifyWidgetUpdate(): void {
+  window.dispatchEvent(new Event('nutrilens:update'));
+}
+
+/** Get/set last used logging mode */
+const LAST_MODE_KEY = 'nutrilens_last_log_mode';
+export function getLastLogMode(): string {
+  return localStorage.getItem(LAST_MODE_KEY) || 'manual';
+}
+export function setLastLogMode(mode: string): void {
+  localStorage.setItem(LAST_MODE_KEY, mode);
+}
+
+/** Track quicklog visits for smart PWA hint */
+const QUICKLOG_VISITS_KEY = 'nutrilens_quicklog_visits';
+export function trackQuickLogVisit(): number {
+  const count = parseInt(localStorage.getItem(QUICKLOG_VISITS_KEY) || '0', 10) + 1;
+  localStorage.setItem(QUICKLOG_VISITS_KEY, count.toString());
+  return count;
+}
+export function getQuickLogVisits(): number {
+  return parseInt(localStorage.getItem(QUICKLOG_VISITS_KEY) || '0', 10);
 }
