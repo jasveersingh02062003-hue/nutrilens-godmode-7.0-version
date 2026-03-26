@@ -44,11 +44,12 @@ export function getMealTarget(profile: UserProfile, mealType: string): MealTarge
 
 export function getMealLogged(log: DailyLog, mealType: string): MealTarget {
   const meals = log.meals.filter(m => m.type === mealType);
+  // SAFETY: Recompute from items to avoid stale stored totals (matches store.ts pattern)
   return {
-    calories: meals.reduce((s, m) => s + m.totalCalories, 0),
-    protein: meals.reduce((s, m) => s + m.totalProtein, 0),
-    carbs: meals.reduce((s, m) => s + m.totalCarbs, 0),
-    fat: meals.reduce((s, m) => s + m.totalFat, 0),
+    calories: meals.reduce((s, m) => s + m.items.reduce((is, i) => is + (i.calories || 0) * (i.quantity || 1), 0), 0),
+    protein: meals.reduce((s, m) => s + m.items.reduce((is, i) => is + (i.protein || 0) * (i.quantity || 1), 0), 0),
+    carbs: meals.reduce((s, m) => s + m.items.reduce((is, i) => is + (i.carbs || 0) * (i.quantity || 1), 0), 0),
+    fat: meals.reduce((s, m) => s + m.items.reduce((is, i) => is + (i.fat || 0) * (i.quantity || 1), 0), 0),
   };
 }
 

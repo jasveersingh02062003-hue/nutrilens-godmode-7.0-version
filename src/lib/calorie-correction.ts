@@ -193,9 +193,12 @@ export function getAdherenceScore(): { score: number; label: string } {
  * This is the ONLY way to get daily calories — never use stored totals.
  */
 export function computeDailyCalories(log: DailyLog): number {
-  return log.meals.reduce((sum, meal) =>
-    sum + meal.items.reduce((s, item) => s + item.calories * item.quantity, 0), 0
+  const mealCals = log.meals.reduce((sum, meal) =>
+    sum + meal.items.reduce((s, item) => s + (item.calories || 0) * (item.quantity || 1), 0), 0
   );
+  // Include supplement calories to match getDailyTotals in store.ts
+  const suppCals = (log.supplements || []).reduce((s, supp) => s + (supp.calories || 0), 0);
+  return mealCals + suppCals;
 }
 
 /**
@@ -815,7 +818,8 @@ export function validateAdjustmentIntegrity(
   }
 
   // Loud failure during dev
-  console.error('[CalorieEngine] Validation:', {
+  const logFn = warnings.length > 0 ? console.error : console.debug;
+  logFn('[CalorieEngine] Validation:', {
     totalDiff: Math.round(totalDiff),
     totalAdjustments: Math.round(totalAdj),
     conservationDelta: Math.round(totalDiff + totalAdj),

@@ -20,7 +20,10 @@ export interface MealSlot {
 }
 
 export interface DayState {
-  baseTarget: number;
+  /** The user's original profile target (immutable truth) */
+  originalTarget: number;
+  /** Target after correction engine adjustments */
+  adjustedTarget: number;
   totalBurned: number;
   totalAllowed: number;
   totalConsumed: number;
