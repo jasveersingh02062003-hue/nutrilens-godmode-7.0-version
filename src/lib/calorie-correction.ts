@@ -272,12 +272,42 @@ function mergeSources(existing: AdjustmentSourceMap[], newEntries: AdjustmentSou
   for (const entry of newEntries) {
     const idx = merged.findIndex(e => e.targetDate === entry.targetDate);
     if (idx !== -1) {
-      merged[idx] = { ...merged[idx], sources: [...merged[idx].sources, ...entry.sources] };
+      // Deduplicate by sourceDate — replace existing source entry instead of appending
+      for (const newSrc of entry.sources) {
+        const srcIdx = merged[idx].sources.findIndex(s => s.sourceDate === newSrc.sourceDate);
+        if (srcIdx !== -1) {
+          merged[idx].sources[srcIdx] = newSrc; // REPLACE, not append
+        } else {
+          merged[idx].sources.push(newSrc);
+        }
+      }
     } else {
       merged.push(entry);
     }
   }
   return merged.sort((a, b) => a.targetDate.localeCompare(b.targetDate));
+}
+
+/**
+ * Strip all adjustment plan entries and sources that originated from a given sourceDate.
+ * Then rebuild adjustmentPlan from remaining sources.
+ */
+function stripSourceDay(state: CalorieBankState, sourceDate: string): void {
+  // Remove this sourceDate's contributions from all source maps
+  for (const srcMap of state.adjustmentSources) {
+    srcMap.sources = srcMap.sources.filter(s => s.sourceDate !== sourceDate);
+  }
+  // Remove empty source maps
+  state.adjustmentSources = state.adjustmentSources.filter(s => s.sources.length > 0);
+  // Rebuild adjustmentPlan from remaining sources
+  const planMap = new Map<string, number>();
+  for (const srcMap of state.adjustmentSources) {
+    const totalAdj = srcMap.sources.reduce((sum, s) => sum + s.appliedAdjustment, 0);
+    planMap.set(srcMap.targetDate, (planMap.get(srcMap.targetDate) || 0) + totalAdj);
+  }
+  state.adjustmentPlan = Array.from(planMap.entries())
+    .map(([date, adjust]) => ({ date, adjust }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 // ── Core Functions ──
@@ -358,28 +388,36 @@ export function updateCalorieBank(log?: DailyLog, profile?: UserProfile | null):
 
   const totalMultiplier = effectiveMultiplier * adherenceMultiplier;
 
-  // Build/update adjustment plan for surplus
-  if (state.calorieBank > 50) {
+  // ── CLEAR-AND-REBUILD from today's diff ──
+  // 1. Strip all existing adjustments sourced from today (prevents stacking)
+  stripSourceDay(state, today);
+
+  // 2. Prune past entries
+  state.adjustmentPlan = state.adjustmentPlan.filter(e => e.date >= today);
+  state.adjustmentSources = state.adjustmentSources.filter(s => s.targetDate >= today);
+
+  // 3. Build new plan from today's DIFF only (not cumulative calorieBank)
+  if (diff > 50) {
     const [minDays, maxDays] = config.recoveryDays;
     const days = Math.min(maxDays + (state.consecutiveSurplusDays > 3 ? 2 : 0), Math.max(minDays, state.consecutiveSurplusDays + minDays));
-    const effectiveSurplus = state.calorieBank * totalMultiplier;
-    const { plan: newPlan, sources: newSources } = buildAdjustmentPlan(effectiveSurplus, originalTarget, today, Math.min(7, days), mode, today);
+    const effectiveDiff = diff * totalMultiplier;
+    const { plan: newPlan, sources: newSources } = buildAdjustmentPlan(effectiveDiff, originalTarget, today, Math.min(7, days), mode, today);
     // Dampen plan entries if consecutive surplus > 3
     if (state.consecutiveSurplusDays > 3) {
       newPlan.forEach(p => p.adjust = Math.round(p.adjust * 0.7));
       newSources.forEach(s => s.sources.forEach(src => src.appliedAdjustment = Math.round(src.appliedAdjustment * 0.7)));
     }
-    state.adjustmentPlan = mergePlans(state.adjustmentPlan.filter(e => e.date >= today), newPlan);
-    state.adjustmentSources = mergeSources(state.adjustmentSources.filter(s => s.targetDate >= today), newSources);
+    state.adjustmentPlan = mergePlans(state.adjustmentPlan, newPlan);
+    state.adjustmentSources = mergeSources(state.adjustmentSources, newSources);
     state.adjustmentDaysRemaining = days;
-    state.adjustmentPerDay = Math.min(effectiveSurplus / days, originalTarget * config.surplusCap);
-  } else if (state.calorieBank < -50) {
+    state.adjustmentPerDay = Math.min(effectiveDiff / days, originalTarget * config.surplusCap);
+  } else if (diff < -50) {
     // Deficit: single-day partial recovery for tomorrow
     let recoveryFactor = config.deficitRecovery;
     if (state.consecutiveDeficitDays > 3) {
       recoveryFactor *= 0.5;
     }
-    const recovery = Math.abs(state.calorieBank) * recoveryFactor * totalMultiplier;
+    const recovery = Math.abs(diff) * recoveryFactor * totalMultiplier;
     const maxRecovery = originalTarget * 0.15;
     const adjust = Math.round(Math.min(recovery, maxRecovery));
     const tomorrow = new Date();
@@ -390,12 +428,10 @@ export function updateCalorieBank(log?: DailyLog, profile?: UserProfile | null):
       targetDate: tomorrowStr,
       sources: [{ sourceDate: today, surplus: diff, appliedAdjustment: adjust }],
     }];
-    state.adjustmentPlan = mergePlans(state.adjustmentPlan.filter(e => e.date >= today), newDeficitPlan);
-    state.adjustmentSources = mergeSources(state.adjustmentSources.filter(s => s.targetDate >= today), newDeficitSources);
-  } else {
-    state.adjustmentPlan = [];
-    state.adjustmentSources = [];
+    state.adjustmentPlan = mergePlans(state.adjustmentPlan, newDeficitPlan);
+    state.adjustmentSources = mergeSources(state.adjustmentSources, newDeficitSources);
   }
+  // If |diff| < 50: no new entries from today — entries from other days are preserved
 
   saveState(state);
   notifyUICallbacks();
@@ -505,20 +541,22 @@ export function processEndOfDay(profile: UserProfile | null): void {
       state.balanceStreak = 0;
     }
 
-    // Clean expired adjustment plan entries
+    // Clean expired adjustment plan entries and sources
     state.adjustmentPlan = state.adjustmentPlan.filter(e => e.date >= today);
+    state.adjustmentSources = state.adjustmentSources.filter(s => s.targetDate >= today);
 
     if (state.adjustmentDaysRemaining > 0) state.adjustmentDaysRemaining--;
 
     // Rebuild plan if bank still positive and plan is empty
-    if (state.adjustmentPlan.length === 0 && state.calorieBank > 50) {
+    // Use yesterday's diff (not cumulative bank) to avoid stacking
+    if (state.adjustmentPlan.length === 0 && diff > 50) {
       const [minDays, maxDays] = MODE_CONFIG[state.correctionMode].recoveryDays;
       const days = Math.min(maxDays + 2, Math.max(minDays, state.consecutiveSurplusDays + minDays));
-      const { plan: newPlan, sources: newSources } = buildAdjustmentPlan(state.calorieBank, originalTarget, today, Math.min(7, days), state.correctionMode, yesterday);
+      const { plan: newPlan, sources: newSources } = buildAdjustmentPlan(diff, originalTarget, today, Math.min(7, days), state.correctionMode, yesterday);
       state.adjustmentPlan = mergePlans(state.adjustmentPlan, newPlan);
       state.adjustmentSources = mergeSources(state.adjustmentSources, newSources);
       state.adjustmentDaysRemaining = days;
-      state.adjustmentPerDay = Math.min(state.calorieBank / days, originalTarget * MODE_CONFIG[state.correctionMode].surplusCap);
+      state.adjustmentPerDay = Math.min(diff / days, originalTarget * MODE_CONFIG[state.correctionMode].surplusCap);
     }
   }
 
