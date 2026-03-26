@@ -33,39 +33,50 @@ import { useUserProfile } from '@/contexts/UserProfileContext';
 import { getPlan, isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
-import { getDailyBalances, getTodayAdjustmentStatus, getMonthlyStats, getWeekendPattern, computeAdjustmentMap, computeSafeSpreadDays, getCorrectionMode, type DailyBalanceEntry } from '@/lib/calorie-correction';
+import { getDailyBalances, getTodayAdjustmentStatus, getMonthlyStats, getWeekendPattern, computeAdjustmentMap, computeSafeSpreadDays, getCorrectionMode, computeAdjustedTarget, type DailyBalanceEntry } from '@/lib/calorie-correction';
+import { toLocalDateKey } from '@/lib/store';
 
 
-type AdherenceStatus = 'green' | 'yellow' | 'red' | 'gray';
+type DayBalance = 'surplus' | 'deficit' | 'balanced' | 'no-data' | 'future-reduced' | 'future-recovery';
 
-function getAdherence(dateStr: string, goal: number, waterGoal: number, logDatesSet: Set<string>): AdherenceStatus {
-  if (!logDatesSet.has(dateStr)) return 'gray';
-  const log = getDailyLog(dateStr);
-  const totals = getDailyTotals(log);
-  if (totals.eaten === 0 && log.waterCups === 0) return 'gray';
+function computeDayBalance(dateStr: string, todayStr: string, logDatesSet: Set<string>, baseTarget: number, allBalances: DailyBalanceEntry[], adjMap: Record<string, number>): { status: DayBalance; diff: number } {
+  const isFuture = dateStr > todayStr;
 
-  const calRatio = Math.abs(totals.eaten - goal) / goal;
-  const withinTen = calRatio <= 0.1;
-  const withinTwenty = calRatio <= 0.2;
-  const waterMet = log.waterCups >= waterGoal;
+  if (isFuture) {
+    const adj = adjMap[dateStr] || 0;
+    if (adj < -10) return { status: 'future-reduced', diff: adj };
+    if (adj > 10) return { status: 'future-recovery', diff: adj };
+    return { status: 'no-data', diff: 0 };
+  }
 
-  if (withinTen && waterMet) return 'green';
-  if ((withinTen && !waterMet) || (withinTwenty && waterMet)) return 'yellow';
-  return 'red';
+  const entry = allBalances.find(b => b.date === dateStr);
+  if (!entry || entry.actual === 0) return { status: 'no-data', diff: 0 };
+
+  // For past/today: compare actual vs adjusted or base target
+  const target = entry.adjustedTarget || baseTarget;
+  const diff = entry.actual - target;
+
+  if (Math.abs(diff) <= target * 0.1) return { status: 'balanced', diff: Math.round(diff) };
+  if (diff > 0) return { status: 'surplus', diff: Math.round(diff) };
+  return { status: 'deficit', diff: Math.round(diff) };
 }
 
-const dotColors: Record<AdherenceStatus, string> = {
-  green: 'bg-primary',
-  yellow: 'bg-accent',
-  red: 'bg-destructive',
-  gray: 'bg-transparent',
+const balanceDotColors: Record<DayBalance, string> = {
+  surplus: 'bg-destructive',
+  deficit: 'bg-accent',
+  balanced: 'bg-primary',
+  'no-data': 'bg-transparent',
+  'future-reduced': 'bg-transparent',
+  'future-recovery': 'bg-transparent',
 };
 
-const cellColors: Record<AdherenceStatus, string> = {
-  green: 'bg-primary/10 text-primary border-primary/20',
-  yellow: 'bg-accent/10 text-accent border-accent/20',
-  red: 'bg-destructive/10 text-destructive border-destructive/20',
-  gray: 'bg-transparent text-foreground border-transparent',
+const balanceCellColors: Record<DayBalance, string> = {
+  surplus: 'bg-destructive/10 text-destructive border-destructive/20',
+  deficit: 'bg-accent/10 text-accent border-accent/20',
+  balanced: 'bg-primary/10 text-primary border-primary/20',
+  'no-data': 'bg-transparent text-foreground border-transparent',
+  'future-reduced': 'bg-muted/50 text-muted-foreground border-border',
+  'future-recovery': 'bg-muted/50 text-muted-foreground border-border',
 };
 
 export default function ProgressPage() {
