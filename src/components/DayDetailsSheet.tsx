@@ -158,6 +158,9 @@ export default function DayDetailsSheet({ open, date, onClose, onChanged }: Prop
 
             {isFuture && <FutureDayPlanSection date={date} profile={profile} />}
 
+            {/* Day Balance Summary — past & today */}
+            {!isFuture && totals.eaten > 0 && <DayBalanceSummary date={date} eaten={totals.eaten} profile={profile} />}
+
             {/* Monica Insight */}
             {insight && !isFuture && (
               <div className="p-3 rounded-xl bg-primary/5 border border-primary/15">
