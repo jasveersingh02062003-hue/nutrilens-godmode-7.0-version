@@ -420,7 +420,7 @@ function MonthlySavingsCard() {
 function CalorieBalanceCard() {
   const [view, setView] = useState<'weekly' | 'monthly'>('weekly');
   const balances = getDailyBalances();
-  const summary = getCalorieBankSummary();
+  const summary = getTodayAdjustmentStatus();
   const monthlyStats = getMonthlyStats();
   const weekendPattern = getWeekendPattern();
   const [showPlanDetails, setShowPlanDetails] = useState(false);
