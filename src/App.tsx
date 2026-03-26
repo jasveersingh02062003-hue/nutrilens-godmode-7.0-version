@@ -15,6 +15,7 @@ import Profile from "./pages/Profile";
 import Onboarding from "./pages/Onboarding";
 import Auth from "./pages/Auth";
 import FoodArchive from "./pages/FoodArchive";
+import QuickLog from "./pages/QuickLog";
 import NotFound from "./pages/NotFound";
 import BottomNav from "./components/BottomNav";
 import { getProfile } from "./lib/store";
