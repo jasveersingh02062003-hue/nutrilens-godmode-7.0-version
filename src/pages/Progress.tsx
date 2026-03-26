@@ -95,7 +95,7 @@ export default function ProgressPage() {
   const refresh = useCallback(() => setRefreshKey(k => k + 1), []);
 
   const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
+  const todayStr = toLocalDateKey(today);
   const viewDate = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
   const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
   const firstDayOfWeek = viewDate.getDay();
