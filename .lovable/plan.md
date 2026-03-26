@@ -1,101 +1,72 @@
 
 
-# Plan: Deterministic Smart Calorie Correction Engine
+# Plan: Harden Deterministic Calorie Engine (6 Refinements)
 
-## Problem
-The current engine stores a `CalorieBankState` in localStorage and incrementally patches it on every meal log. This causes stacking bugs, duplicate sources, and exponential growth of adjustment values. The user's spec calls for a **pure recomputation model** where daily logs are the only source of truth.
+## What's Already Working
+The deterministic recomputation model is in place: `computeAdjustmentMap`, `computeAdjustedTarget`, `computeBreakdownForDate`, `computeDinnerSummary` are all pure functions. Calendar memoization via `useMemo` is already in Progress.tsx. Protein lock and 1200 kcal safety clamp are active.
 
-## Architecture Change
+## Remaining Gaps
 
-**Current**: Stateful — `nutrilens_calorie_bank` localStorage key holds cumulative state, mutated on every meal log.
-
-**New**: Deterministic — all adjustment data is **recomputed from raw daily logs** on every read. No stored correction state needed for future calculations. Past days still freeze their `adjustedTarget` in the daily log via `processEndOfDay`.
-
-```text
-Daily Logs (localStorage)  ──►  computeAdjustmentMap()  ──►  UI
-     (source of truth)              (pure function)
+### 1. effectiveTarget bug — double correction distortion
+**Current (line 239-240 in calorie-correction.ts):**
+```typescript
+const target = day.target || baseTarget;
+const diff = day.actual - target;
 ```
+This uses the **original** target, not the adjusted target. If Day 1 surplus caused Day 2's target to drop, Day 2's diff should be computed against the adjusted target — otherwise the engine double-corrects.
 
-## Changes
+**Fix**: In `computeAdjustmentMap` and `computeBreakdownForDate`, use `day.adjustedTarget ?? day.target ?? baseTarget` as the effective target for each day's diff calculation.
 
-### 1. `src/lib/calorie-correction.ts` — Core engine rewrite
+### 2. Incomplete day guard
+Days with very low actual calories (e.g., user opened app but didn't log) create false deficit signals.
 
-**Add pure functions** (no localStorage reads/writes):
+**Fix**: In `computeAdjustmentMap` and `computeBreakdownForDate`, skip days where `day.actual < 300`. The existing `day.actual > 0` filter is insufficient.
 
-- `computeAdjustmentMap(pastLogs, baseTarget)` — iterates all past daily logs, computes surplus/deficit for each, spreads adjustments into a `Record<string, number>` map. Surplus > 800 spreads over 5 days, else 4. Deficit recovery = `min(|diff| * 0.3, 250)` applied to next day only.
+### 3. Enhanced dinner summary with granular pending info
+`computeDinnerSummary` currently returns only `pendingAdjustment` (total). Users need tomorrow-specific and near-term context.
 
-- `computeAdjustedTarget(date, baseTarget, pastLogs)` — for past dates with frozen `adjustedTarget`, returns that. Otherwise computes from `computeAdjustmentMap` using only logs before `date`. Clamps to `[1200, baseTarget * 1.15]`.
+**Fix**: Return expanded object:
+```typescript
+{
+  message: string;
+  tomorrowTarget: number;
+  tomorrowImpact: number;      // adjMap[tomorrow] only
+  next3DaysImpact: number;     // sum of adjMap for next 3 days
+  totalPending: number;        // sum of all future adjustments
+}
+```
+Update the message to include tomorrow's specific impact rather than just the total pending.
 
-- `computeBreakdownForDate(targetDate, pastLogs, baseTarget)` — iterates past logs, finds which days contribute adjustments to `targetDate`, groups by sourceDate, returns `AdjustmentBreakdownEntry[]`.
+### 4. Human-readable reason/impact in breakdown entries
+Currently breakdown entries have raw numbers. Users need context like "Ate +400 kcal over" and "→ -100 kcal".
 
-- `computeDinnerSummary(todayLog, baseTarget, allPastLogs)` — computes diff, builds message, computes tomorrow's target using `computeAdjustedTarget`.
+**Fix**: Add `reason` and `impactLabel` fields to `AdjustmentBreakdownEntry` in `calendar-helpers.ts`:
+```typescript
+export interface AdjustmentBreakdownEntry {
+  sourceDate: string;
+  surplus: number;
+  appliedAdjustment: number;
+  reason: string;        // "Ate +400 kcal over target"
+  impactLabel: string;   // "→ -100 kcal today"
+}
+```
+Populate in `getAdjustmentBreakdownForDate`. Update `DayDetailsSheet.tsx` to display `reason` and `impactLabel` instead of raw numbers.
 
-**Keep existing stateful functions** but simplify them:
-- `updateCalorieBank` — simplified to just update `dailyBalances` (for the weekly/monthly summary UI) and call `notifyUICallbacks()`. No more plan building or source merging.
-- `processEndOfDay` — freezes `adjustedTarget` on yesterday's daily log entry using `computeAdjustedTarget`. Cleans old data.
-- `getAdjustedDailyTarget` — delegates to `computeAdjustedTarget` with today's date.
-- Remove `buildAdjustmentPlan`, `mergePlans`, `mergeSources`, `stripSourceDay` — no longer needed.
+### 5. Freeze timing documentation + guard
+`processEndOfDay` already triggers on first app open after midnight (`lastProcessedDate < today`). Add a guard: also trigger when user logs first meal of a new day (in `updateCalorieBank`, if today differs from `lastProcessedDate`, call `processEndOfDay` first).
 
-**Keep unchanged**: `getCalorieBankSummary`, `getDailyBalances`, `getMonthlyStats`, `getWeekendPattern`, `getCorrectionMessage`, `getContextualMealToast`, `getEngineResponse`, `getAdjustmentExplanation`, `getAdjustmentDetails`, adherence/confidence functions, mode/day-type setters.
+### 6. DayDetailsSheet memoization
+`FutureDayPlanSection` calls `getCalorieBankState()` and `computeAdjustmentMap` on every render without memoization.
 
-**Modify `getAdjustmentDetails`** to use `computeAdjustmentMap` and `computeBreakdownForDate` instead of reading stored `adjustmentSources`.
-
-**Modify `getAdjustmentExplanation`** to use `computeBreakdownForDate` instead of reading stored sources.
-
-**Modify `getDinnerNotificationSummary`** to be the new pure `computeDinnerSummary`.
-
-### 2. `src/lib/calendar-helpers.ts` — Use pure functions
-
-- `getFutureDayPlan` — change to accept `adjMap: Record<string, number>` instead of `CalorieBankState`. Look up `adjMap[date]` directly instead of searching an array.
-- `getAdjustmentBreakdownForDate` — change signature to accept `pastLogs` and `baseTarget`, delegate to `computeBreakdownForDate`.
-- `getDayStatus` and `getExplanationMessage` — unchanged.
-
-### 3. `src/components/DayDetailsSheet.tsx` — Update `FutureDayPlanSection`
-
-- Import `computeAdjustmentMap`, `computeBreakdownForDate` from calorie-correction instead of `getCalorieBankState`.
-- Call `computeAdjustmentMap` with recent logs to get the map.
-- Pass map to `getFutureDayPlan`.
-- Call `computeBreakdownForDate` for the breakdown.
-
-### 4. `src/pages/Progress.tsx` — Update calendar data
-
-- Replace `getCalorieBankState()` with `computeAdjustmentMap(pastLogs, baseTarget)`.
-- Use the map directly for future day indicators instead of `state.adjustmentPlan.find()`.
-- Pass map to `getFutureDayPlan` calls.
-
-### 5. `src/pages/LogFood.tsx` — Simplify post-log flow
-
-- `updateCalorieBank()` call stays but now just updates balances + notifies UI.
-- `getDinnerNotificationSummary` call updated to use new pure signature (pass pastLogs).
-
-### 6. `src/components/MealDetailSheet.tsx` — Same updates as LogFood
-
-- Update `getDinnerNotificationSummary` calls to new signature.
-- `updateCalorieBank` calls stay.
-
-### 7. `src/components/QuickLogSheet.tsx` — No changes needed
-
-`updateCalorieBank()` call stays (simplified internally).
-
-## Key Rules Enforced
-
-| Rule | Implementation |
-|------|---------------|
-| Past = stored | `computeAdjustedTarget` returns frozen value from daily log for past dates |
-| Future = computed | Always recomputed from raw logs via `computeAdjustmentMap` |
-| Protein locked | `getFutureDayPlan` always uses `profile.dailyProtein` unchanged |
-| Safety clamp | `[1200, baseTarget * 1.15]` enforced in `computeAdjustedTarget` |
-| No duplication | No stored sources to duplicate — breakdown computed fresh each time |
-| Deterministic | Same logs → same output, always |
+**Fix**: Wrap the computation in `useMemo` keyed on `date` and the state's `dailyBalances`.
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
-| `src/lib/calorie-correction.ts` | Add pure compute functions, simplify stateful ones, remove merge/strip helpers |
-| `src/lib/calendar-helpers.ts` | Update signatures to use `adjMap` and `pastLogs` instead of `CalorieBankState` |
-| `src/components/DayDetailsSheet.tsx` | Use new pure functions in `FutureDayPlanSection` |
-| `src/pages/Progress.tsx` | Use `computeAdjustmentMap` for calendar indicators |
-| `src/pages/LogFood.tsx` | Update dinner notification call signature |
-| `src/components/MealDetailSheet.tsx` | Update dinner notification call signature |
+| `src/lib/calorie-correction.ts` | Fix effectiveTarget in `computeAdjustmentMap` and `computeBreakdownForDate`; add `actual < 300` guard; expand `computeDinnerSummary` return type; trigger `processEndOfDay` from `updateCalorieBank` on day change |
+| `src/lib/calendar-helpers.ts` | Add `reason`/`impactLabel` to `AdjustmentBreakdownEntry`; populate in `getAdjustmentBreakdownForDate` |
+| `src/components/DayDetailsSheet.tsx` | Display `reason`/`impactLabel` in breakdown UI; add `useMemo` to `FutureDayPlanSection` |
+| `src/pages/LogFood.tsx` | Update `computeDinnerSummary` call to handle expanded return type |
+| `src/components/MealDetailSheet.tsx` | Same dinner summary update |
 
