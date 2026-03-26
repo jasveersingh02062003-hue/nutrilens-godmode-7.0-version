@@ -1,139 +1,101 @@
 
 
-# Plan: Fix Smart Calorie Correction Engine
+# Plan: Deterministic Smart Calorie Correction Engine
 
-## Root Cause Analysis
+## Problem
+The current engine stores a `CalorieBankState` in localStorage and incrementally patches it on every meal log. This causes stacking bugs, duplicate sources, and exponential growth of adjustment values. The user's spec calls for a **pure recomputation model** where daily logs are the only source of truth.
 
-Three interrelated bugs in `updateCalorieBank` (lines 288-402):
+## Architecture Change
 
-1. **Stacking bug (line 362-366)**: Uses `state.calorieBank` (cumulative total) to build adjustment plans instead of today's `diff`. Each meal log rebuilds a full plan from the growing bank and MERGES it on top of existing plans, causing exponential growth.
+**Current**: Stateful — `nutrilens_calorie_bank` localStorage key holds cumulative state, mutated on every meal log.
 
-2. **No deduplication in `mergeSources` (line 270-281)**: When merging sources for the same `targetDate`, sources with the same `sourceDate` are appended rather than replaced. This creates the dozens of "From Thu: -300 kcal" entries.
+**New**: Deterministic — all adjustment data is **recomputed from raw daily logs** on every read. No stored correction state needed for future calculations. Past days still freeze their `adjustedTarget` in the daily log via `processEndOfDay`.
 
-3. **No cleanup of stale source entries**: When today's intake changes (meal edit/delete), old adjustment entries sourced from today are never removed before new ones are added.
-
-## Fix Strategy
-
-**Replace the "merge on top" model with a "clear-and-rebuild from today's diff" model.** Each call to `updateCalorieBank` should:
-1. Remove all adjustment plan entries and sources that originated from today
-2. Compute today's diff (actual - target)
-3. If diff is significant, spread ONLY today's diff across future days
-4. Merge with adjustments from OTHER source days (untouched)
+```text
+Daily Logs (localStorage)  ──►  computeAdjustmentMap()  ──►  UI
+     (source of truth)              (pure function)
+```
 
 ## Changes
 
-### 1. `src/lib/calorie-correction.ts` — Fix `updateCalorieBank`
+### 1. `src/lib/calorie-correction.ts` — Core engine rewrite
 
-**Replace lines 361-398** (the surplus/deficit plan-building block):
+**Add pure functions** (no localStorage reads/writes):
 
-- Before building new plan: strip all existing `adjustmentPlan` entries and `adjustmentSources` entries where `sourceDate === today`
-- Build new plan from today's `diff` only (not cumulative `calorieBank`)
-- For surplus: spread `diff` over recovery days
-- For deficit: partial recovery for tomorrow
-- If `|diff| < 50`: don't create plan entries for today (but keep entries from other days)
+- `computeAdjustmentMap(pastLogs, baseTarget)` — iterates all past daily logs, computes surplus/deficit for each, spreads adjustments into a `Record<string, number>` map. Surplus > 800 spreads over 5 days, else 4. Deficit recovery = `min(|diff| * 0.3, 250)` applied to next day only.
 
-**Fix `mergeSources` (lines 270-281)**: When merging sources for the same `targetDate`, deduplicate by `sourceDate` — replace existing source entry instead of appending.
+- `computeAdjustedTarget(date, baseTarget, pastLogs)` — for past dates with frozen `adjustedTarget`, returns that. Otherwise computes from `computeAdjustmentMap` using only logs before `date`. Clamps to `[1200, baseTarget * 1.15]`.
 
-```typescript
-function mergeSources(existing: AdjustmentSourceMap[], newEntries: AdjustmentSourceMap[]): AdjustmentSourceMap[] {
-  const merged = [...existing];
-  for (const entry of newEntries) {
-    const idx = merged.findIndex(e => e.targetDate === entry.targetDate);
-    if (idx !== -1) {
-      // Deduplicate by sourceDate
-      for (const newSrc of entry.sources) {
-        const srcIdx = merged[idx].sources.findIndex(s => s.sourceDate === newSrc.sourceDate);
-        if (srcIdx !== -1) {
-          merged[idx].sources[srcIdx] = newSrc; // REPLACE, not append
-        } else {
-          merged[idx].sources.push(newSrc);
-        }
-      }
-    } else {
-      merged.push(entry);
-    }
-  }
-  return merged.sort((a, b) => a.targetDate.localeCompare(b.targetDate));
-}
-```
+- `computeBreakdownForDate(targetDate, pastLogs, baseTarget)` — iterates past logs, finds which days contribute adjustments to `targetDate`, groups by sourceDate, returns `AdjustmentBreakdownEntry[]`.
 
-**New helper — strip today's contributions before rebuild:**
+- `computeDinnerSummary(todayLog, baseTarget, allPastLogs)` — computes diff, builds message, computes tomorrow's target using `computeAdjustedTarget`.
 
-```typescript
-function stripSourceDay(state: CalorieBankState, sourceDate: string): void {
-  // Remove today's contributions from adjustment plan
-  for (const srcMap of state.adjustmentSources) {
-    srcMap.sources = srcMap.sources.filter(s => s.sourceDate !== sourceDate);
-  }
-  // Rebuild adjustmentPlan from remaining sources
-  state.adjustmentPlan = state.adjustmentSources
-    .filter(s => s.sources.length > 0)
-    .map(s => ({
-      date: s.targetDate,
-      adjust: s.sources.reduce((sum, src) => sum + src.appliedAdjustment, 0),
-    }));
-  // Remove empty source maps
-  state.adjustmentSources = state.adjustmentSources.filter(s => s.sources.length > 0);
-}
-```
+**Keep existing stateful functions** but simplify them:
+- `updateCalorieBank` — simplified to just update `dailyBalances` (for the weekly/monthly summary UI) and call `notifyUICallbacks()`. No more plan building or source merging.
+- `processEndOfDay` — freezes `adjustedTarget` on yesterday's daily log entry using `computeAdjustedTarget`. Cleans old data.
+- `getAdjustedDailyTarget` — delegates to `computeAdjustedTarget` with today's date.
+- Remove `buildAdjustmentPlan`, `mergePlans`, `mergeSources`, `stripSourceDay` — no longer needed.
 
-**Updated `updateCalorieBank` surplus block:**
+**Keep unchanged**: `getCalorieBankSummary`, `getDailyBalances`, `getMonthlyStats`, `getWeekendPattern`, `getCorrectionMessage`, `getContextualMealToast`, `getEngineResponse`, `getAdjustmentExplanation`, `getAdjustmentDetails`, adherence/confidence functions, mode/day-type setters.
 
-```typescript
-// Strip old adjustments from today before rebuilding
-stripSourceDay(state, today);
+**Modify `getAdjustmentDetails`** to use `computeAdjustmentMap` and `computeBreakdownForDate` instead of reading stored `adjustmentSources`.
 
-if (diff > 50) {
-  // Spread today's diff (NOT cumulative bank)
-  const { plan, sources } = buildAdjustmentPlan(diff, originalTarget, today, spreadDays, mode, today);
-  state.adjustmentPlan = mergePlans(state.adjustmentPlan.filter(e => e.date >= today), plan);
-  state.adjustmentSources = mergeSources(state.adjustmentSources.filter(s => s.targetDate >= today), sources);
-} else if (diff < -50) {
-  // Deficit: partial recovery
-  // ... same logic but using diff, not calorieBank
-}
-// If |diff| < 50: no new entries from today (other days' entries preserved)
-```
+**Modify `getAdjustmentExplanation`** to use `computeBreakdownForDate` instead of reading stored sources.
 
-### 2. `src/lib/calendar-helpers.ts` — Fix breakdown deduplication in UI
+**Modify `getDinnerNotificationSummary`** to be the new pure `computeDinnerSummary`.
 
-In `getAdjustmentBreakdownForDate`, group by `sourceDate` before returning:
+### 2. `src/lib/calendar-helpers.ts` — Use pure functions
 
-```typescript
-export function getAdjustmentBreakdownForDate(date: string, state: CalorieBankState): AdjustmentBreakdownEntry[] {
-  const sourceMap = state.adjustmentSources.find(s => s.targetDate === date);
-  if (!sourceMap) return [];
-  // Group by sourceDate to prevent duplicates in UI
-  const grouped = new Map<string, AdjustmentBreakdownEntry>();
-  for (const s of sourceMap.sources) {
-    const existing = grouped.get(s.sourceDate);
-    if (existing) {
-      existing.surplus = s.surplus; // use latest
-      existing.appliedAdjustment += s.appliedAdjustment;
-    } else {
-      grouped.set(s.sourceDate, { sourceDate: s.sourceDate, surplus: s.surplus, appliedAdjustment: s.appliedAdjustment });
-    }
-  }
-  return Array.from(grouped.values());
-}
-```
+- `getFutureDayPlan` — change to accept `adjMap: Record<string, number>` instead of `CalorieBankState`. Look up `adjMap[date]` directly instead of searching an array.
+- `getAdjustmentBreakdownForDate` — change signature to accept `pastLogs` and `baseTarget`, delegate to `computeBreakdownForDate`.
+- `getDayStatus` and `getExplanationMessage` — unchanged.
 
-### 3. `src/lib/calorie-correction.ts` — Fix `getAdjustmentDetails` deduplication
+### 3. `src/components/DayDetailsSheet.tsx` — Update `FutureDayPlanSection`
 
-Line 764-783: The `recentSurplusDays` already deduplicates via a Map, which is correct. The `futureAdjustments` section shows all sources per target date — with the `mergeSources` fix, this will no longer have duplicates.
+- Import `computeAdjustmentMap`, `computeBreakdownForDate` from calorie-correction instead of `getCalorieBankState`.
+- Call `computeAdjustmentMap` with recent logs to get the map.
+- Pass map to `getFutureDayPlan`.
+- Call `computeBreakdownForDate` for the breakdown.
 
-### 4. `src/pages/Progress.tsx` — No changes needed
+### 4. `src/pages/Progress.tsx` — Update calendar data
 
-Calendar rendering already works correctly; the data it reads will now be clean.
+- Replace `getCalorieBankState()` with `computeAdjustmentMap(pastLogs, baseTarget)`.
+- Use the map directly for future day indicators instead of `state.adjustmentPlan.find()`.
+- Pass map to `getFutureDayPlan` calls.
 
-### 5. `src/components/DayDetailsSheet.tsx` — No changes needed
+### 5. `src/pages/LogFood.tsx` — Simplify post-log flow
 
-`FutureDayPlanSection` already uses the calendar-helpers functions. With deduplicated data, the breakdown display will be clean.
+- `updateCalorieBank()` call stays but now just updates balances + notifies UI.
+- `getDinnerNotificationSummary` call updated to use new pure signature (pass pastLogs).
+
+### 6. `src/components/MealDetailSheet.tsx` — Same updates as LogFood
+
+- Update `getDinnerNotificationSummary` calls to new signature.
+- `updateCalorieBank` calls stay.
+
+### 7. `src/components/QuickLogSheet.tsx` — No changes needed
+
+`updateCalorieBank()` call stays (simplified internally).
+
+## Key Rules Enforced
+
+| Rule | Implementation |
+|------|---------------|
+| Past = stored | `computeAdjustedTarget` returns frozen value from daily log for past dates |
+| Future = computed | Always recomputed from raw logs via `computeAdjustmentMap` |
+| Protein locked | `getFutureDayPlan` always uses `profile.dailyProtein` unchanged |
+| Safety clamp | `[1200, baseTarget * 1.15]` enforced in `computeAdjustedTarget` |
+| No duplication | No stored sources to duplicate — breakdown computed fresh each time |
+| Deterministic | Same logs → same output, always |
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
-| `src/lib/calorie-correction.ts` | Fix `mergeSources` dedup, add `stripSourceDay`, fix `updateCalorieBank` to use `diff` not `calorieBank` |
-| `src/lib/calendar-helpers.ts` | Add dedup grouping in `getAdjustmentBreakdownForDate` |
+| `src/lib/calorie-correction.ts` | Add pure compute functions, simplify stateful ones, remove merge/strip helpers |
+| `src/lib/calendar-helpers.ts` | Update signatures to use `adjMap` and `pastLogs` instead of `CalorieBankState` |
+| `src/components/DayDetailsSheet.tsx` | Use new pure functions in `FutureDayPlanSection` |
+| `src/pages/Progress.tsx` | Use `computeAdjustmentMap` for calendar indicators |
+| `src/pages/LogFood.tsx` | Update dinner notification call signature |
+| `src/components/MealDetailSheet.tsx` | Update dinner notification call signature |
 
