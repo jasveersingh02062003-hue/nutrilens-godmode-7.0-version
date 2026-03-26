@@ -420,6 +420,7 @@ export function computeAdjustedTarget(
 
 /**
  * Compute adjustment breakdown for a target date — which past days contribute.
+ * UNIFIED: uses identical logic as computeAdjustmentMap to prevent mismatch.
  */
 export function computeBreakdownForDate(
   targetDate: string,
@@ -429,8 +430,11 @@ export function computeBreakdownForDate(
   mode: CorrectionMode = 'balanced'
 ): AdjustmentSource[] {
   const result: AdjustmentSource[] = [];
+  const today = getEffectiveDate();
 
   for (const day of pastLogs) {
+    // 🔒 Same guards as computeAdjustmentMap — must stay in sync
+    if (day.date >= today) continue;
     if (!day.actual || day.actual < 300) continue;
 
     const diff = day.actual - baseTarget;
@@ -440,7 +444,6 @@ export function computeBreakdownForDate(
 
     if (diff > 0) {
       const spreadDays = computeSafeSpreadDays(diff, tdee, mode);
-      // Exact distribution — matches computeAdjustmentMap exactly
       const absDiff = Math.abs(diff);
       const base = Math.floor(absDiff / spreadDays);
       const remainder = absDiff % spreadDays;
@@ -629,11 +632,11 @@ function notifyUICallbacks(): void {
 }
 
 /**
- * Sync after any meal mutation — just triggers UI refresh.
+ * Sync after any meal mutation — triggers centralized recompute.
  * No correction state written. All data derived from raw logs.
  */
 export function syncDailyBalance(_log?: DailyLog, _profile?: UserProfile | null): void {
-  notifyUICallbacks();
+  recomputeCalorieEngine();
 }
 
 /**
