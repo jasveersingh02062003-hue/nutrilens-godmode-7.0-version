@@ -86,6 +86,12 @@ function syncToCloud(profile: UserProfile) {
       bmi: profile.bmi,
       bmr: profile.bmr,
       tdee: profile.tdee,
+      // Sync budget, conditions, coach, learning, and notification settings
+      budget: (profile as any).budget || null,
+      conditions: (profile as any).conditions || null,
+      coach_settings: (profile as any).coachSettings || null,
+      learning: (profile as any).learning || null,
+      notification_settings: (profile as any).notificationSettings || null,
     };
     const { error } = await supabase.from('profiles').upsert(row as any);
     if (error) {
@@ -131,7 +137,9 @@ function dbRowToProfile(row: any): UserProfile {
     bmi: Number(row.bmi) || 24,
     bmr: Number(row.bmr) || 1500,
     tdee: Number(row.tdee) || 2000,
-  };
+    // Restore extended fields from cloud
+    skinConcerns: row.conditions?.skinConcerns || undefined,
+  } as UserProfile;
 }
 
 export function UserProfileProvider({ children }: { children: React.ReactNode }) {
