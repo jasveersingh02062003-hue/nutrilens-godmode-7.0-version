@@ -22,9 +22,6 @@ import { getFutureDayPlan, getAdjustmentBreakdownForDate, getExplanationMessage 
 import ActivityLogSheet from '@/components/ActivityLogSheet';
 import SupplementLogSheet from '@/components/SupplementLogSheet';
 import FullScreenMemory from '@/components/FullScreenMemory';
-import ActivityLogSheet from '@/components/ActivityLogSheet';
-import SupplementLogSheet from '@/components/SupplementLogSheet';
-import FullScreenMemory from '@/components/FullScreenMemory';
 
 const COOKING_LABELS: Record<string, string> = {
   fried: '🍟 Fried', air_fried: '🔥 Air Fried', grilled: '🍖 Grilled',
