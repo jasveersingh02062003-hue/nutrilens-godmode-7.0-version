@@ -3,7 +3,7 @@ import PostOnboardingTutorial from '@/components/PostOnboardingTutorial';
 import { runWeeklyAdaptation as runGoalAdaptation, applyAdaptation } from '@/lib/goal-engine';
 import { Bell, ClipboardList, X, ShieldAlert } from 'lucide-react';
 import AdjustmentExplanationModal from '@/components/AdjustmentExplanationModal';
-import MissedDayPrompt from '@/components/MissedDayPrompt';
+import MorningRecoveryPrompt from '@/components/MorningRecoveryPrompt';
 import MonikaFab from '@/components/MonikaFab';
 import TimeInsightCard from '@/components/TimeInsightCard';
 import { updateDailyBehaviorStats, runWeeklyAdaptation, isSurvivalModeActive } from '@/lib/behavior-stats';
@@ -235,7 +235,9 @@ export default function Dashboard() {
                 <p className="text-sm font-bold text-foreground">{getGreeting()}, {profile.name || 'there'}</p>
                 <SubscriptionBadge />
               </div>
-              <p className="text-[11px] text-muted-foreground">Track your nutrition today</p>
+              <p className="text-[11px] text-muted-foreground">
+                {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -515,7 +517,7 @@ export default function Dashboard() {
       <WeeklyWeightCheckIn defaultWeight={profile.weightKg} onDone={refreshLog} />
 
       <AdjustmentExplanationModal open={whyModalOpen} onClose={() => setWhyModalOpen(false)} />
-      <MissedDayPrompt open={missedPromptOpen} onClose={() => setMissedPromptOpen(false)} missedDate={missedDate} />
+      <MorningRecoveryPrompt open={missedPromptOpen} onClose={() => setMissedPromptOpen(false)} missedDate={missedDate} />
 
       {/* Drop-Off Defense Modal */}
       <Dialog open={!!dropOffModal} onOpenChange={(v) => !v && setDropOffModal(null)}>
