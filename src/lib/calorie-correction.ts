@@ -277,7 +277,9 @@ export function computeAdjustmentMap(
     }
     // If still leftover after redistribution, it's lost — log it
     if (absLeftover > 1) {
-      console.error('[CalorieEngine] Clamp redistribution lost calories:', Math.round(absLeftover));
+      console.error('[CalorieEngine] Adjustment overflow capped — conservation loss:',
+        Math.round(absLeftover), 'kcal');
+      // Intentionally NOT extending to new dates — keeps system predictable
     }
   }
 
@@ -803,6 +805,15 @@ export function validateAdjustmentIntegrity(
     }
   }
 
+  // Check: adjMap should not be empty when significant diffs exist
+  const totalDiff = pastLogs.reduce((s, d) => {
+    const diff = d.actual - baseTarget;
+    return Math.abs(diff) > 50 ? s + diff : s;
+  }, 0);
+  if (Object.keys(adjMap).length === 0 && Math.abs(totalDiff) > 50) {
+    warnings.push('Missing adjustments for non-zero diff');
+  }
+
   // Check 2: Total adjustments ≈ total surplus - total recovery
   let totalSurplus = 0;
   let totalRecovery = 0;
@@ -815,8 +826,8 @@ export function validateAdjustmentIntegrity(
 
   const totalAdj = Object.values(adjMap).reduce((s, v) => s + v, 0);
   const expectedNet = -totalSurplus + totalRecovery;
-  if (Math.abs(totalAdj - expectedNet) > Math.abs(expectedNet) * 0.1 + 50) {
-    warnings.push(`Adjustment mismatch: total=${totalAdj}, expected≈${expectedNet}`);
+  if (Math.abs(totalAdj - expectedNet) > 1) {
+    warnings.push(`Adjustment mismatch: total=${totalAdj}, expected=${expectedNet}`);
   }
 
   // Loud failure during dev
