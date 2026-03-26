@@ -197,23 +197,17 @@ export default function LogFood() {
     const mealToast = getContextualMealToast();
     if (mealToast) toast(mealToast.message, { duration: 4000 });
 
-    // After-dinner notification with surplus/deficit spreading
+    // After-dinner: show LastMealConfirmSheet
     if (mealType === 'dinner') {
       const todayKey = targetDate || new Date().toISOString().split('T')[0];
       const dinnerKey = `nutrilens_dinner_notif_${todayKey}`;
       if (!localStorage.getItem(dinnerKey)) {
-        const updatedLog = getDailyLog(todayKey);
-        const updatedTotals = getDailyTotals(updatedLog);
-        const origTarget = profile2?.dailyCalories || 1600;
-        const summary = getDinnerNotificationSummary(todayKey, updatedTotals.eaten, origTarget);
-        if (summary) {
-          toast('Plan updated ⚖️', {
-            description: summary.message,
-            duration: 8000,
-            action: { label: 'Details', onClick: () => setAdjModalOpen(true) },
-          });
-          localStorage.setItem(dinnerKey, '1');
-        }
+        localStorage.setItem(dinnerKey, '1');
+        setLastMealSheetOpen(true);
+        // Don't navigate yet — let sheet handle it
+        setContextPickerOpen(false);
+        setShowPES(false);
+        return;
       }
     }
 
