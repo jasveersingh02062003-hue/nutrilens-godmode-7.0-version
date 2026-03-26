@@ -28,7 +28,7 @@ import { computeSmartAdjustment, applySmartAdjustment, type AdjustmentResult } f
 import { resolveMealVisualState } from '@/lib/meal-state-service';
 import PESBreakdownModal from '@/components/PESBreakdownModal';
 import { getBudgetSettings } from '@/lib/expense-store';
-import { updateCalorieBank, getContextualMealToast, getDinnerNotificationSummary, getCalorieBankState } from '@/lib/calorie-correction';
+import { updateCalorieBank, getContextualMealToast, getDinnerNotificationSummary, getCalorieBankState, computeAdjustmentMap } from '@/lib/calorie-correction';
 import AdjustmentExplanationModal from '@/components/AdjustmentExplanationModal';
 
 interface Props {
