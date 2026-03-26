@@ -1,73 +1,76 @@
 
+Implement a focused realtime sync pass for the Dashboard, Progress calendar, and date details so the user can instantly see surplus/deficit for any day.
 
-# Smart Calorie System: Real-Time Updates, Day Boundary, and Missed Day Recovery
+1. Fix the realtime foundation
+- Centralize updates at the write layer instead of relying on scattered manual refreshes.
+- Update the base log persistence flow (`saveDailyLog` and related date-specific mutators) so every add/edit/delete action triggers the same centralized recompute + `nutrilens:update` event.
+- Keep `storage` listeners for cross-tab sync, but make in-app realtime event updates the primary mechanism.
+- Add a shared local `YYYY-MM-DD` date helper and use it where Progress/Dashboard still depend on `toISOString().split('T')[0]`, so midnight/day changes are accurate in local time.
 
-## What You'll Get
+2. Make the calendar show clear surplus/deficit
+- Upgrade `Progress.tsx` calendar data from simple adherence-only status to full per-day balance data:
+  - actual calories
+  - adjusted/frozen target
+  - diff
+  - balance type: surplus / deficit / balanced / no data / future adjustment
+- Keep future recovery/reduction markers, but also show past-day surplus/deficit clearly in the cell styling/indicator.
+- Improve the legend so users can immediately understand:
+  - surplus day
+  - deficit day
+  - balanced/on-track day
+  - future reduced day
+  - future recovery day
 
-1. **Date displayed on Dashboard** — Shows today's date prominently (e.g., "Thursday, 27 March") so you always know which day you're tracking
-2. **"Is this your last meal?" prompt after dinner** — When you log dinner, a bottom sheet asks if this is your last meal for the day, triggering immediate surplus/deficit calculation and showing tomorrow's adjusted target
-3. **Midnight auto-rollover** — At 12:00 AM, the app starts a new day automatically. Anything logged after midnight counts as next day's "midnight snack"
-4. **Morning missed-day recovery prompt** — When you open the app the next morning and yesterday has no logs, it asks specifically: "Did you eat but forget to log, or did you skip meals?" with two paths:
-   - **"I ate but forgot to log"** → Opens yesterday's log screen
-   - **"I didn't eat / skip"** → Carries the deficit forward to adjust today's target
-5. **Real-time calendar sync** — The Progress calendar updates instantly when meals are logged, showing green/yellow/red dots without needing a page refresh
-6. **Immediate surplus/deficit badge** — Dashboard shows today's running surplus or deficit in real-time as you log meals
+3. Make tapped dates show the exact balance
+- Extend `DayDetailsSheet` so tapping any date shows a clear “Day Balance” summary near the top:
+  - Eaten
+  - Target
+  - Adjusted target if applicable
+  - Result: surplus / deficit / on track
+  - Difference in kcal
+- For past days, compare against the frozen/adjusted target, not only the base goal.
+- For future days, keep the existing Smart Plan Preview and adjustment explanation.
 
-## Technical Details
+4. Make the calendar and date sheet truly live
+- `Progress.tsx` should refresh immediately on:
+  - `nutrilens:update`
+  - `storage`
+  - app/tab focus return
+  - midnight rollover
+- `DayDetailsSheet` should also subscribe while open, so if a meal is added/edited/deleted the selected day updates without closing and reopening.
+- Keep polling only as a fallback safety net, not the main sync strategy.
 
-### Files to Create
-- `src/components/LastMealConfirmSheet.tsx` — Bottom sheet shown after logging dinner: "Is this your last meal today?" with Yes/No. On "Yes": runs `processEndOfDay`, shows tomorrow's adjusted target summary, freezes today's balance
-- `src/components/MorningRecoveryPrompt.tsx` — Replaces the current basic `MissedDayPrompt`. Shows yesterday's date, two clear options: "I ate but forgot to log" (navigates to log for yesterday) vs "I skipped meals" (triggers deficit carry-forward and dismisses)
+5. Make Dashboard realtime with the same source of truth
+- Ensure Dashboard listens to the same centralized update pipeline so calorie ring, surplus/deficit banner, and date context refresh instantly after any meal/water/activity/supplement change.
+- Refresh Dashboard on midnight rollover as well, so the visible date and targets change exactly when the day changes.
 
-### Files to Modify
+6. Cover the flows currently causing stale UI
+- Wire the centralized refresh into all mutation paths that currently only save local data:
+  - meal add/edit/delete
+  - water add/remove
+  - supplement add/edit/delete
+  - activity add/delete
+  - meal photo/caption changes
+  - missed-day / last-meal confirmation actions
+- This removes the current mismatch where some screens call `syncDailyBalance()` and others do not.
 
-**`src/pages/Dashboard.tsx`**
-- Add formatted date display below the greeting (e.g., "Thursday, 27 March 2026") using a clean, readable format
-- Wire up `MorningRecoveryPrompt` — check if yesterday has <300 kcal logged and show the prompt on mount
-- Add real-time surplus/deficit indicator near the CalorieRing showing "+120 surplus" or "−340 deficit" with color coding
-- Listen for `nutrilens:update` and `storage` events to refresh `dayState` immediately
+Technical details
+- Main files to update:
+  - `src/lib/store.ts`
+  - `src/lib/calorie-correction.ts`
+  - `src/pages/Progress.tsx`
+  - `src/components/DayDetailsSheet.tsx`
+  - `src/pages/Dashboard.tsx`
+  - likely `src/components/FullScreenMemory.tsx` and any edit flows that bypass centralized sync
+- Reuse existing engine functions instead of inventing new logic:
+  - `getDailyBalances`
+  - `computeAdjustedTarget`
+  - `computeAdjustmentMap`
+  - existing `nutrilens:update` event pattern
+- No backend changes needed; this is a frontend state-sync and calendar UX fix.
 
-**`src/lib/calorie-engine.ts`**
-- Add midnight snack detection: if current hour is 0–3 AM, assign meal to "snacks" slot and tag as midnight snack
-- Export a `finalizeDay()` function that freezes today's balance when user confirms last meal
-
-**`src/lib/calorie-correction.ts`**
-- Add `carryForwardDeficit(date)` function for when user confirms they skipped meals yesterday — immediately applies deficit recovery to today's target
-- Ensure `getEffectiveDate()` uses the existing 3 AM cutoff consistently
-
-**`src/pages/LogFood.tsx`**
-- After logging a dinner meal, show `LastMealConfirmSheet` instead of just the toast
-- If logging between 12 AM–3 AM, auto-assign to previous day per existing cutoff; if after 3 AM, treat as new day's midnight snack
-
-**`src/pages/Progress.tsx`**
-- Add `useEffect` listener for `nutrilens:update` and `storage` events to trigger `refresh()` — making calendar dots update in real-time when meals are logged from Dashboard or LogFood
-- Add polling interval (same 2s pattern as Dashboard) for live calendar sync
-
-**`src/components/MissedDayPrompt.tsx`**
-- Replace with enhanced `MorningRecoveryPrompt` component with specific language: "Did you eat yesterday but forget to log?" vs "I skipped meals — adjust my plan"
-
-### Flow Summary
-
-```text
-User logs dinner
-  → "Is this your last meal?" sheet appears
-  → Yes → freezeDay() + show tomorrow's adjusted target
-  → No → dismiss, keep day open
-
-Midnight passes (12:00 AM)
-  → New day starts automatically
-  → Meals logged 12–3 AM → assigned to previous day
-  → Meals logged after 3 AM → new day's midnight snack
-
-Next morning, user opens app
-  → Check: did yesterday have <300 kcal?
-  → Yes → "Did you eat but forget to log?"
-    → "I forgot to log" → navigate to yesterday's log
-    → "I skipped" → carry deficit forward, adjust today
-  → No → normal dashboard
-
-Calendar (Progress page)
-  → Listens for storage/nutrilens:update events
-  → Re-renders dots immediately when data changes
-```
-
+Expected result
+- Calendar updates immediately after logging or editing anything.
+- Each day clearly communicates surplus or deficit.
+- Tapping any past date shows whether the user ate over or under target.
+- Dashboard and Progress stay synchronized in real time, including at midnight.
