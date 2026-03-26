@@ -1,11 +1,11 @@
 // ============================================
-// Smart Calorie Correction Engine v3 — FULLY DETERMINISTIC
+// Smart Calorie Correction Engine v4 — FULLY STATELESS
 // Source of truth: raw daily logs ONLY
 // All adjustments recomputed on demand via pure functions
-// ZERO persistent correction state
+// ZERO persistent correction state — no calorieBank, no dailyBalances cache
 // ============================================
 
-import { getDailyLog, getDailyTotals, getProfile, getRecentLogs, type UserProfile, type DailyLog } from '@/lib/store';
+import { getDailyLog, getDailyTotals, getProfile, getRecentLogs, getAllLogDates, type UserProfile, type DailyLog } from '@/lib/store';
 
 // ── Types ──
 
@@ -14,8 +14,8 @@ export type DayType = 'normal' | 'cheat' | 'recovery' | 'fasting';
 export interface DailyBalanceEntry {
   date: string;
   target: number;          // original base target
-  actual: number;          // sum of all meals
-  diff: number;            // actual - target (always vs baseTarget)
+  actual: number;          // sum of all meals (from raw log)
+  diff: number;            // actual - target (ALWAYS vs baseTarget)
   adjustedTarget?: number; // frozen for past days only
 }
 
@@ -32,56 +32,71 @@ export interface MonthlyStats {
   netBalance: number;
 }
 
-// Minimal persisted state — no correction data
-interface PersistedState {
-  lastProcessedDate: string;
-  dailyBalances: DailyBalanceEntry[];
+// Minimal persisted state — ONLY preferences, NO correction data
+const PREFS_KEY = 'nutrilens_correction_prefs';
+const FROZEN_TARGETS_KEY = 'nutrilens_frozen_targets'; // date → adjustedTarget
+
+interface CorrectionPrefs {
   specialDays: Record<string, DayType>;
-  balanceStreak: number;
   autoAdjustMeals: boolean;
   dayCutoffHour: number;
 }
 
-const BANK_KEY = 'nutrilens_calorie_bank';
-
-const DEFAULT_STATE: PersistedState = {
-  lastProcessedDate: '',
-  dailyBalances: [],
+const DEFAULT_PREFS: CorrectionPrefs = {
   specialDays: {},
-  balanceStreak: 0,
   autoAdjustMeals: true,
   dayCutoffHour: 3,
 };
 
-// ── Persistence (minimal — only balances + prefs) ──
+// ── Persistence (ONLY prefs + frozen targets) ──
 
-function loadState(): PersistedState {
-  const raw = localStorage.getItem(BANK_KEY);
-  if (!raw) return { ...DEFAULT_STATE };
+function loadPrefs(): CorrectionPrefs {
   try {
-    const parsed = JSON.parse(raw);
-    // Migration: strip legacy fields, keep only what we need
-    return {
-      lastProcessedDate: parsed.lastProcessedDate || '',
-      dailyBalances: (parsed.dailyBalances || []).map((b: any) => ({
-        date: b.date,
-        target: b.target || 0,
-        actual: b.actual || 0,
-        diff: b.diff ?? 0,
-        adjustedTarget: b.adjustedTarget,
-      })),
-      specialDays: parsed.specialDays || {},
-      balanceStreak: parsed.balanceStreak || 0,
-      autoAdjustMeals: parsed.autoAdjustMeals ?? true,
-      dayCutoffHour: parsed.dayCutoffHour ?? 3,
-    };
+    const raw = localStorage.getItem(PREFS_KEY);
+    if (!raw) {
+      // Migrate from old BANK_KEY if present
+      const oldRaw = localStorage.getItem('nutrilens_calorie_bank');
+      if (oldRaw) {
+        const old = JSON.parse(oldRaw);
+        const prefs: CorrectionPrefs = {
+          specialDays: old.specialDays || {},
+          autoAdjustMeals: old.autoAdjustMeals ?? true,
+          dayCutoffHour: old.dayCutoffHour ?? 3,
+        };
+        localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+        // Migrate frozen targets
+        if (old.dailyBalances) {
+          const frozen: Record<string, number> = {};
+          for (const b of old.dailyBalances) {
+            if (b.adjustedTarget && b.date) frozen[b.date] = b.adjustedTarget;
+          }
+          localStorage.setItem(FROZEN_TARGETS_KEY, JSON.stringify(frozen));
+        }
+        return prefs;
+      }
+      return { ...DEFAULT_PREFS };
+    }
+    return { ...DEFAULT_PREFS, ...JSON.parse(raw) };
   } catch {
-    return { ...DEFAULT_STATE };
+    return { ...DEFAULT_PREFS };
   }
 }
 
-function saveState(state: PersistedState): void {
-  localStorage.setItem(BANK_KEY, JSON.stringify(state));
+function savePrefs(prefs: CorrectionPrefs): void {
+  localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+}
+
+function loadFrozenTargets(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(FROZEN_TARGETS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveFrozenTargets(targets: Record<string, number>): void {
+  localStorage.setItem(FROZEN_TARGETS_KEY, JSON.stringify(targets));
 }
 
 // ── Utility ──
@@ -98,7 +113,7 @@ function getFutureDate(date: string, offset: number): string {
 
 export function getEffectiveDate(cutoffHour?: number): string {
   const now = new Date();
-  const cutoff = cutoffHour ?? loadState().dayCutoffHour;
+  const cutoff = cutoffHour ?? loadPrefs().dayCutoffHour;
   if (now.getHours() < cutoff) {
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -110,31 +125,31 @@ export function getEffectiveDate(cutoffHour?: number): string {
 // ── Special Day Types ──
 
 export function setDayType(date: string, type: DayType): void {
-  const state = loadState();
+  const prefs = loadPrefs();
   if (type === 'normal') {
-    delete state.specialDays[date];
+    delete prefs.specialDays[date];
   } else {
-    state.specialDays[date] = type;
+    prefs.specialDays[date] = type;
   }
-  saveState(state);
+  savePrefs(prefs);
 }
 
 export function getDayType(date?: string): DayType {
-  const state = loadState();
+  const prefs = loadPrefs();
   const d = date || getEffectiveDate();
-  return state.specialDays[d] || 'normal';
+  return prefs.specialDays[d] || 'normal';
 }
 
 // ── Auto-Adjust Toggle ──
 
 export function setAutoAdjust(on: boolean): void {
-  const state = loadState();
-  state.autoAdjustMeals = on;
-  saveState(state);
+  const prefs = loadPrefs();
+  prefs.autoAdjustMeals = on;
+  savePrefs(prefs);
 }
 
 export function getAutoAdjust(): boolean {
-  return loadState().autoAdjustMeals;
+  return loadPrefs().autoAdjustMeals;
 }
 
 // ── Confidence Scoring ──
@@ -198,6 +213,7 @@ export function computeAdjustmentMap(
   for (const day of pastLogs) {
     if (!day.actual || day.actual < 300) continue;
 
+    // diff = actual - baseTarget (ALWAYS vs base, NEVER adjusted)
     const diff = day.actual - baseTarget;
     if (Math.abs(diff) < 50) continue;
 
@@ -244,6 +260,9 @@ export function computeAdjustedTarget(
 
   // Past day with frozen target — return as-is
   if (date < today) {
+    const frozen = loadFrozenTargets();
+    if (frozen[date]) return frozen[date];
+    // Also check allBalances for inline frozen
     const entry = allBalances.find(b => b.date === date);
     if (entry?.adjustedTarget) return entry.adjustedTarget;
   }
@@ -339,9 +358,80 @@ export function computeDinnerSummary(
 }
 
 // ══════════════════════════════════════════════
-// STATEFUL FUNCTIONS — MINIMAL
-// Only: sync balance entry, freeze end-of-day
+// DERIVED DATA — computed from raw logs on demand
+// NO cached state, NO persisted balances
 // ══════════════════════════════════════════════
+
+/**
+ * Derive daily balances from raw logs.
+ * This is the ONLY way to get balance data — never read from cache.
+ */
+export function getDailyBalances(baseTarget?: number): DailyBalanceEntry[] {
+  const p = getProfile();
+  const target = baseTarget || p?.dailyCalories || 1600;
+  const frozenTargets = loadFrozenTargets();
+  const dates = getAllLogDates().sort();
+
+  const balances: DailyBalanceEntry[] = [];
+  for (const date of dates) {
+    const log = getDailyLog(date);
+    const totals = getDailyTotals(log);
+    if (totals.eaten === 0 && log.meals.length === 0) continue;
+
+    const diff = totals.eaten - target;
+    const adjustedTarget = frozenTargets[date] || undefined;
+
+    balances.push({
+      date,
+      target,
+      actual: totals.eaten,
+      diff,
+      adjustedTarget,
+    });
+  }
+
+  return balances;
+}
+
+/**
+ * Get monthly stats computed from raw logs.
+ */
+export function getMonthlyStats(month?: string): MonthlyStats {
+  const p = getProfile();
+  const baseTarget = p?.dailyCalories || 1600;
+  const targetMonth = month || new Date().toISOString().slice(0, 7);
+  const allBalances = getDailyBalances(baseTarget);
+  const monthBalances = allBalances.filter(b => b.date.startsWith(targetMonth));
+
+  let surplusDays = 0, deficitDays = 0, balancedDays = 0, netBalance = 0;
+  for (const b of monthBalances) {
+    netBalance += b.diff;
+    if (b.diff > 50) surplusDays++;
+    else if (b.diff < -50) deficitDays++;
+    else balancedDays++;
+  }
+  return { surplusDays, deficitDays, balancedDays, netBalance: Math.round(netBalance) };
+}
+
+/**
+ * Check if surplus days cluster on weekends.
+ */
+export function getWeekendPattern(): { detected: boolean; message: string } {
+  const allBalances = getDailyBalances();
+  const surplusEntries = allBalances.filter(b => b.diff > 50);
+  if (surplusEntries.length < 3) return { detected: false, message: '' };
+
+  let weekendSurplus = 0;
+  for (const b of surplusEntries) {
+    const day = new Date(b.date + 'T00:00:00').getDay();
+    if (day === 0 || day === 6) weekendSurplus++;
+  }
+
+  if (weekendSurplus / surplusEntries.length >= 0.5) {
+    return { detected: true, message: 'You tend to eat more on weekends. We\'ve adjusted future plans to handle this better.' };
+  }
+  return { detected: false, message: '' };
+}
 
 // ── UI Update Callbacks ──
 
@@ -362,49 +452,10 @@ function notifyUICallbacks(): void {
 }
 
 /**
- * Sync today's balance entry after any meal mutation.
- * This is a LIGHTWEIGHT write — no correction logic, no cumulative state.
- * Just records: date, target, actual, diff.
+ * Sync after any meal mutation — just triggers UI refresh.
+ * No correction state written. All data derived from raw logs.
  */
-export function syncDailyBalance(log?: DailyLog, profile?: UserProfile | null): void {
-  const p = profile || getProfile();
-  if (!p) return;
-
-  const today = getEffectiveDate();
-  const dailyLog = log || getDailyLog(today);
-  const totals = getDailyTotals(dailyLog);
-  const baseTarget = p.dailyCalories || 1600;
-
-  const state = loadState();
-  const dayType = state.specialDays[today] || 'normal';
-  if (dayType === 'fasting') return;
-
-  // Freeze guard: if day changed, freeze yesterday first
-  if (state.lastProcessedDate && state.lastProcessedDate < today && state.lastProcessedDate !== today) {
-    processEndOfDay(p);
-    const freshState = loadState();
-    Object.assign(state, freshState);
-  }
-
-  // diff = actual - baseTarget (ALWAYS vs base, never adjusted)
-  const diff = totals.eaten - baseTarget;
-
-  const existingIdx = state.dailyBalances.findIndex(b => b.date === today);
-  const entry: DailyBalanceEntry = {
-    date: today, target: baseTarget, actual: totals.eaten, diff,
-  };
-
-  if (existingIdx >= 0) {
-    state.dailyBalances[existingIdx] = entry;
-  } else {
-    state.dailyBalances.push(entry);
-  }
-
-  if (state.dailyBalances.length > 30) {
-    state.dailyBalances = state.dailyBalances.slice(-30);
-  }
-
-  saveState(state);
+export function syncDailyBalance(_log?: DailyLog, _profile?: UserProfile | null): void {
   notifyUICallbacks();
 }
 
@@ -417,15 +468,16 @@ export function getAdjustedDailyTarget(profile: UserProfile | null): number {
   if (!p) return 1600;
 
   const baseTarget = p.dailyCalories || 1600;
-  const state = loadState();
+  const prefs = loadPrefs();
   const today = getEffectiveDate();
-  const dayType = state.specialDays[today] || 'normal';
+  const dayType = prefs.specialDays[today] || 'normal';
 
   if (dayType === 'fasting') return 0;
   if (dayType === 'cheat') return baseTarget;
-  if (!state.autoAdjustMeals) return baseTarget;
+  if (!prefs.autoAdjustMeals) return baseTarget;
 
-  return computeAdjustedTarget(today, baseTarget, state.dailyBalances);
+  const allBalances = getDailyBalances(baseTarget);
+  return computeAdjustedTarget(today, baseTarget, allBalances);
 }
 
 /**
@@ -437,114 +489,52 @@ export function getProteinTarget(profile: UserProfile | null): number {
 
 /**
  * Process end-of-day / day rollover.
- * ONLY allowed mutation: freezes adjustedTarget on yesterday's balance.
+ * ONLY allowed mutation: freezes adjustedTarget for yesterday.
  */
 export function processEndOfDay(profile: UserProfile | null): void {
   const p = profile || getProfile();
   if (!p) return;
 
   const today = getEffectiveDate();
-  const state = loadState();
+  const baseTarget = p.dailyCalories || 1600;
 
-  if (state.lastProcessedDate === today) return;
+  // Check if yesterday needs freezing
+  const yesterday = getFutureDate(today, -1);
+  const frozen = loadFrozenTargets();
+  if (frozen[yesterday]) return; // Already frozen
 
-  if (state.lastProcessedDate && state.lastProcessedDate < today) {
-    const yesterday = state.lastProcessedDate;
-    const yesterdayLog = getDailyLog(yesterday);
-    const totals = getDailyTotals(yesterdayLog);
-    const baseTarget = p.dailyCalories || 1600;
+  const yesterdayLog = getDailyLog(yesterday);
+  const totals = getDailyTotals(yesterdayLog);
+  if (totals.eaten === 0 && yesterdayLog.meals.length === 0) return;
 
-    // Freeze: compute adjustedTarget deterministically and store it
-    const frozenAdjustedTarget = computeAdjustedTarget(yesterday, baseTarget, state.dailyBalances);
-    const diff = totals.eaten - baseTarget;
+  // Compute and freeze yesterday's adjusted target
+  const allBalances = getDailyBalances(baseTarget);
+  const frozenTarget = computeAdjustedTarget(yesterday, baseTarget, allBalances);
+  frozen[yesterday] = frozenTarget;
 
-    const existingIdx = state.dailyBalances.findIndex(b => b.date === yesterday);
-    if (existingIdx < 0 && totals.eaten > 0) {
-      state.dailyBalances.push({
-        date: yesterday, target: baseTarget, actual: totals.eaten,
-        diff, adjustedTarget: frozenAdjustedTarget,
-      });
-    } else if (existingIdx >= 0) {
-      state.dailyBalances[existingIdx].adjustedTarget = frozenAdjustedTarget;
-      state.dailyBalances[existingIdx].diff = diff;
-    }
-
-    // Balance streak (within ±100 kcal of adjustedTarget)
-    const lastEntry = state.dailyBalances.find(b => b.date === yesterday);
-    if (lastEntry) {
-      const effectiveDiff = totals.eaten - frozenAdjustedTarget;
-      if (Math.abs(effectiveDiff) <= 100) {
-        state.balanceStreak++;
-      } else {
-        state.balanceStreak = 0;
-      }
-    }
+  // Clean old entries (keep last 60 days)
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 60);
+  const cutoffStr = cutoff.toISOString().split('T')[0];
+  for (const key of Object.keys(frozen)) {
+    if (key < cutoffStr) delete frozen[key];
   }
 
-  state.lastProcessedDate = today;
-
-  if (state.dailyBalances.length > 30) state.dailyBalances = state.dailyBalances.slice(-30);
+  saveFrozenTargets(frozen);
 
   // Clean old special days
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 30);
-  const cutoffStr = cutoff.toISOString().split('T')[0];
-  for (const key of Object.keys(state.specialDays)) {
-    if (key < cutoffStr) delete state.specialDays[key];
+  const prefs = loadPrefs();
+  for (const key of Object.keys(prefs.specialDays)) {
+    if (key < cutoffStr) delete prefs.specialDays[key];
   }
+  savePrefs(prefs);
 
-  saveState(state);
   notifyUICallbacks();
 }
 
 // ══════════════════════════════════════════════
-// QUERY FUNCTIONS — all use pure computation
+// QUERY FUNCTIONS — all derived from raw logs
 // ══════════════════════════════════════════════
-
-/**
- * Get daily balances for the last 30 days.
- */
-export function getDailyBalances(): DailyBalanceEntry[] {
-  return [...loadState().dailyBalances].sort((a, b) => a.date.localeCompare(b.date));
-}
-
-/**
- * Get monthly stats for a given month.
- */
-export function getMonthlyStats(month?: string): MonthlyStats {
-  const state = loadState();
-  const targetMonth = month || new Date().toISOString().slice(0, 7);
-  const monthBalances = state.dailyBalances.filter(b => b.date.startsWith(targetMonth));
-
-  let surplusDays = 0, deficitDays = 0, balancedDays = 0, netBalance = 0;
-  for (const b of monthBalances) {
-    netBalance += b.diff;
-    if (b.diff > 50) surplusDays++;
-    else if (b.diff < -50) deficitDays++;
-    else balancedDays++;
-  }
-  return { surplusDays, deficitDays, balancedDays, netBalance: Math.round(netBalance) };
-}
-
-/**
- * Check if surplus days cluster on weekends.
- */
-export function getWeekendPattern(): { detected: boolean; message: string } {
-  const state = loadState();
-  const surplusEntries = state.dailyBalances.filter(b => b.diff > 50);
-  if (surplusEntries.length < 3) return { detected: false, message: '' };
-
-  let weekendSurplus = 0;
-  for (const b of surplusEntries) {
-    const day = new Date(b.date + 'T00:00:00').getDay();
-    if (day === 0 || day === 6) weekendSurplus++;
-  }
-
-  if (weekendSurplus / surplusEntries.length >= 0.5) {
-    return { detected: true, message: 'You tend to eat more on weekends. We\'ve adjusted future plans to handle this better.' };
-  }
-  return { detected: false, message: '' };
-}
 
 /**
  * Get contextual toast after a meal is logged.
@@ -580,10 +570,29 @@ export function isTargetAdjusted(profile: UserProfile | null): boolean {
 }
 
 /**
- * Get balance streak count.
+ * Get balance streak count (days within ±100 kcal of adjustedTarget).
  */
 export function getBalanceStreak(): number {
-  return loadState().balanceStreak;
+  const p = getProfile();
+  if (!p) return 0;
+  const baseTarget = p.dailyCalories || 1600;
+  const balances = getDailyBalances(baseTarget);
+  const today = getEffectiveDate();
+
+  let streak = 0;
+  // Walk backwards from yesterday
+  for (let i = balances.length - 1; i >= 0; i--) {
+    const b = balances[i];
+    if (b.date >= today) continue;
+    const effectiveTarget = b.adjustedTarget || b.target;
+    const effectiveDiff = b.actual - effectiveTarget;
+    if (Math.abs(effectiveDiff) <= 100) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+  return streak;
 }
 
 /**
@@ -595,12 +604,12 @@ export function getTodayAdjustmentStatus(): {
   status: 'surplus' | 'deficit' | 'balanced';
   message: string;
 } {
-  const state = loadState();
   const today = getEffectiveDate();
   const p = getProfile();
   const baseTarget = p?.dailyCalories || 1600;
 
-  const pastLogs = state.dailyBalances.filter(b => b.date < today && b.actual >= 300);
+  const allBalances = getDailyBalances(baseTarget);
+  const pastLogs = allBalances.filter(b => b.date < today && b.actual >= 300);
   const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
   const todayAdj = adjMap[today] || 0;
 
@@ -627,8 +636,8 @@ export function getDinnerNotificationSummary(
   actualCalories: number,
   baseTarget: number
 ): { message: string; tomorrowTarget: number } | null {
-  const state = loadState();
-  return computeDinnerSummary(today, actualCalories, baseTarget, state.dailyBalances);
+  const allBalances = getDailyBalances(baseTarget);
+  return computeDinnerSummary(today, actualCalories, baseTarget, allBalances);
 }
 
 // ── Adjustment Explanation Functions ──
@@ -637,11 +646,11 @@ export function getDinnerNotificationSummary(
  * Get a plain-text explanation of why a date's target changed.
  */
 export function getAdjustmentExplanation(date?: string): string | null {
-  const state = loadState();
   const d = date || getEffectiveDate();
   const p = getProfile();
   const baseTarget = p?.dailyCalories || 1600;
-  const pastLogs = state.dailyBalances.filter(b => b.date < d && b.actual >= 300);
+  const allBalances = getDailyBalances(baseTarget);
+  const pastLogs = allBalances.filter(b => b.date < d && b.actual >= 300);
   const breakdown = computeBreakdownForDate(d, pastLogs, baseTarget);
 
   if (breakdown.length === 0) return null;
@@ -666,11 +675,11 @@ export function getAdjustmentDetails(): {
     sources: AdjustmentSource[];
   }>;
 } {
-  const state = loadState();
   const today = getEffectiveDate();
   const p = getProfile();
   const baseTarget = p?.dailyCalories || 1600;
-  const pastLogs = state.dailyBalances.filter(b => b.date < today && b.actual >= 300);
+  const allBalances = getDailyBalances(baseTarget);
+  const pastLogs = allBalances.filter(b => b.date < today && b.actual >= 300);
   const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
 
   // Source days
@@ -734,10 +743,20 @@ export function validateAdjustmentIntegrity(
     warnings.push(`Adjustment mismatch: total=${totalAdj}, expected≈${expectedNet}`);
   }
 
+  // Debug trace
+  console.log('[CalorieEngine] Validation:', {
+    totalSurplus: Math.round(totalSurplus),
+    totalRecovery: Math.round(totalRecovery),
+    totalAdjustments: Math.round(totalAdj),
+    expectedNet: Math.round(expectedNet),
+    daysInMap: Object.keys(adjMap).length,
+    valid: warnings.length === 0,
+  });
+
   return { valid: warnings.length === 0, warnings };
 }
 
-// ── Legacy compatibility shims (for callers that haven't been updated yet) ──
+// ── Legacy compatibility shims ──
 
 /** @deprecated Use syncDailyBalance instead */
 export const updateCalorieBank = syncDailyBalance;
@@ -748,14 +767,15 @@ export function getCalorieBankSummary() {
   return { bank: s.adjustment, status: s.status, message: s.message };
 }
 
-/** @deprecated Use getDailyBalances + computeAdjustmentMap directly */
+/** @deprecated Use getDailyBalances directly */
 export function getCalorieBankState() {
-  const state = loadState();
+  const balances = getDailyBalances();
+  const prefs = loadPrefs();
   return {
-    dailyBalances: state.dailyBalances,
-    specialDays: state.specialDays,
-    lastProcessedDate: state.lastProcessedDate,
-    autoAdjustMeals: state.autoAdjustMeals,
-    balanceStreak: state.balanceStreak,
+    dailyBalances: balances,
+    specialDays: prefs.specialDays,
+    lastProcessedDate: getEffectiveDate(),
+    autoAdjustMeals: prefs.autoAdjustMeals,
+    balanceStreak: getBalanceStreak(),
   };
 }
