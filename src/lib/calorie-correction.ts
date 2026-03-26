@@ -600,7 +600,7 @@ export function getAdjustedDailyTarget(profile: UserProfile | null): number {
   if (!prefs.autoAdjustMeals) return baseTarget;
 
   const allBalances = getDailyBalances(baseTarget);
-  return computeAdjustedTarget(today, baseTarget, allBalances, tdee);
+  return computeAdjustedTarget(today, baseTarget, allBalances, tdee, getCorrectionMode());
 }
 
 /**
@@ -733,7 +733,7 @@ export function getTodayAdjustmentStatus(): {
 
   const allBalances = getDailyBalances(baseTarget);
   const pastLogs = allBalances.filter(b => b.date < today && b.actual >= 300);
-  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee, getCorrectionMode());
   const todayAdj = adjMap[today] || 0;
 
   if (Math.abs(todayAdj) < 10) {
@@ -775,7 +775,7 @@ export function getAdjustmentExplanation(date?: string): string | null {
   const tdee = p?.tdee || baseTarget;
   const allBalances = getDailyBalances(baseTarget);
   const pastLogs = allBalances.filter(b => b.date < d && b.actual >= 300);
-  const breakdown = computeBreakdownForDate(d, pastLogs, baseTarget, tdee);
+  const breakdown = computeBreakdownForDate(d, pastLogs, baseTarget, tdee, getCorrectionMode());
 
   if (breakdown.length === 0) return null;
 
@@ -805,7 +805,7 @@ export function getAdjustmentDetails(): {
   const tdee = p?.tdee || baseTarget;
   const allBalances = getDailyBalances(baseTarget);
   const pastLogs = allBalances.filter(b => b.date < today && b.actual >= 300);
-  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee, getCorrectionMode());
 
   // Source days
   const sourceMap = new Map<string, number>();
@@ -827,7 +827,7 @@ export function getAdjustmentDetails(): {
   const futureAdjustments = futureDates.map(([date, adjustment]) => ({
     date,
     adjustment,
-    sources: computeBreakdownForDate(date, pastLogs, baseTarget, tdee),
+    sources: computeBreakdownForDate(date, pastLogs, baseTarget, tdee, getCorrectionMode()),
   }));
 
   return { recentSurplusDays, futureAdjustments };
