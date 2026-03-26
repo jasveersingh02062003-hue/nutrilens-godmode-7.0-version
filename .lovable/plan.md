@@ -1,57 +1,58 @@
 
 
-# Plan: Harden Calorie Correction Engine
+# Plan: Final 3 Hardening Fixes
 
-## What's wrong now
+## What's still wrong
 
-The engine is mostly stateless, but has these remaining issues:
+1. **Clamp breaks conservation** — clamping to ±300 without redistributing the remainder means calories get silently lost. The reconciliation check will flag this as a mismatch.
 
-1. **Rounding drift** in `computeAdjustmentMap` — `Math.round(diff / spreadDays)` loses calories (e.g., 385/4 = 96*4 = 384, losing 1 kcal). Over many days this accumulates.
+2. **Today boundary not enforced inside `computeAdjustmentMap`** — relies on callers to filter. The function itself must reject `day.date >= today`.
 
-2. **`getBalanceStreak` uses `adjustedTarget` in logic** (line 587) — violates the rule that `adjustedTarget` is UI-only, never used in diff/logic calculations.
+3. **`computeBreakdownForDate` still uses `Math.round`** — diverges from the exact distribution in `computeAdjustmentMap`, so the UI explanation won't match the actual adjustment.
 
-3. **`AdjustmentExplanationModal` shows cumulative totals** (line 14-19) — "X kcal being reduced across Y days" is exactly the aggregate number that misleads users.
+4. **Reconciliation check missing from `getDailyBalances`** — debug trace exists but no automatic conservation verification.
 
-4. **Legacy shims still exported** — `updateCalorieBank`, `getCalorieBankSummary`, `getCalorieBankState` remain as deprecated exports. No callers exist, so they should be deleted.
+5. **Validation thresholds still reference -400** — should be ±300 to match the new clamp.
 
-5. **Debug trace logging missing** — No `console.log({ date, actual, baseTarget, diff })` trace in `getDailyBalances` to catch math issues during dev.
+## Changes — all in `src/lib/calorie-correction.ts`
 
-6. **Validation uses `console.log` not `console.error`** — soft warnings instead of loud failures.
+### 1. Clamp with redistribution (lines 244-248)
 
-## Changes
+Replace simple clamp with a two-pass redistribution loop:
+- First pass: apply ideal adjustments, clamp each day to ±300, track any leftover.
+- Second pass: redistribute leftover across days that still have capacity (within ±300).
+- This preserves total conservation while keeping per-day limits safe.
 
-### 1. `src/lib/calorie-correction.ts`
+### 2. Today boundary inside `computeAdjustmentMap` (line 213)
 
-**Fix rounding drift** in `computeAdjustmentMap` (line 222):
+Add explicit guard at the top of the loop:
 ```typescript
-// Replace: const perDay = Math.round(diff / spreadDays);
-// With exact distribution:
-const base = Math.floor(diff / spreadDays);
-const remainder = diff % spreadDays;
-// In loop: use (base + (i <= remainder ? 1 : 0))
+const today = getEffectiveDate();
+// inside loop:
+if (day.date >= today) continue;
 ```
 
-**Fix `getBalanceStreak`** (line 587): Change from using `adjustedTarget` to using `baseTarget` only — streak measures adherence to the base goal, not the adjusted one.
+### 3. Fix `computeBreakdownForDate` to use exact distribution (lines 298-305)
 
-**Add debug trace** in `getDailyBalances`: Log each day's `{ date, actual, baseTarget, diff }` when building balances.
+Replace `Math.round(diff / spreadDays)` with the same `Math.floor` + remainder logic used in `computeAdjustmentMap`, and determine which slot index corresponds to `targetDate` to return the exact per-day value.
 
-**Harden validation** (line 747): Change `console.log` to `console.error` for the validation output so failures are loud.
+### 4. Add reconciliation check at end of `getDailyBalances` (after line 397)
 
-**Delete legacy shims** (lines 759-781): Remove `updateCalorieBank`, `getCalorieBankSummary`, `getCalorieBankState` — no callers remain.
+After building all balances, compute the adjustment map from past-only logs and verify:
+```typescript
+const totalDiff = sum of all surplus diffs (>50) as negative + recovery diffs (<-50) as positive
+const totalAdj = sum of adjMap values
+if (Math.abs(totalDiff - totalAdj) > 1) console.error(...)
+```
+Also verify no single adjMap entry exceeds ±300.
 
-### 2. `src/components/AdjustmentExplanationModal.tsx`
+### 5. Update validation thresholds (lines 728-733)
 
-Remove the cumulative summary line (lines 14-19). Replace with a simple status: "Your plan adjusts day-by-day based on recent intake." The per-day breakdown below already shows the exact numbers.
-
-### 3. `src/pages/Progress.tsx`
-
-Remove the duplicate comment on line 442-443 ("Weekly totals — use adjustedTarget when available" followed by "Weekly totals — always use baseTarget for honest math"). Keep only the correct comment.
+Change `-400` references to `-300` / `300` to match the new clamp.
 
 ## Files modified
 
 | File | Change |
 |------|--------|
-| `src/lib/calorie-correction.ts` | Fix rounding; fix streak logic; add trace logging; harden validation; delete legacy shims |
-| `src/components/AdjustmentExplanationModal.tsx` | Remove cumulative total display |
-| `src/pages/Progress.tsx` | Clean duplicate comment |
+| `src/lib/calorie-correction.ts` | Clamp redistribution; today guard; breakdown exact math; reconciliation check; updated thresholds |
 
