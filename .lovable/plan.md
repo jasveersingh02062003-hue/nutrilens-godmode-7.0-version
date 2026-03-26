@@ -1,72 +1,56 @@
 
 
-# Plan: Harden Deterministic Calorie Engine (6 Refinements)
+# Plan: Realistic Stress-Test Demo Data for Calorie Engine
 
-## What's Already Working
-The deterministic recomputation model is in place: `computeAdjustmentMap`, `computeAdjustedTarget`, `computeBreakdownForDate`, `computeDinnerSummary` are all pure functions. Calendar memoization via `useMemo` is already in Progress.tsx. Protein lock and 1200 kcal safety clamp are active.
+## What Changes
 
-## Remaining Gaps
+Replace the current demo data seeding with the user-provided 30-day realistic dataset that stress-tests the deterministic calorie correction engine with binge days, recovery days, and weekend spikes.
 
-### 1. effectiveTarget bug — double correction distortion
-**Current (line 239-240 in calorie-correction.ts):**
+## Changes
+
+### 1. `src/lib/seed-demo-data.ts` — Rewrite core data
+
+**Profile**: Update `generateProfile()` to use Riya Sharma's profile:
+- `name: 'Riya Sharma'`, `dailyCalories: 1800`, `dailyProtein: 110`, `dailyCarbs: 200`, `dailyFat: 60`, `goal: 'lose'`, `targetWeight: 52`, `weightKg: 62`
+
+**Daily Logs**: Replace the pattern-based `generateDayMeals(daysAgo)` approach. Instead, define the 29 fixed data points (Feb 25 – Mar 25) as an array of `{ date, actualCalories }` with `targetCalories: 1800`. For each entry, generate meals that sum to the specified `actualCalories` using the existing meal food items, distributing across breakfast/lunch/snack/dinner proportionally.
+
+**Calorie Bank**: Replace `generateCalorieBank()` with a function that:
+1. Builds `dailyBalances` from the 29 fixed entries
+2. Sequentially computes and freezes `adjustedTarget` for each past day using `computeAdjustedTarget` — this ensures the deterministic engine's effectiveTarget logic is exercised correctly during seeding
+3. Stores the final bank state with frozen targets
+
+**Meal Planner Profile + Onboarding**: Update to match Riya's profile (1800 kcal, 110g protein, etc.)
+
+**Weight History**: Adjust starting weight to 62 kg to match Riya's profile.
+
+### 2. `seedDemoData()` — Sequential freeze loop
+
+After writing all daily logs, run a sequential freeze pass:
 ```typescript
-const target = day.target || baseTarget;
-const diff = day.actual - target;
-```
-This uses the **original** target, not the adjusted target. If Day 1 surplus caused Day 2's target to drop, Day 2's diff should be computed against the adjusted target — otherwise the engine double-corrects.
-
-**Fix**: In `computeAdjustmentMap` and `computeBreakdownForDate`, use `day.adjustedTarget ?? day.target ?? baseTarget` as the effective target for each day's diff calculation.
-
-### 2. Incomplete day guard
-Days with very low actual calories (e.g., user opened app but didn't log) create false deficit signals.
-
-**Fix**: In `computeAdjustmentMap` and `computeBreakdownForDate`, skip days where `day.actual < 300`. The existing `day.actual > 0` filter is insufficient.
-
-### 3. Enhanced dinner summary with granular pending info
-`computeDinnerSummary` currently returns only `pendingAdjustment` (total). Users need tomorrow-specific and near-term context.
-
-**Fix**: Return expanded object:
-```typescript
-{
-  message: string;
-  tomorrowTarget: number;
-  tomorrowImpact: number;      // adjMap[tomorrow] only
-  next3DaysImpact: number;     // sum of adjMap for next 3 days
-  totalPending: number;        // sum of all future adjustments
+// Sequential freeze: compute adjustedTarget for each past day in order
+const balances: DailyBalanceEntry[] = [];
+for (const entry of DATASET) {
+  // Compute adjustedTarget using all balances before this date
+  const adjustedTarget = computeAdjustedTarget(entry.date, 1800, balances);
+  const diff = entry.actualCalories - adjustedTarget;
+  balances.push({
+    date: entry.date,
+    target: 1800,
+    actual: entry.actualCalories,
+    diff,
+    bankAfter: balances.reduce((s, b) => s + b.diff, 0) + diff,
+    adjustedTarget,
+  });
 }
 ```
-Update the message to include tomorrow's specific impact rather than just the total pending.
+Store the resulting `balances` array (with frozen `adjustedTarget` on each past day) as the calorie bank state.
 
-### 4. Human-readable reason/impact in breakdown entries
-Currently breakdown entries have raw numbers. Users need context like "Ate +400 kcal over" and "→ -100 kcal".
-
-**Fix**: Add `reason` and `impactLabel` fields to `AdjustmentBreakdownEntry` in `calendar-helpers.ts`:
-```typescript
-export interface AdjustmentBreakdownEntry {
-  sourceDate: string;
-  surplus: number;
-  appliedAdjustment: number;
-  reason: string;        // "Ate +400 kcal over target"
-  impactLabel: string;   // "→ -100 kcal today"
-}
-```
-Populate in `getAdjustmentBreakdownForDate`. Update `DayDetailsSheet.tsx` to display `reason` and `impactLabel` instead of raw numbers.
-
-### 5. Freeze timing documentation + guard
-`processEndOfDay` already triggers on first app open after midnight (`lastProcessedDate < today`). Add a guard: also trigger when user logs first meal of a new day (in `updateCalorieBank`, if today differs from `lastProcessedDate`, call `processEndOfDay` first).
-
-### 6. DayDetailsSheet memoization
-`FutureDayPlanSection` calls `getCalorieBankState()` and `computeAdjustmentMap` on every render without memoization.
-
-**Fix**: Wrap the computation in `useMemo` keyed on `date` and the state's `dailyBalances`.
-
-## Files Modified
+### 3. Files modified
 
 | File | Change |
 |------|--------|
-| `src/lib/calorie-correction.ts` | Fix effectiveTarget in `computeAdjustmentMap` and `computeBreakdownForDate`; add `actual < 300` guard; expand `computeDinnerSummary` return type; trigger `processEndOfDay` from `updateCalorieBank` on day change |
-| `src/lib/calendar-helpers.ts` | Add `reason`/`impactLabel` to `AdjustmentBreakdownEntry`; populate in `getAdjustmentBreakdownForDate` |
-| `src/components/DayDetailsSheet.tsx` | Display `reason`/`impactLabel` in breakdown UI; add `useMemo` to `FutureDayPlanSection` |
-| `src/pages/LogFood.tsx` | Update `computeDinnerSummary` call to handle expanded return type |
-| `src/components/MealDetailSheet.tsx` | Same dinner summary update |
+| `src/lib/seed-demo-data.ts` | Replace profile, dataset, calorie bank generation, and add sequential freeze logic |
+
+No other files need changes — the engine, calendar, and UI components already consume the data correctly.
 
