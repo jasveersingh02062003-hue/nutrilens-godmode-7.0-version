@@ -84,11 +84,22 @@ export function getAdjustmentBreakdownForDate(
 ): AdjustmentBreakdownEntry[] {
   const sourceMap = state.adjustmentSources.find(s => s.targetDate === date);
   if (!sourceMap) return [];
-  return sourceMap.sources.map(s => ({
-    sourceDate: s.sourceDate,
-    surplus: s.surplus,
-    appliedAdjustment: s.appliedAdjustment,
-  }));
+  // Group by sourceDate to prevent duplicate entries in UI
+  const grouped = new Map<string, AdjustmentBreakdownEntry>();
+  for (const s of sourceMap.sources) {
+    const existing = grouped.get(s.sourceDate);
+    if (existing) {
+      existing.surplus = s.surplus; // use latest value
+      existing.appliedAdjustment += s.appliedAdjustment;
+    } else {
+      grouped.set(s.sourceDate, {
+        sourceDate: s.sourceDate,
+        surplus: s.surplus,
+        appliedAdjustment: s.appliedAdjustment,
+      });
+    }
+  }
+  return Array.from(grouped.values());
 }
 
 /**
