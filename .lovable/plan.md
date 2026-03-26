@@ -1,53 +1,73 @@
 
 
-# Plan: QuickLog Zero-Friction Upgrade
+# Smart Calorie System: Real-Time Updates, Day Boundary, and Missed Day Recovery
 
-## The Core Problem
+## What You'll Get
 
-Currently: **tap meal → mode selector sheet → choose mode → log**. That's 3 steps. The user's scenario demands: **tap → instant action**.
+1. **Date displayed on Dashboard** — Shows today's date prominently (e.g., "Thursday, 27 March") so you always know which day you're tracking
+2. **"Is this your last meal?" prompt after dinner** — When you log dinner, a bottom sheet asks if this is your last meal for the day, triggering immediate surplus/deficit calculation and showing tomorrow's adjusted target
+3. **Midnight auto-rollover** — At 12:00 AM, the app starts a new day automatically. Anything logged after midnight counts as next day's "midnight snack"
+4. **Morning missed-day recovery prompt** — When you open the app the next morning and yesterday has no logs, it asks specifically: "Did you eat but forget to log, or did you skip meals?" with two paths:
+   - **"I ate but forgot to log"** → Opens yesterday's log screen
+   - **"I didn't eat / skip"** → Carries the deficit forward to adjust today's target
+5. **Real-time calendar sync** — The Progress calendar updates instantly when meals are logged, showing green/yellow/red dots without needing a page refresh
+6. **Immediate surplus/deficit badge** — Dashboard shows today's running surplus or deficit in real-time as you log meals
 
-## Changes
+## Technical Details
 
-### 1. Instant-mode tap on meal buttons (`QuickLog.tsx`)
+### Files to Create
+- `src/components/LastMealConfirmSheet.tsx` — Bottom sheet shown after logging dinner: "Is this your last meal today?" with Yes/No. On "Yes": runs `processEndOfDay`, shows tomorrow's adjusted target summary, freezes today's balance
+- `src/components/MorningRecoveryPrompt.tsx` — Replaces the current basic `MissedDayPrompt`. Shows yesterday's date, two clear options: "I ate but forgot to log" (navigates to log for yesterday) vs "I skipped meals" (triggers deficit carry-forward and dismisses)
 
-- **Single tap**: Skip `LoggingOptionsSheet` entirely. Instead, read `getLastLogMode()` and navigate directly to that mode's logging route (default: `camera`).
-- **Long press** (500ms hold): Open `LoggingOptionsSheet` for mode selection.
-- Add a `useLongPress` hook inline — track `touchstart`/`mousedown` timers, distinguish tap vs hold.
+### Files to Modify
 
-### 2. Save last-used mode from LoggingOptionsSheet (`LoggingOptionsSheet.tsx`)
+**`src/pages/Dashboard.tsx`**
+- Add formatted date display below the greeting (e.g., "Thursday, 27 March 2026") using a clean, readable format
+- Wire up `MorningRecoveryPrompt` — check if yesterday has <300 kcal logged and show the prompt on mount
+- Add real-time surplus/deficit indicator near the CalorieRing showing "+120 surplus" or "−340 deficit" with color coding
+- Listen for `nutrilens:update` and `storage` events to refresh `dayState` immediately
 
-- When user picks a mode (camera/voice/manual/barcode), call `setLastLogMode(key)` before navigating. This teaches the widget their preference.
+**`src/lib/calorie-engine.ts`**
+- Add midnight snack detection: if current hour is 0–3 AM, assign meal to "snacks" slot and tag as midnight snack
+- Export a `finalizeDay()` function that freezes today's balance when user confirms last meal
 
-### 3. Duplicate logging guard (`QuickLog.tsx`)
+**`src/lib/calorie-correction.ts`**
+- Add `carryForwardDeficit(date)` function for when user confirms they skipped meals yesterday — immediately applies deficit recovery to today's target
+- Ensure `getEffectiveDate()` uses the existing 3 AM cutoff consistently
 
-- Before navigating on tap, check if the meal was logged within the last 15 minutes (compare `loggedCalories > 0` and time check from store).
-- If duplicate detected, show a small confirmation: "Already logged — log again or edit?" with two buttons instead of navigating immediately.
+**`src/pages/LogFood.tsx`**
+- After logging a dinner meal, show `LastMealConfirmSheet` instead of just the toast
+- If logging between 12 AM–3 AM, auto-assign to previous day per existing cutoff; if after 3 AM, treat as new day's midnight snack
 
-### 4. Missed meal "yesterday" awareness (`widget-data.ts`)
+**`src/pages/Progress.tsx`**
+- Add `useEffect` listener for `nutrilens:update` and `storage` events to trigger `refresh()` — making calendar dots update in real-time when meals are logged from Dashboard or LogFood
+- Add polling interval (same 2s pattern as Dashboard) for live calendar sync
 
-- In `getDynamicMessage()`, check if yesterday's log exists. If no log at all yesterday, prepend: "Let's get back on track today 💪" as the morning message.
+**`src/components/MissedDayPrompt.tsx`**
+- Replace with enhanced `MorningRecoveryPrompt` component with specific language: "Did you eat yesterday but forget to log?" vs "I skipped meals — adjust my plan"
 
-### 5. Completed meal tap → edit prompt (`QuickLog.tsx`)
+### Flow Summary
 
-- If tapping a meal with status `completed` or `late_completed`, show a mini prompt: "Edit this meal?" instead of opening a new log flow.
+```text
+User logs dinner
+  → "Is this your last meal?" sheet appears
+  → Yes → freezeDay() + show tomorrow's adjusted target
+  → No → dismiss, keep day open
 
-## Files
+Midnight passes (12:00 AM)
+  → New day starts automatically
+  → Meals logged 12–3 AM → assigned to previous day
+  → Meals logged after 3 AM → new day's midnight snack
 
-| File | Change |
-|------|--------|
-| `src/pages/QuickLog.tsx` | Add long-press logic, instant-mode navigation, duplicate guard, edit prompt for completed meals |
-| `src/components/LoggingOptionsSheet.tsx` | Call `setLastLogMode()` on mode selection |
-| `src/lib/widget-data.ts` | Add yesterday-check to dynamic message |
+Next morning, user opens app
+  → Check: did yesterday have <300 kcal?
+  → Yes → "Did you eat but forget to log?"
+    → "I forgot to log" → navigate to yesterday's log
+    → "I skipped" → carry deficit forward, adjust today
+  → No → normal dashboard
 
-## Technical Detail
-
-**Long press detection**: On `onPointerDown`, start a 500ms timer storing the meal slot. On `onPointerUp`/`onPointerLeave` before 500ms, treat as tap → instant navigate. If timer fires, open the sheet. Use `useRef` for timer ID to avoid stale closures.
-
-**Instant navigation mapping** (from `getLastLogMode()`):
-- `camera` → `/?meal={type}`
-- `voice` → `/log?meal={type}&mode=voice`
-- `manual` → `/log?meal={type}`
-- `barcode` → `/log?meal={type}&mode=barcode`
-
-**Duplicate check**: If `slot.loggedCalories > 0` and the meal's last log time is within 15 minutes of now, show inline confirmation instead of navigating.
+Calendar (Progress page)
+  → Listens for storage/nutrilens:update events
+  → Re-renders dots immediately when data changes
+```
 
