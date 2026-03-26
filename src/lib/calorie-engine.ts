@@ -20,7 +20,10 @@ export interface MealSlot {
 }
 
 export interface DayState {
-  baseTarget: number;
+  /** The user's original profile target (immutable truth) */
+  originalTarget: number;
+  /** Target after correction engine adjustments */
+  adjustedTarget: number;
   totalBurned: number;
   totalAllowed: number;
   totalConsumed: number;
@@ -124,7 +127,8 @@ const MISSED_THRESHOLDS: Record<MealSlot['name'], number> = {
 // ── Master recalculation ──
 
 export function recalculateDay(profile: UserProfile | null, log: DailyLog): DayState {
-  const baseTarget = getAdjustedDailyTarget(profile);
+  const adjustedTarget = getAdjustedDailyTarget(profile);
+  const originalTarget = profile?.dailyCalories || 1600;
   const date = log.date || new Date().toISOString().split('T')[0];
 
   // Total burned (using effective burn from burn-service)
@@ -132,7 +136,7 @@ export function recalculateDay(profile: UserProfile | null, log: DailyLog): DayS
     ? calculateBurnBreakdown(log.burned).effectiveBurn
     : log.caloriesBurned || 0;
 
-  const totalAllowed = baseTarget + totalBurned;
+  const totalAllowed = adjustedTarget + totalBurned;
 
   // Skipped meals
   const skipped = getSkippedMeals(date);
@@ -193,7 +197,8 @@ export function recalculateDay(profile: UserProfile | null, log: DailyLog): DayS
   }
 
   return {
-    baseTarget,
+    originalTarget,
+    adjustedTarget,
     totalBurned,
     totalAllowed,
     totalConsumed,

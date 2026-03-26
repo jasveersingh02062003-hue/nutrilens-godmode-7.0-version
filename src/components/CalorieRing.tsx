@@ -7,7 +7,7 @@ interface Props {
 }
 
 export default function CalorieRing({ dayState, proteinRemaining }: Props) {
-  const { totalConsumed, totalAllowed, totalBurned, remaining, baseTarget } = dayState;
+  const { totalConsumed, totalAllowed, totalBurned, remaining, adjustedTarget } = dayState;
 
   const progress = totalAllowed > 0 ? Math.min(1, totalConsumed / totalAllowed) : 0;
   const progressPct = Math.round(progress * 100);
@@ -90,7 +90,7 @@ export default function CalorieRing({ dayState, proteinRemaining }: Props) {
             </div>
             {totalBurned > 0 && (
               <p className="text-[9px] text-muted-foreground mt-0.5">
-                {baseTarget} base + {totalBurned} burned
+                {adjustedTarget} base + {totalBurned} burned
               </p>
             )}
             <p className={`text-[10px] font-semibold mt-1 ${dayColor}`}>
