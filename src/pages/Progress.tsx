@@ -136,11 +136,11 @@ export default function ProgressPage() {
   const bankState = useMemo(() => getCalorieBankState(), [refreshKey]);
   const baseTarget = profile?.dailyCalories || 2000;
 
-  // Compute adjustment map deterministically from past balances
+  // Compute adjustment map deterministically from past balances (exclude today)
   const adjMap = useMemo(() => {
-    const pastLogs = bankState.dailyBalances.filter((b: DailyBalanceEntry) => b.actual > 0);
+    const pastLogs = bankState.dailyBalances.filter((b: DailyBalanceEntry) => b.date < todayStr && b.actual >= 300);
     return computeAdjustmentMap(pastLogs, baseTarget);
-  }, [bankState, baseTarget]);
+  }, [bankState, baseTarget, todayStr]);
 
   const calendarDays = useMemo(() => {
     const days: { day: number; dateStr: string; status: AdherenceStatus; isToday: boolean; isFuture: boolean; locked: boolean; adjustment: number }[] = [];
@@ -421,27 +421,26 @@ function CalorieBalanceCard() {
   const [view, setView] = useState<'weekly' | 'monthly'>('weekly');
   const balances = getDailyBalances();
   const summary = getCalorieBankSummary();
-  const plan = getAdjustmentPlan();
   const monthlyStats = getMonthlyStats();
   const weekendPattern = getWeekendPattern();
   const [showPlanDetails, setShowPlanDetails] = useState(false);
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // Compute adjMap for future adjustments display
+  const baseTarget = balances.length > 0 ? balances[0].target : 1600;
+  const pastLogs = balances.filter(b => b.date < todayStr && b.actual >= 300);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
 
   if (balances.length === 0) return null;
 
   const last7 = balances.slice(-7);
   const last14 = balances.slice(-14);
   const maxAbs = Math.max(1, ...last14.map(b => Math.abs(b.diff)));
-  const bankClamped = Math.max(-2000, Math.min(2000, summary.bank));
-  const bankPct = Math.round(((bankClamped + 2000) / 4000) * 100);
 
-  // Weekly totals
-  const weeklyTarget = last7.reduce((s, b) => s + b.target, 0);
+  // Weekly totals — use adjustedTarget when available
+  const weeklyTarget = last7.reduce((s, b) => s + (b.adjustedTarget || b.target), 0);
   const weeklyActual = last7.reduce((s, b) => s + b.actual, 0);
   const weeklyNet = weeklyActual - weeklyTarget;
-
-  // Plan source info
-  const planSource = plan.length > 0 ? balances.filter(b => b.diff > 50).slice(-1)[0] : null;
-  const planTotal = plan.reduce((s, e) => s + Math.abs(e.adjust), 0);
 
   const fmtDay = (d: string) => {
     const dt = new Date(d + 'T00:00:00');
@@ -463,7 +462,7 @@ function CalorieBalanceCard() {
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
               summary.status === 'surplus' ? 'bg-accent/10 text-accent' : 'bg-primary/10 text-primary'
             }`}>
-              {summary.status === 'surplus' ? '+' : ''}{summary.bank} kcal
+              {summary.status === 'surplus' ? 'Surplus' : 'Deficit'}: {Math.abs(summary.bank)} kcal
             </span>
           )}
         </div>
@@ -506,12 +505,12 @@ function CalorieBalanceCard() {
               <span className="text-right">Status</span>
             </div>
             {last7.map((b, i) => {
-              const status = Math.abs(b.diff) < 50 ? 'Balanced' : b.diff > 0 ? 'Adjusted' : 'Deficit';
-              const statusColor = status === 'Balanced' ? 'text-primary' : status === 'Adjusted' ? 'text-accent' : 'text-muted-foreground';
+              const status = Math.abs(b.diff) < 50 ? 'On Track' : b.diff > 0 ? 'Surplus' : 'Deficit';
+              const statusColor = status === 'On Track' ? 'text-primary' : status === 'Surplus' ? 'text-accent' : 'text-muted-foreground';
               return (
                 <div key={i} className="grid grid-cols-5 gap-0 text-[10px] px-2 py-1.5 border-t border-border">
                   <span className="font-medium text-foreground">{fmtDay(b.date)}</span>
-                  <span className="text-right text-muted-foreground">{b.target}</span>
+                  <span className="text-right text-muted-foreground">{b.adjustedTarget || b.target}</span>
                   <span className="text-right text-foreground font-medium">{b.actual}</span>
                   <span className={`text-right font-semibold ${b.diff > 0 ? 'text-accent' : b.diff < 0 ? 'text-primary' : 'text-foreground'}`}>
                     {b.diff > 0 ? '+' : ''}{b.diff}
@@ -543,34 +542,39 @@ function CalorieBalanceCard() {
           </div>
 
           {/* Recovery tracker */}
-          {plan.length > 0 && planSource && (
-            <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs">🔄</span>
-                <p className="text-xs font-semibold text-foreground">Correction in progress</p>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                +{Math.round(planSource.diff)} kcal from {fmtDate(planSource.date)} → being balanced across {plan.length} days.
-                Remaining: {planTotal} kcal.
-              </p>
-              <button
-                onClick={() => setShowPlanDetails(!showPlanDetails)}
-                className="text-[10px] font-semibold text-primary"
-              >
-                {showPlanDetails ? 'Hide details ↑' : 'Show details ↓'}
-              </button>
-              {showPlanDetails && (
-                <div className="space-y-1 pt-1">
-                  {plan.map((e, i) => (
-                    <div key={i} className="flex items-center justify-between text-[10px]">
-                      <span className="text-muted-foreground">{fmtDate(e.date)}</span>
-                      <span className="font-semibold text-foreground">{e.adjust > 0 ? '+' : ''}{e.adjust} kcal</span>
-                    </div>
-                  ))}
+          {/* Future adjustments from deterministic map */}
+          {(() => {
+            const futureAdj = Object.entries(adjMap).filter(([d]) => d > todayStr).sort(([a], [b]) => a.localeCompare(b));
+            if (futureAdj.length === 0) return null;
+            const totalAdj = futureAdj.reduce((s, [, v]) => s + v, 0);
+            return (
+              <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs">⚖️</span>
+                  <p className="text-xs font-semibold text-foreground">Upcoming adjustments</p>
                 </div>
-              )}
-            </div>
-          )}
+                <p className="text-[11px] text-muted-foreground">
+                  {totalAdj < 0 ? `${Math.abs(totalAdj)} kcal being reduced` : `${totalAdj} kcal being added`} across {futureAdj.length} days.
+                </p>
+                <button
+                  onClick={() => setShowPlanDetails(!showPlanDetails)}
+                  className="text-[10px] font-semibold text-primary"
+                >
+                  {showPlanDetails ? 'Hide details ↑' : 'Show details ↓'}
+                </button>
+                {showPlanDetails && (
+                  <div className="space-y-1 pt-1">
+                    {futureAdj.map(([d, v], i) => (
+                      <div key={i} className="flex items-center justify-between text-[10px]">
+                        <span className="text-muted-foreground">{fmtDate(d)}</span>
+                        <span className="font-semibold text-foreground">{v > 0 ? '+' : ''}{v} kcal</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </>
       ) : (
         /* Monthly view */

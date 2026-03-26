@@ -234,6 +234,8 @@ export function computeAdjustmentMap(
   baseTarget: number
 ): Record<string, number> {
   const adjMap: Record<string, number> = {};
+  // Track which source days have already contributed to each target day
+  const sourceTracker = new Map<string, Set<string>>();
 
   for (const day of pastLogs) {
     // Guard: skip incomplete days (< 300 kcal logged)
@@ -250,14 +252,27 @@ export function computeAdjustmentMap(
       const perDay = Math.round(diff / spreadDays);
       for (let i = 1; i <= spreadDays; i++) {
         const targetDate = getFutureDate(day.date, i);
+        // No duplicate source check
+        if (!sourceTracker.has(targetDate)) sourceTracker.set(targetDate, new Set());
+        if (sourceTracker.get(targetDate)!.has(day.date)) continue;
+        sourceTracker.get(targetDate)!.add(day.date);
         adjMap[targetDate] = (adjMap[targetDate] || 0) - perDay;
       }
     } else {
       // Deficit: partial recovery on next day
       const recovery = Math.min(Math.round(Math.abs(diff) * 0.3), 250);
       const targetDate = getFutureDate(day.date, 1);
-      adjMap[targetDate] = (adjMap[targetDate] || 0) + recovery;
+      if (!sourceTracker.has(targetDate)) sourceTracker.set(targetDate, new Set());
+      if (!sourceTracker.get(targetDate)!.has(day.date)) {
+        sourceTracker.get(targetDate)!.add(day.date);
+        adjMap[targetDate] = (adjMap[targetDate] || 0) + recovery;
+      }
     }
+  }
+
+  // Safety cap: clamp each day to max -400 kcal
+  for (const [date, val] of Object.entries(adjMap)) {
+    if (val < -400) adjMap[date] = -400;
   }
 
   return adjMap;
@@ -442,7 +457,9 @@ export function updateCalorieBank(log?: DailyLog, profile?: UserProfile | null):
     Object.assign(state, freshState);
   }
 
-  const diff = totals.eaten - originalTarget;
+  // Use effectiveTarget (adjusted target) for diff calculation
+  const adjustedTarget = computeAdjustedTarget(today, originalTarget, state.dailyBalances);
+  const diff = totals.eaten - adjustedTarget;
 
   const existingIdx = state.dailyBalances.findIndex(b => b.date === today);
   const previousDiff = existingIdx >= 0 ? state.dailyBalances[existingIdx].diff : 0;
@@ -450,7 +467,7 @@ export function updateCalorieBank(log?: DailyLog, profile?: UserProfile | null):
   state.calorieBank = state.calorieBank - previousDiff + diff;
 
   const entry: DailyBalanceEntry = {
-    date: today, target: originalTarget, actual: totals.eaten, diff, bankAfter: state.calorieBank,
+    date: today, target: originalTarget, actual: totals.eaten, diff, bankAfter: state.calorieBank, adjustedTarget,
   };
 
   if (existingIdx >= 0) {
@@ -525,10 +542,11 @@ export function processEndOfDay(profile: UserProfile | null): void {
     const yesterdayLog = getDailyLog(yesterday);
     const totals = getDailyTotals(yesterdayLog);
     const originalTarget = p.dailyCalories || 1600;
-    const diff = totals.eaten - originalTarget;
 
     // Freeze adjustedTarget using deterministic computation
     const frozenAdjustedTarget = computeAdjustedTarget(yesterday, originalTarget, state.dailyBalances);
+    // Use effectiveTarget for diff
+    const diff = totals.eaten - frozenAdjustedTarget;
 
     const existingIdx = state.dailyBalances.findIndex(b => b.date === yesterday);
     if (existingIdx < 0 && totals.eaten > 0) {
@@ -536,8 +554,12 @@ export function processEndOfDay(profile: UserProfile | null): void {
         date: yesterday, target: originalTarget, actual: totals.eaten, diff, bankAfter: state.calorieBank + diff, adjustedTarget: frozenAdjustedTarget,
       });
       state.calorieBank += diff;
-    } else if (existingIdx >= 0 && !state.dailyBalances[existingIdx].adjustedTarget) {
+    } else if (existingIdx >= 0) {
       state.dailyBalances[existingIdx].adjustedTarget = frozenAdjustedTarget;
+      // Recalculate diff with effective target
+      const oldDiff = state.dailyBalances[existingIdx].diff;
+      state.dailyBalances[existingIdx].diff = diff;
+      state.calorieBank = state.calorieBank - oldDiff + diff;
     }
 
     // Balance streak
@@ -580,21 +602,30 @@ export function getCalorieBankSummary(): {
   message: string;
 } {
   const state = loadState();
+  const today = getEffectiveDate();
+  const p = getProfile();
+  const baseTarget = p?.dailyCalories || 1600;
 
-  if (Math.abs(state.calorieBank) < 50) {
-    return { bank: 0, status: 'balanced', message: 'Your intake is well balanced.' };
+  // Compute today's adjustment from deterministic map (exclude today from sources)
+  const pastLogs = state.dailyBalances.filter(b => b.date < today && b.actual >= 300);
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
+  const todayAdj = adjMap[today] || 0;
+
+  // Status based on today's computed adjustment, not cumulative bank
+  if (Math.abs(todayAdj) < 10) {
+    return { bank: 0, status: 'balanced', message: 'Your intake is well balanced — no adjustments needed.' };
   }
 
-  if (state.calorieBank > 0) {
+  if (todayAdj < 0) {
     return {
-      bank: Math.round(state.calorieBank), status: 'surplus',
-      message: state.autoAdjustMeals ? 'Your plan auto-adjusted to keep you aligned.' : 'Surplus detected — enable auto-adjust for corrections.',
+      bank: todayAdj, status: 'surplus',
+      message: `Today's target reduced by ${Math.abs(todayAdj)} kcal to balance recent surplus.`,
     };
   }
 
   return {
-    bank: Math.round(state.calorieBank), status: 'deficit',
-    message: state.autoAdjustMeals ? 'Slight increase applied to maintain your energy.' : 'Deficit detected — enable auto-adjust for recovery.',
+    bank: todayAdj, status: 'deficit',
+    message: `Today's target increased by ${todayAdj} kcal to recover from recent deficit.`,
   };
 }
 
