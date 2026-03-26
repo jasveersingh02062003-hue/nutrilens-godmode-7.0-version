@@ -864,6 +864,43 @@ export function getAdjustmentDetails(): {
 }
 
 /**
+ * Validate adjustment integrity — runtime check for mathematical correctness.
+ */
+export function validateAdjustmentIntegrity(
+  pastLogs: DailyBalanceEntry[],
+  baseTarget: number
+): { valid: boolean; warnings: string[] } {
+  const warnings: string[] = [];
+  const adjMap = computeAdjustmentMap(pastLogs, baseTarget);
+
+  // Check 1: No single day exceeds -400
+  for (const [date, val] of Object.entries(adjMap)) {
+    if (val < -400) {
+      warnings.push(`Day ${date} has adjustment ${val} exceeding -400 limit`);
+    }
+  }
+
+  // Check 2: Total future adjustments should roughly equal total surplus minus recovery
+  let totalSurplus = 0;
+  let totalRecovery = 0;
+  for (const day of pastLogs) {
+    if (!day.actual || day.actual < 300) continue;
+    const effectiveTarget = day.adjustedTarget ?? day.target ?? baseTarget;
+    const diff = day.actual - effectiveTarget;
+    if (diff > 50) totalSurplus += diff;
+    else if (diff < -50) totalRecovery += Math.min(Math.round(Math.abs(diff) * 0.3), 250);
+  }
+
+  const totalAdj = Object.values(adjMap).reduce((s, v) => s + v, 0);
+  const expectedNet = -totalSurplus + totalRecovery;
+  if (Math.abs(totalAdj - expectedNet) > Math.abs(expectedNet) * 0.1 + 50) {
+    warnings.push(`Adjustment mismatch: total=${totalAdj}, expected≈${expectedNet}`);
+  }
+
+  return { valid: warnings.length === 0, warnings };
+}
+
+/**
  * Get after-dinner notification summary.
  * Delegates to pure computeDinnerSummary.
  */
