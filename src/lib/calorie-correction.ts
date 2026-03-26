@@ -212,14 +212,37 @@ export function computeDailyCalories(log: DailyLog): number {
 export type CorrectionMode = 'aggressive' | 'balanced' | 'relaxed';
 
 const CORRECTION_MODE_KEY = 'nutrilens_correction_mode';
+const VALID_MODES: CorrectionMode[] = ['aggressive', 'balanced', 'relaxed'];
+
+// In-memory cache — localStorage is persistence only, never runtime source
+let _cachedMode: CorrectionMode | null = null;
+
+function sanitizeMode(raw: string | null): CorrectionMode {
+  if (raw && VALID_MODES.includes(raw as CorrectionMode)) return raw as CorrectionMode;
+  return 'balanced';
+}
 
 export function getCorrectionMode(): CorrectionMode {
-  return (localStorage.getItem(CORRECTION_MODE_KEY) as CorrectionMode) || 'balanced';
+  if (_cachedMode) return _cachedMode;
+  _cachedMode = sanitizeMode(localStorage.getItem(CORRECTION_MODE_KEY));
+  return _cachedMode;
 }
 
 export function setCorrectionMode(mode: CorrectionMode) {
-  localStorage.setItem(CORRECTION_MODE_KEY, mode);
-  notifyUICallbacks(); // instant UI refresh
+  _cachedMode = sanitizeMode(mode);
+  localStorage.setItem(CORRECTION_MODE_KEY, _cachedMode);
+  recomputeCalorieEngine(); // centralized recompute + UI refresh
+}
+
+/**
+ * Centralized recompute trigger.
+ * Call after ANY mutation: food log, mode change, midnight rollover.
+ * Forces full engine recompute from raw logs + notifies all UI subscribers.
+ */
+export function recomputeCalorieEngine(): void {
+  // Invalidate any derived caches (none currently — engine is stateless)
+  // Then notify all UI subscribers to re-read from pure functions
+  notifyUICallbacks();
 }
 
 /**
@@ -233,12 +256,44 @@ export function computeMaxDailyAdjustment(tdee: number, mode: CorrectionMode): n
 
 /**
  * Compute safe number of days to spread a surplus over.
- * Uses mode-aware daily cap. Floor 2, cap 14.
+ * Uses mode-aware daily cap. Floor 2, cap 30.
  */
 export function computeSafeSpreadDays(surplus: number, tdee: number, mode: CorrectionMode = 'balanced'): number {
   const maxDaily = computeMaxDailyAdjustment(tdee, mode);
   let days = Math.ceil(surplus / Math.max(1, maxDaily));
-  return Math.max(2, Math.min(days, 14));
+  return Math.max(2, Math.min(days, 30));
+}
+
+/**
+ * Preview the impact of a correction mode without applying it.
+ * Returns estimated days to absorb current total surplus and daily change.
+ */
+export function getModeImpactPreview(mode: CorrectionMode): {
+  spreadDays: number;
+  dailyChange: number;
+  totalSurplus: number;
+} {
+  const p = getProfile();
+  const baseTarget = p?.dailyCalories || 1600;
+  const tdee = p?.tdee || baseTarget;
+  const allBalances = getDailyBalances(baseTarget);
+  const today = getEffectiveDate();
+  const pastLogs = allBalances.filter(b => b.date < today && b.actual >= 300);
+
+  // Sum up net surplus (only surplus days, deficits handled separately)
+  let totalSurplus = 0;
+  for (const day of pastLogs) {
+    const diff = day.actual - baseTarget;
+    if (diff > 50) totalSurplus += diff;
+  }
+
+  if (totalSurplus <= 0) return { spreadDays: 0, dailyChange: 0, totalSurplus: 0 };
+
+  const maxDaily = computeMaxDailyAdjustment(tdee, mode);
+  const spreadDays = computeSafeSpreadDays(totalSurplus, tdee, mode);
+  const dailyChange = Math.min(maxDaily, Math.round(totalSurplus / spreadDays));
+
+  return { spreadDays, dailyChange, totalSurplus };
 }
 
 export function computeAdjustmentMap(
