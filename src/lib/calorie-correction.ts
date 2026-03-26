@@ -204,24 +204,48 @@ export function computeDailyCalories(log: DailyLog): number {
 /**
  * Compute a merged adjustment map from past daily logs.
  * diff = actual - baseTarget (ALWAYS against base, never adjusted)
- * No duplicate sources. Safety capped at -400 per day.
+ * No duplicate sources. Safety capped per mode.
  */
-export const MAX_ADJUSTMENT_PER_DAY = 300;
+
+// ── Correction Mode (User-Controlled Intensity) ──
+
+export type CorrectionMode = 'aggressive' | 'balanced' | 'relaxed';
+
+const CORRECTION_MODE_KEY = 'nutrilens_correction_mode';
+
+export function getCorrectionMode(): CorrectionMode {
+  return (localStorage.getItem(CORRECTION_MODE_KEY) as CorrectionMode) || 'balanced';
+}
+
+export function setCorrectionMode(mode: CorrectionMode) {
+  localStorage.setItem(CORRECTION_MODE_KEY, mode);
+  notifyUICallbacks(); // instant UI refresh
+}
+
+/**
+ * Compute the maximum daily adjustment based on TDEE and correction mode.
+ */
+export function computeMaxDailyAdjustment(tdee: number, mode: CorrectionMode): number {
+  const caps: Record<CorrectionMode, number> = { aggressive: 0.25, balanced: 0.20, relaxed: 0.10 };
+  const absoluteMax: Record<CorrectionMode, number> = { aggressive: 500, balanced: 400, relaxed: 300 };
+  return Math.min(Math.round(tdee * caps[mode]), absoluteMax[mode]);
+}
 
 /**
  * Compute safe number of days to spread a surplus over.
- * Keeps daily reduction ≤ min(300, 10% of TDEE), capped at 14 days, floor 4.
+ * Uses mode-aware daily cap. Floor 2, cap 14.
  */
-export function computeSafeSpreadDays(surplus: number, tdee: number): number {
-  const maxDailyReduction = Math.min(300, Math.round(tdee * 0.1));
-  let days = Math.ceil(surplus / Math.max(1, maxDailyReduction));
-  return Math.max(4, Math.min(days, 14));
+export function computeSafeSpreadDays(surplus: number, tdee: number, mode: CorrectionMode = 'balanced'): number {
+  const maxDaily = computeMaxDailyAdjustment(tdee, mode);
+  let days = Math.ceil(surplus / Math.max(1, maxDaily));
+  return Math.max(2, Math.min(days, 14));
 }
 
 export function computeAdjustmentMap(
   pastLogs: DailyBalanceEntry[],
   baseTarget: number,
-  tdee: number = 2000
+  tdee: number = 2000,
+  mode: CorrectionMode = 'balanced'
 ): Record<string, number> {
   const adjMap: Record<string, number> = {};
   const sourceTracker = new Map<string, Set<string>>();
