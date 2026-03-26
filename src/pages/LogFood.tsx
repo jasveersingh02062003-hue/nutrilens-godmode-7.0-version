@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
+import LastMealConfirmSheet from '@/components/LastMealConfirmSheet';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Camera, Mic, MicOff, Search, ArrowLeft, Plus, Minus, Check, X, Loader2, AlertTriangle } from 'lucide-react';
 import { addMealToLog, addMealToLogForDate, FoodItem, MealEntry, MealSource, MealCost, CookingMethod } from '@/lib/store';
@@ -50,6 +51,7 @@ export default function LogFood() {
   const [pendingSource, setPendingSource] = useState<MealSource | null | undefined>(undefined);
   const [pendingCookingMethod, setPendingCookingMethod] = useState<CookingMethod | null | undefined>(undefined);
   const [adjModalOpen, setAdjModalOpen] = useState(false);
+  const [lastMealSheetOpen, setLastMealSheetOpen] = useState(false);
 
   const mealLabels: Record<MealType, string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack' };
   
@@ -195,23 +197,17 @@ export default function LogFood() {
     const mealToast = getContextualMealToast();
     if (mealToast) toast(mealToast.message, { duration: 4000 });
 
-    // After-dinner notification with surplus/deficit spreading
+    // After-dinner: show LastMealConfirmSheet
     if (mealType === 'dinner') {
       const todayKey = targetDate || new Date().toISOString().split('T')[0];
       const dinnerKey = `nutrilens_dinner_notif_${todayKey}`;
       if (!localStorage.getItem(dinnerKey)) {
-        const updatedLog = getDailyLog(todayKey);
-        const updatedTotals = getDailyTotals(updatedLog);
-        const origTarget = profile2?.dailyCalories || 1600;
-        const summary = getDinnerNotificationSummary(todayKey, updatedTotals.eaten, origTarget);
-        if (summary) {
-          toast('Plan updated ⚖️', {
-            description: summary.message,
-            duration: 8000,
-            action: { label: 'Details', onClick: () => setAdjModalOpen(true) },
-          });
-          localStorage.setItem(dinnerKey, '1');
-        }
+        localStorage.setItem(dinnerKey, '1');
+        setLastMealSheetOpen(true);
+        // Don't navigate yet — let sheet handle it
+        setContextPickerOpen(false);
+        setShowPES(false);
+        return;
       }
     }
 
@@ -640,6 +636,11 @@ export default function LogFood() {
         onEdit={() => { setShowPES(false); }}
       />
       <AdjustmentExplanationModal open={adjModalOpen} onClose={() => setAdjModalOpen(false)} />
+      <LastMealConfirmSheet
+        open={lastMealSheetOpen}
+        onClose={() => { setLastMealSheetOpen(false); navigate(targetDate ? '/progress' : '/dashboard'); }}
+        todayKey={targetDate || new Date().toISOString().split('T')[0]}
+      />
     </div>
   );
 }

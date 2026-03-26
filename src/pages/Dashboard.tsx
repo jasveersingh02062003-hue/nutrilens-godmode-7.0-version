@@ -3,7 +3,7 @@ import PostOnboardingTutorial from '@/components/PostOnboardingTutorial';
 import { runWeeklyAdaptation as runGoalAdaptation, applyAdaptation } from '@/lib/goal-engine';
 import { Bell, ClipboardList, X, ShieldAlert } from 'lucide-react';
 import AdjustmentExplanationModal from '@/components/AdjustmentExplanationModal';
-import MissedDayPrompt from '@/components/MissedDayPrompt';
+import MorningRecoveryPrompt from '@/components/MorningRecoveryPrompt';
 import MonikaFab from '@/components/MonikaFab';
 import TimeInsightCard from '@/components/TimeInsightCard';
 import { updateDailyBehaviorStats, runWeeklyAdaptation, isSurvivalModeActive } from '@/lib/behavior-stats';
@@ -165,6 +165,19 @@ export default function Dashboard() {
     // Hard boundary check
     const boundary = checkWeeklySurplus();
     if (boundary) setHardBoundaryModal(boundary);
+    // Morning recovery prompt — check if yesterday had <300 kcal
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayKey = yesterday.toISOString().split('T')[0];
+    const recoveryDismissed = localStorage.getItem(`nutrilens_missed_ack_${yesterdayKey}`);
+    if (!recoveryDismissed) {
+      const yLog = getDailyLog(yesterdayKey);
+      const yTotals = getDailyTotals(yLog);
+      if (yTotals.eaten < 300) {
+        setMissedDate(yesterdayKey);
+        setMissedPromptOpen(true);
+      }
+    }
     // Update last log date
     updateLastLogDate();
     // Start proactive notification checks
@@ -235,7 +248,9 @@ export default function Dashboard() {
                 <p className="text-sm font-bold text-foreground">{getGreeting()}, {profile.name || 'there'}</p>
                 <SubscriptionBadge />
               </div>
-              <p className="text-[11px] text-muted-foreground">Track your nutrition today</p>
+              <p className="text-[11px] text-muted-foreground">
+                {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -409,6 +424,22 @@ export default function Dashboard() {
           <TimeInsightCard />
         </div>
 
+        {/* Surplus/Deficit Live Indicator */}
+        {dayState.totalConsumed > 0 && (
+          <div className="animate-fade-in">
+            <div className={`flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 border ${
+              dayState.remaining >= 0
+                ? 'bg-primary/5 border-primary/15'
+                : 'bg-destructive/5 border-destructive/15'
+            }`}>
+              <span className="text-sm">{dayState.remaining >= 0 ? '🟢' : '🔴'}</span>
+              <span className={`text-sm font-bold ${dayState.remaining >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                {dayState.remaining >= 0 ? `${Math.round(dayState.remaining)} kcal remaining` : `+${Math.abs(Math.round(dayState.remaining))} kcal over target`}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* 2. Calorie Ring */}
         <div className="animate-scale-in">
           <CalorieRing dayState={dayState} proteinRemaining={Math.max(0, getProteinTarget(profile) - totals.protein)} />
@@ -515,7 +546,7 @@ export default function Dashboard() {
       <WeeklyWeightCheckIn defaultWeight={profile.weightKg} onDone={refreshLog} />
 
       <AdjustmentExplanationModal open={whyModalOpen} onClose={() => setWhyModalOpen(false)} />
-      <MissedDayPrompt open={missedPromptOpen} onClose={() => setMissedPromptOpen(false)} missedDate={missedDate} />
+      <MorningRecoveryPrompt open={missedPromptOpen} onClose={() => setMissedPromptOpen(false)} missedDate={missedDate} />
 
       {/* Drop-Off Defense Modal */}
       <Dialog open={!!dropOffModal} onOpenChange={(v) => !v && setDropOffModal(null)}>
