@@ -1,76 +1,73 @@
 
-Implement a focused realtime sync pass for the Dashboard, Progress calendar, and date details so the user can instantly see surplus/deficit for any day.
+Plan to fix the live calendar and carry-forward issue properly.
 
-1. Fix the realtime foundation
-- Centralize updates at the write layer instead of relying on scattered manual refreshes.
-- Update the base log persistence flow (`saveDailyLog` and related date-specific mutators) so every add/edit/delete action triggers the same centralized recompute + `nutrilens:update` event.
-- Keep `storage` listeners for cross-tab sync, but make in-app realtime event updates the primary mechanism.
-- Add a shared local `YYYY-MM-DD` date helper and use it where Progress/Dashboard still depend on `toISOString().split('T')[0]`, so midnight/day changes are accurate in local time.
+1. Fix the real root cause in the calorie engine
+- The current future-plan logic ignores today as a live source, so March 28 does not react while March 27 is still in progress.
+- I’ll split the engine into:
+  - finalized adjustments: committed past days
+  - projected adjustments: finalized past days + today’s live intake
+- This lets the app show “if the day ended now” targets for tomorrow and later dates in real time, without waiting for midnight.
 
-2. Make the calendar show clear surplus/deficit
-- Upgrade `Progress.tsx` calendar data from simple adherence-only status to full per-day balance data:
-  - actual calories
-  - adjusted/frozen target
-  - diff
-  - balance type: surplus / deficit / balanced / no data / future adjustment
-- Keep future recovery/reduction markers, but also show past-day surplus/deficit clearly in the cell styling/indicator.
-- Improve the legend so users can immediately understand:
-  - surplus day
-  - deficit day
-  - balanced/on-track day
-  - future reduced day
-  - future recovery day
+2. Change carry-forward math so it matches your expectation
+- Right now deficits recover mostly on the next day only, which is why the split is not showing the way you want.
+- I’ll update the projection logic so both surplus and deficit can be spread across multiple future days with caps and safety limits.
+- Past finalized days will stay stable, but future dates will re-split instantly as today’s calories change.
 
-3. Make tapped dates show the exact balance
-- Extend `DayDetailsSheet` so tapping any date shows a clear “Day Balance” summary near the top:
-  - Eaten
-  - Target
-  - Adjusted target if applicable
-  - Result: surplus / deficit / on track
-  - Difference in kcal
-- For past days, compare against the frozen/adjusted target, not only the base goal.
-- For future days, keep the existing Smart Plan Preview and adjustment explanation.
+3. Make “last meal” actually finalize the day
+- The current last-meal confirmation stores a flag, but that flag is not driving the engine.
+- I’ll wire this into a real finalize flow so:
+  - when the user confirms dinner is the last meal, today is frozen immediately
+  - tomorrow and later dates update from that finalized result right away
+- Midnight rollover will also use the same logic so 27th → 28th stays consistent.
 
-4. Make the calendar and date sheet truly live
-- `Progress.tsx` should refresh immediately on:
-  - `nutrilens:update`
-  - `storage`
-  - app/tab focus return
-  - midnight rollover
-- `DayDetailsSheet` should also subscribe while open, so if a meal is added/edited/deleted the selected day updates without closing and reopening.
-- Keep polling only as a fallback safety net, not the main sync strategy.
-
-5. Make Dashboard realtime with the same source of truth
-- Ensure Dashboard listens to the same centralized update pipeline so calorie ring, surplus/deficit banner, and date context refresh instantly after any meal/water/activity/supplement change.
-- Refresh Dashboard on midnight rollover as well, so the visible date and targets change exactly when the day changes.
-
-6. Cover the flows currently causing stale UI
-- Wire the centralized refresh into all mutation paths that currently only save local data:
+4. Make the calendar truly real time
+- Update the Progress calendar to use projected future targets, not only old finalized balances.
+- Each date cell will show:
+  - past days: actual surplus/deficit vs that day’s frozen/adjusted target
+  - today: live current balance
+  - future days: projected adjustment based on current data
+- Refresh triggers will be unified across:
   - meal add/edit/delete
-  - water add/remove
-  - supplement add/edit/delete
-  - activity add/delete
-  - meal photo/caption changes
-  - missed-day / last-meal confirmation actions
-- This removes the current mismatch where some screens call `syncDailyBalance()` and others do not.
+  - supplements
+  - water
+  - activity
+  - last-meal confirmation
+  - focus/storage/midnight boundary
 
-Technical details
-- Main files to update:
-  - `src/lib/store.ts`
-  - `src/lib/calorie-correction.ts`
-  - `src/pages/Progress.tsx`
-  - `src/components/DayDetailsSheet.tsx`
-  - `src/pages/Dashboard.tsx`
-  - likely `src/components/FullScreenMemory.tsx` and any edit flows that bypass centralized sync
-- Reuse existing engine functions instead of inventing new logic:
-  - `getDailyBalances`
-  - `computeAdjustedTarget`
-  - `computeAdjustmentMap`
-  - existing `nutrilens:update` event pattern
-- No backend changes needed; this is a frontend state-sync and calendar UX fix.
+5. Improve tap-on-date behavior
+- When you tap tomorrow or any future date, the sheet should show the live projected target for that date.
+- When you tap today, it should show:
+  - eaten so far
+  - current target
+  - current deficit/surplus
+  - projected effect on tomorrow and the next few days
+- When you tap past days, it should still show the exact frozen result for that day.
+
+6. Fix date sync issues
+- There are still places using UTC-style `toISOString().split('T')[0]`, which can cause 27/28 date drift.
+- I’ll replace the remaining calendar/engine/logging date logic with local date keys so dashboard, calendar, and tomorrow preview stay in sync.
+
+Files to update
+- `src/lib/calorie-correction.ts`
+  - add projected-vs-finalized adjustment logic
+  - make multi-day carry-forward work for live planning
+  - add real finalize-day behavior
+- `src/pages/Progress.tsx`
+  - use projected future targets in calendar cells
+  - keep calendar live without stale values
+- `src/components/DayDetailsSheet.tsx`
+  - show exact live/projected balance when tapping dates
+- `src/pages/Dashboard.tsx`
+  - keep today/tomorrow indicators synced with the same source of truth
+- `src/pages/LogFood.tsx`
+  - ensure meal logging updates projected future dates immediately
+- `src/components/LastMealConfirmSheet.tsx`
+  - connect confirmation to actual day finalization
+- `src/lib/store.ts`
+  - keep centralized update dispatch as the single realtime trigger
 
 Expected result
-- Calendar updates immediately after logging or editing anything.
-- Each day clearly communicates surplus or deficit.
-- Tapping any past date shows whether the user ate over or under target.
-- Dashboard and Progress stay synchronized in real time, including at midnight.
+- If today is March 27 and you log food, the calendar updates immediately.
+- If you tap March 28, you’ll see the live projected calories for tomorrow based on what you’ve eaten today.
+- If today ends in surplus or deficit, that amount will visibly split across future days in the calendar.
+- If you confirm dinner as the last meal, the split becomes committed immediately instead of waiting and appearing late.
