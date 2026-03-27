@@ -514,7 +514,7 @@ function DayBalanceSummary({ date, eaten, profile }: { date: string; eaten: numb
   }, [date, baseTarget, allBalances, tdee]);
 
   const diff = eaten - adjustedTarget;
-  const isAdjusted = Math.abs(adjustedTarget - baseTarget) > 10;
+  const isAdjusted = Math.abs(adjustedTarget - baseTarget) > 5;
   
   let statusLabel: string;
   let statusColor: string;
@@ -571,7 +571,6 @@ function FutureDayPlanSection({ date, profile }: { date: string; profile: any })
   const baseTarget = profile?.dailyCalories || 1600;
   const tdee = profile?.tdee || baseTarget;
   
-  // Use projected map (includes today's live intake) for future dates
   const { plan, breakdown } = useMemo(() => {
     const projMap = computeProjectedAdjustmentMap(baseTarget, tdee, getCorrectionMode());
     const allBalances = getDailyBalances();
@@ -582,34 +581,26 @@ function FutureDayPlanSection({ date, profile }: { date: string; profile: any })
     };
   }, [date, baseTarget, tdee]);
   
-  const explanation = getExplanationMessage(breakdown);
   const hasAdjustment = plan.adjustment !== 0;
 
   return (
     <div className="space-y-3">
-      {/* Smart Plan Preview */}
       <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/15">
         <div className="flex items-center gap-2 mb-2.5">
           <Sparkles className="w-4 h-4 text-primary" />
           <p className="text-xs font-bold text-primary">Live Projected Target</p>
         </div>
-
-        {/* Calorie target */}
         <div className="flex items-baseline gap-1.5 mb-3">
           <span className="text-2xl font-bold text-foreground">{plan.calories}</span>
           <span className="text-xs text-muted-foreground">kcal target</span>
           {hasAdjustment && (
             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-              plan.adjustment < 0 
-                ? 'bg-destructive/10 text-destructive' 
-                : 'bg-primary/10 text-primary'
+              plan.adjustment < 0 ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'
             }`}>
               {plan.adjustment < 0 ? '🔻' : '🔺'} {plan.adjustment > 0 ? '+' : ''}{plan.adjustment} kcal
             </span>
           )}
         </div>
-
-        {/* Macro breakdown */}
         <div className="grid grid-cols-3 gap-2">
           <div className="p-2 rounded-lg bg-primary/10 text-center">
             <p className="text-sm font-bold text-primary">{plan.protein}g</p>
@@ -624,13 +615,9 @@ function FutureDayPlanSection({ date, profile }: { date: string; profile: any })
             <p className="text-[9px] text-muted-foreground font-medium">Fat</p>
           </div>
         </div>
-        
-        <p className="text-[9px] text-muted-foreground mt-2 text-center">
-          ⚡ Updates live as you eat today
-        </p>
+        <p className="text-[9px] text-muted-foreground mt-2 text-center">⚡ Updates live as you eat today</p>
       </div>
 
-      {/* Adjustment explanation */}
       {breakdown.length > 0 && (
         <div className="p-3 rounded-xl bg-muted/50 border border-border">
           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">⚖️ Why this target?</p>
@@ -683,16 +670,14 @@ function TodayLiveBalance({ date, eaten, profile }: { date: string; eaten: numbe
   }, [date, baseTarget, allBalances, tdee]);
 
   const diff = eaten - adjustedTarget;
-  const isAdjusted = Math.abs(adjustedTarget - baseTarget) > 10;
+  const isAdjusted = Math.abs(adjustedTarget - baseTarget) > 5;
   
-  // Compute projected impact on tomorrow
   const projMap = useMemo(() => computeProjectedAdjustmentMap(baseTarget, tdee, getCorrectionMode()), [baseTarget, tdee, eaten]);
-  const todayStr = date;
   const tomorrow = useMemo(() => {
-    const d = new Date(todayStr + 'T12:00:00');
+    const d = new Date(date + 'T12:00:00');
     d.setDate(d.getDate() + 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  }, [todayStr]);
+  }, [date]);
   const tomorrowAdj = projMap[tomorrow] || 0;
   const tomorrowTarget = Math.round(Math.max(1200, Math.min(baseTarget * 1.15, baseTarget + tomorrowAdj)));
 
@@ -751,7 +736,6 @@ function TodayLiveBalance({ date, eaten, profile }: { date: string; eaten: numbe
         )}
       </div>
 
-      {/* Tomorrow preview */}
       {Math.abs(diff) > 50 && (
         <div className="p-3 rounded-xl bg-muted/50 border border-border">
           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">📅 Tomorrow's projected target</p>
