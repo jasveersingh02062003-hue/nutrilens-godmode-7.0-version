@@ -106,7 +106,10 @@ const clamp = (val: number, min: number, max: number) => Math.max(min, Math.min(
 function getFutureDate(date: string, offset: number): string {
   const d = new Date(date + 'T12:00:00');
   d.setDate(d.getDate() + offset);
-  return d.toISOString().split('T')[0];
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 // ── Time-Based Day Cutoff ──
@@ -117,9 +120,13 @@ export function getEffectiveDate(cutoffHour?: number): string {
   if (now.getHours() < cutoff) {
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
-    return yesterday.toISOString().split('T')[0];
+    return toLocalDateKey(yesterday);
   }
-  return now.toISOString().split('T')[0];
+  return toLocalDateKey(now);
+}
+
+function toLocalDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // ── Special Day Types ──
@@ -296,28 +303,30 @@ export function getModeImpactPreview(mode: CorrectionMode): {
   return { spreadDays, dailyChange, totalSurplus };
 }
 
-export function computeAdjustmentMap(
-  pastLogs: DailyBalanceEntry[],
+/**
+ * Internal: distribute diffs into an adjMap (shared by finalized and projected).
+ * `cutoffDate` controls which days are treated as sources (day.date < cutoffDate).
+ */
+function _buildAdjustmentMap(
+  logs: DailyBalanceEntry[],
   baseTarget: number,
-  tdee: number = 2000,
-  mode: CorrectionMode = 'balanced'
+  tdee: number,
+  mode: CorrectionMode,
+  cutoffDate: string
 ): Record<string, number> {
   const adjMap: Record<string, number> = {};
   const sourceTracker = new Map<string, Set<string>>();
-  const today = getEffectiveDate();
 
-  for (const day of pastLogs) {
-    // 🔒 INVARIANT: only finalized past days generate adjustments
-    if (day.date >= today) continue;
+  for (const day of logs) {
+    if (day.date >= cutoffDate) continue;
     if (!day.actual || day.actual < 300) continue;
 
-    // diff = actual - baseTarget (ALWAYS vs base, NEVER adjusted)
     const diff = day.actual - baseTarget;
     if (Math.abs(diff) < 50) continue;
 
     if (diff > 0) {
+      // Surplus — spread across multiple future days
       const spreadDays = computeSafeSpreadDays(diff, tdee, mode);
-      // Sign-safe exact distribution — no rounding drift
       const absDiff = Math.abs(diff);
       const base = Math.floor(absDiff / spreadDays);
       const remainder = absDiff % spreadDays;
@@ -330,23 +339,28 @@ export function computeAdjustmentMap(
         adjMap[targetDate] = (adjMap[targetDate] || 0) - perDay;
       }
     } else {
-      const recovery = Math.min(Math.round(Math.abs(diff) * 0.3), 250);
-      const targetDate = getFutureDate(day.date, 1);
-      if (!sourceTracker.has(targetDate)) sourceTracker.set(targetDate, new Set());
-      if (!sourceTracker.get(targetDate)!.has(day.date)) {
+      // Deficit — spread across multiple future days (up to 5 days, 30% recovery each)
+      const deficit = Math.abs(diff);
+      const deficitSpread = Math.min(5, Math.max(2, Math.ceil(deficit / 250)));
+      const totalRecovery = Math.min(Math.round(deficit * 0.3), 250 * deficitSpread);
+      const perDay = Math.floor(totalRecovery / deficitSpread);
+      const rem = totalRecovery % deficitSpread;
+      for (let i = 1; i <= deficitSpread; i++) {
+        const targetDate = getFutureDate(day.date, i);
+        if (!sourceTracker.has(targetDate)) sourceTracker.set(targetDate, new Set());
+        if (sourceTracker.get(targetDate)!.has(day.date)) continue;
         sourceTracker.get(targetDate)!.add(day.date);
-        adjMap[targetDate] = (adjMap[targetDate] || 0) + recovery;
+        const dayRecovery = perDay + (i <= rem ? 1 : 0);
+        adjMap[targetDate] = (adjMap[targetDate] || 0) + dayRecovery;
       }
     }
   }
 
-  // 🔒 CLAMP WITH REDISTRIBUTION — conserve calories exactly
+  // 🔒 CLAMP WITH REDISTRIBUTION
   let leftover = 0;
   const dates = Object.keys(adjMap).sort();
-
   const maxAdj = computeMaxDailyAdjustment(tdee, mode);
 
-  // Pass 1: clamp and track leftover
   for (const date of dates) {
     const raw = adjMap[date];
     const clamped = Math.max(-maxAdj, Math.min(maxAdj, raw));
@@ -354,7 +368,6 @@ export function computeAdjustmentMap(
     adjMap[date] = clamped;
   }
 
-  // Pass 2: redistribute leftover across days with remaining capacity
   if (Math.abs(leftover) > 0) {
     const sign = leftover < 0 ? -1 : 1;
     let absLeftover = Math.abs(leftover);
@@ -363,29 +376,105 @@ export function computeAdjustmentMap(
       const current = adjMap[date];
       const capacity = maxAdj - Math.abs(current);
       if (capacity <= 0) continue;
-      // Only redistribute in the same direction as leftover
       if (sign < 0 && current > 0) continue;
       if (sign > 0 && current < 0) continue;
       const shift = Math.min(capacity, absLeftover);
       adjMap[date] += shift * sign;
       absLeftover -= shift;
     }
-    // If still leftover after redistribution, it's lost — log it
     if (absLeftover > 1) {
-      console.error('[CalorieEngine] Adjustment overflow capped — conservation loss:',
-        Math.round(absLeftover), 'kcal');
+      console.error('[CalorieEngine] Adjustment overflow capped:', Math.round(absLeftover), 'kcal');
     }
   }
 
-  // 🔒 Floor protection: ensure no day's adjusted target drops below 1200 kcal
+  // Floor protection
   for (const date of dates) {
     const tentative = baseTarget + adjMap[date];
     if (tentative < 1200) {
-      adjMap[date] = 1200 - baseTarget; // weakest possible reduction
+      adjMap[date] = 1200 - baseTarget;
     }
   }
 
   return adjMap;
+}
+
+/**
+ * Finalized adjustment map — only committed past days (before today).
+ * This is the stable map used for frozen targets and reconciliation.
+ */
+export function computeAdjustmentMap(
+  pastLogs: DailyBalanceEntry[],
+  baseTarget: number,
+  tdee: number = 2000,
+  mode: CorrectionMode = 'balanced'
+): Record<string, number> {
+  const today = getEffectiveDate();
+  return _buildAdjustmentMap(pastLogs, baseTarget, tdee, mode, today);
+}
+
+/**
+ * Projected adjustment map — includes today's LIVE intake as a source.
+ * Used for showing "if the day ended now" targets for tomorrow and beyond.
+ * This gives the user real-time visibility into how today's eating affects future days.
+ */
+export function computeProjectedAdjustmentMap(
+  baseTarget: number,
+  tdee: number = 2000,
+  mode: CorrectionMode = 'balanced'
+): Record<string, number> {
+  const today = getEffectiveDate();
+  const allBalances = getDailyBalances(baseTarget);
+  
+  // Include today's live data as a source
+  const todayLog = getDailyLog(today);
+  const todayTotals = getDailyTotals(todayLog);
+  
+  // Build log entries including today
+  const logsIncludingToday: DailyBalanceEntry[] = [
+    ...allBalances.filter(b => b.date !== today),
+  ];
+  
+  // Only include today if there's meaningful intake
+  if (todayTotals.eaten >= 300) {
+    logsIncludingToday.push({
+      date: today,
+      target: baseTarget,
+      actual: todayTotals.eaten,
+      diff: todayTotals.eaten - baseTarget,
+    });
+  }
+  
+  // Use tomorrow as cutoff so today is included as a source
+  const tomorrow = getFutureDate(today, 1);
+  return _buildAdjustmentMap(logsIncludingToday, baseTarget, tdee, mode, tomorrow);
+}
+
+/**
+ * Finalize a day — freeze its adjusted target immediately.
+ * Called by LastMealConfirmSheet or midnight rollover.
+ */
+export function finalizeDay(date: string): void {
+  const p = getProfile();
+  if (!p) return;
+  
+  const baseTarget = p.dailyCalories || 1600;
+  const tdee = p.tdee || baseTarget;
+  const allBalances = getDailyBalances(baseTarget);
+  const frozenTarget = computeAdjustedTarget(date, baseTarget, allBalances, tdee, getCorrectionMode());
+  
+  const frozen = loadFrozenTargets();
+  frozen[date] = frozenTarget;
+  
+  // Clean old entries (keep last 60 days)
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 60);
+  const cutoffStr = toLocalDateKey(cutoff);
+  for (const key of Object.keys(frozen)) {
+    if (key < cutoffStr) delete frozen[key];
+  }
+  
+  saveFrozenTargets(frozen);
+  recomputeCalorieEngine();
 }
 
 /**
@@ -427,14 +516,15 @@ export function computeBreakdownForDate(
   pastLogs: DailyBalanceEntry[],
   baseTarget: number,
   tdee: number = 2000,
-  mode: CorrectionMode = 'balanced'
+  mode: CorrectionMode = 'balanced',
+  includeToday: boolean = false
 ): AdjustmentSource[] {
   const result: AdjustmentSource[] = [];
   const today = getEffectiveDate();
+  const cutoff = includeToday ? getFutureDate(today, 1) : today;
 
   for (const day of pastLogs) {
-    // 🔒 Same guards as computeAdjustmentMap — must stay in sync
-    if (day.date >= today) continue;
+    if (day.date >= cutoff) continue;
     if (!day.actual || day.actual < 300) continue;
 
     const diff = day.actual - baseTarget;
@@ -454,9 +544,16 @@ export function computeBreakdownForDate(
         }
       }
     } else {
-      const recovery = Math.min(Math.round(Math.abs(diff) * 0.3), 250);
-      if (getFutureDate(day.date, 1) === targetDate) {
-        contribution += recovery;
+      const deficit = Math.abs(diff);
+      const deficitSpread = Math.min(5, Math.max(2, Math.ceil(deficit / 250)));
+      const totalRecovery = Math.min(Math.round(deficit * 0.3), 250 * deficitSpread);
+      const perDay = Math.floor(totalRecovery / deficitSpread);
+      const rem = totalRecovery % deficitSpread;
+      for (let i = 1; i <= deficitSpread; i++) {
+        if (getFutureDate(day.date, i) === targetDate) {
+          const dayRecovery = perDay + (i <= rem ? 1 : 0);
+          contribution += dayRecovery;
+        }
       }
     }
 
@@ -679,40 +776,24 @@ export function processEndOfDay(profile: UserProfile | null): void {
   if (!p) return;
 
   const today = getEffectiveDate();
-  const baseTarget = p.dailyCalories || 1600;
 
   // Check if yesterday needs freezing
   const yesterday = getFutureDate(today, -1);
   const frozen = loadFrozenTargets();
   if (frozen[yesterday]) return; // Already frozen
 
-  const yesterdayLog = getDailyLog(yesterday);
-  const totals = getDailyTotals(yesterdayLog);
-  if (totals.eaten === 0 && yesterdayLog.meals.length === 0) return;
-
-  // Compute and freeze yesterday's adjusted target
-  const allBalances = getDailyBalances(baseTarget);
-  const frozenTarget = computeAdjustedTarget(yesterday, baseTarget, allBalances, p.tdee || baseTarget, getCorrectionMode());
-  frozen[yesterday] = frozenTarget;
-
-  // Clean old entries (keep last 60 days)
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 60);
-  const cutoffStr = cutoff.toISOString().split('T')[0];
-  for (const key of Object.keys(frozen)) {
-    if (key < cutoffStr) delete frozen[key];
-  }
-
-  saveFrozenTargets(frozen);
+  // Use finalizeDay for yesterday
+  finalizeDay(yesterday);
 
   // Clean old special days
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 60);
+  const cutoffStr = toLocalDateKey(cutoff);
   const prefs = loadPrefs();
   for (const key of Object.keys(prefs.specialDays)) {
     if (key < cutoffStr) delete prefs.specialDays[key];
   }
   savePrefs(prefs);
-
-  recomputeCalorieEngine();
 }
 
 // ══════════════════════════════════════════════
