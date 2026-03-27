@@ -534,6 +534,171 @@ function DayBalanceSummary({ date, eaten, profile }: { date: string; eaten: numb
     StatusIcon = TrendingDown;
   }
 
+  return (
+    <div className={`p-3.5 rounded-xl border ${
+      diff > adjustedTarget * 0.1 ? 'bg-destructive/5 border-destructive/15' :
+      diff < -(adjustedTarget * 0.1) ? 'bg-accent/5 border-accent/15' :
+      'bg-primary/5 border-primary/15'
+    }`}>
+      <div className="flex items-center gap-2 mb-2">
+        <StatusIcon className={`w-4 h-4 ${statusColor}`} />
+        <p className={`text-xs font-bold ${statusColor}`}>{statusLabel}</p>
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div>
+          <p className="text-sm font-bold text-foreground">{eaten}</p>
+          <p className="text-[9px] text-muted-foreground">Eaten</p>
+        </div>
+        <div>
+          <p className="text-sm font-bold text-foreground">{adjustedTarget}</p>
+          <p className="text-[9px] text-muted-foreground">{isAdjusted ? 'Adj. Target' : 'Target'}</p>
+        </div>
+        <div>
+          <p className={`text-sm font-bold ${statusColor}`}>{diff > 0 ? '+' : ''}{Math.round(diff)}</p>
+          <p className="text-[9px] text-muted-foreground">Diff</p>
+        </div>
+      </div>
+      {isAdjusted && (
+        <p className="text-[10px] text-muted-foreground mt-2 text-center">
+          Original target: {baseTarget} kcal · Adjusted: {adjustedTarget} kcal
+        </p>
+      )}
+    </div>
+  );
+}
+
+function FutureDayPlanSection({ date, profile }: { date: string; profile: any }) {
+  const baseTarget = profile?.dailyCalories || 1600;
+  const tdee = profile?.tdee || baseTarget;
+  
+  const { plan, breakdown } = useMemo(() => {
+    const projMap = computeProjectedAdjustmentMap(baseTarget, tdee, getCorrectionMode());
+    const allBalances = getDailyBalances();
+    const pastLogs = allBalances.filter((b: DailyBalanceEntry) => b.actual >= 300);
+    return {
+      plan: getFutureDayPlan(date, profile, projMap),
+      breakdown: getAdjustmentBreakdownForDate(date, pastLogs, baseTarget),
+    };
+  }, [date, baseTarget, tdee]);
+  
+  const hasAdjustment = plan.adjustment !== 0;
+
+  return (
+    <div className="space-y-3">
+      <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/15">
+        <div className="flex items-center gap-2 mb-2.5">
+          <Sparkles className="w-4 h-4 text-primary" />
+          <p className="text-xs font-bold text-primary">Live Projected Target</p>
+        </div>
+        <div className="flex items-baseline gap-1.5 mb-3">
+          <span className="text-2xl font-bold text-foreground">{plan.calories}</span>
+          <span className="text-xs text-muted-foreground">kcal target</span>
+          {hasAdjustment && (
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+              plan.adjustment < 0 ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'
+            }`}>
+              {plan.adjustment < 0 ? '🔻' : '🔺'} {plan.adjustment > 0 ? '+' : ''}{plan.adjustment} kcal
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="p-2 rounded-lg bg-primary/10 text-center">
+            <p className="text-sm font-bold text-primary">{plan.protein}g</p>
+            <p className="text-[9px] text-muted-foreground font-medium">Protein 🔒</p>
+          </div>
+          <div className="p-2 rounded-lg bg-accent/10 text-center">
+            <p className="text-sm font-bold text-accent">{plan.carbs}g</p>
+            <p className="text-[9px] text-muted-foreground font-medium">Carbs</p>
+          </div>
+          <div className="p-2 rounded-lg bg-destructive/10 text-center">
+            <p className="text-sm font-bold text-destructive">{plan.fats}g</p>
+            <p className="text-[9px] text-muted-foreground font-medium">Fat</p>
+          </div>
+        </div>
+        <p className="text-[9px] text-muted-foreground mt-2 text-center">⚡ Updates live as you eat today</p>
+      </div>
+
+      {breakdown.length > 0 && (
+        <div className="p-3 rounded-xl bg-muted/50 border border-border">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">⚖️ Why this target?</p>
+          <div className="space-y-1.5">
+            {breakdown.map((b, i) => {
+              const dayLabel = new Date(b.sourceDate + 'T12:00:00').toLocaleDateString('en-US', {
+                weekday: 'short', month: 'short', day: 'numeric',
+              });
+              return (
+                <div key={i} className="flex flex-col gap-0.5 text-[11px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">{dayLabel}</span>
+                    <span className={`font-semibold ${b.surplus > 0 ? 'text-destructive' : 'text-primary'}`}>
+                      {b.impactLabel}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground/70">{b.reason}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {!hasAdjustment && (
+        <div className="p-3 rounded-xl bg-muted/30 border border-border">
+          <p className="text-xs text-muted-foreground text-center">No adjustments — original target applies ✅</p>
+        </div>
+      )}
+
+      <div className="p-2.5 rounded-xl bg-accent/5 border border-accent/15">
+        <p className="text-[11px] text-accent font-medium text-center">
+          💡 Use the Meal Planner to plan meals for this day
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Today's live balance — shows current deficit/surplus AND projected impact on future days.
+ */
+function TodayLiveBalance({ date, eaten, profile }: { date: string; eaten: number; profile: any }) {
+  const baseTarget = profile?.dailyCalories || 1600;
+  const tdee = profile?.tdee || baseTarget;
+  const allBalances = useMemo(() => getDailyBalances(baseTarget), [baseTarget, date]);
+  
+  const adjustedTarget = useMemo(() => {
+    return computeAdjustedTarget(date, baseTarget, allBalances, tdee, getCorrectionMode());
+  }, [date, baseTarget, allBalances, tdee]);
+
+  const diff = eaten - adjustedTarget;
+  const isAdjusted = Math.abs(adjustedTarget - baseTarget) > 5;
+  
+  const projMap = useMemo(() => computeProjectedAdjustmentMap(baseTarget, tdee, getCorrectionMode()), [baseTarget, tdee, eaten]);
+  const tomorrow = useMemo(() => {
+    const d = new Date(date + 'T12:00:00');
+    d.setDate(d.getDate() + 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, [date]);
+  const tomorrowAdj = projMap[tomorrow] || 0;
+  const tomorrowTarget = Math.round(Math.max(1200, Math.min(baseTarget * 1.15, baseTarget + tomorrowAdj)));
+
+  let statusLabel: string;
+  let statusColor: string;
+  let StatusIcon: typeof TrendingUp;
+  
+  if (Math.abs(diff) <= adjustedTarget * 0.1) {
+    statusLabel = 'On Track ✅';
+    statusColor = 'text-primary';
+    StatusIcon = CheckCircle2;
+  } else if (diff > 0) {
+    statusLabel = `+${Math.round(diff)} kcal surplus`;
+    statusColor = 'text-destructive';
+    StatusIcon = TrendingUp;
+  } else {
+    statusLabel = `${Math.round(diff)} kcal deficit`;
+    statusColor = 'text-accent';
+    StatusIcon = TrendingDown;
+  }
+
   const remaining = adjustedTarget - eaten;
 
   return (
@@ -571,7 +736,6 @@ function DayBalanceSummary({ date, eaten, profile }: { date: string; eaten: numb
         )}
       </div>
 
-      {/* Tomorrow preview */}
       {Math.abs(diff) > 50 && (
         <div className="p-3 rounded-xl bg-muted/50 border border-border">
           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">📅 Tomorrow's projected target</p>
