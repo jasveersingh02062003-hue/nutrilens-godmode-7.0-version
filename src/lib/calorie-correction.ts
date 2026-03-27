@@ -339,19 +339,18 @@ function _buildAdjustmentMap(
         adjMap[targetDate] = (adjMap[targetDate] || 0) - perDay;
       }
     } else {
-      // Deficit — spread across multiple future days (up to 5 days, 30% recovery each)
+      // Deficit — spread full amount across multiple future days (mirrors surplus logic)
       const deficit = Math.abs(diff);
-      const deficitSpread = Math.min(5, Math.max(2, Math.ceil(deficit / 250)));
-      const totalRecovery = Math.min(Math.round(deficit * 0.3), 250 * deficitSpread);
-      const perDay = Math.floor(totalRecovery / deficitSpread);
-      const rem = totalRecovery % deficitSpread;
+      const deficitSpread = computeSafeSpreadDays(deficit, tdee, mode);
+      const base = Math.floor(deficit / deficitSpread);
+      const remainder = deficit % deficitSpread;
       for (let i = 1; i <= deficitSpread; i++) {
         const targetDate = getFutureDate(day.date, i);
         if (!sourceTracker.has(targetDate)) sourceTracker.set(targetDate, new Set());
         if (sourceTracker.get(targetDate)!.has(day.date)) continue;
         sourceTracker.get(targetDate)!.add(day.date);
-        const dayRecovery = perDay + (i <= rem ? 1 : 0);
-        adjMap[targetDate] = (adjMap[targetDate] || 0) + dayRecovery;
+        const perDay = base + (i <= remainder ? 1 : 0);
+        adjMap[targetDate] = (adjMap[targetDate] || 0) + perDay;
       }
     }
   }

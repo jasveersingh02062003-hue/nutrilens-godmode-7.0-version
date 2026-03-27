@@ -237,7 +237,7 @@ export default function ProgressPage() {
           <div className="flex items-center justify-between mb-4">
             <button onClick={() => setMonthOffset(m => m - 1)} className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center"><ChevronLeft className="w-4 h-4" /></button>
             <h3 className="font-semibold text-sm text-foreground">{viewDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
-            <button onClick={() => setMonthOffset(m => Math.min(0, m + 1))} className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center"><ChevronRight className="w-4 h-4" /></button>
+            <button onClick={() => setMonthOffset(m => Math.min(1, m + 1))} className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center"><ChevronRight className="w-4 h-4" /></button>
           </div>
           <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-muted-foreground font-semibold mb-2">
             {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => <span key={d}>{d}</span>)}
@@ -471,7 +471,7 @@ function CalorieBalanceCard() {
   const monthlyStats = getMonthlyStats();
   const weekendPattern = getWeekendPattern();
   const [showPlanDetails, setShowPlanDetails] = useState(false);
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = toLocalDateKey(new Date());
 
   // Compute adjMap for future adjustments display
   const profile = getProfile();

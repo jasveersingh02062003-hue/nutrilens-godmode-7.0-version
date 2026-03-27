@@ -112,7 +112,7 @@ export default function Profile() {
     { icon: Flower2, label: 'Skin Health', sub: skinSub(), action: () => setShowSkinConcerns(true) },
     { icon: SlidersHorizontal, label: 'Tracking Mode', sub: trackingModeState === 'flex' ? 'Flex – gentle adjustments' : 'Strict – tighter limits', action: handleTrackingModeToggle },
     { icon: Zap, label: 'Correction Mode', sub: `${correctionModeState.charAt(0).toUpperCase() + correctionModeState.slice(1)} – ${correctionModeState === 'aggressive' ? 'fast recovery' : correctionModeState === 'relaxed' ? 'minimal correction' : 'moderate'}`, action: handleCorrectionModeChange },
-    { icon: SlidersHorizontal, label: 'Auto Adjust Meals', sub: autoAdjustState ? 'On – meals adjust automatically' : 'Off – manual control', action: handleAutoAdjustToggle },
+    { icon: SlidersHorizontal, label: 'Calorie Carry-Forward', sub: autoAdjustState ? 'On – spread surplus/deficit across future days' : 'Off – no carry-forward adjustments', action: handleAutoAdjustToggle },
     { icon: Crown, label: 'Subscription', sub: currentPlan === 'free' ? (hasUsedTrial() && hasTrialExpired() ? 'Trial expired – Upgrade' : 'Free plan – Upgrade') : (isTrialActive() ? `Pro trial – ${getTrialDaysRemaining()} days left` : `${currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1)} plan`), action: () => setShowPlans(true) },
     { icon: Activity, label: 'Google Fit', sub: 'Sync steps and activity', action: () => setShowGoogleFit(true) },
     { icon: Download, label: 'Export Data', sub: 'Download your logs', action: () => setShowExport(true) },
