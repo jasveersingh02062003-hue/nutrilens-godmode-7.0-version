@@ -88,7 +88,7 @@ export function getAdjustmentBreakdownForDate(
   pastLogs: DailyBalanceEntry[],
   baseTarget: number
 ): AdjustmentBreakdownEntry[] {
-  const sources = computeBreakdownForDate(targetDate, pastLogs, baseTarget);
+  const sources = computeBreakdownForDate(targetDate, pastLogs, baseTarget, undefined, undefined, true);
   // Group by sourceDate to prevent duplicate entries in UI
   const grouped = new Map<string, AdjustmentBreakdownEntry>();
   for (const s of sources) {

@@ -46,8 +46,8 @@ function computeDayBalance(dateStr: string, todayStr: string, logDatesSet: Set<s
   if (isFuture) {
     // Use projected map (includes today's live intake) for future dates
     const adj = projMap[dateStr] || 0;
-    if (adj < -10) return { status: 'future-reduced', diff: adj };
-    if (adj > 10) return { status: 'future-recovery', diff: adj };
+    if (adj < -5) return { status: 'future-reduced', diff: adj };
+    if (adj > 5) return { status: 'future-recovery', diff: adj };
     return { status: 'no-data', diff: 0 };
   }
 
