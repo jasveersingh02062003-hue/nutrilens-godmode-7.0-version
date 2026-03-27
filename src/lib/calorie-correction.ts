@@ -382,7 +382,7 @@ function _buildAdjustmentMap(
       absLeftover -= shift;
     }
     if (absLeftover > 1) {
-      console.error('[CalorieEngine] Adjustment overflow capped:', Math.round(absLeftover), 'kcal');
+      console.warn('[CalorieEngine] Adjustment overflow capped (daily limit reached):', Math.round(absLeftover), 'kcal');
     }
   }
 
@@ -656,7 +656,7 @@ export function getDailyBalances(baseTarget?: number): DailyBalanceEntry[] {
   }, 0);
   const totalAdj = Object.values(adjMap).reduce((s, v) => s + v, 0);
   if (Math.abs(totalDiff + totalAdj) > 1) {
-    console.error('[CalorieEngine] Conservation broken:', { totalDiff: Math.round(totalDiff), totalAdj: Math.round(totalAdj) });
+    console.warn('[CalorieEngine] Conservation gap (expected when daily caps are reached):', { totalDiff: Math.round(totalDiff), totalAdj: Math.round(totalAdj), gap: Math.round(Math.abs(totalDiff + totalAdj)) });
   }
 
   // Verify per-day clamp integrity
