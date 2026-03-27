@@ -168,7 +168,7 @@ export default function Dashboard() {
     // Morning recovery prompt — check if yesterday had <300 kcal
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayKey = yesterday.toISOString().split('T')[0];
+    const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
     const recoveryDismissed = localStorage.getItem(`nutrilens_missed_ack_${yesterdayKey}`);
     if (!recoveryDismissed) {
       const yLog = getDailyLog(yesterdayKey);
