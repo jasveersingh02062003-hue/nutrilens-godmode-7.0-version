@@ -33,17 +33,19 @@ import { useUserProfile } from '@/contexts/UserProfileContext';
 import { getPlan, isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
-import { getDailyBalances, getTodayAdjustmentStatus, getMonthlyStats, getWeekendPattern, computeAdjustmentMap, computeSafeSpreadDays, getCorrectionMode, computeAdjustedTarget, type DailyBalanceEntry } from '@/lib/calorie-correction';
+import { getDailyBalances, getTodayAdjustmentStatus, getMonthlyStats, getWeekendPattern, computeAdjustmentMap, computeProjectedAdjustmentMap, computeSafeSpreadDays, getCorrectionMode, computeAdjustedTarget, type DailyBalanceEntry } from '@/lib/calorie-correction';
 import { toLocalDateKey } from '@/lib/store';
 
 
 type DayBalance = 'surplus' | 'deficit' | 'balanced' | 'no-data' | 'future-reduced' | 'future-recovery';
 
-function computeDayBalance(dateStr: string, todayStr: string, logDatesSet: Set<string>, baseTarget: number, allBalances: DailyBalanceEntry[], adjMap: Record<string, number>): { status: DayBalance; diff: number } {
+function computeDayBalance(dateStr: string, todayStr: string, logDatesSet: Set<string>, baseTarget: number, allBalances: DailyBalanceEntry[], adjMap: Record<string, number>, projMap: Record<string, number>): { status: DayBalance; diff: number } {
   const isFuture = dateStr > todayStr;
+  const isToday = dateStr === todayStr;
 
   if (isFuture) {
-    const adj = adjMap[dateStr] || 0;
+    // Use projected map (includes today's live intake) for future dates
+    const adj = projMap[dateStr] || 0;
     if (adj < -10) return { status: 'future-reduced', diff: adj };
     if (adj > 10) return { status: 'future-recovery', diff: adj };
     return { status: 'no-data', diff: 0 };
@@ -52,8 +54,10 @@ function computeDayBalance(dateStr: string, todayStr: string, logDatesSet: Set<s
   const entry = allBalances.find(b => b.date === dateStr);
   if (!entry || entry.actual === 0) return { status: 'no-data', diff: 0 };
 
-  // For past/today: compare actual vs adjusted or base target
-  const target = entry.adjustedTarget || baseTarget;
+  // For today: compare actual vs adjusted target from projected map
+  const target = isToday
+    ? Math.round(Math.max(1200, Math.min(baseTarget * 1.15, baseTarget + (adjMap[dateStr] || 0))))
+    : (entry.adjustedTarget || baseTarget);
   const diff = entry.actual - target;
 
   if (Math.abs(diff) <= target * 0.1) return { status: 'balanced', diff: Math.round(diff) };
@@ -175,6 +179,11 @@ export default function ProgressPage() {
     return computeAdjustmentMap(pastLogs, baseTarget, tdee, getCorrectionMode());
   }, [allBalances, baseTarget, todayStr, tdee]);
 
+  // Projected map includes today's live intake for future date previews
+  const projMap = useMemo(() => {
+    return computeProjectedAdjustmentMap(baseTarget, tdee, getCorrectionMode());
+  }, [allBalances, baseTarget, tdee, refreshKey]);
+
   const calendarDays = useMemo(() => {
     const days: { day: number; dateStr: string; balance: DayBalance; diff: number; isToday: boolean; isFuture: boolean; locked: boolean }[] = [];
     for (let d = 1; d <= daysInMonth; d++) {
@@ -182,11 +191,11 @@ export default function ProgressPage() {
       const isFuture = dateStr > todayStr;
       const isToday = dateStr === todayStr;
       const locked = !premium && dateStr < threeDaysAgo;
-      const { status: balance, diff } = locked ? { status: 'no-data' as DayBalance, diff: 0 } : computeDayBalance(dateStr, todayStr, logDatesSet, baseTarget, allBalances, adjMap);
+      const { status: balance, diff } = locked ? { status: 'no-data' as DayBalance, diff: 0 } : computeDayBalance(dateStr, todayStr, logDatesSet, baseTarget, allBalances, adjMap, projMap);
       days.push({ day: d, dateStr, balance, diff, isToday, isFuture, locked });
     }
     return days;
-  }, [monthOffset, refreshKey, logDatesSet, baseTarget, premium, threeDaysAgo, adjMap, allBalances, todayStr]);
+  }, [monthOffset, refreshKey, logDatesSet, baseTarget, premium, threeDaysAgo, adjMap, projMap, allBalances, todayStr]);
 
   const weeklyData = useMemo(() => {
     return logs.slice(0, 7).reverse().map(l => {
