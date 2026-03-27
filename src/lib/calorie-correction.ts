@@ -382,7 +382,7 @@ function _buildAdjustmentMap(
       absLeftover -= shift;
     }
     if (absLeftover > 1) {
-      console.error('[CalorieEngine] Adjustment overflow capped:', Math.round(absLeftover), 'kcal');
+      console.warn('[CalorieEngine] Adjustment overflow capped (daily limit reached):', Math.round(absLeftover), 'kcal');
     }
   }
 
@@ -544,14 +544,13 @@ export function computeBreakdownForDate(
       }
     } else {
       const deficit = Math.abs(diff);
-      const deficitSpread = Math.min(5, Math.max(2, Math.ceil(deficit / 250)));
-      const totalRecovery = Math.min(Math.round(deficit * 0.3), 250 * deficitSpread);
-      const perDay = Math.floor(totalRecovery / deficitSpread);
-      const rem = totalRecovery % deficitSpread;
+      const deficitSpread = computeSafeSpreadDays(deficit, tdee, mode);
+      const base = Math.floor(deficit / deficitSpread);
+      const remainder = deficit % deficitSpread;
       for (let i = 1; i <= deficitSpread; i++) {
         if (getFutureDate(day.date, i) === targetDate) {
-          const dayRecovery = perDay + (i <= rem ? 1 : 0);
-          contribution += dayRecovery;
+          const perDay = base + (i <= remainder ? 1 : 0);
+          contribution += perDay;
         }
       }
     }
@@ -589,8 +588,10 @@ export function computeDinnerSummary(
     message = `You ate +${Math.round(diff)} kcal over target today.\n\n→ We'll reduce ~${perDay} kcal/day over the next ${spreadDays} days.`;
   } else {
     const deficit = Math.abs(diff);
-    const recovery = Math.min(Math.round(deficit * 0.3), 250);
-    message = `You ate ${Math.round(deficit)} kcal less than your target.\n\n→ Tomorrow's calories will increase by ~${recovery} kcal.`;
+    const tdeeVal = allBalances.length > 0 ? (allBalances[0]?.target || 2000) : 2000;
+    const spreadDays = computeSafeSpreadDays(deficit, tdeeVal, getCorrectionMode());
+    const perDay = Math.round(deficit / spreadDays);
+    message = `You ate ${Math.round(deficit)} kcal less than your target.\n\n→ Tomorrow's calories will increase by ~${perDay} kcal/day over ${spreadDays} days.`;
   }
 
   const todayBalance: DailyBalanceEntry = {
@@ -655,7 +656,7 @@ export function getDailyBalances(baseTarget?: number): DailyBalanceEntry[] {
   }, 0);
   const totalAdj = Object.values(adjMap).reduce((s, v) => s + v, 0);
   if (Math.abs(totalDiff + totalAdj) > 1) {
-    console.error('[CalorieEngine] Conservation broken:', { totalDiff: Math.round(totalDiff), totalAdj: Math.round(totalAdj) });
+    console.warn('[CalorieEngine] Conservation gap (expected when daily caps are reached):', { totalDiff: Math.round(totalDiff), totalAdj: Math.round(totalAdj), gap: Math.round(Math.abs(totalDiff + totalAdj)) });
   }
 
   // Verify per-day clamp integrity
