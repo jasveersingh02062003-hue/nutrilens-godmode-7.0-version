@@ -17,7 +17,7 @@ import { CATEGORY_CONFIG } from '@/lib/budget-service';
 import { ACTIVITY_TYPES } from '@/lib/activities';
 import { getSourceEmoji, getSourceLabel } from '@/lib/context-learning';
 import { generateDayInsight } from '@/lib/day-insights';
-import { getDailyBalances, computeAdjustmentMap, computeAdjustedTarget, getCorrectionMode, type DailyBalanceEntry } from '@/lib/calorie-correction';
+import { getDailyBalances, computeAdjustmentMap, computeAdjustedTarget, computeProjectedAdjustmentMap, getCorrectionMode, type DailyBalanceEntry } from '@/lib/calorie-correction';
 import { getFutureDayPlan, getAdjustmentBreakdownForDate, getExplanationMessage } from '@/lib/calendar-helpers';
 import ActivityLogSheet from '@/components/ActivityLogSheet';
 import SupplementLogSheet from '@/components/SupplementLogSheet';
@@ -158,8 +158,11 @@ export default function DayDetailsSheet({ open, date, onClose, onChanged }: Prop
 
             {isFuture && <FutureDayPlanSection date={date} profile={profile} />}
 
-            {/* Day Balance Summary — past & today */}
-            {!isFuture && totals.eaten > 0 && <DayBalanceSummary date={date} eaten={totals.eaten} profile={profile} />}
+            {/* Day Balance Summary — today shows live projected impact */}
+            {isToday && totals.eaten > 0 && <TodayLiveBalance date={date} eaten={totals.eaten} profile={profile} />}
+
+            {/* Day Balance Summary — past days */}
+            {!isFuture && !isToday && totals.eaten > 0 && <DayBalanceSummary date={date} eaten={totals.eaten} profile={profile} />}
 
             {/* Monica Insight */}
             {insight && !isFuture && (
@@ -565,18 +568,19 @@ function DayBalanceSummary({ date, eaten, profile }: { date: string; eaten: numb
 }
 
 function FutureDayPlanSection({ date, profile }: { date: string; profile: any }) {
-  const allBalances = getDailyBalances();
   const baseTarget = profile?.dailyCalories || 1600;
   const tdee = profile?.tdee || baseTarget;
   
+  // Use projected map (includes today's live intake) for future dates
   const { plan, breakdown } = useMemo(() => {
-    const pastLogs = allBalances.filter((b: DailyBalanceEntry) => b.date < date && b.actual >= 300);
-    const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee, getCorrectionMode());
+    const projMap = computeProjectedAdjustmentMap(baseTarget, tdee, getCorrectionMode());
+    const allBalances = getDailyBalances();
+    const pastLogs = allBalances.filter((b: DailyBalanceEntry) => b.actual >= 300);
     return {
-      plan: getFutureDayPlan(date, profile, adjMap),
+      plan: getFutureDayPlan(date, profile, projMap),
       breakdown: getAdjustmentBreakdownForDate(date, pastLogs, baseTarget),
     };
-  }, [date, baseTarget, tdee, allBalances]);
+  }, [date, baseTarget, tdee]);
   
   const explanation = getExplanationMessage(breakdown);
   const hasAdjustment = plan.adjustment !== 0;
@@ -587,7 +591,7 @@ function FutureDayPlanSection({ date, profile }: { date: string; profile: any })
       <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/15">
         <div className="flex items-center gap-2 mb-2.5">
           <Sparkles className="w-4 h-4 text-primary" />
-          <p className="text-xs font-bold text-primary">Smart Plan Preview</p>
+          <p className="text-xs font-bold text-primary">Live Projected Target</p>
         </div>
 
         {/* Calorie target */}
@@ -620,6 +624,10 @@ function FutureDayPlanSection({ date, profile }: { date: string; profile: any })
             <p className="text-[9px] text-muted-foreground font-medium">Fat</p>
           </div>
         </div>
+        
+        <p className="text-[9px] text-muted-foreground mt-2 text-center">
+          ⚡ Updates live as you eat today
+        </p>
       </div>
 
       {/* Adjustment explanation */}
@@ -658,6 +666,108 @@ function FutureDayPlanSection({ date, profile }: { date: string; profile: any })
           💡 Use the Meal Planner to plan meals for this day
         </p>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Today's live balance — shows current deficit/surplus AND projected impact on future days.
+ */
+function TodayLiveBalance({ date, eaten, profile }: { date: string; eaten: number; profile: any }) {
+  const baseTarget = profile?.dailyCalories || 1600;
+  const tdee = profile?.tdee || baseTarget;
+  const allBalances = useMemo(() => getDailyBalances(baseTarget), [baseTarget, date]);
+  
+  const adjustedTarget = useMemo(() => {
+    return computeAdjustedTarget(date, baseTarget, allBalances, tdee, getCorrectionMode());
+  }, [date, baseTarget, allBalances, tdee]);
+
+  const diff = eaten - adjustedTarget;
+  const isAdjusted = Math.abs(adjustedTarget - baseTarget) > 10;
+  
+  // Compute projected impact on tomorrow
+  const projMap = useMemo(() => computeProjectedAdjustmentMap(baseTarget, tdee, getCorrectionMode()), [baseTarget, tdee, eaten]);
+  const todayStr = date;
+  const tomorrow = useMemo(() => {
+    const d = new Date(todayStr + 'T12:00:00');
+    d.setDate(d.getDate() + 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, [todayStr]);
+  const tomorrowAdj = projMap[tomorrow] || 0;
+  const tomorrowTarget = Math.round(Math.max(1200, Math.min(baseTarget * 1.15, baseTarget + tomorrowAdj)));
+
+  let statusLabel: string;
+  let statusColor: string;
+  let StatusIcon: typeof TrendingUp;
+  
+  if (Math.abs(diff) <= adjustedTarget * 0.1) {
+    statusLabel = 'On Track ✅';
+    statusColor = 'text-primary';
+    StatusIcon = CheckCircle2;
+  } else if (diff > 0) {
+    statusLabel = `+${Math.round(diff)} kcal surplus`;
+    statusColor = 'text-destructive';
+    StatusIcon = TrendingUp;
+  } else {
+    statusLabel = `${Math.round(diff)} kcal deficit`;
+    statusColor = 'text-accent';
+    StatusIcon = TrendingDown;
+  }
+
+  const remaining = adjustedTarget - eaten;
+
+  return (
+    <div className="space-y-2">
+      <div className={`p-3.5 rounded-xl border ${
+        diff > adjustedTarget * 0.1 ? 'bg-destructive/5 border-destructive/15' :
+        diff < -(adjustedTarget * 0.1) ? 'bg-accent/5 border-accent/15' :
+        'bg-primary/5 border-primary/15'
+      }`}>
+        <div className="flex items-center gap-2 mb-2">
+          <StatusIcon className={`w-4 h-4 ${statusColor}`} />
+          <p className={`text-xs font-bold ${statusColor}`}>{statusLabel}</p>
+          <span className="ml-auto text-[9px] text-muted-foreground">⚡ Live</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div>
+            <p className="text-sm font-bold text-foreground">{eaten}</p>
+            <p className="text-[9px] text-muted-foreground">Eaten</p>
+          </div>
+          <div>
+            <p className="text-sm font-bold text-foreground">{adjustedTarget}</p>
+            <p className="text-[9px] text-muted-foreground">{isAdjusted ? 'Adj. Target' : 'Target'}</p>
+          </div>
+          <div>
+            <p className={`text-sm font-bold ${remaining > 0 ? 'text-primary' : 'text-destructive'}`}>
+              {remaining > 0 ? remaining : Math.round(diff)}
+            </p>
+            <p className="text-[9px] text-muted-foreground">{remaining > 0 ? 'Remaining' : 'Over'}</p>
+          </div>
+        </div>
+        {isAdjusted && (
+          <p className="text-[10px] text-muted-foreground mt-2 text-center">
+            Original: {baseTarget} kcal · Adjusted: {adjustedTarget} kcal
+          </p>
+        )}
+      </div>
+
+      {/* Tomorrow preview */}
+      {Math.abs(diff) > 50 && (
+        <div className="p-3 rounded-xl bg-muted/50 border border-border">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">📅 Tomorrow's projected target</p>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-bold text-foreground">{tomorrowTarget} kcal</span>
+            {tomorrowAdj !== 0 && (
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                tomorrowAdj < 0 ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'
+              }`}>
+                {tomorrowAdj > 0 ? '+' : ''}{tomorrowAdj} kcal
+              </span>
+            )}
+          </div>
+          <p className="text-[9px] text-muted-foreground mt-1">Updates in real time as you eat today</p>
+        </div>
+      )}
     </div>
   );
 }

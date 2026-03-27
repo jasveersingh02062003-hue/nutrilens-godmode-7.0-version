@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Moon, ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 import { getDailyLog, getDailyTotals, getProfile } from '@/lib/store';
-import { getDinnerNotificationSummary, syncDailyBalance } from '@/lib/calorie-correction';
+import { getDinnerNotificationSummary, finalizeDay, syncDailyBalance } from '@/lib/calorie-correction';
 
 interface Props {
   open: boolean;
@@ -24,7 +24,8 @@ export default function LastMealConfirmSheet({ open, onClose, todayKey }: Props)
   const handleConfirmLastMeal = () => {
     // Mark day as finalized
     localStorage.setItem(`nutrilens_day_finalized_${todayKey}`, '1');
-    syncDailyBalance();
+    // Actually freeze the day and recompute future targets
+    finalizeDay(todayKey);
     setConfirmed(true);
   };
 
