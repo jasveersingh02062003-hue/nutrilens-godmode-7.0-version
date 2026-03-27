@@ -1,73 +1,46 @@
 
-Plan to fix the live calendar and carry-forward issue properly.
 
-1. Fix the real root cause in the calorie engine
-- The current future-plan logic ignores today as a live source, so March 28 does not react while March 27 is still in progress.
-- I’ll split the engine into:
-  - finalized adjustments: committed past days
-  - projected adjustments: finalized past days + today’s live intake
-- This lets the app show “if the day ended now” targets for tomorrow and later dates in real time, without waiting for midnight.
+## Fix Calculation Issues, Add Future Month Navigation, and Add On/Off Toggle
 
-2. Change carry-forward math so it matches your expectation
-- Right now deficits recover mostly on the next day only, which is why the split is not showing the way you want.
-- I’ll update the projection logic so both surplus and deficit can be spread across multiple future days with caps and safety limits.
-- Past finalized days will stay stable, but future dates will re-split instantly as today’s calories change.
+### Issues Found
 
-3. Make “last meal” actually finalize the day
-- The current last-meal confirmation stores a flag, but that flag is not driving the engine.
-- I’ll wire this into a real finalize flow so:
-  - when the user confirms dinner is the last meal, today is frozen immediately
-  - tomorrow and later dates update from that finalized result right away
-- Midnight rollover will also use the same logic so 27th → 28th stays consistent.
+1. **Deficit carry-forward only recovers 30%** — Line 345 in `calorie-correction.ts`: `totalRecovery = Math.min(Math.round(deficit * 0.3), 250 * deficitSpread)`. The user expects the FULL deficit to be distributed across future days, not just 30%. With a 1641 kcal deficit on Thursday, only ~492 kcal is being added back, which is why the calendar shows small +135 adjustments instead of meaningful recovery amounts.
 
-4. Make the calendar truly real time
-- Update the Progress calendar to use projected future targets, not only old finalized balances.
-- Each date cell will show:
-  - past days: actual surplus/deficit vs that day’s frozen/adjusted target
-  - today: live current balance
-  - future days: projected adjustment based on current data
-- Refresh triggers will be unified across:
-  - meal add/edit/delete
-  - supplements
-  - water
-  - activity
-  - last-meal confirmation
-  - focus/storage/midnight boundary
+2. **Cannot navigate to April** — Line 240 in `Progress.tsx`: `Math.min(0, m + 1)` caps the month offset at 0, preventing forward navigation to see projected future months.
 
-5. Improve tap-on-date behavior
-- When you tap tomorrow or any future date, the sheet should show the live projected target for that date.
-- When you tap today, it should show:
-  - eaten so far
-  - current target
-  - current deficit/surplus
-  - projected effect on tomorrow and the next few days
-- When you tap past days, it should still show the exact frozen result for that day.
+3. **No on/off toggle visible to user** — There is already an `autoAdjust` toggle in the Profile page settings, but it is labeled "Auto Adjust Meals" which is unclear. Need to make this more prominent and clearly labeled as the carry-forward on/off switch.
 
-6. Fix date sync issues
-- There are still places using UTC-style `toISOString().split('T')[0]`, which can cause 27/28 date drift.
-- I’ll replace the remaining calendar/engine/logging date logic with local date keys so dashboard, calendar, and tomorrow preview stay in sync.
+### Plan
 
-Files to update
-- `src/lib/calorie-correction.ts`
-  - add projected-vs-finalized adjustment logic
-  - make multi-day carry-forward work for live planning
-  - add real finalize-day behavior
-- `src/pages/Progress.tsx`
-  - use projected future targets in calendar cells
-  - keep calendar live without stale values
-- `src/components/DayDetailsSheet.tsx`
-  - show exact live/projected balance when tapping dates
-- `src/pages/Dashboard.tsx`
-  - keep today/tomorrow indicators synced with the same source of truth
-- `src/pages/LogFood.tsx`
-  - ensure meal logging updates projected future dates immediately
-- `src/components/LastMealConfirmSheet.tsx`
-  - connect confirmation to actual day finalization
-- `src/lib/store.ts`
-  - keep centralized update dispatch as the single realtime trigger
+**Step 1: Fix deficit carry-forward math** (`src/lib/calorie-correction.ts`)
+- Change the deficit recovery from 30% to 100% of the deficit amount, spread across multiple days using the same `computeSafeSpreadDays` logic that surplus already uses
+- This ensures a 1641 kcal deficit on Thursday gets fully distributed (e.g., ~328/day across 5 days) instead of only 492 total
+- Keep the per-day cap (maxDailyAdjustment) and 1200 kcal floor safety limits
 
-Expected result
-- If today is March 27 and you log food, the calendar updates immediately.
-- If you tap March 28, you’ll see the live projected calories for tomorrow based on what you’ve eaten today.
-- If today ends in surplus or deficit, that amount will visibly split across future days in the calendar.
-- If you confirm dinner as the last meal, the split becomes committed immediately instead of waiting and appearing late.
+**Step 2: Allow future month navigation** (`src/pages/Progress.tsx`)
+- Change `Math.min(0, m + 1)` to `Math.min(1, m + 1)` so users can navigate one month ahead to see April's projected adjustments
+- Future month dates will use the projected adjustment map to show recovery/reduction indicators
+
+**Step 3: Rename and improve the carry-forward toggle** (`src/pages/Profile.tsx`)
+- Rename "Auto Adjust Meals" to "Calorie Carry-Forward" with clearer description: "Spread surplus/deficit across future days"
+- Keep the existing `getAutoAdjust`/`setAutoAdjust` logic which already gates the engine in `getAdjustedDailyTarget`
+
+**Step 4: Fix CalorieBalanceCard date usage** (`src/pages/Progress.tsx`)
+- Line 474 still uses `toISOString().split('T')[0]` — change to `toLocalDateKey()` for consistency
+
+### Technical Details
+
+The core math fix in `_buildAdjustmentMap`:
+```
+// BEFORE (deficit branch):
+const totalRecovery = Math.min(Math.round(deficit * 0.3), 250 * deficitSpread);
+
+// AFTER:
+const deficitSpread = computeSafeSpreadDays(deficit, tdee, mode);
+// Distribute the full deficit, same as surplus
+const base = Math.floor(deficit / deficitSpread);
+const remainder = deficit % deficitSpread;
+```
+
+This mirrors the surplus branch exactly, ensuring symmetrical treatment. The per-day clamp and floor protection already handle safety limits downstream.
+
