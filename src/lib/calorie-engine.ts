@@ -116,13 +116,9 @@ export function unskipMeal(date: string, mealType: string): void {
 }
 
 // ── Auto-missed detection by time ──
-
-const MISSED_THRESHOLDS: Record<MealSlot['name'], number> = {
-  breakfast: 11,
-  lunch: 16,
-  snacks: 19,
-  dinner: 23,
-};
+// Unified with meal-targets.ts thresholds
+import { MISSED_MEAL_HOURS } from './meal-targets';
+const MISSED_THRESHOLDS: Record<MealSlot['name'], number> = MISSED_MEAL_HOURS;
 
 // ── Master recalculation ──
 
