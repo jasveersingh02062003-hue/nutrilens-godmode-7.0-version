@@ -31,14 +31,7 @@ export function gatherExportData(daysBack: number = 365): ExportData {
     const key = toLocalDateKey(d);
     const log = getDailyLog(key);
     if (log.meals.length > 0 || log.waterCups > 0 || log.weight) {
-      // Strip base64 photos from export to keep size reasonable
-      dailyLogs[key] = {
-        ...log,
-        meals: log.meals.map(m => ({
-          ...m,
-          photoUrl: m.photoUrl ? '[photo_url]' : undefined,
-        })),
-      };
+      dailyLogs[key] = log;
     }
   }
 
