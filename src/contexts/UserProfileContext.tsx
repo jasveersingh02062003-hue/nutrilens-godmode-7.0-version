@@ -167,7 +167,7 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
           setLoadedUserId(userId);
           setIsLoaded(true);
           // Restore daily logs in the background
-          restoreLogsFromCloud(14).catch(() => {});
+          restoreLogsFromCloud().catch(() => {});
           return;
         }
 
