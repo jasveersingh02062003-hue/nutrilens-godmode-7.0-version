@@ -28,6 +28,7 @@ export interface UserProfile {
   waterGoal: number;
   onboardingComplete: boolean;
   dailyCalories: number;
+  originalDailyCalories?: number; // Set once during onboarding, never mutated by plateau/adaptation
   trackingMode?: 'flex' | 'strict';
   dailyProtein: number;
   dailyCarbs: number;
