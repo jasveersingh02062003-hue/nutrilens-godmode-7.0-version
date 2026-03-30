@@ -125,7 +125,8 @@ const MISSED_THRESHOLDS: Record<MealSlot['name'], number> = MISSED_MEAL_HOURS;
 export function recalculateDay(profile: UserProfile | null, log: DailyLog): DayState {
   const adjustedTarget = getAdjustedDailyTarget(profile);
   const originalTarget = profile?.dailyCalories || 1600;
-  const date = log.date || new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const date = log.date || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   // Total burned (using effective burn from burn-service)
   const totalBurned = log.burned
