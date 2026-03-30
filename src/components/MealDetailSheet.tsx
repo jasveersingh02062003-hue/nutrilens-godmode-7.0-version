@@ -323,7 +323,9 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
       setAddSheetOpen(true);
     } else {
       onClose();
-      const dateParam = date !== new Date().toISOString().split('T')[0] ? `&date=${date}` : '';
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+      const dateParam = date !== todayStr ? `&date=${date}` : '';
       navigate(`/log?meal=${mealType}${dateParam}`);
     }
   }

@@ -8,7 +8,8 @@ export default function BudgetSummaryCard() {
   const navigate = useNavigate();
   const summary = useMemo(() => getBudgetSummary(), []);
 
-  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   const todayExpenses = useMemo(() => getExpensesForDate(today), [today]);
   const todaySpent = todayExpenses.reduce((s, e) => s + e.amount, 0);
 

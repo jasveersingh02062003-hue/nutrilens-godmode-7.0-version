@@ -28,7 +28,8 @@ const MEAL_LABELS: Record<string, string> = {
 export default function TodayMealPlan() {
   const navigate = useNavigate();
   const profile = getMealPlannerProfile();
-  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   const [isExpanded, setIsExpanded] = useState(false);
   const [loggedMeals, setLoggedMeals] = useState<Set<string>>(() => {
     const saved = localStorage.getItem('nutrilens_home_logged_meals_' + today);

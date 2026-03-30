@@ -17,7 +17,8 @@ interface Props {
 export default function SymptomTrackerCard({ refreshKey }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const todayKey = getTodayKey();
+  const now = new Date();
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
 
   const recentLogs = useMemo(() => getSymptomLogs().slice(0, 7), [refreshKey]);
   const todayLog = recentLogs.find(l => l.date === todayKey);

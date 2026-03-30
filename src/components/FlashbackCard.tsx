@@ -43,7 +43,7 @@ export default function FlashbackCard({ onOpenDate }: Props) {
         for (const offset of offsets) {
           const d = new Date(today);
           d.setDate(d.getDate() - offset);
-          const dateStr = d.toISOString().split('T')[0];
+          const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
           const log = getDailyLog(dateStr);
           if (log.meals.length > 0) {
             const mealWithPhoto = log.meals.find(m => m.photo);
