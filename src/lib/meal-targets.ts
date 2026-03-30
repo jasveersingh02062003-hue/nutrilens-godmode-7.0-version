@@ -68,11 +68,20 @@ export interface MissedMealThreshold {
   thresholdHour: number; // hour after which meal is considered missed
 }
 
+/** Unified missed meal thresholds — single source of truth */
+export const MISSED_MEAL_HOURS: Record<string, number> = {
+  breakfast: 11,
+  lunch: 16,
+  snacks: 19,
+  snack: 19,
+  dinner: 23,
+};
+
 const MISSED_MEAL_THRESHOLDS: MissedMealThreshold[] = [
-  { type: 'breakfast', label: 'Breakfast', thresholdHour: 10 },
-  { type: 'lunch', label: 'Lunch', thresholdHour: 15 },
-  { type: 'snack', label: 'Snacks', thresholdHour: 17 },
-  { type: 'dinner', label: 'Dinner', thresholdHour: 21 },
+  { type: 'breakfast', label: 'Breakfast', thresholdHour: MISSED_MEAL_HOURS.breakfast },
+  { type: 'lunch', label: 'Lunch', thresholdHour: MISSED_MEAL_HOURS.lunch },
+  { type: 'snack', label: 'Snacks', thresholdHour: MISSED_MEAL_HOURS.snack },
+  { type: 'dinner', label: 'Dinner', thresholdHour: MISSED_MEAL_HOURS.dinner },
 ];
 
 export function getMissedMeals(log: DailyLog): string[] {
