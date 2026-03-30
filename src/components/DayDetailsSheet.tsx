@@ -487,6 +487,8 @@ export default function DayDetailsSheet({ open, date, onClose, onChanged }: Prop
                 />
               </Section>
             )}
+            </>
+            )}
           </div>
         </motion.div>
       </motion.div>
