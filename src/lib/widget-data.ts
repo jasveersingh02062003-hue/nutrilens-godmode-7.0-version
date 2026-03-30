@@ -97,7 +97,7 @@ function getDynamicMessage(
   if (eaten === 0 && hour < 11) {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yKey = yesterday.toISOString().split('T')[0];
+    const yKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
     const yLog = getDailyLog(yKey);
     if (yLog.meals.length === 0) return "Let's get back on track today 💪";
     return "Good morning! Ready to start logging? 🌞";

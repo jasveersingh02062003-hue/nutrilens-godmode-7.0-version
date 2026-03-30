@@ -1,6 +1,8 @@
 // ─── Pantry Management ───
 // Tracks grocery inventory with FIFO costing and low-stock alerts
 
+import { toLocalDateStr } from './date-utils';
+
 export interface PantryItem {
   id: string;
   name: string;
@@ -109,8 +111,10 @@ export interface LowStockAlert {
 export function getLowStockAlerts(): LowStockAlert[] {
   const items = getPantryItems();
   const alerts: LowStockAlert[] = [];
-  const today = new Date().toISOString().split('T')[0];
-  const threeDaysLater = new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0];
+  const today = toLocalDateStr();
+  const threeDays = new Date();
+  threeDays.setDate(threeDays.getDate() + 3);
+  const threeDaysLater = toLocalDateStr(threeDays);
 
   for (const item of items) {
     const pctLeft = item.originalQuantity > 0 ? (item.quantity / item.originalQuantity) * 100 : 0;

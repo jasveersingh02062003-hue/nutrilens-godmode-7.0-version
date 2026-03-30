@@ -784,7 +784,7 @@ function AddExpenseSheet({ open, onClose, onSaved, editingExpense }: {
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Expense['category']>('other');
   const [isFree, setIsFree] = useState(false);
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; });
 
   useEffect(() => {
     if (editingExpense) {
@@ -795,7 +795,7 @@ function AddExpenseSheet({ open, onClose, onSaved, editingExpense }: {
       setDate(editingExpense.date);
     } else {
       setDesc(''); setAmount(''); setCategory('other'); setIsFree(false);
-      setDate(new Date().toISOString().split('T')[0]);
+      setDate(() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; });
     }
   }, [editingExpense, open]);
 
@@ -1047,7 +1047,7 @@ function PantrySheet({ open, onClose, onSaved }: {
       quantity: Number(qty),
       unit,
       pricePaid: Number(price) || 0,
-      purchaseDate: new Date().toISOString().split('T')[0],
+      purchaseDate: (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; })(),
       category: 'grocery',
     });
     setName(''); setQty(''); setPrice('');

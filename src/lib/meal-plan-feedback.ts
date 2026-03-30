@@ -30,7 +30,7 @@ export function saveMealPlanFeedback(recipeId: string, feedback: { eaten: boolea
   store.entries.push({
     recipeId,
     ...feedback,
-    date: new Date().toISOString().split('T')[0],
+    date: new Date().toISOString().split('T')[0], // timestamp-style date, not date-key critical
   });
   saveStore(store);
 }

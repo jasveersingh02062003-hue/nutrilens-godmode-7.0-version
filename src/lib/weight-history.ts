@@ -4,6 +4,8 @@
 // entries with optional verified photos.
 // ==========================================
 
+import { toLocalDateStr } from './date-utils';
+
 export interface WeightEntry {
   id: string;
   date: string;          // YYYY-MM-DD
@@ -91,7 +93,7 @@ export function getWeightStreak(): number {
   for (let i = 0; i < 52; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() - i * 7);
-    const ws = getWeekStart(d.toISOString().split('T')[0]);
+    const ws = getWeekStart(toLocalDateStr(d));
 
     if (verifiedWeeks.has(ws)) {
       streak++;

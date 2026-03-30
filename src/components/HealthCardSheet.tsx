@@ -16,7 +16,7 @@ function get7DayAverages() {
   for (let i = 0; i < 7; i++) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const key = d.toISOString().split('T')[0];
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     const log = getDailyLog(key);
     if (log.meals.length > 0) {
       days++;

@@ -46,7 +46,8 @@ const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapMeal, onMarkCooked }: Props) {
   const [selectedDayIdx, setSelectedDayIdx] = useState(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
     const idx = plan.days.findIndex(d => d.date === today);
     return idx >= 0 ? idx : 0;
   });
@@ -227,7 +228,7 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
         <div className="flex gap-1.5 overflow-x-auto pb-1">
           {plan.days.map((day, idx) => {
             const d = new Date(day.date + 'T00:00:00');
-            const isToday = day.date === new Date().toISOString().split('T')[0];
+            const isToday = day.date === `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`;
             const active = idx === selectedDayIdx;
             const isLogged = loggedDays.has(day.date);
             let dayCost = 0;

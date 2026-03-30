@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { getDailyLog, getDailyTotals, addMealToLog, type MealEntry } from '@/lib/store';
+import { getDailyLog, getDailyTotals, addMealToLog, type MealEntry, getTodayKey } from '@/lib/store';
+import { toLocalDateStr } from '@/lib/date-utils';
 import { toast } from 'sonner';
 import { Copy } from 'lucide-react';
 
@@ -10,10 +11,10 @@ interface Props {
 export default function RepeatMealsButton({ onApplied }: Props) {
   const [applied, setApplied] = useState(false);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayKey();
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayKey = yesterday.toISOString().split('T')[0];
+  const yesterdayKey = toLocalDateStr(yesterday);
 
   const todayLog = getDailyLog(today);
   const yesterdayLog = getDailyLog(yesterdayKey);

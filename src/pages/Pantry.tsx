@@ -131,7 +131,7 @@ function AddItemForm({ onClose, onAdded }: { onClose: () => void; onAdded: () =>
       quantity: Number(qty),
       unit,
       pricePaid: Number(price) || 0,
-      purchaseDate: new Date().toISOString().split('T')[0],
+      purchaseDate: (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; })(),
       expiryDate: expiryDate || undefined,
       category: 'grocery',
     });

@@ -1,6 +1,8 @@
 // ─── Dynamic Market Pricing Engine ───
 // Seeded with typical Indian market prices (national averages)
 
+import { toLocalDateStr } from './date-utils';
+
 export interface PriceEntry {
   id: string;
   itemName: string;
@@ -143,7 +145,7 @@ function initPriceDB(): PriceEntry[] {
   const existing = localStorage.getItem(PRICE_DB_KEY);
   if (existing) return JSON.parse(existing);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateStr();
   const entries: PriceEntry[] = SEED_PRICES.map(p => ({
     ...p,
     id: generateId(),
@@ -230,7 +232,7 @@ function getUserOverrides(): PriceEntry[] {
 export function saveUserPriceOverride(itemName: string, price: number, unit: string) {
   const overrides = getUserOverrides();
   const existing = overrides.find(p => p.itemName.toLowerCase() === itemName.toLowerCase());
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateStr();
 
   if (existing) {
     existing.basePrice = price;

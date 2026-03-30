@@ -4,7 +4,7 @@
 // Priority-scored, action-driven, pattern-detecting,
 // feedback-learning coaching engine.
 
-import { DailyLog, UserProfile, getDailyTotals, getRecentLogs } from './store';
+import { DailyLog, UserProfile, getDailyTotals, getRecentLogs, getTodayKey } from './store';
 import { getStreaks } from './streaks';
 import { getUserConditions as getUserConditionsImported } from './condition-coach';
 
@@ -104,7 +104,7 @@ export function saveCoachSettings(s: CoachSettings) {
 
 function getCoachState(): CoachState {
   const d = localStorage.getItem(STATE_KEY);
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayKey();
   if (d) {
     const parsed: CoachState = JSON.parse(d);
     if (parsed.lastDismissDate !== today) {
@@ -741,7 +741,7 @@ export function evaluateCoach(profile: UserProfile, log: DailyLog): CoachMessage
   // ─── 8. Weekly report (Monday 8 AM) ───
   if (settings.weeklyReports && dayOfWeek === 1 && hour >= 8 && hour < 12) {
     const state = getCoachState();
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayKey();
     if (state.lastWeeklyReport !== today) {
       const report = generateWeeklyReport(profile);
       if (report) {
@@ -811,7 +811,7 @@ export function evaluateCoach(profile: UserProfile, log: DailyLog): CoachMessage
   // Mark weekly report as sent
   if (chosen.id === 'weekly_report') {
     const state = getCoachState();
-    state.lastWeeklyReport = new Date().toISOString().split('T')[0];
+    state.lastWeeklyReport = getTodayKey();
     saveCoachState(state);
   }
 

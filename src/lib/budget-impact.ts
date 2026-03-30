@@ -32,7 +32,8 @@ export function savingsToEquivalents(saved: number): string[] {
 
 export function getMonthlySavings(): MonthlySavingsResult {
   const budget = getBudgetSettings();
-  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const thisMonth = today.slice(0, 7);
   const monthlyBudget = Math.round((budget.weeklyBudget || 0) * 4.33);
 

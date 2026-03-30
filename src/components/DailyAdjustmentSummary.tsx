@@ -14,11 +14,12 @@ import {
 } from '@/lib/redistribution-service';
 import { toast } from 'sonner';
 import { isPremium } from '@/lib/subscription-service';
+import { toLocalDateStr } from '@/lib/date-utils';
 
 export default function DailyAdjustmentSummary() {
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  const yKey = yesterday.toISOString().split('T')[0];
+  const yKey = toLocalDateStr(yesterday);
 
   const [dismissed, setDismissed] = useState(wasSummaryShown(yKey));
   const adjustments = getYesterdayAdjustments();

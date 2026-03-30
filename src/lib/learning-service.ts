@@ -7,6 +7,7 @@ import { getRecentLogs, getDailyTotals } from './store';
 import { getSymptomLogs } from './symptom-service';
 import { userHasHealthConditions } from './health-score';
 import type { UserProfile } from './store';
+import { toLocalDateStr } from './date-utils';
 
 const LEARNING_KEY = 'nutrilens_learning';
 const NUDGE_SEEN_KEY = 'nutrilens_nudges_seen';
@@ -144,7 +145,7 @@ export function getActiveNudges(profile: UserProfile | null): Nudge[] {
 
   // 5. Symptom logging reminder
   const symptoms = getSymptomLogs();
-  const todayKey = new Date().toISOString().split('T')[0];
+  const todayKey = toLocalDateStr();
   const loggedToday = symptoms.some((s: any) => s.date === todayKey);
   if (!loggedToday && daysWithMeals.length > 0 && !wasNudgeSeenRecently('symptom_reminder', 24)) {
     nudges.push({

@@ -6,6 +6,7 @@
 
 import { DailyLog, UserProfile, getDailyTotals, getRecentLogs } from './store';
 import { getUserConditions } from './condition-coach';
+import { toLocalDateStr } from './date-utils';
 
 // ── Types ──
 
@@ -374,7 +375,7 @@ export interface PatternSnapshot {
 }
 
 export function savePatternSnapshot(patterns: DetectedPattern[]) {
-  const key = new Date().toISOString().split('T')[0];
+  const key = toLocalDateStr();
   const history: PatternSnapshot[] = getPatternHistory();
   // Keep last 12 weeks
   history.push({ date: key, patterns });

@@ -28,7 +28,7 @@ export default function FoodArchive() {
     const groups: Record<string, DailyLog[]> = {};
 
     // Free users: only last 7 days
-    const cutoff = isFree ? new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0] : '';
+    const cutoff = isFree ? (() => { const d = new Date(Date.now() - 7 * 86400000); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })() : '';
 
     for (const date of dates) {
       if (isFree && date < cutoff) continue;
@@ -130,7 +130,7 @@ export default function FoodArchive() {
 
       <DayDetailsSheet
         open={!!selectedDate}
-        date={selectedDate || new Date().toISOString().split('T')[0]}
+        date={selectedDate || (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; })()}
         onClose={() => setSelectedDate(null)}
         onChanged={refresh}
       />

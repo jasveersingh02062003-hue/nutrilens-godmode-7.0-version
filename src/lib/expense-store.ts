@@ -109,9 +109,10 @@ export function getWeekDateRange(): { start: string; end: string } {
   monday.setDate(now.getDate() - diff);
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
+  const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   return {
-    start: monday.toISOString().split('T')[0],
-    end: sunday.toISOString().split('T')[0],
+    start: fmt(monday),
+    end: fmt(sunday),
   };
 }
 
@@ -119,9 +120,10 @@ export function getMonthDateRange(): { start: string; end: string } {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), 1);
   const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   return {
-    start: start.toISOString().split('T')[0],
-    end: end.toISOString().split('T')[0],
+    start: fmt(start),
+    end: fmt(end),
   };
 }
 

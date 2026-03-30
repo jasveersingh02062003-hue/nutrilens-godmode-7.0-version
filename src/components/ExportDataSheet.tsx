@@ -76,7 +76,7 @@ export default function ExportDataSheet({ open, onClose }: Props) {
       }
 
       const csv = csvParts.join('\n\n');
-      downloadCSV(csv, `nutrilens-export-${new Date().toISOString().split('T')[0]}.csv`);
+      downloadCSV(csv, `nutrilens-export-${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}.csv`);
       toast.success('Data exported successfully!');
     } catch (e) {
       toast.error('Export failed');

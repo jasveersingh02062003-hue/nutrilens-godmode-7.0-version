@@ -1,12 +1,13 @@
-import { getDailyLog, getDailyTotals, getProfile } from '@/lib/store';
+import { getDailyLog, getDailyTotals, getProfile, getTodayKey } from '@/lib/store';
 import { getProteinTarget } from '@/lib/calorie-correction';
+import { toLocalDateStr } from '@/lib/date-utils';
 
 export default function TimeInsightCard() {
   const profile = getProfile();
   if (!profile) return null;
 
   const hour = new Date().getHours();
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayKey();
   const todayLog = getDailyLog(today);
   const todayTotals = getDailyTotals(todayLog);
   const proteinTarget = getProteinTarget(profile);
@@ -16,7 +17,7 @@ export default function TimeInsightCard() {
   if (hour >= 6 && hour < 11) {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayLog = getDailyLog(yesterday.toISOString().split('T')[0]);
+    const yesterdayLog = getDailyLog(toLocalDateStr(yesterday));
     const dinnerMeals = yesterdayLog.meals.filter(m => m.type === 'dinner');
     const dinnerCal = dinnerMeals.reduce((s, m) => s + m.items.reduce((is, i) => is + (i.calories || 0) * (i.quantity || 1), 0), 0);
     const yesterdayTotal = getDailyTotals(yesterdayLog).eaten;

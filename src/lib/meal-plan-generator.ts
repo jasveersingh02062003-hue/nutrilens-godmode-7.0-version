@@ -7,6 +7,7 @@ import { getFeedbackScoreModifier } from './meal-plan-feedback';
 import { getComplexityRecommendation, getAdherenceHistory } from './adherence-service';
 import { aggregateIngredients, formatGrams } from './portion-engine';
 import { computePES, getMealTargetCalories } from './pes-engine';
+import { toLocalDateStr } from './date-utils';
 
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -219,7 +220,7 @@ export function generateSimplePlan(profile: MealPlannerProfile): WeekPlan {
   const day = weekStart.getDay();
   const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1);
   weekStart.setDate(diff);
-  const weekStartStr = weekStart.toISOString().split('T')[0];
+  const weekStartStr = toLocalDateStr(weekStart);
 
   const mealTypes = ['breakfast', 'lunch', 'dinner'];
   if (profile.mealsPerDay > 3) mealTypes.push('snack');
@@ -229,7 +230,7 @@ export function generateSimplePlan(profile: MealPlannerProfile): WeekPlan {
   for (let i = 0; i < 7; i++) {
     const date = new Date(weekStart);
     date.setDate(date.getDate() + i);
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = toLocalDateStr(date);
 
     const meals: PlannedMealWithReason[] = mealTypes.map(type => {
       const options = SIMPLE_MEALS[type] || SIMPLE_MEALS.snack;
@@ -315,7 +316,7 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
   const day = weekStart.getDay();
   const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1);
   weekStart.setDate(diff);
-  const weekStartStr = weekStart.toISOString().split('T')[0];
+  const weekStartStr = toLocalDateStr(weekStart);
 
   const healthTags = getHealthTags(healthConditions, womenHealth);
   const tags = [...(profile.dietaryPrefs || []), ...healthTags];
@@ -357,7 +358,7 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
   for (let i = 0; i < 7; i++) {
     const date = new Date(weekStart);
     date.setDate(date.getDate() + i);
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = toLocalDateStr(date);
     const dayOfMonth = date.getDate();
     const dayOfWeek = date.getDay();
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;

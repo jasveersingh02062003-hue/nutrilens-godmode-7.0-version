@@ -4,6 +4,7 @@
 // ==========================================
 
 import { getAllLogDates, getDailyLog } from './store';
+import { toLocalDateStr } from './date-utils';
 
 const LAST_LOG_KEY = 'nutrilens_last_log_date';
 const RESTART_DISMISSED_KEY = 'nutrilens_dropoff_dismissed';
@@ -15,7 +16,7 @@ export interface DropOffResult {
 }
 
 export function updateLastLogDate(): void {
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateStr();
   const log = getDailyLog(today);
   if (log.meals.length > 0) {
     localStorage.setItem(LAST_LOG_KEY, today);
@@ -23,7 +24,7 @@ export function updateLastLogDate(): void {
 }
 
 export function checkDropOff(): DropOffResult {
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateStr();
 
   // Check if already dismissed today
   const dismissed = localStorage.getItem(RESTART_DISMISSED_KEY);
@@ -60,7 +61,7 @@ export function checkDropOff(): DropOffResult {
 }
 
 export function dismissDropOff(): void {
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateStr();
   localStorage.setItem(RESTART_DISMISSED_KEY, today);
   localStorage.setItem(LAST_LOG_KEY, today);
 }

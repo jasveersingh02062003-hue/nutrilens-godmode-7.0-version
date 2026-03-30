@@ -4,7 +4,7 @@
 
 import { calculateBMI, calculateBMR, calculateTDEE, calculateDailyTargets, getActivityMultiplier, calculateTDEEFromWorkExercise } from './nutrition';
 import { getWeightEntries } from './weight-history';
-import { getRecentLogs, getDailyTotals, type UserProfile } from './store';
+import { getRecentLogs, getDailyTotals, type UserProfile, getComputedAge } from './store';
 
 // ── Types ──
 
