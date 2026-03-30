@@ -379,7 +379,7 @@ export function generateReportHTML(startDate: string, endDate: string): string {
   const days: DailyLog[] = [];
 
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const key = d.toISOString().split('T')[0];
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     days.push(getDailyLog(key));
   }
 

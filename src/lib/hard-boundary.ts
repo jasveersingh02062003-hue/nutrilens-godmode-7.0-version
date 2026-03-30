@@ -17,7 +17,8 @@ export interface HardBoundaryAlert {
 
 export function checkWeeklySurplus(): HardBoundaryAlert | null {
   const lastCheck = localStorage.getItem(COOLDOWN_KEY);
-  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   if (lastCheck === today) return null;
 
   const balances = getDailyBalances();
@@ -37,7 +38,8 @@ export function checkWeeklySurplus(): HardBoundaryAlert | null {
 }
 
 export function applyHardReset(): void {
-  const today = new Date().toISOString().split('T')[0];
+  const now2 = new Date();
+  const today = `${now2.getFullYear()}-${String(now2.getMonth() + 1).padStart(2, '0')}-${String(now2.getDate()).padStart(2, '0')}`;
   localStorage.setItem(COOLDOWN_KEY, today);
 
   const log: Array<{ date: string; surplus: number }> = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
@@ -50,6 +52,7 @@ export function applyHardReset(): void {
 }
 
 export function dismissHardBoundary(): void {
-  const today = new Date().toISOString().split('T')[0];
+  const now3 = new Date();
+  const today = `${now3.getFullYear()}-${String(now3.getMonth() + 1).padStart(2, '0')}-${String(now3.getDate()).padStart(2, '0')}`;
   localStorage.setItem(COOLDOWN_KEY, today);
 }
