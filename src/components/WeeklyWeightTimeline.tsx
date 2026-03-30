@@ -19,7 +19,8 @@ export default function WeeklyWeightTimeline({ refreshKey, onLogWeight }: Props)
     return `${d.getDate()} ${month}`;
   };
 
-  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const currentWeekStart = weeks.find(w => w.weekStart <= today)?.weekStart;
 
   return (
