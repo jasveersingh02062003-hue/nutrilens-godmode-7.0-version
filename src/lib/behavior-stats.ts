@@ -6,6 +6,7 @@
 
 import { getProfile, getDailyLog, saveProfile, type UserProfile, getTodayKey } from './store';
 import { getEatingPattern, getBehaviorMemory, type EatingPattern } from './smart-adjustment';
+import { toLocalDateStr } from './date-utils';
 
 const BEHAVIOR_STATS_KEY = 'nutrilens_behavior_stats';
 const WEEKLY_ADAPTATION_KEY = 'nutrilens_weekly_adaptation';
@@ -336,7 +337,7 @@ function getWeekKey(): string {
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   const monday = new Date(d.getFullYear(), d.getMonth(), diff);
-  return monday.toISOString().split('T')[0];
+  return toLocalDateStr(monday);
 }
 
 function getLast7DaysData(profile: UserProfile): Array<{ calories: number; target: number; mealsLogged: number; totalMeals: number }> {
@@ -346,7 +347,7 @@ function getLast7DaysData(profile: UserProfile): Array<{ calories: number; targe
   for (let i = 1; i <= 7; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
-    const dateKey = d.toISOString().split('T')[0];
+    const dateKey = toLocalDateStr(d);
     const log = getDailyLog(dateKey);
     const totalCalories = log.meals.reduce((s, m) => s + m.totalCalories, 0);
     const mealsLogged = new Set(log.meals.map(m => m.type)).size;

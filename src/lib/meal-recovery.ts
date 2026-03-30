@@ -1,5 +1,7 @@
 import { WeekPlan, DayPlan, getWeekPlan, getCurrentWeekStart } from './meal-planner-store';
 import { recipes } from './recipes';
+import { toLocalDateStr } from './date-utils';
+import { recipes } from './recipes';
 
 // ─── Yesterday Actuals ───
 
@@ -20,7 +22,7 @@ export function getYesterdayActuals(): { planned: DayActuals; actual: DayActuals
 
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  const yStr = yesterday.toISOString().split('T')[0];
+  const yStr = toLocalDateStr(yesterday);
 
   const dayPlan = plan.days.find(d => d.date === yStr);
   if (!dayPlan) return null;

@@ -102,8 +102,8 @@ export function getCurrentWeekStart(): string {
   const d = new Date();
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(d.setDate(diff));
-  return monday.toISOString().split('T')[0];
+  const monday = new Date(d.getFullYear(), d.getMonth(), diff);
+  return `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
 }
 
 export function markMealCooked(weekStart: string, date: string, recipeId: string) {
