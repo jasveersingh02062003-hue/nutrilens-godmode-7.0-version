@@ -33,7 +33,7 @@ export function getWeekStart(dateStr: string): string {
   const day = d.getDay(); // 0=Sun, 1=Mon...
   const diff = day === 0 ? 6 : day - 1; // days since Monday
   d.setDate(d.getDate() - diff);
-  return d.toISOString().split('T')[0];
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export function addWeightEntry(entry: WeightEntry) {
@@ -62,7 +62,7 @@ export function getWeeklyWeightEntries(weeks: number = 12): Array<{
   for (let i = 0; i < weeks; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() - i * 7);
-    const ws = getWeekStart(d.toISOString().split('T')[0]);
+    const ws = getWeekStart(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
 
     // Find entries for this week
     const weekEntries = all.filter(e => e.weekStart === ws);

@@ -26,13 +26,16 @@ export function detectPlateau(): { detected: boolean; daysSinceChange: number } 
   const latest = entries[entries.length - 1];
   const tenDaysAgo = new Date();
   tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
-  const tenDaysAgoStr = tenDaysAgo.toISOString().split('T')[0];
+  const tenDaysAgoStr = `${tenDaysAgo.getFullYear()}-${String(tenDaysAgo.getMonth() + 1).padStart(2, '0')}-${String(tenDaysAgo.getDate()).padStart(2, '0')}`;
 
   const olderEntries = entries.filter(e => e.date <= tenDaysAgoStr);
   if (olderEntries.length === 0) return { detected: false, daysSinceChange: 0 };
 
   const referenceEntry = olderEntries[olderEntries.length - 1];
-  const weightChange = Math.abs(latest.weight - referenceEntry.weight);
+  // Normalize weights to kg for comparison
+  const latestKg = latest.unit === 'lbs' ? latest.weight * 0.453592 : latest.weight;
+  const refKg = referenceEntry.unit === 'lbs' ? referenceEntry.weight * 0.453592 : referenceEntry.weight;
+  const weightChange = Math.abs(latestKg - refKg);
 
   // Calculate days between
   const daysBetween = Math.round(
@@ -53,7 +56,8 @@ export function applyPlateauAdjustment(): PlateauAdjustment | null {
 
   // Check if already adjusted recently
   const adjustments: PlateauAdjustment[] = JSON.parse(localStorage.getItem(PLATEAU_KEY) || '[]');
-  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const recentAdjustment = adjustments.find(a => {
     const daysSince = Math.round(
       (new Date(today).getTime() - new Date(a.date).getTime()) / (1000 * 60 * 60 * 24)
@@ -81,8 +85,21 @@ export function applyPlateauAdjustment(): PlateauAdjustment | null {
   adjustments.push(adjustment);
   localStorage.setItem(PLATEAU_KEY, JSON.stringify(adjustments));
 
-  // Update profile (protein stays locked)
-  saveProfile({ ...profile, dailyCalories: newTarget });
+  // Update profile — protein stays locked, preserve original target
+  const updatedProfile = { ...profile, dailyCalories: newTarget };
+  if (!profile.originalDailyCalories) {
+    updatedProfile.originalDailyCalories = previousTarget;
+  }
+  // Redistribute carbs/fat only (protein locked)
+  const proteinCals = profile.dailyProtein * 4;
+  const remainingOld = previousTarget - proteinCals;
+  const remainingNew = newTarget - proteinCals;
+  if (remainingOld > 0) {
+    const ratio = remainingNew / remainingOld;
+    updatedProfile.dailyCarbs = Math.round(profile.dailyCarbs * ratio);
+    updatedProfile.dailyFat = Math.round(profile.dailyFat * ratio);
+  }
+  saveProfile(updatedProfile);
 
   return adjustment;
 }

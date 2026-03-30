@@ -96,21 +96,26 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!profile?.onboardingComplete) navigate('/onboarding');
-    // Apply carry-over from yesterday
-    const co = getPendingCarryOver();
-    if (co) {
-      applyCarryOver(getTodayKey());
-      toast.info(`+${co.calories} kcal carried over from yesterday`);
-    }
-    // Apply overage carry-over from previous day
-    const carryResult = applyOverageCarryOver(getTodayKey());
-    if (carryResult === 'applied') {
-      toast.info('Yesterday\'s overage adjustment applied to today\'s meals');
-    }
-    // Apply exercise carry-forward from previous day
-    const exerciseCarry = applyCarryForwardToday(getTodayKey());
-    if (exerciseCarry) {
-      toast.info(`📅 Exercise carry-forward: +${exerciseCarry.lunch} lunch, +${exerciseCarry.dinner} dinner`);
+    // Idempotency guard: only apply carry-overs once per day
+    const carryGuardKey = `carry_applied_${getTodayKey()}`;
+    if (!localStorage.getItem(carryGuardKey)) {
+      localStorage.setItem(carryGuardKey, '1');
+      // Apply carry-over from yesterday
+      const co = getPendingCarryOver();
+      if (co) {
+        applyCarryOver(getTodayKey());
+        toast.info(`+${co.calories} kcal carried over from yesterday`);
+      }
+      // Apply overage carry-over from previous day
+      const carryResult = applyOverageCarryOver(getTodayKey());
+      if (carryResult === 'applied') {
+        toast.info('Yesterday\'s overage adjustment applied to today\'s meals');
+      }
+      // Apply exercise carry-forward from previous day
+      const exerciseCarry = applyCarryForwardToday(getTodayKey());
+      if (exerciseCarry) {
+        toast.info(`📅 Exercise carry-forward: +${exerciseCarry.lunch} lunch, +${exerciseCarry.dinner} dinner`);
+      }
     }
     // Fetch live weather
     fetchLiveWeather().then(setWeather).catch(() => {});

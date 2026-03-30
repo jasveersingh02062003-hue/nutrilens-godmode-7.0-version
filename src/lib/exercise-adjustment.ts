@@ -548,9 +548,9 @@ export function revertExerciseAdjustment(activityId: string, activityType: strin
 // ── Helpers ──
 
 function getNextDayKey(date: string): string {
-  const d = new Date(date + 'T00:00:00');
+  const d = new Date(date + 'T12:00:00');
   d.setDate(d.getDate() + 1);
-  return d.toISOString().split('T')[0];
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // ── Summary for UI ──

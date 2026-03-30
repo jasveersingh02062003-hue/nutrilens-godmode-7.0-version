@@ -9,6 +9,8 @@ import { UserProfile, getProfile, saveProfile } from '@/lib/store';
 import { supabase } from '@/integrations/supabase/client';
 import { restoreLogsFromCloud } from '@/lib/daily-log-sync';
 import { migrateLocalDataToCloud } from '@/lib/cloud-migration';
+import { clearEngineCache } from '@/lib/calorie-correction';
+import { initStorageCleanup } from '@/lib/storage-cleanup';
 import type { PCOSCondition } from '@/lib/pcos-score';
 
 // Extended conditions interface
@@ -171,6 +173,7 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
           // Restore daily logs and migrate localStorage data in background
           restoreLogsFromCloud().catch(() => {});
           migrateLocalDataToCloud().catch(() => {});
+          initStorageCleanup();
           return;
         }
 
@@ -197,7 +200,8 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
         setIsLoaded(false);
         void loadFromCloud(session.user.id);
       } else {
-        // Logged out
+        // Logged out — clear engine caches to prevent stale data
+        clearEngineCache();
         setProfile(null);
         setLoadedUserId(null);
         setIsLoaded(true);

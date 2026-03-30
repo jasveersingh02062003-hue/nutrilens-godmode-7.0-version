@@ -226,6 +226,7 @@ const VALID_MODES: CorrectionMode[] = ['aggressive', 'balanced', 'relaxed'];
 
 // In-memory cache — localStorage is persistence only, never runtime source
 let _cachedMode: CorrectionMode | null = null;
+let _balancesCache: { key: string; result: DailyBalanceEntry[] } | null = null;
 
 function sanitizeMode(raw: string | null): CorrectionMode {
   if (raw && VALID_MODES.includes(raw as CorrectionMode)) return raw as CorrectionMode;
@@ -252,8 +253,18 @@ export function setCorrectionMode(mode: CorrectionMode) {
 export function recomputeCalorieEngine(): void {
   // Invalidate memoization cache
   _adjMapCache = null;
+  _balancesCache = null;
   // Then notify all UI subscribers to re-read from pure functions
   notifyUICallbacks();
+}
+
+/**
+ * Clear all engine caches — call on logout/user switch.
+ */
+export function clearEngineCache(): void {
+  _cachedMode = null;
+  _adjMapCache = null;
+  _balancesCache = null;
 }
 
 /**
@@ -477,9 +488,9 @@ export function finalizeDay(date: string): void {
   const frozen = loadFrozenTargets();
   frozen[date] = frozenTarget;
   
-  // Clean old entries (keep last 60 days)
+  // Clean old entries (keep last 365 days for long-term accuracy)
   const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 60);
+  cutoff.setDate(cutoff.getDate() - 365);
   const cutoffStr = toLocalDateKey(cutoff);
   for (const key of Object.keys(frozen)) {
     if (key < cutoffStr) delete frozen[key];
@@ -637,6 +648,12 @@ export function getDailyBalances(baseTarget?: number): DailyBalanceEntry[] {
   const frozenTargets = loadFrozenTargets();
   const dates = getAllLogDates().sort();
 
+  // Memoization: return cached result if inputs haven't changed
+  const cacheKey = `${target}:${tdee}:${dates.length}:${dates[dates.length - 1] || ''}`;
+  if (_balancesCache && _balancesCache.key === cacheKey) {
+    return _balancesCache.result;
+  }
+
   const balances: DailyBalanceEntry[] = [];
   for (const date of dates) {
     const log = getDailyLog(date);
@@ -654,8 +671,10 @@ export function getDailyBalances(baseTarget?: number): DailyBalanceEntry[] {
       adjustedTarget,
     });
 
-    // Debug trace — catch math issues during dev
-    console.debug('[CalorieEngine] Balance:', { date, actual: totals.eaten, baseTarget: target, diff: Math.round(diff) });
+    // Debug trace — only in dev mode
+    if (import.meta.env.DEV) {
+      console.debug('[CalorieEngine] Balance:', { date, actual: totals.eaten, baseTarget: target, diff: Math.round(diff) });
+    }
   }
 
   // 🔒 RECONCILIATION — pure identity check: Σ(diff) + Σ(adj) ≈ 0
@@ -680,6 +699,7 @@ export function getDailyBalances(baseTarget?: number): DailyBalanceEntry[] {
     }
   }
 
+  _balancesCache = { key: cacheKey, result: balances };
   return balances;
 }
 
@@ -843,7 +863,7 @@ export function isTargetAdjusted(profile: UserProfile | null): boolean {
   if (!p) return false;
   const original = p.dailyCalories || 1600;
   const adjusted = getAdjustedDailyTarget(p);
-  return Math.abs(adjusted - original) > 10;
+  return Math.abs(adjusted - original) > 5;
 }
 
 /**
@@ -857,11 +877,12 @@ export function getBalanceStreak(): number {
   const today = getEffectiveDate();
 
   let streak = 0;
-  // Walk backwards from yesterday — always measure against baseTarget
+  // Walk backwards from yesterday — measure against adjustedTarget if available
   for (let i = balances.length - 1; i >= 0; i--) {
     const b = balances[i];
     if (b.date >= today) continue;
-    const effectiveDiff = b.actual - b.target; // ALWAYS baseTarget, never adjustedTarget
+    const compareTarget = b.adjustedTarget || b.target;
+    const effectiveDiff = b.actual - compareTarget;
     if (Math.abs(effectiveDiff) <= 100) {
       streak++;
     } else {

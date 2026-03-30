@@ -28,6 +28,7 @@ export interface UserProfile {
   waterGoal: number;
   onboardingComplete: boolean;
   dailyCalories: number;
+  originalDailyCalories?: number; // Set once during onboarding, never mutated by plateau/adaptation
   trackingMode?: 'flex' | 'strict';
   dailyProtein: number;
   dailyCarbs: number;
@@ -171,6 +172,21 @@ const PHOTOS_KEY = 'nutrilens_progress_photos';
 export function getProfile(): UserProfile | null {
   const data = localStorage.getItem(PROFILE_KEY);
   return data ? JSON.parse(data) : null;
+}
+
+/** Get dynamically computed age from DOB (falls back to stored age) */
+export function getComputedAge(profile: UserProfile): number {
+  if (profile.dob) {
+    const dob = new Date(profile.dob + 'T00:00:00');
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+    return age;
+  }
+  return profile.age;
 }
 
 export function saveProfile(profile: UserProfile) {
