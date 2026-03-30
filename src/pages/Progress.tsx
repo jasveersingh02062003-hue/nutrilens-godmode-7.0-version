@@ -250,9 +250,9 @@ export default function ProgressPage() {
             {calendarDays.map(d => (
               <button
                 key={d.day}
-                onClick={() => !d.locked && setSelectedDate(d.dateStr)}
-                disabled={d.locked}
-                className={`flex flex-col items-center justify-center py-0.5 group ${d.locked ? 'opacity-30' : ''} ${d.isPreJoin ? 'opacity-40' : ''}`}
+                onClick={() => (d.isPreJoin || !d.locked) && setSelectedDate(d.dateStr)}
+                disabled={d.locked && !d.isPreJoin}
+                className={`flex flex-col items-center justify-center py-0.5 group ${d.locked && !d.isPreJoin ? 'opacity-30' : ''} ${d.isPreJoin ? 'opacity-40' : ''}`}
               >
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-semibold border transition-colors group-active:scale-90 relative
                   ${d.isToday ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''}
