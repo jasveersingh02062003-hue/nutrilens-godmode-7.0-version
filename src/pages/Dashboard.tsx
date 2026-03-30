@@ -87,7 +87,8 @@ export default function Dashboard() {
   const [missedDate, setMissedDate] = useState('');
   const [dropOffModal, setDropOffModal] = useState<{ detected: boolean; daysMissed: number; message: string } | null>(null);
   const [hardBoundaryModal, setHardBoundaryModal] = useState<{ weeklySurplus: number; message: string; suggestion: string } | null>(null);
-  
+  const [showDailyPlan, setShowDailyPlan] = useState(() => !isDailyHidden('daily_plan'));
+
 
   const plannerProfile = getMealPlannerProfile();
   const plannerIncomplete = !plannerProfile || !plannerProfile.onboardingComplete;
@@ -286,6 +287,11 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
+
+        {/* Daily Plan Card (once per day) */}
+        {showDailyPlan && profile && (
+          <DailyPlanCard profile={profile} onDismiss={() => setShowDailyPlan(false)} />
+        )}
 
         {/* Planner setup banner (persistent until completed) */}
         {showPlannerBanner && (
