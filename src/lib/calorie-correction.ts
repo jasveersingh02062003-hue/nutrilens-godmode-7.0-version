@@ -36,6 +36,9 @@ export interface MonthlyStats {
 const PREFS_KEY = 'nutrilens_correction_prefs';
 const FROZEN_TARGETS_KEY = 'nutrilens_frozen_targets'; // date → adjustedTarget
 
+// Phase 3: Memoization cache for adjustment map
+let _adjMapCache: { key: string; result: Record<string, number> } | null = null;
+
 interface CorrectionPrefs {
   specialDays: Record<string, DayType>;
   autoAdjustMeals: boolean;
