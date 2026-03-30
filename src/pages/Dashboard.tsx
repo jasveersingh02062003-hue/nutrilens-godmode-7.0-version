@@ -377,7 +377,7 @@ export default function Dashboard() {
             <button
               key={dt}
               onClick={() => {
-                const today = new Date().toISOString().split('T')[0];
+                const today = getTodayKey();
                 setDayType(today, dt);
                 setCurrentDayType(dt);
                 toast.success(`Day marked as ${dt}`);
