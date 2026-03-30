@@ -8,6 +8,7 @@ import {
   type BudgetSettings,
 } from './expense-store';
 import { getDailyLog, getDailyTotals, getAllLogDates, getTodayKey } from './store';
+import { toLocalDateStr } from './date-utils';
 import { getEnhancedBudgetSettings } from './budget-alerts';
 import { foodDatabase } from './pes-engine';
 
@@ -156,7 +157,7 @@ const BUDGET_ALERT_KEY = 'nutrilens_budget_alert';
 export function checkBudgetAfterMeal(mealCost: number): BudgetAlertResult {
   if (mealCost <= 0) return { level: 'ok', message: '' };
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateStr();
   const todayExpenses = getExpensesForDate(today);
   const spentToday = todayExpenses.reduce((s, e) => s + e.amount, 0);
   const { adjustedDailyBudget, daysRemaining } = getAdjustedDailyBudget();
@@ -214,7 +215,7 @@ export function getCheapMealSuggestion(maxCost: number): { name: string; cost: n
 }
 
 export function setLatestBudgetAlert(alert: BudgetAlertResult): void {
-  const data = { ...alert, timestamp: Date.now(), date: new Date().toISOString().split('T')[0] };
+  const data = { ...alert, timestamp: Date.now(), date: toLocalDateStr() };
   localStorage.setItem(BUDGET_ALERT_KEY, JSON.stringify(data));
 }
 
@@ -224,7 +225,7 @@ export function getLatestBudgetAlert(): (BudgetAlertResult & { timestamp: number
   try {
     const data = JSON.parse(raw);
     // Only show alerts from today
-    if (data.date !== new Date().toISOString().split('T')[0]) {
+    if (data.date !== toLocalDateStr()) {
       localStorage.removeItem(BUDGET_ALERT_KEY);
       return null;
     }
