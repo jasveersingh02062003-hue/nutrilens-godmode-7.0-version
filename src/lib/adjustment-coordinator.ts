@@ -45,8 +45,8 @@ export function getCoordinatedAdjustment(date?: string): CoordinatedAdjustment {
   // 2. Exercise eat-back adjustment
   let exercise = 0;
   try {
-    const exerciseAdj = getExerciseAdjustmentForDate(targetDate);
-    exercise = exerciseAdj?.totalAdded || 0;
+    const logs = getExerciseAdjustments(targetDate);
+    exercise = logs.reduce((sum, l) => sum + (l.addedCalories || 0), 0);
   } catch {
     exercise = 0;
   }
@@ -54,7 +54,7 @@ export function getCoordinatedAdjustment(date?: string): CoordinatedAdjustment {
   // 3. Redistribution carry-over
   let redistribution = 0;
   try {
-    const carryOver = getCarryOverForToday();
+    const carryOver = getPendingCarryOver();
     redistribution = carryOver?.calories || 0;
   } catch {
     redistribution = 0;
