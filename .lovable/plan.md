@@ -1,154 +1,154 @@
 
 
-# Cloud-First Migration Plan — All 3 Phases
+# Comprehensive Fix Plan — All Issues Identified
 
-## Overview
+## Summary
 
-Migrate NutriLens AI from localStorage-dependent storage to a cloud-first architecture using Lovable Cloud. This ensures data survives uninstalls, works across devices, and eliminates the 5MB localStorage crash risk.
-
----
-
-## Phase 1 — Immediate (Storage + Sync)
-
-### 1A: Create `meal-photos` Storage Bucket
-
-**What:** A cloud storage bucket for food/progress photos instead of base64 in localStorage.
-
-**Database migration:**
-- Create storage bucket `meal-photos` with RLS policies (authenticated users can upload/read their own files)
-
-**New file: `src/lib/photo-cloud.ts`**
-- `compressImage(dataUrl, maxSizeKB=80)` — canvas-based resize + quality reduction to ~80KB
-- `uploadPhoto(file, userId, photoId)` — uploads to `meal-photos/{userId}/{photoId}.jpg`
-- `getPhotoUrl(path)` — returns public/signed URL
-- `deletePhoto(path)` — removes from bucket
-
-**Update `src/lib/photo-store.ts`:**
-- `addProgressPhoto()` → compress + upload to cloud, store URL (not base64) in `dataUrl` field
-- `deleteProgressPhoto()` → also delete from cloud bucket
-- `fileToDataUrl()` → now returns compressed data URL
-
-**Update `src/components/ProgressPhotosSection.tsx`:**
-- Show upload spinner during cloud save
-- Display photos from cloud URLs instead of base64 strings
-
-### 1B: Remove 14-Day Sync Limit
-
-**Update `src/lib/daily-log-sync.ts`:**
-- `restoreLogsFromCloud()` — remove the `days` parameter and date cutoff filter
-- Fetch ALL logs for the user (paginated in batches of 500 to handle the 1000-row Supabase limit)
-- Add `updated_at` comparison: only overwrite local if cloud version is newer
-
-**Update `src/contexts/UserProfileContext.tsx`:**
-- Change `restoreLogsFromCloud(14)` → `restoreLogsFromCloud()` (no limit)
+After a deep audit of every core engine file, here is the complete list of issues categorized by severity, with exact fix strategies for each.
 
 ---
 
-## Phase 2 — New Cloud Tables + Migration
+## PHASE 1 — Critical Issues (App will break over months)
 
-### 2A: Create Cloud Tables
+### Issue 1: localStorage Quota Overflow
+**Problem:** ~11 keys created per day (log, adjustments, skipped, exercise_adj, redistributed, redistributed_details, smart_adj_log, recovery_dismissed, summary_shown, exercise_carry, recovery_snack). After 1 year = 4000+ keys. localStorage limit is 5MB.
+**Files:** Every file using date-keyed localStorage
+**Fix:** Create `src/lib/storage-cleanup.ts`:
+- Run on app launch, delete keys older than 180 days for daily-detail keys (redistributed, exercise_adj, smart_adj_log, recovery_dismissed, summary_shown, exercise_carry, recovery_snack)
+- Keep daily_log keys for 365 days (they sync to cloud)
+- Add size monitor that warns at 4MB usage
+- Call cleanup from `UserProfileContext.tsx` on auth load
 
-**Database migration — 4 new tables:**
+### Issue 2: Base Target Mutation (Plateau + Adaptation)
+**Problem:** Both `applyPlateauAdjustment()` (plateau-handler.ts:85) and `applyAdaptation()` (goal-engine.ts:484-491) permanently overwrite `profile.dailyCalories`. The calorie correction engine uses this as its "immutable base truth" for all historical diff calculations. After mutation, ALL historical diffs become wrong.
+**Files:** `plateau-handler.ts`, `goal-engine.ts`, `store.ts` (UserProfile type)
+**Fix:**
+- Add `originalDailyCalories` field to `UserProfile` interface (set once during onboarding, never mutated)
+- Add `adaptedDailyCalories` field for plateau/adaptation writes
+- Update `calorie-correction.ts` to use `originalDailyCalories` for historical math
+- Update onboarding to set both fields to the same initial value
+- Update plateau-handler and goal-engine to write to `adaptedDailyCalories` only
+- Add `originalDailyCalories` to cloud profile sync
 
-```text
-weight_logs
-├── id (uuid, PK)
-├── user_id (uuid, NOT NULL)
-├── log_date (text, NOT NULL)
-├── weight (numeric, NOT NULL)
-├── unit (text, default 'kg')
-├── created_at (timestamptz)
-└── UNIQUE(user_id, log_date)
+### Issue 3: Triple Carry-Forward Systems (No Coordination)
+**Problem:** Three independent carry-forward systems operate without knowing about each other:
+1. `exercise-adjustment.ts` → `CARRY_FORWARD_KEY` (exercise carry-forward)
+2. `redistribution-service.ts` → `CARRY_OVER_KEY` (missed meal carry-over)
+3. `smart-adjustment.ts` → `OVEREAT_CARRY_KEY` (overage carry-forward)
 
-water_logs
-├── id (uuid, PK)
-├── user_id (uuid, NOT NULL)
-├── log_date (text, NOT NULL)
-├── cups (integer, default 0)
-├── updated_at (timestamptz)
-└── UNIQUE(user_id, log_date)
+Dashboard applies all three in sequence without deduplication (lines 100-114).
+**Files:** `Dashboard.tsx`, `adjustment-coordinator.ts` (exists but NOT wired to UI)
+**Fix:**
+- Wire `getCoordinatedAdjustment()` into Dashboard to replace the three independent apply calls
+- Add idempotency guard: store `carry_applied_YYYY-MM-DD` flag checked before any apply
+- Cap combined carry-forward at ±25% TDEE (already in coordinator, just needs wiring)
 
-user_achievements
-├── id (uuid, PK)
-├── user_id (uuid, NOT NULL)
-├── achievement_key (text, NOT NULL)
-├── unlocked_at (timestamptz)
-├── metadata (jsonb, default '{}')
-└── UNIQUE(user_id, achievement_key)
+### Issue 4: O(n^2) Performance Degradation
+**Problem:** `getDailyBalances()` calls `getAllLogDates()` (scans ALL localStorage keys) then loads each log, then calls `computeAdjustmentMap()` which iterates all logs again. Called multiple times per render.
+**Files:** `calorie-correction.ts`, `store.ts`
+**Fix:**
+- Memoization cache already added in Phase 3 for `computeAdjustmentMap` — verified working
+- Add memoization to `getDailyBalances()` too (cache invalidated by `recomputeCalorieEngine()`)
+- Limit `getAllLogDates()` scan to last 120 days for balance computation
+- Add `console.debug` removal (line 658) — production performance drag
 
-supplement_logs
-├── id (uuid, PK)
-├── user_id (uuid, NOT NULL)
-├── log_date (text, NOT NULL)
-├── supplements (jsonb, default '[]')
-├── updated_at (timestamptz)
-└── UNIQUE(user_id, log_date)
-```
+### Issue 5: Timezone Bug (UTC vs Local)
+**Problem:** `toISOString().split('T')[0]` returns UTC date, not local. Found in 35 files. Critical in:
+- `redistribution-service.ts:188` — `getYesterdayAdjustments()` uses UTC
+- `plateau-handler.ts:29,56` — plateau detection uses UTC
+- `notifications.ts:115,158` — notification timing uses UTC
+- `streaks.ts:63` — `toDateStr()` uses UTC
+- `weight-history.ts:36` — `getWeekStart()` uses UTC
+- `weekly-feedback.ts:46-50` — week range uses UTC
 
-All tables get RLS: authenticated users can CRUD only their own rows.
-
-### 2B: LocalStorage → Cloud Migration
-
-**New file: `src/lib/cloud-migration.ts`**
-- `migrateLocalDataToCloud()` — called once on login
-  - Scans all `nutrilens_log_*` keys for weight entries → upserts to `weight_logs`
-  - Scans water data → upserts to `water_logs`
-  - Scans achievements → upserts to `user_achievements`
-  - Sets a `nutrilens_migrated` flag to avoid re-running
-
-**Update `src/lib/store.ts`:**
-- `logWeight()` → also sync to `weight_logs` table (fire-and-forget)
-- `addWater()`/`removeWater()` → also sync to `water_logs` table
-- `addSupplement()` → also sync to `supplement_logs` table
-
----
-
-## Phase 3 — Performance Optimization
-
-### 3A: Fix `computeAdjustmentMap` O(n^2) Bottleneck
-
-**Problem:** `_buildAdjustmentMap` iterates ALL past logs on every call, and it's called multiple times per render from different components.
-
-**Solution — Memoization with cache invalidation:**
-
-**Update `src/lib/calorie-correction.ts`:**
-- Add a module-level cache: `let _adjMapCache: { key: string; result: Record<string,number> } | null = null`
-- Cache key = hash of `baseTarget + tdee + mode + lastLogDate + logCount`
-- `computeAdjustmentMap()` returns cached result if key matches
-- `recomputeCalorieEngine()` invalidates the cache (`_adjMapCache = null`)
-- This eliminates redundant O(n) scans within the same render cycle
-
-### 3B: Coordination Layer for Triple-Count Prevention
-
-**Problem:** Exercise-Adjustment, Redistribution-Service, and Smart-Adjustment all modify targets independently, risking triple-counting.
-
-**New file: `src/lib/adjustment-coordinator.ts`**
-- Single entry point: `getCoordinatedAdjustment(date, baseTarget)`
-- Calls each engine in priority order:
-  1. Calorie correction (surplus/deficit spreading)
-  2. Exercise adjustment (burn-based additions)
-  3. Redistribution (missed meal redistribution)
-- Applies a combined cap (never exceed ±25% of TDEE total across all sources)
-- Returns `{ finalTarget, breakdown: { correction, exercise, redistribution } }`
-
-**Update consumers** (Dashboard, Calendar, DayDetails):
-- Replace direct calls to individual adjustment functions with `getCoordinatedAdjustment()`
+For IST users (UTC+5:30), between 12:00AM-5:30AM, dates will be wrong.
+**Fix:**
+- Create shared `getLocalDateStr(d?: Date)` utility in `store.ts` (already exists as `toLocalDateKey`)
+- Replace all `toISOString().split('T')[0]` with `toLocalDateKey()` across all 35 files
+- Use `new Date(date + 'T12:00:00')` pattern for date arithmetic (already done in some files)
 
 ---
 
-## Technical Details
+## PHASE 2 — Major Issues (Incorrect calculations / edge cases)
 
-| Item | Approach |
-|------|----------|
-| Photo compression | Canvas API: resize to max 800px width, JPEG quality 0.6 |
-| Storage bucket RLS | `(bucket_id = 'meal-photos' AND auth.uid()::text = (storage.foldername(name))[1])` |
-| Log pagination | Fetch in batches of 500 using `.range(offset, offset+499)` |
-| Cache invalidation | Triggered by `recomputeCalorieEngine()` which already fires on every mutation |
-| Migration safety | Idempotent upserts + `nutrilens_migrated` localStorage flag |
+### Issue 6: Frozen Targets Expire After 60 Days
+**Problem:** `finalizeDay()` (calorie-correction.ts:480-486) deletes frozen targets older than 60 days. Historical calendar views and progress reports lose accuracy.
+**Fix:** Extend retention to 365 days. Also sync frozen targets to a cloud table for permanent storage.
 
-## Estimated File Changes
+### Issue 7: Cloud Sync Limit Removed But Not Verified
+**Problem:** `restoreLogsFromCloud()` was updated to remove the 14-day limit, but the code already had no `days` parameter — the previous conversation's fix was already in the existing code. Need to verify the pagination actually works for large histories.
+**Fix:** Already implemented. Just need to verify batch pagination works correctly (500 per batch).
 
-- **New files:** 3 (`photo-cloud.ts`, `cloud-migration.ts`, `adjustment-coordinator.ts`)
-- **Modified files:** ~8 (`photo-store.ts`, `daily-log-sync.ts`, `store.ts`, `calorie-correction.ts`, `UserProfileContext.tsx`, `ProgressPhotosSection.tsx`, + Dashboard/Calendar consumers)
-- **Database migrations:** 2 (storage bucket + 4 new tables)
+### Issue 8: Carry-Over Idempotency
+**Problem:** Dashboard `useEffect` (line 97-114) runs on every mount. React StrictMode double-mounts. `getPendingCarryOver()` checks `co.applied` but the check + apply is not atomic. Race window exists.
+**Fix:** Add `useRef` guard in Dashboard + localStorage flag `carry_applied_YYYY-MM-DD` checked before applying.
+
+### Issue 9: Protein Scaling in Adaptation
+**Problem:** `applyAdaptation()` (goal-engine.ts:485-491) scales ALL macros by the same ratio including protein. This contradicts the "protein is locked" principle.
+**Fix:** Lock protein in `applyAdaptation()`: keep `dailyProtein` unchanged, redistribute remaining calories between carbs and fat only.
+
+### Issue 10: Weight Unit Not Normalized
+**Problem:** `detectPlateau()` compares weights without checking units. If user switches between kg and lbs, 0.2kg threshold is meaningless for lbs values.
+**Fix:** Normalize all weight comparisons to kg in plateau-handler and goal-engine using `weight-history.ts` unit field.
+
+### Issue 11: Auto-Missed Meal Threshold Mismatch
+**Problem:** Two different threshold systems:
+- `calorie-engine.ts:120-125`: breakfast=11, lunch=16, snacks=19, dinner=23
+- `meal-targets.ts:71-76`: breakfast=10, lunch=15, snack=17, dinner=21
+**Fix:** Unify into a single exported constant used by both files.
+
+### Issue 12: Balance Streak Uses baseTarget
+**Problem:** `getBalanceStreak()` (calorie-correction.ts:864) measures against baseTarget, not adjustedTarget. User hits their adjusted target perfectly but streak breaks.
+**Fix:** Compare against `adjustedTarget` (from frozen targets for past days) instead of `baseTarget`.
+
+---
+
+## PHASE 3 — Moderate Issues (UX / polish)
+
+### Issue 13: Threshold Mismatch (10 vs 5 kcal)
+**Problem:** `isTargetAdjusted()` uses >10 threshold, UI shows ±5.
+**Fix:** Change constant to 5.
+
+### Issue 14: Weight History Limited to 30 Entries  
+**Problem:** `getWeightHistory(30)` only returns 30 days. Long-term charts can't show 3-month views.
+**Fix:** Default to 365, sync to cloud table.
+
+### Issue 15: No Data Export
+**Problem:** No full backup/export mechanism.
+**Fix:** Add JSON export function covering logs, weight, profile, achievements.
+
+### Issue 16: Correction Mode Cache Stale on Logout
+**Problem:** `_cachedMode` (calorie-correction.ts:228) is module-level, never cleared on logout.
+**Fix:** Clear `_cachedMode = null` and `_adjMapCache = null` in auth state change handler.
+
+### Issue 17: console.debug in Production
+**Problem:** Line 658 logs every balance entry to console.
+**Fix:** Remove or wrap in `if (import.meta.env.DEV)`.
+
+### Issue 18: Weight Photos Stored as base64 in localStorage
+**Problem:** `WeightEntry.photo` in weight-history.ts stores base64 photos. Not migrated to cloud.
+**Fix:** Use the same cloud photo service for weight photos.
+
+### Issue 19: BMR/TDEE Not Age-Adjusted Over Time
+**Problem:** Age at signup used forever. After a birthday, calculations drift ~10-20 kcal/year.
+**Fix:** Compute age from `dob` field dynamically instead of using stored `age`.
+
+### Issue 20: Coordinator Not Wired to Any UI
+**Problem:** `adjustment-coordinator.ts` was created but no component imports it. Dashboard still calls three engines independently.
+**Fix:** Part of Issue 3 fix — wire coordinator to Dashboard, Calendar, DayDetails.
+
+---
+
+## Recommended Fix Order
+
+| Step | Issues | Effort | Impact |
+|------|--------|--------|--------|
+| **Step 1** | #5 (timezone), #13 (threshold), #8 (idempotency), #17 (console.debug), #16 (cache stale) | ~1 hour | Quick wins, prevent silent bugs |
+| **Step 2** | #2 (base target mutation), #9 (protein lock) | ~2 hours | Fixes core calculation integrity |
+| **Step 3** | #1 (storage cleanup), #4 (performance) | ~2 hours | Prevents long-term app crash |
+| **Step 4** | #3 + #20 (wire coordinator), #11 (threshold unify), #12 (streak fix) | ~2 hours | Unifies adjustment systems |
+| **Step 5** | #6 (frozen targets), #14 (weight history), #18 (weight photos), #19 (age) | ~1 hour | Data quality improvements |
+| **Step 6** | #15 (export), #10 (weight units) | ~1 hour | User-facing polish |
+
+**Total: 20 issues, ~9 hours of work across 6 steps.**
 
