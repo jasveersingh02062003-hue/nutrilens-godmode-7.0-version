@@ -48,16 +48,18 @@ export function getOverspendOptions(mealCost: number): OverspendOption[] {
 
 export function applyDecision(choice: 'continue' | 'recover' | 'ignore'): string {
   if (choice === 'recover') {
+    const { toLocalDateStr } = await import('./date-utils');
     const recovery = {
       active: true,
-      startDate: new Date().toISOString().split('T')[0],
+      startDate: toLocalDateStr(),
       daysLeft: 3,
     };
     localStorage.setItem(RECOVERY_KEY, JSON.stringify(recovery));
     return 'Recovery mode activated for 3 days. Meals will prioritise budget-friendly options.';
   }
   if (choice === 'ignore') {
-    const today = new Date().toISOString().split('T')[0];
+    const { toLocalDateStr } = await import('./date-utils');
+    const today = toLocalDateStr();
     localStorage.setItem('nutrilens_budget_ignored_' + today, 'true');
     return 'Budget tracking paused for today.';
   }

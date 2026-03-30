@@ -1,7 +1,6 @@
 import { WeekPlan, DayPlan, getWeekPlan, getCurrentWeekStart } from './meal-planner-store';
 import { recipes } from './recipes';
 import { toLocalDateStr } from './date-utils';
-import { recipes } from './recipes';
 
 // ─── Yesterday Actuals ───
 
