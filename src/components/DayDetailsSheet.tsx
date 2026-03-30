@@ -150,6 +150,11 @@ export default function DayDetailsSheet({ open, date, onClose, onChanged }: Prop
                       <Lock className="w-2.5 h-2.5" /> Future
                     </span>
                   )}
+                  {isPreJoin && (
+                    <span className="text-[10px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5" /> Before you joined
+                    </span>
+                  )}
                 </div>
               </div>
               <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center">
@@ -157,7 +162,30 @@ export default function DayDetailsSheet({ open, date, onClose, onChanged }: Prop
               </button>
             </div>
 
-            {isFuture && <FutureDayPlanSection date={date} profile={profile} />}
+            {/* Pre-join friendly message */}
+            {isPreJoin && (
+              <div className="p-5 rounded-2xl bg-primary/5 border border-primary/15 text-center space-y-3">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+                  <Sparkles className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="text-sm font-bold text-foreground">Welcome to NutriLens AI!</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  You joined on <strong className="text-foreground">{new Date(profile!.joinDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</strong>.
+                  You can view and log meals from that day onward.
+                </p>
+                <p className="text-[10px] text-muted-foreground/70">
+                  If you have older data from another app, you'll be able to import it soon.
+                </p>
+                <button
+                  onClick={onClose}
+                  className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm"
+                >
+                  Got it
+                </button>
+              </div>
+            )}
+
+            {!isPreJoin && isFuture && <FutureDayPlanSection date={date} profile={profile} />}
 
             {/* Day Balance Summary — today shows live projected impact */}
             {isToday && totals.eaten > 0 && <TodayLiveBalance date={date} eaten={totals.eaten} profile={profile} />}
