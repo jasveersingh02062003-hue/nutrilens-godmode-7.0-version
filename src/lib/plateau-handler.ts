@@ -4,7 +4,7 @@
 // ==========================================
 
 import { getWeightEntries } from './weight-history';
-import { getProfile, saveProfile, type UserProfile } from './store';
+import { getProfile, saveProfile, type UserProfile, getComputedAge } from './store';
 
 const PLATEAU_KEY = 'nutrilens_plateau_adjustments';
 
