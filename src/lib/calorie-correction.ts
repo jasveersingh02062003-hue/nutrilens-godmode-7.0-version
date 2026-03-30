@@ -648,6 +648,12 @@ export function getDailyBalances(baseTarget?: number): DailyBalanceEntry[] {
   const frozenTargets = loadFrozenTargets();
   const dates = getAllLogDates().sort();
 
+  // Memoization: return cached result if inputs haven't changed
+  const cacheKey = `${target}:${tdee}:${dates.length}:${dates[dates.length - 1] || ''}`;
+  if (_balancesCache && _balancesCache.key === cacheKey) {
+    return _balancesCache.result;
+  }
+
   const balances: DailyBalanceEntry[] = [];
   for (const date of dates) {
     const log = getDailyLog(date);
