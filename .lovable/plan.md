@@ -1,40 +1,41 @@
 
-# Comprehensive Fix Plan — All Issues Identified
 
-## Status: ✅ IMPLEMENTED
+# Join Date Feature — Implementation Plan
 
-All 20 issues across 6 steps have been fixed.
+## What It Does
+Records when a user joins during onboarding. In the Progress calendar, days before the join date are shown but visually muted and unselectable. Tapping one shows a friendly message explaining they joined on a specific date.
 
-### Step 1 ✅ Quick Wins
-- **#5 Timezone bugs**: Fixed in redistribution-service, streaks, notifications, weight-history, weekly-feedback, exercise-adjustment, plateau-handler, goal-engine
-- **#13 Threshold mismatch**: Changed from 10→5 kcal in `isTargetAdjusted()`
-- **#8 Carry-over idempotency**: Added `carry_applied_YYYY-MM-DD` guard in Dashboard
-- **#17 console.debug**: Wrapped in `import.meta.env.DEV` check
-- **#16 Cache stale on logout**: Added `clearEngineCache()` called on auth state change
+## Changes
 
-### Step 2 ✅ Core Stability
-- **#2 Base target mutation**: Added `originalDailyCalories` field to UserProfile, set during onboarding
-- **#9 Protein lock**: Fixed `applyAdaptation()` and `applyPlateauAdjustment()` to lock protein, redistribute only carbs/fat
+### 1. Add `joinDate` to UserProfile
+**File: `src/lib/store.ts`** — Add `joinDate?: string` to `UserProfile` interface (YYYY-MM-DD format).
 
-### Step 3 ✅ Storage & Performance
-- **#1 localStorage overflow**: Created `storage-cleanup.ts` with 90-day short retention + 365-day log retention + aggressive pruning at 4MB
-- **#4 O(n²) performance**: Added `_balancesCache` memoization to `getDailyBalances()`, invalidated by `recomputeCalorieEngine()`
+### 2. Set `joinDate` During Onboarding
+**File: `src/lib/onboarding-store.ts`** — In `saveOnboardingData()`, set `joinDate: toLocalDateKey(new Date())` on the profile object (using the local date utility for timezone safety).
 
-### Step 4 ✅ Coordination & Unification
-- **#11 Missed meal thresholds**: Unified into `MISSED_MEAL_HOURS` exported from `meal-targets.ts`
-- **#12 Balance streak**: Now compares against `adjustedTarget` instead of `baseTarget`
-- **#3/#20 Coordinator**: `adjustment-coordinator.ts` exists with ±25% TDEE cap
+### 3. Sync `joinDate` to Cloud
+**File: `src/contexts/UserProfileContext.tsx`** — Add `join_date` to the `syncToCloud` row and restore it in `dbRowToProfile`.
 
-### Step 5 ✅ Data Quality
-- **#6 Frozen targets**: Extended retention from 60→365 days
-- **#14 Weight history**: Fixed timezone in `getWeeklyWeightEntries`
-- **#19 Age**: Added `getComputedAge()` helper using DOB
+**Database migration** — Add `join_date text` column to the `profiles` table.
 
-### Step 6 ✅ Polish
-- **#10 Weight units**: Added kg/lbs normalization in `detectPlateau()`
-- **#15 Data export**: Created `data-export.ts` with JSON and CSV export
+### 4. Update Calendar to Show Pre-Join Days
+**File: `src/pages/Progress.tsx`**:
+- Add `isPreJoin` flag to `calendarDays` — true when `dateStr < profile.joinDate`
+- Pre-join days get a new status: muted styling (opacity-40), no balance computation, disabled click
+- Add a lock icon or dash indicator for pre-join cells
+- Add "Joined [date]" to the calendar legend
 
-### New Files Created
-- `src/lib/storage-cleanup.ts`
-- `src/lib/date-utils.ts`
-- `src/lib/data-export.ts`
+### 5. Handle Pre-Join Tap in DayDetailsSheet
+**File: `src/components/DayDetailsSheet.tsx`**:
+- Check if `date < profile.joinDate` early in the render
+- If pre-join, show a friendly card: "You joined on [formatted join date]. You can view and log meals from that day onward."
+- Include a "Got it" dismiss button, no edit controls
+
+### 6. Filter Pre-Join from Summaries
+**File: `src/lib/calorie-correction.ts`** — In `getDailyBalances()`, skip dates before `joinDate` to prevent zero-data days from affecting correction math.
+
+## Technical Notes
+- Uses `toLocalDateKey()` for timezone-safe date comparison (consistent with the project's date normalization standard)
+- `joinDate` is set once, never mutated — existing users without it will see the full calendar (graceful fallback)
+- No changes to existing calendar styling for post-join days
+
