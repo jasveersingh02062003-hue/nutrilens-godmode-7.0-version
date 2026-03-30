@@ -32,7 +32,10 @@ export function detectPlateau(): { detected: boolean; daysSinceChange: number } 
   if (olderEntries.length === 0) return { detected: false, daysSinceChange: 0 };
 
   const referenceEntry = olderEntries[olderEntries.length - 1];
-  const weightChange = Math.abs(latest.weight - referenceEntry.weight);
+  // Normalize weights to kg for comparison
+  const latestKg = latest.unit === 'lbs' ? latest.weight * 0.453592 : latest.weight;
+  const refKg = referenceEntry.unit === 'lbs' ? referenceEntry.weight * 0.453592 : referenceEntry.weight;
+  const weightChange = Math.abs(latestKg - refKg);
 
   // Calculate days between
   const daysBetween = Math.round(
