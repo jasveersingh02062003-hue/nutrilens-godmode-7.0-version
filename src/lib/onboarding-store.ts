@@ -1,6 +1,6 @@
 // Onboarding data persistence – new nested structure + legacy compat
 
-import { saveProfile, type UserProfile } from './store';
+import { saveProfile, type UserProfile, toLocalDateKey } from './store';
 import { calculateBMR } from './nutrition';
 import { getActivityMultiplier, calculateTDEEFromWorkExercise } from './nutrition';
 import { saveBudgetSettings } from './expense-store';
@@ -118,6 +118,7 @@ export function saveOnboardingData(data: OnboardingData) {
     bmr,
     tdee, // ← ACTUAL TDEE, not goal calories
     skinConcerns: data.health.skin !== 'none' ? { [data.health.skin]: true } : undefined,
+    joinDate: toLocalDateKey(new Date()),
   };
   saveProfile(profile);
 
