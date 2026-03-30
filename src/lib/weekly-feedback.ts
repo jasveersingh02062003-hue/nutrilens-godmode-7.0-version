@@ -76,7 +76,7 @@ export function generateWeeklySummary(): WeeklySummary {
   const d = new Date(start + 'T00:00:00');
   const endD = new Date(end + 'T00:00:00');
   while (d <= endD) {
-    const key = d.toISOString().split('T')[0];
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     // Use dynamic import to avoid issues
     const data = localStorage.getItem(`nutrilens_log_${key}`);
     if (data) {
