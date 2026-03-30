@@ -47,6 +47,7 @@ export default function DayDetailsSheet({ open, date, onClose, onChanged }: Prop
   const todayStr = toLocalDateKey();
   const isFuture = date > todayStr;
   const isToday = date === todayStr;
+  const isPreJoin = !!(profile?.joinDate && date < profile.joinDate);
 
   const reload = useCallback(() => {
     const l = getDailyLog(date);
