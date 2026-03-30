@@ -110,6 +110,7 @@ export function saveOnboardingData(data: OnboardingData) {
     waterGoal: Math.round(data.lifestyle.water * 1000),
     onboardingComplete: true,
     dailyCalories: data.goals.calories,
+    originalDailyCalories: data.goals.calories,
     dailyProtein: data.goals.macros.protein,
     dailyCarbs: data.goals.macros.carbs,
     dailyFat: data.goals.macros.fat,
