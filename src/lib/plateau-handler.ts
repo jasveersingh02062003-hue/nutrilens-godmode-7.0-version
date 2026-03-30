@@ -82,8 +82,21 @@ export function applyPlateauAdjustment(): PlateauAdjustment | null {
   adjustments.push(adjustment);
   localStorage.setItem(PLATEAU_KEY, JSON.stringify(adjustments));
 
-  // Update profile (protein stays locked)
-  saveProfile({ ...profile, dailyCalories: newTarget });
+  // Update profile — protein stays locked, preserve original target
+  const updatedProfile = { ...profile, dailyCalories: newTarget };
+  if (!profile.originalDailyCalories) {
+    updatedProfile.originalDailyCalories = previousTarget;
+  }
+  // Redistribute carbs/fat only (protein locked)
+  const proteinCals = profile.dailyProtein * 4;
+  const remainingOld = previousTarget - proteinCals;
+  const remainingNew = newTarget - proteinCals;
+  if (remainingOld > 0) {
+    const ratio = remainingNew / remainingOld;
+    updatedProfile.dailyCarbs = Math.round(profile.dailyCarbs * ratio);
+    updatedProfile.dailyFat = Math.round(profile.dailyFat * ratio);
+  }
+  saveProfile(updatedProfile);
 
   return adjustment;
 }

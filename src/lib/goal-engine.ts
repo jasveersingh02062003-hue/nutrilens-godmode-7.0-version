@@ -483,10 +483,14 @@ export function runWeeklyAdaptation(profile: UserProfile): AdaptiveResult | null
 }
 
 export function applyAdaptation(profile: UserProfile, newCalories: number): Partial<UserProfile> {
-  const ratio = newCalories / profile.dailyCalories;
+  // Lock protein — only redistribute between carbs and fat
+  const proteinCals = profile.dailyProtein * 4;
+  const remainingCals = newCalories - proteinCals;
+  const oldRemainingCals = profile.dailyCalories - proteinCals;
+  const ratio = oldRemainingCals > 0 ? remainingCals / oldRemainingCals : 1;
   return {
     dailyCalories: newCalories,
-    dailyProtein: Math.round(profile.dailyProtein * ratio),
+    dailyProtein: profile.dailyProtein, // LOCKED — never reduced
     dailyCarbs: Math.round(profile.dailyCarbs * ratio),
     dailyFat: Math.round(profile.dailyFat * ratio),
   };
