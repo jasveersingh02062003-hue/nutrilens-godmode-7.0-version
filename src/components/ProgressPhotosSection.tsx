@@ -45,8 +45,9 @@ export default function ProgressPhotosSection({ refreshKey, onChanged }: Props) 
     setProcessing(false);
   };
 
-  const handleSavePhoto = () => {
+  const handleSavePhoto = async () => {
     if (!previewUrl) return;
+    setProcessing(true);
     const photo: ProgressPhoto = {
       id: `photo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       dataUrl: previewUrl,
@@ -54,14 +55,15 @@ export default function ProgressPhotosSection({ refreshKey, onChanged }: Props) 
       caption: `${caption}${isVerified ? '' : ' [unverified]'}`.trim(),
       date: captureDate,
     };
-    addProgressPhoto(photo);
+    await addProgressPhoto(photo);
     toast.success(isVerified ? 'Verified photo saved!' : 'Photo saved (unverified)');
     resetCapture();
     refreshPhotos();
+    setProcessing(false);
   };
 
-  const handleDelete = (id: string) => {
-    deleteProgressPhoto(id);
+  const handleDelete = async (id: string) => {
+    await deleteProgressPhoto(id);
     setViewPhoto(null);
     toast.success('Photo deleted');
     refreshPhotos();
