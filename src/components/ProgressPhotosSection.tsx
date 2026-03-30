@@ -323,9 +323,10 @@ export default function ProgressPhotosSection({ refreshKey, onChanged }: Props) 
 
                 <button
                   onClick={handleSavePhoto}
-                  className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground font-bold text-sm shadow-fab active:scale-[0.98] transition-transform"
+                  disabled={processing}
+                  className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground font-bold text-sm shadow-fab active:scale-[0.98] transition-transform disabled:opacity-50"
                 >
-                  Save Photo {isVerified ? '✓' : ''}
+                  {processing ? 'Uploading…' : `Save Photo ${isVerified ? '✓' : ''}`}
                 </button>
               </div>
             </motion.div>
