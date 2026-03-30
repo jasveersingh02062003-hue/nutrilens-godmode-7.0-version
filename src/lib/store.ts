@@ -36,6 +36,7 @@ export interface UserProfile {
   bmi: number;
   bmr: number;
   tdee: number;
+  joinDate?: string; // YYYY-MM-DD, set once during onboarding
   skinConcerns?: {
     oily?: boolean;
     dry?: boolean;

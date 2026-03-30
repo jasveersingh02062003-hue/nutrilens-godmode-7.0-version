@@ -139,6 +139,7 @@ export type Database = {
           height_cm: number | null
           id: string
           job_type: string | null
+          join_date: string | null
           learning: Json | null
           meal_times: Json | null
           medications: string | null
@@ -186,6 +187,7 @@ export type Database = {
           height_cm?: number | null
           id: string
           job_type?: string | null
+          join_date?: string | null
           learning?: Json | null
           meal_times?: Json | null
           medications?: string | null
@@ -233,6 +235,7 @@ export type Database = {
           height_cm?: number | null
           id?: string
           job_type?: string | null
+          join_date?: string | null
           learning?: Json | null
           meal_times?: Json | null
           medications?: string | null
