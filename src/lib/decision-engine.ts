@@ -2,6 +2,7 @@
 
 import { getBudgetSummary, getDaysRemainingInPeriod, getAdjustedDailyBudget } from './budget-service';
 import { getBudgetSettings, saveBudgetSettings } from './expense-store';
+import { toLocalDateStr } from './date-utils';
 
 const RECOVERY_KEY = 'nutrilens_recovery_mode';
 
@@ -48,7 +49,6 @@ export function getOverspendOptions(mealCost: number): OverspendOption[] {
 
 export function applyDecision(choice: 'continue' | 'recover' | 'ignore'): string {
   if (choice === 'recover') {
-    const { toLocalDateStr } = await import('./date-utils');
     const recovery = {
       active: true,
       startDate: toLocalDateStr(),
@@ -58,7 +58,6 @@ export function applyDecision(choice: 'continue' | 'recover' | 'ignore'): string
     return 'Recovery mode activated for 3 days. Meals will prioritise budget-friendly options.';
   }
   if (choice === 'ignore') {
-    const { toLocalDateStr } = await import('./date-utils');
     const today = toLocalDateStr();
     localStorage.setItem('nutrilens_budget_ignored_' + today, 'true');
     return 'Budget tracking paused for today.';
