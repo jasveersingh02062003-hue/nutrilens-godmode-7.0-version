@@ -4,7 +4,7 @@
 // entries with optional verified photos.
 // ==========================================
 
-export interface WeightEntry {
+import { toLocalDateStr } from './date-utils';
   id: string;
   date: string;          // YYYY-MM-DD
   weekStart: string;     // Monday of that week (YYYY-MM-DD)
