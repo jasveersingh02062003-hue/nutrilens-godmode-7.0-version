@@ -2,6 +2,7 @@
 // Learns from user purchases, decays confidence over time, provides smart suggestions
 
 import { findPrice, saveUserPriceOverride, type PriceEntry } from './price-database';
+import { toLocalDateStr } from './date-utils';
 
 // ─── Types ───
 
@@ -95,7 +96,7 @@ export function decayAllPrices() {
 export function onPriceAccepted(itemName: string, price: number, unit: string) {
   const store = getMemoryStore();
   const key = itemName.toLowerCase().trim();
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateStr();
 
   if (store[key]) {
     const entry = store[key];
@@ -134,7 +135,7 @@ export function onPriceEdited(
 
   const store = getMemoryStore();
   const key = itemName.toLowerCase().trim();
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateStr();
 
   store[key] = {
     itemName,
@@ -158,7 +159,7 @@ export function onPriceEdited(
 export function learnPrice(itemName: string, pricePerUnit: number, unit: string) {
   const store = getMemoryStore();
   const key = itemName.toLowerCase().trim();
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateStr();
 
   if (store[key]) {
     const entry = store[key];

@@ -6,6 +6,7 @@
 import { getRecentLogs, getDailyTotals, getProfile } from './store';
 import { getProteinTarget } from './calorie-correction';
 import { getBudgetSettings, getExpensesForDate } from './expense-store';
+import { toLocalDateStr } from './date-utils';
 
 const BADGES_KEY = 'nutrilens_identity_badges';
 
@@ -70,7 +71,7 @@ export function checkIdentityBadges(): EarnedBadge[] {
   if (!profile) return newlyEarned;
 
   const logs = getRecentLogs(14);
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateStr();
 
   // Protein Pro: 7-day protein ≥ 90%
   if (!earnedIds.has('protein_pro')) {
