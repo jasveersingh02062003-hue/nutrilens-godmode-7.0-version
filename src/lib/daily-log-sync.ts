@@ -1,4 +1,4 @@
-// Cloud sync service for daily logs
+// Cloud sync service for daily logs — NO date limit
 import { supabase } from '@/integrations/supabase/client';
 import type { DailyLog } from '@/lib/store';
 
@@ -35,39 +35,43 @@ export function syncDailyLogToCloud(log: DailyLog) {
 }
 
 /**
- * Restore recent daily logs from the cloud into localStorage.
- * Called once on login to hydrate local state.
+ * Restore ALL daily logs from the cloud into localStorage.
+ * Fetches in paginated batches of 500 to handle large histories.
+ * Only overwrites local if cloud version is newer or local doesn't exist.
  */
-export async function restoreLogsFromCloud(days: number = 14): Promise<number> {
+export async function restoreLogsFromCloud(): Promise<number> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return 0;
 
-    // Calculate cutoff date
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - days);
-    const cutoffStr = cutoff.toISOString().split('T')[0];
-
-    const { data, error } = await supabase
-      .from('daily_logs' as any)
-      .select('log_date, log_data')
-      .eq('user_id', session.user.id)
-      .gte('log_date', cutoffStr)
-      .order('log_date', { ascending: false });
-
-    if (error) {
-      console.error('Failed to restore logs from cloud:', error);
-      return 0;
-    }
-
-    if (!data || data.length === 0) return 0;
-
     let restored = 0;
-    for (const row of data as any[]) {
-      const logDate = row.log_date as string;
-      const logData = row.log_data as any;
-      if (logDate && logData) {
-        // Only overwrite if local doesn't exist or cloud is newer
+    let offset = 0;
+    const batchSize = 500;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('daily_logs' as any)
+        .select('log_date, log_data, updated_at')
+        .eq('user_id', session.user.id)
+        .order('log_date', { ascending: false })
+        .range(offset, offset + batchSize - 1);
+
+      if (error) {
+        console.error('Failed to restore logs from cloud:', error);
+        break;
+      }
+
+      if (!data || data.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      for (const row of data as any[]) {
+        const logDate = row.log_date as string;
+        const logData = row.log_data as any;
+        if (!logDate || !logData) continue;
+
         const localKey = LOG_KEY_PREFIX + logDate;
         const localData = localStorage.getItem(localKey);
 
@@ -75,7 +79,26 @@ export async function restoreLogsFromCloud(days: number = 14): Promise<number> {
           // No local data — restore from cloud
           localStorage.setItem(localKey, JSON.stringify(logData));
           restored++;
+        } else {
+          // Compare updated_at if available
+          try {
+            const local = JSON.parse(localData);
+            const cloudUpdated = row.updated_at ? new Date(row.updated_at).getTime() : 0;
+            const localUpdated = local._updatedAt ? new Date(local._updatedAt).getTime() : 0;
+            if (cloudUpdated > localUpdated) {
+              localStorage.setItem(localKey, JSON.stringify(logData));
+              restored++;
+            }
+          } catch {
+            // Keep local on parse error
+          }
         }
+      }
+
+      if (data.length < batchSize) {
+        hasMore = false;
+      } else {
+        offset += batchSize;
       }
     }
 

@@ -1,10 +1,12 @@
 // ==========================================
 // NutriLens AI – Progress Photos Storage
-// Uses localStorage with base64 data URLs.
-// Photos are stored privately, never uploaded.
+// Cloud-first: uploads to storage bucket, stores URL locally.
+// Falls back to base64 if user is not authenticated.
 // ==========================================
 
 import type { ProgressPhoto } from './store';
+import { uploadPhoto, deleteCloudPhoto, getPhotoUrl, compressImage } from './photo-cloud';
+import { supabase } from '@/integrations/supabase/client';
 
 const PHOTOS_KEY = 'nutrilens_progress_photos';
 
@@ -25,21 +27,58 @@ export function getProgressPhotosByDate(date: string): ProgressPhoto[] {
   return getAllPhotos().filter(p => p.date === date);
 }
 
-export function addProgressPhoto(photo: ProgressPhoto) {
+/**
+ * Add a progress photo. Compresses and uploads to cloud if authenticated,
+ * otherwise stores compressed base64 locally.
+ */
+export async function addProgressPhoto(photo: ProgressPhoto): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (session?.user) {
+    // Cloud path: compress + upload, store URL
+    const cloudPath = await uploadPhoto(photo.dataUrl, session.user.id, photo.id);
+    if (cloudPath) {
+      photo.dataUrl = getPhotoUrl(cloudPath);
+      (photo as any).cloudPath = cloudPath;
+    } else {
+      // Fallback: compress and store locally
+      photo.dataUrl = await compressImage(photo.dataUrl);
+    }
+  } else {
+    // No auth: compress and store locally
+    photo.dataUrl = await compressImage(photo.dataUrl);
+  }
+
   const photos = getAllPhotos();
   photos.push(photo);
   saveAllPhotos(photos);
 }
 
-export function deleteProgressPhoto(id: string) {
-  const photos = getAllPhotos().filter(p => p.id !== id);
-  saveAllPhotos(photos);
+/**
+ * Delete a progress photo. Also removes from cloud bucket if it has a cloud path.
+ */
+export async function deleteProgressPhoto(id: string): Promise<void> {
+  const photos = getAllPhotos();
+  const photo = photos.find(p => p.id === id);
+
+  if (photo && (photo as any).cloudPath) {
+    await deleteCloudPhoto((photo as any).cloudPath);
+  }
+
+  saveAllPhotos(photos.filter(p => p.id !== id));
 }
 
-export function fileToDataUrl(file: File): Promise<string> {
+export async function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
+    reader.onload = async () => {
+      try {
+        const compressed = await compressImage(reader.result as string);
+        resolve(compressed);
+      } catch {
+        resolve(reader.result as string);
+      }
+    };
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
