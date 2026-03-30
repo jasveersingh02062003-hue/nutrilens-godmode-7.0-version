@@ -95,6 +95,7 @@ function syncToCloud(profile: UserProfile) {
       coach_settings: (profile as any).coachSettings || null,
       learning: (profile as any).learning || null,
       notification_settings: (profile as any).notificationSettings || null,
+      join_date: profile.joinDate || null,
     };
     const { error } = await supabase.from('profiles').upsert(row as any);
     if (error) {
@@ -142,6 +143,7 @@ function dbRowToProfile(row: any): UserProfile {
     tdee: Number(row.tdee) || 2000,
     // Restore extended fields from cloud
     skinConcerns: row.conditions?.skinConcerns || undefined,
+    joinDate: row.join_date || undefined,
   } as UserProfile;
 }
 

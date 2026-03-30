@@ -646,16 +646,20 @@ export function getDailyBalances(baseTarget?: number): DailyBalanceEntry[] {
   const target = baseTarget || p?.dailyCalories || 1600;
   const tdee = p?.tdee || target;
   const frozenTargets = loadFrozenTargets();
+  const joinDate = p?.joinDate;
   const dates = getAllLogDates().sort();
 
   // Memoization: return cached result if inputs haven't changed
-  const cacheKey = `${target}:${tdee}:${dates.length}:${dates[dates.length - 1] || ''}`;
+  const cacheKey = `${target}:${tdee}:${dates.length}:${dates[dates.length - 1] || ''}:${joinDate || ''}`;
   if (_balancesCache && _balancesCache.key === cacheKey) {
     return _balancesCache.result;
   }
 
   const balances: DailyBalanceEntry[] = [];
   for (const date of dates) {
+    // Skip dates before the user's join date
+    if (joinDate && date < joinDate) continue;
+
     const log = getDailyLog(date);
     const totals = getDailyTotals(log);
     if (totals.eaten === 0 && log.meals.length === 0) continue;

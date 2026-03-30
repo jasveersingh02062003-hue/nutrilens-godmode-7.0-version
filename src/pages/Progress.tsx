@@ -184,18 +184,21 @@ export default function ProgressPage() {
     return computeProjectedAdjustmentMap(baseTarget, tdee, getCorrectionMode());
   }, [allBalances, baseTarget, tdee, refreshKey]);
 
+  const joinDate = profile?.joinDate;
+
   const calendarDays = useMemo(() => {
-    const days: { day: number; dateStr: string; balance: DayBalance; diff: number; isToday: boolean; isFuture: boolean; locked: boolean }[] = [];
+    const days: { day: number; dateStr: string; balance: DayBalance; diff: number; isToday: boolean; isFuture: boolean; locked: boolean; isPreJoin: boolean }[] = [];
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${viewDate.getFullYear()}-${String(viewDate.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const isFuture = dateStr > todayStr;
       const isToday = dateStr === todayStr;
-      const locked = !premium && dateStr < threeDaysAgo;
+      const isPreJoin = !!(joinDate && dateStr < joinDate);
+      const locked = isPreJoin || (!premium && dateStr < threeDaysAgo);
       const { status: balance, diff } = locked ? { status: 'no-data' as DayBalance, diff: 0 } : computeDayBalance(dateStr, todayStr, logDatesSet, baseTarget, allBalances, adjMap, projMap);
-      days.push({ day: d, dateStr, balance, diff, isToday, isFuture, locked });
+      days.push({ day: d, dateStr, balance, diff, isToday, isFuture, locked, isPreJoin });
     }
     return days;
-  }, [monthOffset, refreshKey, logDatesSet, baseTarget, premium, threeDaysAgo, adjMap, projMap, allBalances, todayStr]);
+  }, [monthOffset, refreshKey, logDatesSet, baseTarget, premium, threeDaysAgo, adjMap, projMap, allBalances, todayStr, joinDate]);
 
   const weeklyData = useMemo(() => {
     return logs.slice(0, 7).reverse().map(l => {
@@ -249,7 +252,7 @@ export default function ProgressPage() {
                 key={d.day}
                 onClick={() => !d.locked && setSelectedDate(d.dateStr)}
                 disabled={d.locked}
-                className={`flex flex-col items-center justify-center py-0.5 group ${d.locked ? 'opacity-30' : ''}`}
+                className={`flex flex-col items-center justify-center py-0.5 group ${d.locked ? 'opacity-30' : ''} ${d.isPreJoin ? 'opacity-40' : ''}`}
               >
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-semibold border transition-colors group-active:scale-90 relative
                   ${d.isToday ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''}
