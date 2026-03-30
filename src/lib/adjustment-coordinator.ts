@@ -10,8 +10,8 @@ import {
   getDailyBalances,
   getCorrectionMode,
 } from './calorie-correction';
-import { getExerciseAdjustmentForDate } from './exercise-adjustment';
-import { getCarryOverForToday } from './redistribution-service';
+import { getExerciseAdjustments } from './exercise-adjustment';
+import { getPendingCarryOver } from './redistribution-service';
 
 export interface CoordinatedAdjustment {
   finalTarget: number;
