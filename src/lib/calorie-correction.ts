@@ -870,11 +870,12 @@ export function getBalanceStreak(): number {
   const today = getEffectiveDate();
 
   let streak = 0;
-  // Walk backwards from yesterday — always measure against baseTarget
+  // Walk backwards from yesterday — measure against adjustedTarget if available
   for (let i = balances.length - 1; i >= 0; i--) {
     const b = balances[i];
     if (b.date >= today) continue;
-    const effectiveDiff = b.actual - b.target; // ALWAYS baseTarget, never adjustedTarget
+    const compareTarget = b.adjustedTarget || b.target;
+    const effectiveDiff = b.actual - compareTarget;
     if (Math.abs(effectiveDiff) <= 100) {
       streak++;
     } else {
