@@ -6,6 +6,7 @@
 
 import { getWeightEntries, addWeightEntry, getWeekStart, type WeightEntry } from './weight-history';
 import { getDailyBalances } from './calorie-correction';
+import { toLocalDateStr } from './date-utils';
 
 const LAST_CHECKIN_KEY = 'nutrilens_weekly_checkin_last';
 
@@ -14,12 +15,12 @@ export function shouldPromptWeightCheckin(): boolean {
   if (now.getDay() !== 0) return false;
 
   const lastCheckin = localStorage.getItem(LAST_CHECKIN_KEY);
-  const thisWeek = getWeekStart(now.toISOString().split('T')[0]);
+  const thisWeek = getWeekStart(toLocalDateStr());
   return lastCheckin !== thisWeek;
 }
 
 export function markWeightCheckinDone(): void {
-  const thisWeek = getWeekStart(new Date().toISOString().split('T')[0]);
+  const thisWeek = getWeekStart(toLocalDateStr());
   localStorage.setItem(LAST_CHECKIN_KEY, thisWeek);
 }
 
@@ -72,7 +73,7 @@ export function computeWeightFeedback(newWeight: number): WeightFeedback {
 }
 
 export function submitWeightCheckin(weight: number, unit: 'kg' | 'lbs' = 'kg'): WeightFeedback {
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateStr();
   const entry: WeightEntry = {
     id: `wc_${Date.now()}`,
     date: today,

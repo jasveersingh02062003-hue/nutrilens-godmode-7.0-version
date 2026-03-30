@@ -25,7 +25,8 @@ export async function getLivePrice(itemName: string, city?: string): Promise<Liv
   const userCity = city?.toLowerCase() || getUserCity();
   if (!userCity) return getStaticPrice(itemName);
 
-  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   // Step 1: Check community reports (today, this city, 3+ reports = reliable)
   try {
