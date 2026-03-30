@@ -252,8 +252,18 @@ export function setCorrectionMode(mode: CorrectionMode) {
 export function recomputeCalorieEngine(): void {
   // Invalidate memoization cache
   _adjMapCache = null;
+  _balancesCache = null;
   // Then notify all UI subscribers to re-read from pure functions
   notifyUICallbacks();
+}
+
+/**
+ * Clear all engine caches — call on logout/user switch.
+ */
+export function clearEngineCache(): void {
+  _cachedMode = null;
+  _adjMapCache = null;
+  _balancesCache = null;
 }
 
 /**
