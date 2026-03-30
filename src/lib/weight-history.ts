@@ -5,6 +5,8 @@
 // ==========================================
 
 import { toLocalDateStr } from './date-utils';
+
+export interface WeightEntry {
   id: string;
   date: string;          // YYYY-MM-DD
   weekStart: string;     // Monday of that week (YYYY-MM-DD)
