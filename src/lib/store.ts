@@ -174,6 +174,21 @@ export function getProfile(): UserProfile | null {
   return data ? JSON.parse(data) : null;
 }
 
+/** Get dynamically computed age from DOB (falls back to stored age) */
+export function getComputedAge(profile: UserProfile): number {
+  if (profile.dob) {
+    const dob = new Date(profile.dob + 'T00:00:00');
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+    return age;
+  }
+  return profile.age;
+}
+
 export function saveProfile(profile: UserProfile) {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
 }
