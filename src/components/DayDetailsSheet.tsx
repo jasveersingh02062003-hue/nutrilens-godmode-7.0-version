@@ -187,6 +187,8 @@ export default function DayDetailsSheet({ open, date, onClose, onChanged }: Prop
 
             {!isPreJoin && isFuture && <FutureDayPlanSection date={date} profile={profile} />}
 
+            {!isPreJoin && (
+            <>
             {/* Day Balance Summary — today shows live projected impact */}
             {isToday && totals.eaten > 0 && <TodayLiveBalance date={date} eaten={totals.eaten} profile={profile} />}
 
