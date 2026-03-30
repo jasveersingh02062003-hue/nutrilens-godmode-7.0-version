@@ -54,6 +54,8 @@ import { getMealPlannerProfile } from '@/lib/meal-planner-store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
+import DailyPlanCard from '@/components/DailyPlanCard';
+import { isDailyHidden } from '@/lib/daily-visibility';
 import PESExplanationCard from '@/components/PESExplanationCard';
 import WeeklyFeedbackCard from '@/components/WeeklyFeedbackCard';
 import { shouldGenerateSummary, generateWeeklySummary, scheduleWeeklyNotification } from '@/lib/weekly-feedback';
