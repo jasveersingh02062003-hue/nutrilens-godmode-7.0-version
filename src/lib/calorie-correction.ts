@@ -699,6 +699,7 @@ export function getDailyBalances(baseTarget?: number): DailyBalanceEntry[] {
     }
   }
 
+  _balancesCache = { key: cacheKey, result: balances };
   return balances;
 }
 
