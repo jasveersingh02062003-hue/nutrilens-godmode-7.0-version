@@ -226,6 +226,7 @@ const VALID_MODES: CorrectionMode[] = ['aggressive', 'balanced', 'relaxed'];
 
 // In-memory cache — localStorage is persistence only, never runtime source
 let _cachedMode: CorrectionMode | null = null;
+let _balancesCache: { key: string; result: DailyBalanceEntry[] } | null = null;
 
 function sanitizeMode(raw: string | null): CorrectionMode {
   if (raw && VALID_MODES.includes(raw as CorrectionMode)) return raw as CorrectionMode;
