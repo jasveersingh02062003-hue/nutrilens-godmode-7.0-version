@@ -26,7 +26,7 @@ export function detectPlateau(): { detected: boolean; daysSinceChange: number } 
   const latest = entries[entries.length - 1];
   const tenDaysAgo = new Date();
   tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
-  const tenDaysAgoStr = tenDaysAgo.toISOString().split('T')[0];
+  const tenDaysAgoStr = `${tenDaysAgo.getFullYear()}-${String(tenDaysAgo.getMonth() + 1).padStart(2, '0')}-${String(tenDaysAgo.getDate()).padStart(2, '0')}`;
 
   const olderEntries = entries.filter(e => e.date <= tenDaysAgoStr);
   if (olderEntries.length === 0) return { detected: false, daysSinceChange: 0 };
@@ -53,7 +53,8 @@ export function applyPlateauAdjustment(): PlateauAdjustment | null {
 
   // Check if already adjusted recently
   const adjustments: PlateauAdjustment[] = JSON.parse(localStorage.getItem(PLATEAU_KEY) || '[]');
-  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const recentAdjustment = adjustments.find(a => {
     const daysSince = Math.round(
       (new Date(today).getTime() - new Date(a.date).getTime()) / (1000 * 60 * 60 * 24)

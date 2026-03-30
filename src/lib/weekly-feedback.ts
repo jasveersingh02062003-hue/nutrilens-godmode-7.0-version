@@ -43,11 +43,11 @@ export function saveWeeklySummary(summary: WeeklySummary) {
 
 function getCurrentWeekRange(): { start: string; end: string } {
   const now = new Date();
-  const end = now.toISOString().split('T')[0];
+  const end = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const startDate = new Date(now);
   startDate.setDate(now.getDate() - 6);
   return {
-    start: startDate.toISOString().split('T')[0],
+    start: `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`,
     end,
   };
 }
@@ -57,7 +57,7 @@ function getLogsForRange(start: string, end: string): DailyLog[] {
   const d = new Date(start + 'T00:00:00');
   const endD = new Date(end + 'T00:00:00');
   while (d <= endD) {
-    const key = d.toISOString().split('T')[0];
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const { getDailyLog } = require('./store');
     logs.push(getDailyLog(key));
     d.setDate(d.getDate() + 1);
