@@ -254,6 +254,105 @@ export type Database = {
         }
         Relationships: []
       }
+      supplement_logs: {
+        Row: {
+          id: string
+          log_date: string
+          supplements: Json | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          log_date: string
+          supplements?: Json | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          log_date?: string
+          supplements?: Json | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_achievements: {
+        Row: {
+          achievement_key: string
+          id: string
+          metadata: Json | null
+          unlocked_at: string | null
+          user_id: string
+        }
+        Insert: {
+          achievement_key: string
+          id?: string
+          metadata?: Json | null
+          unlocked_at?: string | null
+          user_id: string
+        }
+        Update: {
+          achievement_key?: string
+          id?: string
+          metadata?: Json | null
+          unlocked_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      water_logs: {
+        Row: {
+          cups: number
+          id: string
+          log_date: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          cups?: number
+          id?: string
+          log_date: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          cups?: number
+          id?: string
+          log_date?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      weight_logs: {
+        Row: {
+          created_at: string | null
+          id: string
+          log_date: string
+          unit: string
+          user_id: string
+          weight: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          log_date: string
+          unit?: string
+          user_id: string
+          weight: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          log_date?: string
+          unit?: string
+          user_id?: string
+          weight?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -218,6 +218,15 @@ export function logWeight(date: string, weight: number, unit: 'kg' | 'lbs' = 'kg
   log.weight = weight;
   log.weightUnit = unit;
   saveDailyLog(log);
+  // Fire-and-forget cloud sync to weight_logs
+  import('@/integrations/supabase/client').then(({ supabase }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user) return;
+      supabase.from('weight_logs' as any).upsert({
+        user_id: session.user.id, log_date: date, weight, unit,
+      }, { onConflict: 'user_id,log_date' } as any).then(() => {});
+    });
+  }).catch(() => {});
   return log;
 }
 
@@ -246,6 +255,15 @@ export function addWater() {
   const log = getDailyLog();
   log.waterCups += 1;
   saveDailyLog(log);
+  // Fire-and-forget cloud sync
+  import('@/integrations/supabase/client').then(({ supabase }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user) return;
+      supabase.from('water_logs' as any).upsert({
+        user_id: session.user.id, log_date: log.date, cups: log.waterCups,
+      }, { onConflict: 'user_id,log_date' } as any).then(() => {});
+    });
+  }).catch(() => {});
   return log;
 }
 
@@ -279,6 +297,15 @@ export function addSupplement(entry: SupplementEntry) {
   log.supplements = log.supplements || [];
   log.supplements.push(entry);
   saveDailyLog(log);
+  // Fire-and-forget cloud sync
+  import('@/integrations/supabase/client').then(({ supabase }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user) return;
+      supabase.from('supplement_logs' as any).upsert({
+        user_id: session.user.id, log_date: log.date, supplements: log.supplements,
+      }, { onConflict: 'user_id,log_date' } as any).then(() => {});
+    });
+  }).catch(() => {});
   return log;
 }
 

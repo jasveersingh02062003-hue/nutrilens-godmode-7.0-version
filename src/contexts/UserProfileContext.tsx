@@ -8,6 +8,7 @@ import React, { createContext, useContext, useState, useCallback, useMemo, useEf
 import { UserProfile, getProfile, saveProfile } from '@/lib/store';
 import { supabase } from '@/integrations/supabase/client';
 import { restoreLogsFromCloud } from '@/lib/daily-log-sync';
+import { migrateLocalDataToCloud } from '@/lib/cloud-migration';
 import type { PCOSCondition } from '@/lib/pcos-score';
 
 // Extended conditions interface
@@ -167,7 +168,9 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
           setLoadedUserId(userId);
           setIsLoaded(true);
           // Restore daily logs in the background
-          restoreLogsFromCloud(14).catch(() => {});
+          // Restore daily logs and migrate localStorage data in background
+          restoreLogsFromCloud().catch(() => {});
+          migrateLocalDataToCloud().catch(() => {});
           return;
         }
 
