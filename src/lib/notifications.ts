@@ -112,7 +112,8 @@ export function checkMissedMealNotifications(settings: NotificationSettings) {
   if (!settings.mealReminders) return;
   const now = new Date();
   const hour = now.getHours();
-  const today = new Date().toISOString().split('T')[0];
+  const now2 = new Date();
+  const today = `${now2.getFullYear()}-${String(now2.getMonth() + 1).padStart(2, '0')}-${String(now2.getDate()).padStart(2, '0')}`;
 
   for (const [mealType, thresholdHour] of Object.entries(MISSED_MEAL_NOTIFICATION_HOURS)) {
     if (hour === thresholdHour && lastFiredMissedMeals[mealType] !== today) {
@@ -155,7 +156,8 @@ function getCurrentHHMM(): string {
 }
 
 function getCurrentDate(): string {
-  return new Date().toISOString().split('T')[0];
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function checkMealReminders(mealTimes: MealTimes) {

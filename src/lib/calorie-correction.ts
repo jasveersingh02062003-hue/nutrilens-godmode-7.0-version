@@ -477,9 +477,9 @@ export function finalizeDay(date: string): void {
   const frozen = loadFrozenTargets();
   frozen[date] = frozenTarget;
   
-  // Clean old entries (keep last 60 days)
+  // Clean old entries (keep last 365 days for long-term accuracy)
   const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 60);
+  cutoff.setDate(cutoff.getDate() - 365);
   const cutoffStr = toLocalDateKey(cutoff);
   for (const key of Object.keys(frozen)) {
     if (key < cutoffStr) delete frozen[key];
@@ -654,8 +654,10 @@ export function getDailyBalances(baseTarget?: number): DailyBalanceEntry[] {
       adjustedTarget,
     });
 
-    // Debug trace — catch math issues during dev
-    console.debug('[CalorieEngine] Balance:', { date, actual: totals.eaten, baseTarget: target, diff: Math.round(diff) });
+    // Debug trace — only in dev mode
+    if (import.meta.env.DEV) {
+      console.debug('[CalorieEngine] Balance:', { date, actual: totals.eaten, baseTarget: target, diff: Math.round(diff) });
+    }
   }
 
   // 🔒 RECONCILIATION — pure identity check: Σ(diff) + Σ(adj) ≈ 0
@@ -843,7 +845,7 @@ export function isTargetAdjusted(profile: UserProfile | null): boolean {
   if (!p) return false;
   const original = p.dailyCalories || 1600;
   const adjusted = getAdjustedDailyTarget(p);
-  return Math.abs(adjusted - original) > 10;
+  return Math.abs(adjusted - original) > 5;
 }
 
 /**

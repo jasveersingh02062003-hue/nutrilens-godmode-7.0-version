@@ -185,7 +185,7 @@ export function getRedistributionHistory(): RedistributionHistoryEntry[] {
 export function getYesterdayAdjustments(): RedistributionHistoryEntry[] {
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  const yKey = yesterday.toISOString().split('T')[0];
+  const yKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
   return getRedistributionHistory().filter(h => h.date === yKey);
 }
 
