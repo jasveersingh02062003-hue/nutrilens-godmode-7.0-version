@@ -250,7 +250,8 @@ export function setCorrectionMode(mode: CorrectionMode) {
  * Forces full engine recompute from raw logs + notifies all UI subscribers.
  */
 export function recomputeCalorieEngine(): void {
-  // Invalidate any derived caches (none currently — engine is stateless)
+  // Invalidate memoization cache
+  _adjMapCache = null;
   // Then notify all UI subscribers to re-read from pure functions
   notifyUICallbacks();
 }
@@ -411,7 +412,16 @@ export function computeAdjustmentMap(
   mode: CorrectionMode = 'balanced'
 ): Record<string, number> {
   const today = getEffectiveDate();
-  return _buildAdjustmentMap(pastLogs, baseTarget, tdee, mode, today);
+  
+  // Memoization: check cache
+  const cacheKey = `${baseTarget}|${tdee}|${mode}|${today}|${pastLogs.length}|${pastLogs[pastLogs.length - 1]?.date || ''}`;
+  if (_adjMapCache && _adjMapCache.key === cacheKey) {
+    return _adjMapCache.result;
+  }
+  
+  const result = _buildAdjustmentMap(pastLogs, baseTarget, tdee, mode, today);
+  _adjMapCache = { key: cacheKey, result };
+  return result;
 }
 
 /**
