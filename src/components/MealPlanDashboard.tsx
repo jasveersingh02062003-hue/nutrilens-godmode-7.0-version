@@ -48,7 +48,7 @@ const MEAL_LABELS: Record<string, { label: string; emoji: string }> = {
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapMeal, onMarkCooked }: Props) {
+export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapMeal, onMarkCooked, onUpdateBudget, onUpdateProteinTarget }: Props) {
   const [selectedDayIdx, setSelectedDayIdx] = useState(() => {
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
