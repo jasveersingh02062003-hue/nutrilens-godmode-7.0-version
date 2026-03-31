@@ -2,6 +2,9 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
 import { UserProfile, getProfile, saveProfile } from '@/lib/store';
+import { getBudgetSettings, saveBudgetSettings } from '@/lib/expense-store';
+import { getEnhancedBudgetSettings, saveEnhancedBudgetSettings } from '@/lib/budget-alerts';
+import { getMealPlannerProfile, saveMealPlannerProfile } from '@/lib/meal-planner-store';
 
 interface AuthContextValue {
   user: User | null;
@@ -90,90 +93,117 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     keysToRemove.forEach(k => localStorage.removeItem(k));
   }, []);
 
-  const profileToDbRow = (profile: UserProfile, userId: string) => ({
-    id: userId,
-    name: profile.name,
-    gender: profile.gender,
-    occupation: profile.occupation,
-    job_type: profile.jobType,
-    work_activity: profile.workActivity,
-    exercise_routine: profile.exerciseRoutine,
-    sleep_hours: profile.sleepHours,
-    stress_level: profile.stressLevel,
-    cooking_habits: profile.cookingHabits,
-    eating_out: profile.eatingOut,
-    caffeine: profile.caffeine,
-    alcohol: profile.alcohol,
-    activity_level: profile.activityLevel,
-    height_cm: profile.heightCm,
-    weight_kg: profile.weightKg,
-    dob: profile.dob,
-    age: profile.age,
-    goal: profile.goal,
-    target_weight: profile.targetWeight,
-    goal_speed: profile.goalSpeed,
-    dietary_prefs: profile.dietaryPrefs,
-    health_conditions: profile.healthConditions,
-    women_health: profile.womenHealth,
-    men_health: profile.menHealth,
-    medications: profile.medications,
-    meal_times: profile.mealTimes,
-    water_goal: profile.waterGoal,
-    onboarding_complete: profile.onboardingComplete,
-    daily_calories: profile.dailyCalories,
-    daily_protein: profile.dailyProtein,
-    daily_carbs: profile.dailyCarbs,
-    daily_fat: profile.dailyFat,
-    bmi: profile.bmi,
-    bmr: profile.bmr,
-    tdee: profile.tdee,
-    join_date: profile.joinDate || null,
-    budget: (profile as any).budget || null,
-    conditions: (profile as any).conditions || null,
-    coach_settings: (profile as any).coachSettings || null,
-    learning: (profile as any).learning || null,
-    notification_settings: (profile as any).notificationSettings || null,
-  });
+  const profileToDbRow = (profile: UserProfile, userId: string) => {
+    // Pack budget settings from separate localStorage keys
+    const budgetSettings = getBudgetSettings();
+    const enhancedBudget = getEnhancedBudgetSettings();
+    const mealPlannerProfile = getMealPlannerProfile();
+    const budgetPayload = {
+      settings: budgetSettings,
+      enhanced: enhancedBudget,
+      mealPlannerProfile: mealPlannerProfile,
+    };
 
-  const dbRowToProfile = (row: any): UserProfile => ({
-    name: row.name || '',
-    gender: row.gender || '',
-    occupation: row.occupation || '',
-    jobType: row.job_type || '',
-    workActivity: row.work_activity || '',
-    exerciseRoutine: row.exercise_routine || '',
-    sleepHours: row.sleep_hours || '',
-    stressLevel: row.stress_level || '',
-    cookingHabits: row.cooking_habits || '',
-    eatingOut: row.eating_out || '',
-    caffeine: row.caffeine || '',
-    alcohol: row.alcohol || '',
-    activityLevel: row.activity_level || 'moderate',
-    heightCm: Number(row.height_cm) || 170,
-    weightKg: Number(row.weight_kg) || 70,
-    dob: row.dob || '',
-    age: row.age || 25,
-    goal: row.goal || 'lose',
-    targetWeight: Number(row.target_weight) || 65,
-    goalSpeed: Number(row.goal_speed) || 0.5,
-    dietaryPrefs: row.dietary_prefs || [],
-    healthConditions: row.health_conditions || [],
-    womenHealth: row.women_health || [],
-    menHealth: row.men_health || {},
-    medications: row.medications || '',
-    mealTimes: row.meal_times || { breakfast: '08:00', lunch: '13:00', dinner: '20:00', snacks: '16:00' },
-    waterGoal: row.water_goal || 8,
-    onboardingComplete: row.onboarding_complete || false,
-    dailyCalories: row.daily_calories || 2000,
-    dailyProtein: row.daily_protein || 75,
-    dailyCarbs: row.daily_carbs || 250,
-    dailyFat: row.daily_fat || 65,
-    bmi: Number(row.bmi) || 24,
-    bmr: Number(row.bmr) || 1500,
-    tdee: Number(row.tdee) || 2000,
-    joinDate: row.join_date || undefined,
-    skinConcerns: row.conditions?.skinConcerns || undefined,
-  } as UserProfile);
+    return {
+      id: userId,
+      name: profile.name,
+      gender: profile.gender,
+      occupation: profile.occupation,
+      job_type: profile.jobType,
+      work_activity: profile.workActivity,
+      exercise_routine: profile.exerciseRoutine,
+      sleep_hours: profile.sleepHours,
+      stress_level: profile.stressLevel,
+      cooking_habits: profile.cookingHabits,
+      eating_out: profile.eatingOut,
+      caffeine: profile.caffeine,
+      alcohol: profile.alcohol,
+      activity_level: profile.activityLevel,
+      height_cm: profile.heightCm,
+      weight_kg: profile.weightKg,
+      dob: profile.dob,
+      age: profile.age,
+      goal: profile.goal,
+      target_weight: profile.targetWeight,
+      goal_speed: profile.goalSpeed,
+      dietary_prefs: profile.dietaryPrefs,
+      health_conditions: profile.healthConditions,
+      women_health: profile.womenHealth,
+      men_health: profile.menHealth,
+      medications: profile.medications,
+      meal_times: profile.mealTimes,
+      water_goal: profile.waterGoal,
+      onboarding_complete: profile.onboardingComplete,
+      daily_calories: profile.dailyCalories,
+      daily_protein: profile.dailyProtein,
+      daily_carbs: profile.dailyCarbs,
+      daily_fat: profile.dailyFat,
+      bmi: profile.bmi,
+      bmr: profile.bmr,
+      tdee: profile.tdee,
+      join_date: profile.joinDate || null,
+      budget: budgetPayload,
+      conditions: (profile as any).conditions || null,
+      coach_settings: (profile as any).coachSettings || null,
+      learning: (profile as any).learning || null,
+      notification_settings: (profile as any).notificationSettings || null,
+    };
+  };
+
+  const dbRowToProfile = (row: any): UserProfile => {
+    // Restore budget settings from cloud to their separate localStorage keys
+    if (row.budget) {
+      if (row.budget.settings) {
+        saveBudgetSettings(row.budget.settings);
+      }
+      if (row.budget.enhanced) {
+        saveEnhancedBudgetSettings(row.budget.enhanced);
+      }
+      if (row.budget.mealPlannerProfile) {
+        saveMealPlannerProfile(row.budget.mealPlannerProfile);
+      }
+    }
+
+    return {
+      name: row.name || '',
+      gender: row.gender || '',
+      occupation: row.occupation || '',
+      jobType: row.job_type || '',
+      workActivity: row.work_activity || '',
+      exerciseRoutine: row.exercise_routine || '',
+      sleepHours: row.sleep_hours || '',
+      stressLevel: row.stress_level || '',
+      cookingHabits: row.cooking_habits || '',
+      eatingOut: row.eating_out || '',
+      caffeine: row.caffeine || '',
+      alcohol: row.alcohol || '',
+      activityLevel: row.activity_level || 'moderate',
+      heightCm: Number(row.height_cm) || 170,
+      weightKg: Number(row.weight_kg) || 70,
+      dob: row.dob || '',
+      age: row.age || 25,
+      goal: row.goal || 'lose',
+      targetWeight: Number(row.target_weight) || 65,
+      goalSpeed: Number(row.goal_speed) || 0.5,
+      dietaryPrefs: row.dietary_prefs || [],
+      healthConditions: row.health_conditions || [],
+      womenHealth: row.women_health || [],
+      menHealth: row.men_health || {},
+      medications: row.medications || '',
+      mealTimes: row.meal_times || { breakfast: '08:00', lunch: '13:00', dinner: '20:00', snacks: '16:00' },
+      waterGoal: row.water_goal || 8,
+      onboardingComplete: row.onboarding_complete || false,
+      dailyCalories: row.daily_calories || 2000,
+      dailyProtein: row.daily_protein || 75,
+      dailyCarbs: row.daily_carbs || 250,
+      dailyFat: row.daily_fat || 65,
+      bmi: Number(row.bmi) || 24,
+      bmr: Number(row.bmr) || 1500,
+      tdee: Number(row.tdee) || 2000,
+      joinDate: row.join_date || undefined,
+      skinConcerns: row.conditions?.skinConcerns || undefined,
+    } as UserProfile;
+  };
 
   const syncProfileToCloud = useCallback(async (profile: UserProfile) => {
     if (!user) throw new Error('Not authenticated');

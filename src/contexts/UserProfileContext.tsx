@@ -11,6 +11,9 @@ import { restoreLogsFromCloud } from '@/lib/daily-log-sync';
 import { migrateLocalDataToCloud } from '@/lib/cloud-migration';
 import { clearEngineCache } from '@/lib/calorie-correction';
 import { initStorageCleanup } from '@/lib/storage-cleanup';
+import { getBudgetSettings, saveBudgetSettings } from '@/lib/expense-store';
+import { getEnhancedBudgetSettings, saveEnhancedBudgetSettings } from '@/lib/budget-alerts';
+import { getMealPlannerProfile, saveMealPlannerProfile } from '@/lib/meal-planner-store';
 import type { PCOSCondition } from '@/lib/pcos-score';
 
 // Extended conditions interface
@@ -52,6 +55,17 @@ function syncToCloud(profile: UserProfile) {
   syncTimeout = setTimeout(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return;
+
+    // Pack budget settings from their separate localStorage keys into the budget JSON column
+    const budgetSettings = getBudgetSettings();
+    const enhancedBudget = getEnhancedBudgetSettings();
+    const mealPlannerProfile = getMealPlannerProfile();
+    const budgetPayload = {
+      settings: budgetSettings,
+      enhanced: enhancedBudget,
+      mealPlannerProfile: mealPlannerProfile,
+    };
+
     const row: Record<string, any> = {
       id: session.user.id,
       name: profile.name,
@@ -89,8 +103,8 @@ function syncToCloud(profile: UserProfile) {
       bmi: profile.bmi,
       bmr: profile.bmr,
       tdee: profile.tdee,
-      // Sync budget, conditions, coach, learning, and notification settings
-      budget: (profile as any).budget || null,
+      // Sync all extended data into JSON columns
+      budget: budgetPayload,
       conditions: (profile as any).conditions || null,
       coach_settings: (profile as any).coachSettings || null,
       learning: (profile as any).learning || null,
@@ -105,6 +119,19 @@ function syncToCloud(profile: UserProfile) {
 }
 
 function dbRowToProfile(row: any): UserProfile {
+  // Restore budget settings from cloud to their separate localStorage keys
+  if (row.budget) {
+    if (row.budget.settings) {
+      saveBudgetSettings(row.budget.settings);
+    }
+    if (row.budget.enhanced) {
+      saveEnhancedBudgetSettings(row.budget.enhanced);
+    }
+    if (row.budget.mealPlannerProfile) {
+      saveMealPlannerProfile(row.budget.mealPlannerProfile);
+    }
+  }
+
   return {
     name: row.name || '',
     gender: row.gender || '',
@@ -225,9 +252,17 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
       }
     });
 
+    // Listen for budget updates to trigger cloud sync
+    const handleBudgetUpdate = () => {
+      const current = getProfile();
+      if (current) syncToCloud(current);
+    };
+    window.addEventListener('nutrilens:budget-updated', handleBudgetUpdate);
+
     return () => {
       cancelled = true;
       subscription.unsubscribe();
+      window.removeEventListener('nutrilens:budget-updated', handleBudgetUpdate);
     };
   }, []);
 

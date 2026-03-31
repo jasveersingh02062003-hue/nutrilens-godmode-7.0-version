@@ -82,6 +82,8 @@ function BudgetOnboarding({ onComplete }: { onComplete: () => void }) {
       outsideFoodLimit: Number(outsideLimit) || 0,
       onboardingDone: true,
     });
+    // Trigger cloud sync so budget settings are persisted
+    window.dispatchEvent(new Event('nutrilens:budget-updated'));
     onComplete();
   };
 
@@ -996,6 +998,7 @@ function SetBudgetSheet({ open, onClose, onSaved }: {
   const handleSave = () => {
     saveBudgetSettings({ ...settings, weeklyBudget: weekly, monthlyBudget: monthly });
     saveEnhancedBudgetSettings({ ...enhanced, outsideFoodLimit: outsideLimit });
+    window.dispatchEvent(new Event('nutrilens:budget-updated'));
     onSaved();
     onClose();
   };
