@@ -457,8 +457,16 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
                   </div>
                 ))}
               </div>
+              <div className="flex items-center gap-2 mt-3">
+                <button
+                  onClick={handleUndoRedistribution}
+                  className="flex-1 py-2 rounded-xl bg-destructive/10 text-destructive text-xs font-semibold active:scale-95 transition-transform"
+                >
+                  ↩️ Undo & Log {mealLabel}
+                </button>
+              </div>
               <p className="text-[10px] text-muted-foreground mt-2 italic">
-                This meal has already been redistributed. You can still add food manually.
+                Already redistributed. Tap undo if you actually ate this meal.
               </p>
             </div>
           )}
