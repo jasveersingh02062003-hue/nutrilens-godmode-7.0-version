@@ -2,10 +2,9 @@
 
 import { recipes, getEnrichedRecipe, type Recipe, type EnrichedRecipe } from './recipes';
 import { getEffectiveRestrictions } from './logic-engine';
-import { getEnhancedBudgetSettings, type PerMealBudget } from './budget-alerts';
-import { getBudgetSettings, getExpensesForDate } from './expense-store';
 import { getDailyLog, getTodayKey, type UserProfile } from './store';
 import { computePES } from './pes-engine';
+import { getUnifiedBudget, getUnifiedRemainingMealBudget } from './budget-engine';
 
 export interface SuggestedRecipe extends EnrichedRecipe {
   matchReason?: string;
