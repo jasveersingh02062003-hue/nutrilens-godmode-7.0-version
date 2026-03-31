@@ -49,10 +49,10 @@ function BudgetOnboarding({ onComplete }: { onComplete: () => void }) {
   const [mode, setMode] = useState<'choose' | 'manual' | 'ai' | 'ai-result'>('choose');
   const [monthly, setMonthly] = useState('5000');
   const [weekly, setWeekly] = useState('');
-  const [breakfast, setBreakfast] = useState('100');
-  const [lunch, setLunch] = useState('150');
-  const [dinner, setDinner] = useState('200');
-  const [snacks, setSnacks] = useState('50');
+  const [splitBreakfast, setSplitBreakfast] = useState(DEFAULT_MEAL_SPLIT.breakfast);
+  const [splitLunch, setSplitLunch] = useState(DEFAULT_MEAL_SPLIT.lunch);
+  const [splitDinner, setSplitDinner] = useState(DEFAULT_MEAL_SPLIT.dinner);
+  const [splitSnacks, setSplitSnacks] = useState(DEFAULT_MEAL_SPLIT.snacks);
   const [outsideLimit, setOutsideLimit] = useState('1500');
   const [alertThreshold, setAlertThreshold] = useState(80);
 
