@@ -54,8 +54,8 @@ export default function TodayMealPlan() {
     if (!todayPlan) return 0;
     let cost = 0;
     todayPlan.meals.forEach(m => {
-      const recipe = getRecipeById(m.recipeId);
-      if (recipe) cost += getRecipeCost(recipe);
+      const info = getScaledMealInfo(m);
+      if (info) cost += info.cost;
     });
     return cost;
   }, [todayPlan]);
