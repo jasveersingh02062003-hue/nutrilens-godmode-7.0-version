@@ -10,6 +10,7 @@ import {
 import { getDailyLog, getDailyTotals, getAllLogDates, getTodayKey } from './store';
 import { toLocalDateStr } from './date-utils';
 import { getEnhancedBudgetSettings } from './budget-alerts';
+import { getUnifiedBudget } from './budget-engine';
 import { foodDatabase } from './pes-engine';
 
 export interface BudgetSummary {
