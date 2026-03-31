@@ -6,6 +6,8 @@ import { Flame, Beef, Wallet, UtensilsCrossed } from 'lucide-react';
 import { getDailyPlanData } from '@/lib/daily-plan-message';
 import { setDailyHidden } from '@/lib/daily-visibility';
 import { getGreeting } from '@/lib/nutrition';
+import { validateBudgetVsGoals, getUnifiedBudget } from '@/lib/budget-engine';
+import { AlertTriangle } from 'lucide-react';
 import type { UserProfile } from '@/lib/store';
 
 interface DailyPlanCardProps {
