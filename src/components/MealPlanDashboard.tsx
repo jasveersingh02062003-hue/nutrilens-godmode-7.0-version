@@ -35,6 +35,8 @@ interface Props {
   onRegenerate: () => void;
   onSwapMeal: (date: string, recipeId: string) => void;
   onMarkCooked: (date: string, recipeId: string) => void;
+  onUpdateBudget?: (newMonthly: number) => void;
+  onUpdateProteinTarget?: (newProtein: number) => void;
 }
 
 const MEAL_LABELS: Record<string, { label: string; emoji: string }> = {
