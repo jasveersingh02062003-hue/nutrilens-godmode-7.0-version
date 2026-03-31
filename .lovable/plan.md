@@ -1,90 +1,48 @@
 
 
-# Unified Budget Sync — Fix Budget/Meal/Dashboard Inconsistency
+# Wire Budget Validation to Real User Goals
 
 ## Problem
-Monthly budget ₹5000 produces per-meal budgets of ₹900+₹1500+₹1750+₹350 = ₹4500 **per day** because per-meal values are stored independently and never validated against the monthly total. This affects meal planner, dashboard, daily plan card, and progress — all showing impossible numbers.
+Line 350 in `BudgetPlannerTab.tsx` calls `validateBudgetVsGoals(m, 2000, 80)` with **hardcoded** 2000 kcal and 80g protein instead of the user's actual goals from their profile. The Daily Plan Card and Dashboard also don't show budget feasibility warnings. When goals change in EditProfileSheet, no budget validation runs.
 
-## Root Cause
-`EnhancedBudgetSettings.perMeal` in `budget-alerts.ts` stores raw user-entered values that are never constrained to the monthly budget. The meal planner (`meal-plan-generator.ts` line 342) and suggestion engine use these raw values directly.
+## Changes
 
-## Solution
+### 1. Fix BudgetPlannerTab — Use Real Goals
+**File:** `src/components/BudgetPlannerTab.tsx` (line 350)
+- The `useUserProfile()` hook is already imported (line 20). Access `profile` from it.
+- Replace `validateBudgetVsGoals(m, 2000, 80)` with `validateBudgetVsGoals(m, profile?.dailyCalories || 2000, profile?.dailyProtein || 80)`
+- In the AI budget suggestion flow, also validate the AI-suggested amount against real goals and show warning if insufficient
+- Below the validation warning, add a line showing "Recommended minimum: ₹{validation.minMonthly}/month" when severity is not `'ok'`
 
-### 1. Create `src/lib/budget-engine.ts` — Single Source of Truth
+### 2. Add Budget Warning to Daily Plan Card
+**File:** `src/components/DailyPlanCard.tsx`
+- Import `validateBudgetVsGoals` and `getUnifiedBudget` from `budget-engine.ts`
+- After the 3-column metrics grid (line 69), compute validation using profile's actual calories/protein
+- If `severity === 'tight'`: show amber banner "Budget is tight — high-PES meals prioritized"
+- If `severity === 'insufficient'`: show red banner "Budget too low for your goals. Recommended: ₹X/month"
 
-New central module that all other files import from:
+### 3. Add Budget Warning Banner to Dashboard
+**File:** `src/pages/Dashboard.tsx`
+- Import `validateBudgetVsGoals` and `getUnifiedBudget`
+- After the DailyPlanCard render (~line 294), compute validation against `profile.dailyCalories` and `profile.dailyProtein`
+- If `severity === 'insufficient'`, show a dismissible banner with the warning text and recommended minimum
+- Use `isDailyHidden('budget_warning')` / `setDailyHidden('budget_warning')` for once-per-day dismissal
 
-- `computeDailyBudget(monthlyBudget)` → monthly / daysInMonth
-- `computePerMealBudgets(dailyBudget, splitPcts)` → derived per-meal amounts
-- `DEFAULT_MEAL_SPLIT = { breakfast: 20, lunch: 30, dinner: 35, snacks: 15 }` (percentages)
-- `validateBudgetVsGoals(monthlyBudget, dailyCalories, dailyProtein)` → returns `{ feasible, minMonthly, warning }` using cheapest protein source (soya ≈ ₹0.23/g) and cheapest calorie source (rice ≈ ₹0.04/kcal)
-- `getUnifiedBudget(profile)` → reads monthly from `BudgetSettings`, computes daily + per-meal; this is the **one function** everything calls
+### 4. Validate Budget on Goal Changes
+**File:** `src/components/EditProfileSheet.tsx`
+- Import `validateBudgetVsGoals` and `getUnifiedBudget` from `budget-engine.ts`
+- In `handleSave()` (line 102), after `updateProfile(...)`, run validation:
+  ```
+  const unified = getUnifiedBudget();
+  const validation = validateBudgetVsGoals(unified.monthly, decision.targetCalories, decision.targetProtein);
+  if (validation.severity === 'insufficient') {
+    toast.warning(validation.warning);
+  }
+  ```
+- This ensures that when a user switches from fat loss to muscle gain (increasing calorie/protein needs), they're immediately warned if their budget can't support it
 
-### 2. Update `src/lib/budget-alerts.ts`
-
-- Change `EnhancedBudgetSettings.perMeal` to store **split percentages** (not absolute amounts)
-- Default: `{ breakfast: 20, lunch: 30, dinner: 35, snacks: 15 }`
-- Remove hardcoded fallback `{ breakfast: 100, lunch: 150, dinner: 200, snacks: 50 }`
-- All functions that read `perMeal` now call `getUnifiedBudget()` instead
-
-### 3. Update `src/components/BudgetPlannerTab.tsx` — Budget Setup UI
-
-- When user enters monthly budget, immediately show computed daily and per-meal amounts
-- Per-meal inputs become **percentage sliders** (or editable amounts that auto-adjust percentages, keeping sum = 100%)
-- Add validation banner: if budget is too low for goals, show warning with recommended minimum
-- On save: store monthly budget in `BudgetSettings`, store split percentages in `EnhancedBudgetSettings`
-- AI recommendation mode: also validate suggested budget against user's calorie/protein goals
-
-### 4. Update `src/lib/meal-plan-generator.ts`
-
-- Line 341-342: Replace `getEnhancedBudgetSettings().perMeal` with `getUnifiedBudget(profile).perMeal`
-- Line 375: Daily budget computed from unified source
-- Line 378: Per-meal budget from unified computed values
-
-### 5. Update `src/lib/meal-suggestion-engine.ts`
-
-- `getRemainingMealBudget()`: Use `getUnifiedBudget()` instead of raw `EnhancedBudgetSettings.perMeal`
-- `getRecipesForMeal()`: Budget filter uses derived per-meal budget
-
-### 6. Update `src/lib/daily-plan-message.ts`
-
-- Import `getUnifiedBudget` and use computed daily budget for the daily plan card
-- Per-meal budget in each slot comes from unified computation
-
-### 7. Update `src/lib/budget-service.ts`
-
-- `getAdjustedDailyBudget()`: Derive from unified monthly budget, not from raw `perMeal` sum
-- `getDualSyncInsight()`: Use unified daily budget
-
-### 8. Update `src/lib/plan-validator.ts`
-
-- All references to `perMeal` fallback `{ breakfast: 100, ... }` replaced with `getUnifiedBudget()`
-
-### 9. Update `src/components/MealPlanDashboard.tsx`
-
-- `getMealBudget()`: Use `getUnifiedBudget()` for per-meal limits shown on meal cards
-
-### 10. Update Dashboard & Profile Budget Display
-
-- Dashboard budget ring: Use `getUnifiedBudget().daily` as the denominator
-- Profile budget card: Show monthly → daily → per-meal breakdown consistently
-
-## Budget Validation Intelligence
-
-When budget is set or goals change:
-- Compute minimum daily cost: `proteinTarget × 0.23 + (calorieTarget - proteinTarget×4) × 0.04`
-- If daily budget < minimum: show warning "Your budget of ₹X/month (₹Y/day) is too low for your goals. Minimum recommended: ₹Z/month"
-- If tight (within 1.5×): show info "Budget is tight — meals will prioritize high-PES foods"
-
-## Data Migration
-
-- On first load with old `perMeal` absolute values: detect if sum > daily budget, convert to percentages automatically
-- Existing `BudgetSettings.monthlyBudget` remains the source; per-meal becomes derived
-
-## What Changes for Users
-
-- Monthly ₹5000 → daily ₹167 → breakfast ₹33, lunch ₹50, dinner ₹58, snacks ₹25
-- All screens show these consistent numbers
-- Warning if budget can't support their nutrition goals
-- Meal planner only suggests recipes within actual per-meal budget
+## What This Fixes
+- ₹2000/month + muscle gain (3000 kcal, 160g protein) → clear warning with recommended minimum
+- ₹5000/month + fat loss (1500 kcal, 100g protein) → confirmed sufficient
+- Warnings appear consistently: budget setup, daily plan popup, dashboard, and on goal change
 
