@@ -46,7 +46,7 @@ export default function TodayMealPlan() {
     return plan.days.find(d => d.date === today) || null;
   }, [plan, today]);
 
-  const enhanced = useMemo(() => getEnhancedBudgetSettings(), []);
+  const unified = useMemo(() => getUnifiedBudget(), []);
 
   // Calculate total cost for today
   const totalCost = useMemo(() => {
