@@ -192,22 +192,22 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
         </div>
 
         {/* Budget Bar */}
-        {weeklySummary.budget > 0 && (
+        {weeklyBudgetFromMonthly > 0 && (
           <div className="card-subtle p-3 space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <IndianRupee className="w-3.5 h-3.5 text-primary" />
-                <span className="text-[11px] font-bold text-foreground">Weekly Budget</span>
+                <span className="text-[11px] font-bold text-foreground">Weekly Budget (from ₹{unifiedBudget.monthly.toLocaleString()}/mo)</span>
               </div>
               <span className="text-[11px] font-bold text-muted-foreground">
-                ₹{weeklySummary.remaining.toLocaleString()} left
+                ₹{Math.max(0, weeklyBudgetFromMonthly - weeklySummary.spent).toLocaleString()} left
               </span>
             </div>
             <div className="h-2 rounded-full bg-muted overflow-hidden">
               <div className={`h-full rounded-full ${barColor} transition-all duration-500`} style={{ width: `${budgetPct}%` }} />
             </div>
             <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-              <span>Spent: ₹{weeklySummary.spent.toLocaleString()}</span>
+              <span>Spent: ₹{weeklySummary.spent.toLocaleString()} · Daily limit: ₹{Math.round(unifiedBudget.daily)}</span>
               <span>Plan cost: ~₹{weeklyPlanCost.toLocaleString()}</span>
             </div>
           </div>
