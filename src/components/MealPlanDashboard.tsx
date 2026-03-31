@@ -12,6 +12,8 @@ import { getBudgetSummary } from '@/lib/budget-service';
 import { calculatePortions } from '@/lib/portion-engine';
 import { getUnifiedBudget } from '@/lib/budget-engine';
 import { saveManualExpense } from '@/lib/expense-store';
+import { getScaledMealInfo } from '@/lib/meal-scale';
+import { validatePlanFeasibility, validateDaySync } from '@/lib/plan-validator';
 import { deductRecipeFromPantry } from '@/lib/pantry-deduction';
 import RecipeDetail from './RecipeDetail';
 import ShoppingList from './ShoppingList';
