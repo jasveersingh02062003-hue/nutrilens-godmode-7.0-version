@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { X, Flame, Beef, Wallet, UtensilsCrossed } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Flame, Beef, Wallet, UtensilsCrossed } from 'lucide-react';
 import { getDailyPlanData } from '@/lib/daily-plan-message';
 import { setDailyHidden } from '@/lib/daily-visibility';
 import { getGreeting } from '@/lib/nutrition';
@@ -10,6 +10,7 @@ import type { UserProfile } from '@/lib/store';
 
 interface DailyPlanCardProps {
   profile: UserProfile;
+  open: boolean;
   onDismiss: () => void;
 }
 
@@ -20,7 +21,7 @@ const MEAL_EMOJIS: Record<string, string> = {
   dinner: '🌙',
 };
 
-export default function DailyPlanCard({ profile, onDismiss }: DailyPlanCardProps) {
+export default function DailyPlanCard({ profile, open, onDismiss }: DailyPlanCardProps) {
   const navigate = useNavigate();
   const plan = useMemo(() => getDailyPlanData(profile), [profile]);
 
@@ -34,24 +35,16 @@ export default function DailyPlanCard({ profile, onDismiss }: DailyPlanCardProps
   const greeting = getGreeting();
 
   return (
-    <Card className="animate-fade-in border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5 shadow-md">
-      <CardContent className="p-4">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-3">
-          <div>
-            <h3 className="text-base font-bold text-foreground">{greeting} ☀️</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Here's your plan for today</p>
-          </div>
-          <button
-            onClick={handleDismiss}
-            className="p-1 rounded-lg hover:bg-muted/50 text-muted-foreground"
-          >
-            <X className="w-4 h-4" />
-          </button>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) handleDismiss(); }}>
+      <DialogContent className="max-w-sm mx-auto rounded-2xl border-primary/20 bg-gradient-to-br from-primary/5 via-background to-accent/5 p-5 gap-0">
+        <DialogTitle className="sr-only">Daily Plan</DialogTitle>
+
+        <div className="mb-4">
+          <h3 className="text-lg font-bold text-foreground">{greeting} ☀️</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">Here's your plan for today</p>
         </div>
 
-        {/* Summary metrics */}
-        <div className="grid grid-cols-3 gap-2 mb-3">
+        <div className="grid grid-cols-3 gap-2 mb-4">
           <div className="flex items-center gap-1.5 rounded-xl bg-card border border-border px-2.5 py-2">
             <Flame className="w-3.5 h-3.5 text-coral" />
             <div>
@@ -75,8 +68,7 @@ export default function DailyPlanCard({ profile, onDismiss }: DailyPlanCardProps
           </div>
         </div>
 
-        {/* Meal breakdown */}
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 mb-4">
           {plan.meals.map(meal => (
             <div
               key={meal.type}
@@ -99,16 +91,15 @@ export default function DailyPlanCard({ profile, onDismiss }: DailyPlanCardProps
           ))}
         </div>
 
-        {/* CTA */}
         <Button
           size="sm"
-          className="w-full mt-3 text-xs h-9"
-          onClick={() => navigate('/planner')}
+          className="w-full text-xs h-9"
+          onClick={() => { handleDismiss(); navigate('/planner'); }}
         >
           <UtensilsCrossed className="w-3.5 h-3.5 mr-1.5" />
           View Full Plan
         </Button>
-      </CardContent>
-    </Card>
+      </DialogContent>
+    </Dialog>
   );
 }
