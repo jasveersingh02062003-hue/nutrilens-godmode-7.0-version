@@ -35,6 +35,8 @@ interface Props {
   onRegenerate: () => void;
   onSwapMeal: (date: string, recipeId: string) => void;
   onMarkCooked: (date: string, recipeId: string) => void;
+  onUpdateBudget?: (newMonthly: number) => void;
+  onUpdateProteinTarget?: (newProtein: number) => void;
 }
 
 const MEAL_LABELS: Record<string, { label: string; emoji: string }> = {
@@ -46,7 +48,7 @@ const MEAL_LABELS: Record<string, { label: string; emoji: string }> = {
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapMeal, onMarkCooked }: Props) {
+export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapMeal, onMarkCooked, onUpdateBudget, onUpdateProteinTarget }: Props) {
   const [selectedDayIdx, setSelectedDayIdx] = useState(() => {
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
@@ -214,25 +216,52 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
 
         {/* Feasibility Warning */}
         {feasibilityWarning && (
-          <div className={`flex items-start gap-2 px-3 py-2.5 rounded-xl border ${
+          <div className={`px-3 py-2.5 rounded-xl border ${
             feasibilitySeverity === 'insufficient' 
               ? 'bg-destructive/8 border-destructive/15' 
               : 'bg-accent/10 border-accent/20'
           }`}>
-            {feasibilitySeverity === 'insufficient' 
-              ? <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
-              : <AlertTriangle className="w-4 h-4 text-accent flex-shrink-0 mt-0.5" />
-            }
-            <div>
-              <p className={`text-[11px] font-medium leading-snug ${
-                feasibilitySeverity === 'insufficient' ? 'text-destructive' : 'text-accent-foreground'
-              }`}>{feasibilityWarning}</p>
-              {feasibilityResult?.minMonthly && feasibilitySeverity === 'insufficient' && (
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  Recommended minimum: ₹{feasibilityResult.minMonthly.toLocaleString()}/month (₹{feasibilityResult.minDaily}/day)
-                </p>
-              )}
+            <div className="flex items-start gap-2">
+              {feasibilitySeverity === 'insufficient' 
+                ? <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                : <AlertTriangle className="w-4 h-4 text-accent flex-shrink-0 mt-0.5" />
+              }
+              <div>
+                <p className={`text-[11px] font-medium leading-snug ${
+                  feasibilitySeverity === 'insufficient' ? 'text-destructive' : 'text-accent-foreground'
+                }`}>{feasibilityWarning}</p>
+                {feasibilityResult?.minMonthly && feasibilitySeverity === 'insufficient' && (
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Recommended minimum: ₹{feasibilityResult.minMonthly.toLocaleString()}/month (₹{feasibilityResult.minDaily}/day)
+                  </p>
+                )}
+              </div>
             </div>
+            {/* Actionable buttons for insufficient budget */}
+            {feasibilitySeverity === 'insufficient' && feasibilityResult?.minMonthly && (
+              <div className="flex gap-2 mt-2.5 pt-2 border-t border-destructive/10">
+                {onUpdateBudget && (
+                  <button
+                    onClick={() => onUpdateBudget(feasibilityResult.minMonthly!)}
+                    className="flex-1 py-1.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center gap-1"
+                  >
+                    <TrendingUp className="w-3 h-3" /> Increase to ₹{feasibilityResult.minMonthly.toLocaleString()}/mo
+                  </button>
+                )}
+                {onUpdateProteinTarget && (
+                  <button
+                    onClick={() => {
+                      // Estimate achievable protein: use cost constant
+                      const achievable = Math.round(unifiedBudget.daily * 0.7 / 0.23);
+                      onUpdateProteinTarget(Math.min(profile.dailyProtein || 60, achievable));
+                    }}
+                    className="flex-1 py-1.5 rounded-lg bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center gap-1"
+                  >
+                    Reduce protein target
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -269,20 +298,30 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
             const isToday = day.date === `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`;
             const active = idx === selectedDayIdx;
             const isLogged = loggedDays.has(day.date);
-            let dayCost = 0;
+            let dayCal = 0, dayProt = 0, dayCost = 0;
             day.meals.forEach(m => {
               const info = getScaledMealInfo(m);
-              if (info) dayCost += info.cost;
+              if (info) { dayCal += info.calories; dayProt += info.protein; dayCost += info.cost; }
             });
+            // Day health status
+            const calOk = profile.dailyCalories > 0 ? dayCal >= profile.dailyCalories * 0.8 && dayCal <= profile.dailyCalories * 1.2 : true;
+            const protOk = (profile.dailyProtein || 60) > 0 ? dayProt >= (profile.dailyProtein || 60) * 0.8 : true;
+            const budgetOk = unifiedBudget.daily > 0 ? dayCost <= unifiedBudget.daily * 1.15 : true;
+            const issueCount = [calOk, protOk, budgetOk].filter(x => !x).length;
+            const dotColor = issueCount === 0 ? 'bg-primary' : issueCount === 1 ? 'bg-accent' : 'bg-destructive';
             return (
               <button key={day.date} onClick={() => setSelectedDayIdx(idx)}
                 className={`flex flex-col items-center px-3 py-2.5 rounded-xl min-w-[3.2rem] border transition-all ${active ? 'bg-primary text-primary-foreground border-primary shadow-fab' : isToday ? 'bg-primary/10 border-primary/30' : 'bg-card border-border'}`}>
                 <span className="text-[10px] font-medium">{DAYS[idx]}</span>
                 <span className="text-base font-bold">{d.getDate()}</span>
                 <span className={`text-[8px] font-semibold ${active ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>₹{dayCost}</span>
-                {isLogged && (
-                  <CheckCircle2 className={`w-2.5 h-2.5 mt-0.5 ${active ? 'text-primary-foreground' : 'text-primary'}`} />
-                )}
+                <div className="flex items-center gap-1 mt-0.5">
+                  {isLogged ? (
+                    <CheckCircle2 className={`w-2.5 h-2.5 ${active ? 'text-primary-foreground' : 'text-primary'}`} />
+                  ) : (
+                    <span className={`w-2 h-2 rounded-full ${active ? 'bg-primary-foreground/60' : dotColor}`} />
+                  )}
+                </div>
               </button>
             );
           })}

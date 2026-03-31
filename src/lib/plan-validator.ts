@@ -169,9 +169,10 @@ export function validateDaySync(
       continue;
     }
     const enriched = getEnrichedRecipe(recipe);
-    totalCalories += recipe.calories;
-    totalProtein += recipe.protein;
-    totalCost += enriched.estimatedCost;
+    const scale = meal.portionScale ?? 1;
+    totalCalories += Math.round(recipe.calories * scale);
+    totalProtein += Math.round(recipe.protein * scale);
+    totalCost += Math.round(enriched.estimatedCost * scale);
   }
 
   const calorieMismatch = Math.abs(totalCalories - profile.dailyCalories) > profile.dailyCalories * 0.2;
@@ -215,8 +216,9 @@ export function validateWeeklyNutrition(
     for (const meal of day.meals) {
       const recipe = recipes.find(r => r.id === meal.recipeId);
       if (recipe) {
-        dayP += recipe.protein;
-        dayC += recipe.calories;
+        const scale = meal.portionScale ?? 1;
+        dayP += Math.round(recipe.protein * scale);
+        dayC += Math.round(recipe.calories * scale);
       }
     }
     dailyProteins.push(dayP);
