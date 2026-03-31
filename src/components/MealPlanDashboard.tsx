@@ -216,25 +216,52 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
 
         {/* Feasibility Warning */}
         {feasibilityWarning && (
-          <div className={`flex items-start gap-2 px-3 py-2.5 rounded-xl border ${
+          <div className={`px-3 py-2.5 rounded-xl border ${
             feasibilitySeverity === 'insufficient' 
               ? 'bg-destructive/8 border-destructive/15' 
               : 'bg-accent/10 border-accent/20'
           }`}>
-            {feasibilitySeverity === 'insufficient' 
-              ? <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
-              : <AlertTriangle className="w-4 h-4 text-accent flex-shrink-0 mt-0.5" />
-            }
-            <div>
-              <p className={`text-[11px] font-medium leading-snug ${
-                feasibilitySeverity === 'insufficient' ? 'text-destructive' : 'text-accent-foreground'
-              }`}>{feasibilityWarning}</p>
-              {feasibilityResult?.minMonthly && feasibilitySeverity === 'insufficient' && (
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  Recommended minimum: ₹{feasibilityResult.minMonthly.toLocaleString()}/month (₹{feasibilityResult.minDaily}/day)
-                </p>
-              )}
+            <div className="flex items-start gap-2">
+              {feasibilitySeverity === 'insufficient' 
+                ? <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                : <AlertTriangle className="w-4 h-4 text-accent flex-shrink-0 mt-0.5" />
+              }
+              <div>
+                <p className={`text-[11px] font-medium leading-snug ${
+                  feasibilitySeverity === 'insufficient' ? 'text-destructive' : 'text-accent-foreground'
+                }`}>{feasibilityWarning}</p>
+                {feasibilityResult?.minMonthly && feasibilitySeverity === 'insufficient' && (
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Recommended minimum: ₹{feasibilityResult.minMonthly.toLocaleString()}/month (₹{feasibilityResult.minDaily}/day)
+                  </p>
+                )}
+              </div>
             </div>
+            {/* Actionable buttons for insufficient budget */}
+            {feasibilitySeverity === 'insufficient' && feasibilityResult?.minMonthly && (
+              <div className="flex gap-2 mt-2.5 pt-2 border-t border-destructive/10">
+                {onUpdateBudget && (
+                  <button
+                    onClick={() => onUpdateBudget(feasibilityResult.minMonthly!)}
+                    className="flex-1 py-1.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center gap-1"
+                  >
+                    <TrendingUp className="w-3 h-3" /> Increase to ₹{feasibilityResult.minMonthly.toLocaleString()}/mo
+                  </button>
+                )}
+                {onUpdateProteinTarget && (
+                  <button
+                    onClick={() => {
+                      // Estimate achievable protein: use cost constant
+                      const achievable = Math.round(unifiedBudget.daily * 0.7 / 0.23);
+                      onUpdateProteinTarget(Math.min(profile.dailyProtein || 60, achievable));
+                    }}
+                    className="flex-1 py-1.5 rounded-lg bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center gap-1"
+                  >
+                    Reduce protein target
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
