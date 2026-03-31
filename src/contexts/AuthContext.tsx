@@ -2,6 +2,9 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
 import { UserProfile, getProfile, saveProfile } from '@/lib/store';
+import { getBudgetSettings, saveBudgetSettings } from '@/lib/expense-store';
+import { getEnhancedBudgetSettings, saveEnhancedBudgetSettings } from '@/lib/budget-alerts';
+import { getMealPlannerProfile, saveMealPlannerProfile } from '@/lib/meal-planner-store';
 
 interface AuthContextValue {
   user: User | null;
