@@ -302,11 +302,12 @@ export function resolveConflicts(
 
   // Try relaxing budget first (allow 15% flex)
   adjustedBudget = Math.round(dailyBudget * 1.15);
+  const flexPerMeal = unified.perMeal;
   const withFlexBudget = { ...budgetSettings, perMeal: {
-    breakfast: Math.round((perMeal.breakfast || 0) * 1.15),
-    lunch: Math.round((perMeal.lunch || 0) * 1.15),
-    dinner: Math.round((perMeal.dinner || 0) * 1.15),
-    snacks: Math.round((perMeal.snacks || 0) * 1.15),
+    breakfast: Math.round((flexPerMeal.breakfast || 0) * 1.15),
+    lunch: Math.round((flexPerMeal.lunch || 0) * 1.15),
+    dinner: Math.round((flexPerMeal.dinner || 0) * 1.15),
+    snacks: Math.round((flexPerMeal.snacks || 0) * 1.15),
   }};
   const afterBudgetFlex = validatePlanFeasibility(profile, withFlexBudget);
 
