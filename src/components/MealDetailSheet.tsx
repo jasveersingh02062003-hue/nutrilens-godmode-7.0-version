@@ -19,7 +19,7 @@ import SmartRedistributionSheet from '@/components/SmartRedistributionSheet';
 import MissedMealEducation from '@/components/MissedMealEducation';
 import EditMealTargetModal from '@/components/EditMealTargetModal';
 import { wasEducationShown } from '@/lib/education-service';
-import { isRedistributed, getRedistributionDetails, markRedistributed } from '@/lib/redistribution-service';
+import { isRedistributed, getRedistributionDetails, markRedistributed, undoRedistribution } from '@/lib/redistribution-service';
 import WeatherNudgeCard from '@/components/WeatherNudgeCard';
 import { getMealDetailNudge } from '@/lib/weather-nudge-service';
 import SmartAdjustmentCard from '@/components/SmartAdjustmentCard';
