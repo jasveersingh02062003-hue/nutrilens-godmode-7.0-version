@@ -3,6 +3,7 @@
 import { recipes, getEnrichedRecipe } from './recipes';
 import type { MealPlannerProfile, DayPlan, WeekPlan } from './meal-planner-store';
 import type { EnhancedBudgetSettings, PerMealBudget } from './budget-alerts';
+import { getUnifiedBudget } from './budget-engine';
 
 // ─── Constraint Priority Hierarchy ───
 // 1 = highest priority (non-negotiable), 5 = lowest (can relax)
