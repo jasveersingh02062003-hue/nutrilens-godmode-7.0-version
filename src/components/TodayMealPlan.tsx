@@ -5,7 +5,7 @@ import { getMealPlannerProfile, getWeekPlan, getCurrentWeekStart, markMealCooked
 import { getRecipeById } from '@/lib/recipes';
 import { getRecipeImage } from '@/lib/recipe-images';
 import { getRecipeCost } from '@/lib/recipe-cost';
-import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
+import { getUnifiedBudget } from '@/lib/budget-engine';
 import { saveManualExpense } from '@/lib/expense-store';
 import { deductRecipeFromPantry } from '@/lib/pantry-deduction';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
