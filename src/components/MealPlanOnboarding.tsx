@@ -5,7 +5,7 @@ import { MealPlannerProfile, saveMealPlannerProfile } from '@/lib/meal-planner-s
 import { calculateBMI, calculateBMR, calculateTDEE, getBMICategory } from '@/lib/nutrition';
 import { determineGoalAndTargets } from '@/lib/goal-engine';
 import { getProfile } from '@/lib/store';
-import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
+import { getUnifiedBudget, validateBudgetVsGoals } from '@/lib/budget-engine';
 import { validatePlanFeasibility, FeasibilityResult } from '@/lib/plan-validator';
 import { getAdherenceHistory, getComplexityRecommendation, getAdherenceTrend } from '@/lib/adherence-service';
 import MonikaGuide, { MEAL_PLANNER_MONIKA } from '@/components/onboarding/MonikaGuide';
