@@ -89,13 +89,19 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
     return total;
   }, [plan]);
 
-  // Feasibility warning
-  const feasibilityWarning = useMemo(() => {
+  // Feasibility warning — use real budget engine validation
+  const feasibilityResult = useMemo(() => {
     try {
-      const result = validatePlanFeasibility(profile, {} as any);
-      return result.feasible ? null : result.warning;
+      const { validateBudgetVsGoals } = require('@/lib/budget-engine');
+      return validateBudgetVsGoals(
+        unifiedBudget.monthly,
+        profile.dailyCalories,
+        profile.dailyProtein || 60
+      );
     } catch { return null; }
-  }, [profile]);
+  }, [profile, unifiedBudget]);
+  const feasibilityWarning = feasibilityResult?.warning || null;
+  const feasibilitySeverity = feasibilityResult?.severity || 'ok';
 
   if (selectedRecipe) {
     return <RecipeDetail recipe={selectedRecipe} onBack={() => setSelectedRecipe(null)} />;
