@@ -124,8 +124,10 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
 
   function handleRedistribute() {
     if (!profile || !nextMeal) return;
-    if (alreadyRedistributed) {
+    // Double-check at execution time to prevent double redistribution
+    if (isRedistributed(date, mealType)) {
       toast.error('This meal has already been redistributed.');
+      setShowRedistributeConfirm(false);
       return;
     }
     redistributeMissedMeal(profile, mealType, nextMeal, date);
@@ -144,6 +146,17 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
     setShowRedistributeConfirm(false);
     onChanged();
     forceUpdate();
+  }
+
+  function handleUndoRedistribution() {
+    const success = undoRedistribution(date, mealType);
+    if (success) {
+      toast.success(`Redistribution reversed for ${mealLabel}. You can now log your meal.`);
+      onChanged();
+      forceUpdate();
+    } else {
+      toast.error('Could not undo redistribution.');
+    }
   }
 
   function handleSmartRedistribute() {
