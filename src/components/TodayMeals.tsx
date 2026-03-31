@@ -18,7 +18,7 @@ import { getExerciseAdjustmentSummary } from '@/lib/exercise-adjustment';
 import { motion } from 'framer-motion';
 import { DayState, skipMeal as engineSkipMeal } from '@/lib/calorie-engine';
 import { getRemainingMealBudget } from '@/lib/meal-suggestion-engine';
-import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
+import { getUnifiedBudget } from '@/lib/budget-engine';
 import { getPESForMeal } from '@/lib/pes-engine';
 import PESBadge from '@/components/PESBadge';
 
@@ -188,9 +188,9 @@ export default function TodayMeals({ log, onRefresh, dayState }: Props) {
                             if (m.cost?.amount) return s + m.cost.amount;
                             return s + m.items.reduce((is, i) => is + (i.itemCost || 0), 0);
                           }, 0);
-                          const enhanced = getEnhancedBudgetSettings();
+                          const unified = getUnifiedBudget();
                           const slotKey = mc.type === 'snack' ? 'snacks' : mc.type;
-                          const mealBudget = enhanced.perMeal ? (enhanced.perMeal as any)[slotKey] || 0 : 0;
+                          const mealBudget = (unified.perMeal as any)[slotKey] || 0;
                           const overBudget = mealBudget > 0 && mealCost > mealBudget;
                           return mealCost > 0 ? (
                             <span className={`text-[10px] font-semibold ${overBudget ? 'text-destructive' : 'text-accent'}`}>

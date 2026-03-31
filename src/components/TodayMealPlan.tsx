@@ -5,7 +5,7 @@ import { getMealPlannerProfile, getWeekPlan, getCurrentWeekStart, markMealCooked
 import { getRecipeById } from '@/lib/recipes';
 import { getRecipeImage } from '@/lib/recipe-images';
 import { getRecipeCost } from '@/lib/recipe-cost';
-import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
+import { getUnifiedBudget } from '@/lib/budget-engine';
 import { saveManualExpense } from '@/lib/expense-store';
 import { deductRecipeFromPantry } from '@/lib/pantry-deduction';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -46,7 +46,7 @@ export default function TodayMealPlan() {
     return plan.days.find(d => d.date === today) || null;
   }, [plan, today]);
 
-  const enhanced = useMemo(() => getEnhancedBudgetSettings(), []);
+  const unified = useMemo(() => getUnifiedBudget(), []);
 
   // Calculate total cost for today
   const totalCost = useMemo(() => {
@@ -121,12 +121,8 @@ export default function TodayMealPlan() {
   const cookedCount = todayPlan.meals.filter(m => m.cooked || loggedMeals.has(m.recipeId)).length;
 
   function getMealBudget(mealType: string): number {
-    if (!enhanced.perMeal) return 0;
-    if (mealType === 'breakfast') return enhanced.perMeal.breakfast;
-    if (mealType === 'lunch') return enhanced.perMeal.lunch;
-    if (mealType === 'dinner') return enhanced.perMeal.dinner;
-    if (mealType === 'snack') return enhanced.perMeal.snacks;
-    return 0;
+    const slotKey = mealType === 'snack' ? 'snacks' : mealType;
+    return (unified.perMeal as any)[slotKey] || 0;
   }
 
   return (

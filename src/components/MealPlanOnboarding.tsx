@@ -5,7 +5,7 @@ import { MealPlannerProfile, saveMealPlannerProfile } from '@/lib/meal-planner-s
 import { calculateBMI, calculateBMR, calculateTDEE, getBMICategory } from '@/lib/nutrition';
 import { determineGoalAndTargets } from '@/lib/goal-engine';
 import { getProfile } from '@/lib/store';
-import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
+import { getUnifiedBudget, validateBudgetVsGoals } from '@/lib/budget-engine';
 import { validatePlanFeasibility, FeasibilityResult } from '@/lib/plan-validator';
 import { getAdherenceHistory, getComplexityRecommendation, getAdherenceTrend } from '@/lib/adherence-service';
 import MonikaGuide, { MEAL_PLANNER_MONIKA } from '@/components/onboarding/MonikaGuide';
@@ -32,7 +32,7 @@ type FormData = Record<string, any>;
 
 export default function MealPlanOnboarding({ onComplete }: Props) {
   const mainProfile = getProfile();
-  const budgetSettings = getEnhancedBudgetSettings();
+  const unifiedBudget = getUnifiedBudget();
   const [stepIdx, setStepIdx] = useState(0);
   const [dir, setDir] = useState(1);
   const [form, setForm] = useState<FormData>({
@@ -78,8 +78,8 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
 
     const decision = determineGoalAndTargets(weight, height, age, gender, activityLevel, goal, healthConditions);
 
-    const perMeal = budgetSettings.perMeal || { breakfast: 100, lunch: 150, dinner: 200, snacks: 50 };
-    const dailyBudget = (perMeal.breakfast || 0) + (perMeal.lunch || 0) + (perMeal.dinner || 0) + (perMeal.snacks || 0);
+    const perMeal = unifiedBudget.perMeal;
+    const dailyBudget = unifiedBudget.daily;
 
     const profile: MealPlannerProfile = {
       name: p?.name || '',
@@ -180,10 +180,10 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
     if (skin?.pigmentation) skinLabels.push('Pigmentation');
     if (skin?.sensitive) skinLabels.push('Sensitive');
 
-    const perMeal = budgetSettings.perMeal || { breakfast: 0, lunch: 0, dinner: 0, snacks: 0 };
-    const daily = (perMeal.breakfast || 0) + (perMeal.lunch || 0) + (perMeal.dinner || 0) + (perMeal.snacks || 0);
+    const perMeal = unifiedBudget.perMeal;
+    const daily = unifiedBudget.daily;
     const weekly = daily * 7;
-    const monthly = daily * 30;
+    const monthly = unifiedBudget.monthly;
 
     const cards = [
       {
@@ -346,8 +346,8 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
         const p = mainProfile;
         const bmi = p?.bmi || calculateBMI(p?.weightKg || 70, p?.heightCm || 170);
         const cat = getBMICategory(bmi);
-        const perMeal = budgetSettings.perMeal || { breakfast: 0, lunch: 0, dinner: 0, snacks: 0 };
-        const budgetDaily = (perMeal.breakfast || 0) + (perMeal.lunch || 0) + (perMeal.dinner || 0) + (perMeal.snacks || 0);
+        const perMeal = unifiedBudget.perMeal;
+        const budgetDaily = unifiedBudget.daily;
         const health = p?.healthConditions || [];
 
         // Run feasibility check
@@ -366,7 +366,7 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
           dailyCarbs: p?.dailyCarbs || 250, dailyFat: p?.dailyFat || 55,
           onboardingComplete: true, createdAt: new Date().toISOString(),
         };
-        const feasibility = validatePlanFeasibility(tempProfile, budgetSettings);
+        const feasibility = validatePlanFeasibility(tempProfile, { perMeal: unifiedBudget.perMeal } as any);
 
         // Adherence-based complexity
         const adherenceHist = getAdherenceHistory();
