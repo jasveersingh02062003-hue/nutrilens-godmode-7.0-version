@@ -366,7 +366,7 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
           dailyCarbs: p?.dailyCarbs || 250, dailyFat: p?.dailyFat || 55,
           onboardingComplete: true, createdAt: new Date().toISOString(),
         };
-        const feasibility = validatePlanFeasibility(tempProfile, budgetSettings);
+        const feasibility = validatePlanFeasibility(tempProfile, { perMeal: unifiedBudget.perMeal } as any);
 
         // Adherence-based complexity
         const adherenceHist = getAdherenceHistory();
