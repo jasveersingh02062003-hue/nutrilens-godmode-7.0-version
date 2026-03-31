@@ -153,13 +153,13 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
   let dayTotalCal = 0, dayTotalP = 0, dayTotalC = 0, dayTotalF = 0, dayTotalCost = 0;
   if (currentDay) {
     currentDay.meals.forEach(m => {
-      const r = getRecipeById(m.recipeId);
-      if (r) {
-        dayTotalCal += r.calories;
-        dayTotalP += r.protein;
-        dayTotalC += r.carbs;
-        dayTotalF += r.fat;
-        dayTotalCost += getRecipeCost(r);
+      const info = getScaledMealInfo(m);
+      if (info) {
+        dayTotalCal += info.calories;
+        dayTotalP += info.protein;
+        dayTotalC += info.carbs;
+        dayTotalF += info.fat;
+        dayTotalCost += info.cost;
       }
     });
   }
