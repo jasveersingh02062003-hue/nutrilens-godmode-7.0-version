@@ -346,8 +346,8 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
         const p = mainProfile;
         const bmi = p?.bmi || calculateBMI(p?.weightKg || 70, p?.heightCm || 170);
         const cat = getBMICategory(bmi);
-        const perMeal = budgetSettings.perMeal || { breakfast: 0, lunch: 0, dinner: 0, snacks: 0 };
-        const budgetDaily = (perMeal.breakfast || 0) + (perMeal.lunch || 0) + (perMeal.dinner || 0) + (perMeal.snacks || 0);
+        const perMeal = unifiedBudget.perMeal;
+        const budgetDaily = unifiedBudget.daily;
         const health = p?.healthConditions || [];
 
         // Run feasibility check
