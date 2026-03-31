@@ -46,6 +46,7 @@ function AnimatedBar({ percentage, color }: { percentage: number; color: string 
 
 // ─── Budget Onboarding ───
 function BudgetOnboarding({ onComplete }: { onComplete: () => void }) {
+  const { profile: userProfile } = useUserProfile();
   const [mode, setMode] = useState<'choose' | 'manual' | 'ai' | 'ai-result'>('choose');
   const [monthly, setMonthly] = useState('5000');
   const [weekly, setWeekly] = useState('');
