@@ -10,7 +10,7 @@ import { getRecipeCost } from '@/lib/recipe-cost';
 import { computePES, getMealTargetCalories } from '@/lib/pes-engine';
 import { getBudgetSummary } from '@/lib/budget-service';
 import { calculatePortions } from '@/lib/portion-engine';
-import { getUnifiedBudget } from '@/lib/budget-engine';
+import { getUnifiedBudget, validateBudgetVsGoals } from '@/lib/budget-engine';
 import { saveManualExpense } from '@/lib/expense-store';
 import { getScaledMealInfo } from '@/lib/meal-scale';
 import { validatePlanFeasibility, validateDaySync } from '@/lib/plan-validator';
