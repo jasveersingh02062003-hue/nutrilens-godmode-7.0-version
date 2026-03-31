@@ -10,7 +10,7 @@ import { useUserProfile } from '@/contexts/UserProfileContext';
 import HealthBadge from '@/components/HealthBadge';
 import MealDetailSheet from '@/components/MealDetailSheet';
 import LoggingOptionsSheet from '@/components/LoggingOptionsSheet';
-import { getMissedMeals } from '@/lib/meal-targets';
+import { getMissedMeals, getMealTarget } from '@/lib/meal-targets';
 import { Progress } from '@/components/ui/progress';
 import { isRedistributed, getAllRedistributionDetailsForDate } from '@/lib/redistribution-service';
 import { resolveMealVisualState } from '@/lib/meal-state-service';
@@ -21,6 +21,7 @@ import { getRemainingMealBudget } from '@/lib/meal-suggestion-engine';
 import { getUnifiedBudget } from '@/lib/budget-engine';
 import { getPESForMeal } from '@/lib/pes-engine';
 import PESBadge from '@/components/PESBadge';
+import { getAdjustedMealTarget } from '@/lib/meal-targets';
 
 const mealIcons: Record<string, string> = {
   breakfast: '🌅',
@@ -94,10 +95,16 @@ export default function TodayMeals({ log, onRefresh, dayState }: Props) {
               ? scoreUnifiedMeal(meals.flatMap(m => m.items), totalCarbs, totalProtein, totalFat, totalCal, profile)
               : null;
 
-            // Use engine-computed target from dayState
+            // Use engine-computed calorie target from dayState, but get protein/carbs/fat from meal-targets
             const slotName = mc.type === 'snack' ? 'snacks' : mc.type;
             const engineSlot = dayState.slots.find(s => s.name === slotName);
-            const target = engineSlot ? { calories: engineSlot.targetKcal, protein: 0, carbs: 0, fat: 0 } : null;
+            const baseMealTarget = profile ? getAdjustedMealTarget(profile, mc.type, todayKey) : null;
+            const target = engineSlot ? {
+              calories: engineSlot.targetKcal,
+              protein: baseMealTarget?.protein || 0,
+              carbs: baseMealTarget?.carbs || 0,
+              fat: baseMealTarget?.fat || 0,
+            } : null;
             const calPct = target && target.calories > 0 ? Math.min(200, Math.round((totalCal / target.calories) * 100)) : 0;
             const engineStatus = engineSlot?.status || 'pending';
             const isMissed = engineStatus === 'missed';
