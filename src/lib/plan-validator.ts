@@ -86,8 +86,8 @@ export function validatePlanFeasibility(
   profile: MealPlannerProfile,
   budgetSettings: EnhancedBudgetSettings
 ): FeasibilityResult {
-  const perMeal = budgetSettings.perMeal || { breakfast: 100, lunch: 150, dinner: 200, snacks: 50 };
-  const dailyBudget = (perMeal.breakfast || 0) + (perMeal.lunch || 0) + (perMeal.dinner || 0) + (perMeal.snacks || 0);
+  const unified = getUnifiedBudget();
+  const dailyBudget = Math.round(unified.daily);
   const targetProtein = profile.dailyProtein || 60;
   const targetCalories = profile.dailyCalories || 1800;
 
