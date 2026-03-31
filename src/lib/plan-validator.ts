@@ -216,8 +216,9 @@ export function validateWeeklyNutrition(
     for (const meal of day.meals) {
       const recipe = recipes.find(r => r.id === meal.recipeId);
       if (recipe) {
-        dayP += recipe.protein;
-        dayC += recipe.calories;
+        const scale = meal.portionScale ?? 1;
+        dayP += Math.round(recipe.protein * scale);
+        dayC += Math.round(recipe.calories * scale);
       }
     }
     dailyProteins.push(dayP);
