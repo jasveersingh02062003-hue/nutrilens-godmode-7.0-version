@@ -259,7 +259,6 @@ export function isSurvivalModeManual(): boolean {
 const MEAL_ORDER = ['breakfast', 'lunch', 'snack', 'dinner'];
 
 export function cascadeMealBudget(mealType: string, spent: number): { nextMeal: string; reducedBudget: number } | null {
-  const { getUnifiedBudget } = require('./budget-engine');
   const unified = getUnifiedBudget();
   const slotKey = mealType === 'snack' ? 'snacks' : mealType;
   const allocated = (unified.perMeal as any)[slotKey] || 0;
