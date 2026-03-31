@@ -12,6 +12,8 @@ import { getBudgetSummary } from '@/lib/budget-service';
 import { calculatePortions } from '@/lib/portion-engine';
 import { getUnifiedBudget } from '@/lib/budget-engine';
 import { saveManualExpense } from '@/lib/expense-store';
+import { getScaledMealInfo } from '@/lib/meal-scale';
+import { validatePlanFeasibility, validateDaySync } from '@/lib/plan-validator';
 import { deductRecipeFromPantry } from '@/lib/pantry-deduction';
 import RecipeDetail from './RecipeDetail';
 import ShoppingList from './ShoppingList';
@@ -80,12 +82,20 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
     let total = 0;
     for (const day of plan.days) {
       for (const meal of day.meals) {
-        const recipe = getRecipeById(meal.recipeId);
-        if (recipe) total += getRecipeCost(recipe);
+        const info = getScaledMealInfo(meal);
+        if (info) total += info.cost;
       }
     }
     return total;
   }, [plan]);
+
+  // Feasibility warning
+  const feasibilityWarning = useMemo(() => {
+    try {
+      const result = validatePlanFeasibility(profile, {} as any);
+      return result.feasible ? null : result.warning;
+    } catch { return null; }
+  }, [profile]);
 
   if (selectedRecipe) {
     return <RecipeDetail recipe={selectedRecipe} onBack={() => setSelectedRecipe(null)} />;
@@ -143,13 +153,13 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
   let dayTotalCal = 0, dayTotalP = 0, dayTotalC = 0, dayTotalF = 0, dayTotalCost = 0;
   if (currentDay) {
     currentDay.meals.forEach(m => {
-      const r = getRecipeById(m.recipeId);
-      if (r) {
-        dayTotalCal += r.calories;
-        dayTotalP += r.protein;
-        dayTotalC += r.carbs;
-        dayTotalF += r.fat;
-        dayTotalCost += getRecipeCost(r);
+      const info = getScaledMealInfo(m);
+      if (info) {
+        dayTotalCal += info.calories;
+        dayTotalP += info.protein;
+        dayTotalC += info.carbs;
+        dayTotalF += info.fat;
+        dayTotalCost += info.cost;
       }
     });
   }
@@ -195,6 +205,14 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
           </div>
         )}
 
+        {/* Feasibility Warning */}
+        {feasibilityWarning && (
+          <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-destructive/8 border border-destructive/15">
+            <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+            <p className="text-[11px] text-destructive font-medium leading-snug">{feasibilityWarning}</p>
+          </div>
+        )}
+
         {/* Daily targets */}
         <div className="card-subtle p-3">
           <div className="flex justify-between">
@@ -230,8 +248,8 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
             const isLogged = loggedDays.has(day.date);
             let dayCost = 0;
             day.meals.forEach(m => {
-              const r = getRecipeById(m.recipeId);
-              if (r) dayCost += getRecipeCost(r);
+              const info = getScaledMealInfo(m);
+              if (info) dayCost += info.cost;
             });
             return (
               <button key={day.date} onClick={() => setSelectedDayIdx(idx)}
@@ -251,11 +269,12 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
         <AnimatePresence mode="wait">
           <motion.div key={selectedDayIdx} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-3">
             {currentDay?.meals.map((meal, idx) => {
-              const recipe = getRecipeById(meal.recipeId);
-              if (!recipe) return null;
+              const scaled = getScaledMealInfo(meal);
+              if (!scaled) return null;
+              const recipe = scaled.recipe;
               const info = MEAL_LABELS[meal.mealType] || { label: meal.mealType, emoji: '🍽️' };
               const imageUrl = getRecipeImage(recipe.id, meal.mealType);
-              const cost = getRecipeCost(recipe);
+              const cost = scaled.cost;
               const mealBudget = getMealBudget(meal.mealType);
               const withinBudget = mealBudget <= 0 || cost <= mealBudget;
               const overAmount = mealBudget > 0 ? cost - mealBudget : 0;
@@ -292,9 +311,10 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
                     <div className="absolute bottom-2 left-3 right-3">
                       <h3 className="font-bold text-sm text-white truncate">{recipe.name}</h3>
                       <div className="flex gap-3 mt-0.5 text-[10px] text-white/80">
-                        <span className="flex items-center gap-1"><Flame className="w-3 h-3" />{recipe.calories} kcal</span>
+                        <span className="flex items-center gap-1"><Flame className="w-3 h-3" />{scaled.calories} kcal</span>
                         <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{recipe.prepTime + recipe.cookTime}m</span>
                         <span className="capitalize">{recipe.difficulty}</span>
+                        {scaled.scale !== 1 && <span className="text-white/60">{scaled.scale}x</span>}
                       </div>
                     </div>
                   </div>
@@ -319,9 +339,9 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
                     {/* Macro bars + PES badge */}
                     <div className="flex items-center gap-3">
                       {[
-                        { label: 'Protein', val: recipe.protein, color: 'bg-coral' },
-                        { label: 'Carbs', val: recipe.carbs, color: 'bg-primary' },
-                        { label: 'Fat', val: recipe.fat, color: 'bg-gold' },
+                        { label: 'Protein', val: scaled.protein, color: 'bg-coral' },
+                        { label: 'Carbs', val: scaled.carbs, color: 'bg-primary' },
+                        { label: 'Fat', val: scaled.fat, color: 'bg-gold' },
                       ].map(m => (
                         <div key={m.label} className="flex items-center gap-1.5 text-[10px]">
                           <div className={`w-1.5 h-1.5 rounded-full ${m.color}`} />

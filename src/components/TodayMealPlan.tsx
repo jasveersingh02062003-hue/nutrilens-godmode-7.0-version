@@ -6,6 +6,7 @@ import { getRecipeById } from '@/lib/recipes';
 import { getRecipeImage } from '@/lib/recipe-images';
 import { getRecipeCost } from '@/lib/recipe-cost';
 import { getUnifiedBudget } from '@/lib/budget-engine';
+import { getScaledMealInfo } from '@/lib/meal-scale';
 import { saveManualExpense } from '@/lib/expense-store';
 import { deductRecipeFromPantry } from '@/lib/pantry-deduction';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -53,8 +54,8 @@ export default function TodayMealPlan() {
     if (!todayPlan) return 0;
     let cost = 0;
     todayPlan.meals.forEach(m => {
-      const recipe = getRecipeById(m.recipeId);
-      if (recipe) cost += getRecipeCost(recipe);
+      const info = getScaledMealInfo(m);
+      if (info) cost += info.cost;
     });
     return cost;
   }, [todayPlan]);
@@ -156,10 +157,11 @@ export default function TodayMealPlan() {
         <CollapsibleContent>
           <div className="px-4 pb-4 space-y-2">
             {todayPlan.meals.map(meal => {
-              const recipe = getRecipeById(meal.recipeId);
-              if (!recipe) return null;
+              const scaled = getScaledMealInfo(meal);
+              if (!scaled) return null;
+              const recipe = scaled.recipe;
               const imageUrl = getRecipeImage(recipe.id, meal.mealType);
-              const cost = getRecipeCost(recipe);
+              const cost = scaled.cost;
               const mealBudget = getMealBudget(meal.mealType);
               const overBudget = mealBudget > 0 && cost > mealBudget;
               const isLogged = meal.cooked || loggedMeals.has(meal.recipeId);
@@ -179,7 +181,7 @@ export default function TodayMealPlan() {
                       {overBudget && <AlertCircle className="w-3 h-3 text-destructive flex-shrink-0" />}
                     </div>
                     <div className="flex gap-2 mt-0.5 text-[10px] text-muted-foreground">
-                      <span className="flex items-center gap-0.5"><Flame className="w-2.5 h-2.5 text-coral" />{recipe.calories} kcal</span>
+                      <span className="flex items-center gap-0.5"><Flame className="w-2.5 h-2.5 text-coral" />{scaled.calories} kcal</span>
                       <span className="flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" />{recipe.prepTime + recipe.cookTime}m</span>
                       <span className={`flex items-center gap-0.5 font-semibold ${overBudget ? 'text-destructive' : 'text-accent'}`}>
                         ₹{cost}

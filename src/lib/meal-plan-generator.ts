@@ -2,6 +2,7 @@ import { MealPlannerProfile, WeekPlan, DayPlan, PlannedMeal } from './meal-plann
 import { filterRecipes, getEnrichedRecipe, Recipe, recipes } from './recipes';
 import { getBudgetCurveMultiplier, getAdjustedDailyBudget } from './budget-service';
 import { getUnifiedBudget } from './budget-engine';
+import { computePortionScale } from './meal-scale';
 import { getMealMacroTargets, getRecipeComposition, shouldAvoidRecipe, validateWeeklyNutrition } from './plan-validator';
 import { getFeedbackScoreModifier } from './meal-plan-feedback';
 import { getComplexityRecommendation, getAdherenceHistory } from './adherence-service';
@@ -401,16 +402,19 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
 
       if (result) {
         const enriched = getEnrichedRecipe(result.recipe);
+        // Compute portion scale to hit target calories for this slot
+        const scale = computePortionScale(result.recipe.calories, mealCalTarget);
         meals.push({
           recipeId: result.recipe.id,
           mealType: type,
           cooked: false,
           logged: false,
+          portionScale: scale,
           reason: result.reason,
         });
         usedByType[type] = [...(usedByType[type] || []), result.recipe.id];
-        dayProtein += result.recipe.protein;
-        dayCost += enriched.estimatedCost;
+        dayProtein += Math.round(result.recipe.protein * scale);
+        dayCost += Math.round(enriched.estimatedCost * scale);
         validRecipeCount++;
       }
     }
