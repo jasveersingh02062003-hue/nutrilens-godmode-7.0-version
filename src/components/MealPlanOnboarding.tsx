@@ -180,10 +180,10 @@ export default function MealPlanOnboarding({ onComplete }: Props) {
     if (skin?.pigmentation) skinLabels.push('Pigmentation');
     if (skin?.sensitive) skinLabels.push('Sensitive');
 
-    const perMeal = budgetSettings.perMeal || { breakfast: 0, lunch: 0, dinner: 0, snacks: 0 };
-    const daily = (perMeal.breakfast || 0) + (perMeal.lunch || 0) + (perMeal.dinner || 0) + (perMeal.snacks || 0);
+    const perMeal = unifiedBudget.perMeal;
+    const daily = unifiedBudget.daily;
     const weekly = daily * 7;
-    const monthly = daily * 30;
+    const monthly = unifiedBudget.monthly;
 
     const cards = [
       {
