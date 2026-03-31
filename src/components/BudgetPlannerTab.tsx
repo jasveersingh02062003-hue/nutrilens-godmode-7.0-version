@@ -69,12 +69,15 @@ function BudgetOnboarding({ onComplete }: { onComplete: () => void }) {
     saveBudgetSettings({
       weeklyBudget: w,
       monthlyBudget: m,
-      period: 'week',
+      period: 'month',
       currency: '₹',
     });
+    // Store split percentages, not absolute values
+    const pcts: MealSplitPcts = { breakfast: splitBreakfast, lunch: splitLunch, dinner: splitDinner, snacks: splitSnacks };
+    saveMealSplitPcts(pcts);
     saveEnhancedBudgetSettings({
       perMealBudget: 0,
-      perMeal: { breakfast: Number(breakfast), lunch: Number(lunch), dinner: Number(dinner), snacks: Number(snacks) },
+      perMeal: pcts as any,
       outsideFoodLimit: Number(outsideLimit) || 0,
       onboardingDone: true,
     });
