@@ -269,20 +269,30 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
             const isToday = day.date === `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`;
             const active = idx === selectedDayIdx;
             const isLogged = loggedDays.has(day.date);
-            let dayCost = 0;
+            let dayCal = 0, dayProt = 0, dayCost = 0;
             day.meals.forEach(m => {
               const info = getScaledMealInfo(m);
-              if (info) dayCost += info.cost;
+              if (info) { dayCal += info.calories; dayProt += info.protein; dayCost += info.cost; }
             });
+            // Day health status
+            const calOk = profile.dailyCalories > 0 ? dayCal >= profile.dailyCalories * 0.8 && dayCal <= profile.dailyCalories * 1.2 : true;
+            const protOk = (profile.dailyProtein || 60) > 0 ? dayProt >= (profile.dailyProtein || 60) * 0.8 : true;
+            const budgetOk = unifiedBudget.daily > 0 ? dayCost <= unifiedBudget.daily * 1.15 : true;
+            const issueCount = [calOk, protOk, budgetOk].filter(x => !x).length;
+            const dotColor = issueCount === 0 ? 'bg-primary' : issueCount === 1 ? 'bg-accent' : 'bg-destructive';
             return (
               <button key={day.date} onClick={() => setSelectedDayIdx(idx)}
                 className={`flex flex-col items-center px-3 py-2.5 rounded-xl min-w-[3.2rem] border transition-all ${active ? 'bg-primary text-primary-foreground border-primary shadow-fab' : isToday ? 'bg-primary/10 border-primary/30' : 'bg-card border-border'}`}>
                 <span className="text-[10px] font-medium">{DAYS[idx]}</span>
                 <span className="text-base font-bold">{d.getDate()}</span>
                 <span className={`text-[8px] font-semibold ${active ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>₹{dayCost}</span>
-                {isLogged && (
-                  <CheckCircle2 className={`w-2.5 h-2.5 mt-0.5 ${active ? 'text-primary-foreground' : 'text-primary'}`} />
-                )}
+                <div className="flex items-center gap-1 mt-0.5">
+                  {isLogged ? (
+                    <CheckCircle2 className={`w-2.5 h-2.5 ${active ? 'text-primary-foreground' : 'text-primary'}`} />
+                  ) : (
+                    <span className={`w-2 h-2 rounded-full ${active ? 'bg-primary-foreground/60' : dotColor}`} />
+                  )}
+                </div>
               </button>
             );
           })}
