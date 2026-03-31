@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { getRecipesForMeal, getRemainingMealBudget, getUpcomingMealSlots, type SuggestedRecipe } from '@/lib/meal-suggestion-engine';
 import { getBudgetSettings, saveBudgetSettings, saveManualExpense, deleteManualExpense, updateManualExpense, getManualExpenses, type Expense } from '@/lib/expense-store';
 import { checkBudgetAlerts, getEnhancedBudgetSettings, saveEnhancedBudgetSettings, getSmartSwaps, getBurnRateProjection, type BudgetAlert, type EnhancedBudgetSettings, type PerMealBudget } from '@/lib/budget-alerts';
+import { getUnifiedBudget, computeDailyBudget, computePerMealBudgets, validateBudgetVsGoals, saveMealSplitPcts, DEFAULT_MEAL_SPLIT, type MealSplitPcts } from '@/lib/budget-engine';
 import { getPantrySummary, getLowStockAlerts, getPantryItems, addPantryItem, updatePantryItem, deletePantryItem, type PantryItem } from '@/lib/pantry-store';
 import { getPriceTrends } from '@/lib/price-database';
 import GroceryBillScanner from '@/components/GroceryBillScanner';
