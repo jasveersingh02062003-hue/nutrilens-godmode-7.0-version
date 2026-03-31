@@ -3,6 +3,7 @@
 import { recipes, getEnrichedRecipe } from './recipes';
 import type { MealPlannerProfile, DayPlan, WeekPlan } from './meal-planner-store';
 import type { EnhancedBudgetSettings, PerMealBudget } from './budget-alerts';
+import { getUnifiedBudget } from './budget-engine';
 
 // ─── Constraint Priority Hierarchy ───
 // 1 = highest priority (non-negotiable), 5 = lowest (can relax)
@@ -85,8 +86,8 @@ export function validatePlanFeasibility(
   profile: MealPlannerProfile,
   budgetSettings: EnhancedBudgetSettings
 ): FeasibilityResult {
-  const perMeal = budgetSettings.perMeal || { breakfast: 100, lunch: 150, dinner: 200, snacks: 50 };
-  const dailyBudget = (perMeal.breakfast || 0) + (perMeal.lunch || 0) + (perMeal.dinner || 0) + (perMeal.snacks || 0);
+  const unified = getUnifiedBudget();
+  const dailyBudget = Math.round(unified.daily);
   const targetProtein = profile.dailyProtein || 60;
   const targetCalories = profile.dailyCalories || 1800;
 
@@ -153,8 +154,8 @@ export function validateDaySync(
   profile: MealPlannerProfile,
   budgetSettings: EnhancedBudgetSettings
 ): DaySyncResult {
-  const perMeal = budgetSettings.perMeal || { breakfast: 100, lunch: 150, dinner: 200, snacks: 50 };
-  const dailyBudget = (perMeal.breakfast || 0) + (perMeal.lunch || 0) + (perMeal.dinner || 0) + (perMeal.snacks || 0);
+  const unified = getUnifiedBudget();
+  const dailyBudget = Math.round(unified.daily);
   const warnings: string[] = [];
 
   let totalCalories = 0;
@@ -277,8 +278,8 @@ export function resolveConflicts(
   budgetSettings: EnhancedBudgetSettings,
   healthConditions: string[]
 ): ConflictResolution {
-  const perMeal = budgetSettings.perMeal || { breakfast: 100, lunch: 150, dinner: 200, snacks: 50 };
-  const dailyBudget = (perMeal.breakfast || 0) + (perMeal.lunch || 0) + (perMeal.dinner || 0) + (perMeal.snacks || 0);
+  const unified = getUnifiedBudget();
+  const dailyBudget = Math.round(unified.daily);
   const relaxed: ConstraintLevel[] = [];
   let adjustedCalories = profile.dailyCalories;
   let adjustedProtein = profile.dailyProtein;
@@ -301,11 +302,12 @@ export function resolveConflicts(
 
   // Try relaxing budget first (allow 15% flex)
   adjustedBudget = Math.round(dailyBudget * 1.15);
+  const flexPerMeal = unified.perMeal;
   const withFlexBudget = { ...budgetSettings, perMeal: {
-    breakfast: Math.round((perMeal.breakfast || 0) * 1.15),
-    lunch: Math.round((perMeal.lunch || 0) * 1.15),
-    dinner: Math.round((perMeal.dinner || 0) * 1.15),
-    snacks: Math.round((perMeal.snacks || 0) * 1.15),
+    breakfast: Math.round((flexPerMeal.breakfast || 0) * 1.15),
+    lunch: Math.round((flexPerMeal.lunch || 0) * 1.15),
+    dinner: Math.round((flexPerMeal.dinner || 0) * 1.15),
+    snacks: Math.round((flexPerMeal.snacks || 0) * 1.15),
   }};
   const afterBudgetFlex = validatePlanFeasibility(profile, withFlexBudget);
 

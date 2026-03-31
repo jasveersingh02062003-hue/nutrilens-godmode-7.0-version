@@ -3,9 +3,9 @@
 
 import { getProfile, type UserProfile } from './store';
 import { getAdjustedDailyTarget, getProteinTarget } from './calorie-correction';
-import { getBudgetSummary } from './budget-service';
 import { getMealTarget } from './meal-targets';
-import { getRecipesForMeal, getRemainingMealBudget } from './meal-suggestion-engine';
+import { getRecipesForMeal } from './meal-suggestion-engine';
+import { getUnifiedBudget, getUnifiedRemainingMealBudget } from './budget-engine';
 
 export interface DailyMealPlan {
   type: string;
@@ -37,13 +37,13 @@ export function getDailyPlanData(profile: UserProfile | null): DailyPlanData | n
 
   const adjustedCalories = getAdjustedDailyTarget(p);
   const proteinTarget = getProteinTarget(p);
-  const budgetSummary = getBudgetSummary();
+  const unifiedBudget = getUnifiedBudget();
 
   const slots = ['breakfast', 'lunch', 'snack', 'dinner'];
 
   const meals: DailyMealPlan[] = slots.map(slot => {
     const target = getMealTarget(p, slot);
-    const mealBudget = getRemainingMealBudget(slot);
+    const mealBudget = getUnifiedRemainingMealBudget(slot);
 
     // Get top suggestion
     let suggestion: string | undefined;
@@ -69,8 +69,8 @@ export function getDailyPlanData(profile: UserProfile | null): DailyPlanData | n
   return {
     adjustedCalories,
     proteinTarget,
-    remainingBudget: budgetSummary.remaining,
-    currency: budgetSummary.currency,
+    remainingBudget: Math.round(unifiedBudget.daily),
+    currency: unifiedBudget.currency,
     meals,
   };
 }

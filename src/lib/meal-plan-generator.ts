@@ -1,7 +1,7 @@
 import { MealPlannerProfile, WeekPlan, DayPlan, PlannedMeal } from './meal-planner-store';
 import { filterRecipes, getEnrichedRecipe, Recipe, recipes } from './recipes';
 import { getBudgetCurveMultiplier, getAdjustedDailyBudget } from './budget-service';
-import { getEnhancedBudgetSettings } from './budget-alerts';
+import { getUnifiedBudget } from './budget-engine';
 import { getMealMacroTargets, getRecipeComposition, shouldAvoidRecipe, validateWeeklyNutrition } from './plan-validator';
 import { getFeedbackScoreModifier } from './meal-plan-feedback';
 import { getComplexityRecommendation, getAdherenceHistory } from './adherence-service';
@@ -337,9 +337,9 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
   // Get macro distribution targets
   const macroTargets = getMealMacroTargets(targetProtein, targetCal, mealsPerDay);
 
-  // Get per-meal budget from budget settings
-  const enhanced = getEnhancedBudgetSettings();
-  const perMealBudget = enhanced.perMeal || { breakfast: 100, lunch: 150, dinner: 200, snacks: 50 };
+  // Get per-meal budget from unified budget engine
+  const unifiedBudget = getUnifiedBudget();
+  const perMealBudget = unifiedBudget.perMeal;
 
   const mealTypes: { type: 'breakfast' | 'lunch' | 'dinner' | 'snack'; budgetKey: string; macroKey: string }[] = [
     { type: 'breakfast', budgetKey: 'breakfast', macroKey: 'breakfast' },
@@ -372,7 +372,7 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
     const meals: PlannedMealWithReason[] = [];
     let dayProtein = 0;
     let dayCost = 0;
-    const dailyBudget = Object.values(perMealBudget).reduce((s, v) => s + (v || 0), 0) * curveMultiplier;
+    const dailyBudget = Math.round(unifiedBudget.daily * curveMultiplier);
 
     for (const { type, budgetKey, macroKey } of mealTypes) {
       const mealBudgetRaw = (perMealBudget as any)[budgetKey] || 100;
@@ -489,10 +489,9 @@ export function swapMeal(plan: WeekPlan, date: string, recipeId: string, profile
 
   const currentRecipe = recipes.find(r => r.id === recipeId);
 
-  const enhanced = getEnhancedBudgetSettings();
-  const perMealBudget = enhanced.perMeal || { breakfast: 100, lunch: 150, dinner: 200, snacks: 50 };
+  const unifiedBdg = getUnifiedBudget();
   const budgetKey = meal.mealType === 'snack' ? 'snacks' : meal.mealType;
-  const mealBudget = (perMealBudget as any)[budgetKey] || 100;
+  const mealBudget = (unifiedBdg.perMeal as any)[budgetKey] || 0;
 
   const result = findRecipeWithFallback(meal.mealType, {
     tags,

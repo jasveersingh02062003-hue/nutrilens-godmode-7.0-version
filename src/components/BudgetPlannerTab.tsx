@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { getRecipesForMeal, getRemainingMealBudget, getUpcomingMealSlots, type SuggestedRecipe } from '@/lib/meal-suggestion-engine';
 import { getBudgetSettings, saveBudgetSettings, saveManualExpense, deleteManualExpense, updateManualExpense, getManualExpenses, type Expense } from '@/lib/expense-store';
 import { checkBudgetAlerts, getEnhancedBudgetSettings, saveEnhancedBudgetSettings, getSmartSwaps, getBurnRateProjection, type BudgetAlert, type EnhancedBudgetSettings, type PerMealBudget } from '@/lib/budget-alerts';
+import { getUnifiedBudget, computeDailyBudget, computePerMealBudgets, validateBudgetVsGoals, saveMealSplitPcts, DEFAULT_MEAL_SPLIT, type MealSplitPcts } from '@/lib/budget-engine';
 import { getPantrySummary, getLowStockAlerts, getPantryItems, addPantryItem, updatePantryItem, deletePantryItem, type PantryItem } from '@/lib/pantry-store';
 import { getPriceTrends } from '@/lib/price-database';
 import GroceryBillScanner from '@/components/GroceryBillScanner';
@@ -48,10 +49,10 @@ function BudgetOnboarding({ onComplete }: { onComplete: () => void }) {
   const [mode, setMode] = useState<'choose' | 'manual' | 'ai' | 'ai-result'>('choose');
   const [monthly, setMonthly] = useState('5000');
   const [weekly, setWeekly] = useState('');
-  const [breakfast, setBreakfast] = useState('100');
-  const [lunch, setLunch] = useState('150');
-  const [dinner, setDinner] = useState('200');
-  const [snacks, setSnacks] = useState('50');
+  const [splitBreakfast, setSplitBreakfast] = useState(DEFAULT_MEAL_SPLIT.breakfast);
+  const [splitLunch, setSplitLunch] = useState(DEFAULT_MEAL_SPLIT.lunch);
+  const [splitDinner, setSplitDinner] = useState(DEFAULT_MEAL_SPLIT.dinner);
+  const [splitSnacks, setSplitSnacks] = useState(DEFAULT_MEAL_SPLIT.snacks);
   const [outsideLimit, setOutsideLimit] = useState('1500');
   const [alertThreshold, setAlertThreshold] = useState(80);
 
@@ -68,12 +69,15 @@ function BudgetOnboarding({ onComplete }: { onComplete: () => void }) {
     saveBudgetSettings({
       weeklyBudget: w,
       monthlyBudget: m,
-      period: 'week',
+      period: 'month',
       currency: '₹',
     });
+    // Store split percentages, not absolute values
+    const pcts: MealSplitPcts = { breakfast: splitBreakfast, lunch: splitLunch, dinner: splitDinner, snacks: splitSnacks };
+    saveMealSplitPcts(pcts);
     saveEnhancedBudgetSettings({
       perMealBudget: 0,
-      perMeal: { breakfast: Number(breakfast), lunch: Number(lunch), dinner: Number(dinner), snacks: Number(snacks) },
+      perMeal: pcts as any,
       outsideFoodLimit: Number(outsideLimit) || 0,
       onboardingDone: true,
     });
@@ -93,17 +97,24 @@ function BudgetOnboarding({ onComplete }: { onComplete: () => void }) {
     if (cooksHome === 'yes') base = Math.round(base * 0.85);
     else if (cooksHome === 'no') base = Math.round(base * 1.3);
 
-    const bkf = Math.round(base * 0.18);
-    const lnc = Math.round(base * 0.30);
-    const dnr = Math.round(base * 0.35);
-    const snk = Math.round(base * 0.07);
+    // AI suggests percentages, not absolute per-meal values
+    const bkfPct = 18;
+    const lncPct = 30;
+    const dnrPct = 35;
+    const snkPct = 17;
+
+    const daily = computeDailyBudget(base);
+    const bkf = Math.round(daily * bkfPct / 100);
+    const lnc = Math.round(daily * lncPct / 100);
+    const dnr = Math.round(daily * dnrPct / 100);
+    const snk = Math.round(daily * snkPct / 100);
 
     setAiSuggested({ monthly: base, breakfast: bkf, lunch: lnc, dinner: dnr, snacks: snk });
     setMonthly(String(base));
-    setBreakfast(String(bkf));
-    setLunch(String(lnc));
-    setDinner(String(dnr));
-    setSnacks(String(snk));
+    setSplitBreakfast(bkfPct);
+    setSplitLunch(lncPct);
+    setSplitDinner(dnrPct);
+    setSplitSnacks(snkPct);
     setOutsideLimit(String(outsideAdj || 1500));
     setMode('ai-result');
   };
@@ -332,24 +343,54 @@ function BudgetOnboarding({ onComplete }: { onComplete: () => void }) {
         </div>
       </div>
 
-      <div className="space-y-2">
-        <label className="text-[11px] font-semibold text-muted-foreground uppercase">Per-Meal Budget (optional, daily)</label>
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            { label: '🌅 Breakfast', val: breakfast, set: setBreakfast },
-            { label: '☀️ Lunch', val: lunch, set: setLunch },
-            { label: '🌙 Dinner', val: dinner, set: setDinner },
-            { label: '🍎 Snacks', val: snacks, set: setSnacks },
-          ].map(m => (
-            <div key={m.label} className="space-y-1">
-              <span className="text-[10px] text-muted-foreground">{m.label}</span>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">₹</span>
-                <input type="number" value={m.val} onChange={e => m.set(e.target.value)}
-                  className="w-full pl-7 pr-2 py-2.5 rounded-xl bg-muted text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20 text-foreground" />
+      {(() => {
+        const m = Number(monthly) || 5000;
+        const daily = computeDailyBudget(m);
+        const perMeal = computePerMealBudgets(daily, { breakfast: splitBreakfast, lunch: splitLunch, dinner: splitDinner, snacks: splitSnacks });
+        const validation = validateBudgetVsGoals(m, 2000, 80);
+        return (
+          <>
+            <div className="rounded-xl bg-muted/50 p-3 space-y-1">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase">Daily Budget</p>
+              <p className="text-lg font-extrabold text-foreground">₹{Math.round(daily)}/day</p>
+              <div className="grid grid-cols-4 gap-1 mt-2">
+                <div className="text-center"><p className="text-[9px] text-muted-foreground">🌅 Bkf</p><p className="text-xs font-bold">₹{perMeal.breakfast}</p></div>
+                <div className="text-center"><p className="text-[9px] text-muted-foreground">☀️ Lunch</p><p className="text-xs font-bold">₹{perMeal.lunch}</p></div>
+                <div className="text-center"><p className="text-[9px] text-muted-foreground">🌙 Dinner</p><p className="text-xs font-bold">₹{perMeal.dinner}</p></div>
+                <div className="text-center"><p className="text-[9px] text-muted-foreground">🍎 Snacks</p><p className="text-xs font-bold">₹{perMeal.snacks}</p></div>
               </div>
             </div>
+            {validation.warning && (
+              <div className={`rounded-xl p-3 text-xs font-medium ${validation.severity === 'insufficient' ? 'bg-destructive/10 text-destructive' : 'bg-accent/10 text-accent-foreground'}`}>
+                <AlertTriangle className="w-3.5 h-3.5 inline mr-1" />
+                {validation.warning}
+              </div>
+            )}
+          </>
+        );
+      })()}
+
+      <div className="space-y-2">
+        <label className="text-[11px] font-semibold text-muted-foreground uppercase">Meal Split (% of daily budget)</label>
+        <div className="space-y-3">
+          {[
+            { label: '🌅 Breakfast', val: splitBreakfast, set: setSplitBreakfast },
+            { label: '☀️ Lunch', val: splitLunch, set: setSplitLunch },
+            { label: '🌙 Dinner', val: splitDinner, set: setSplitDinner },
+            { label: '🍎 Snacks', val: splitSnacks, set: setSplitSnacks },
+          ].map(m => (
+            <div key={m.label} className="space-y-1">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] text-muted-foreground">{m.label}</span>
+                <span className="text-xs font-bold text-foreground">{m.val}%</span>
+              </div>
+              <input type="range" min={5} max={60} value={m.val} onChange={e => m.set(Number(e.target.value))}
+                className="w-full accent-primary h-2" />
+            </div>
           ))}
+          <p className={`text-[10px] font-semibold ${splitBreakfast + splitLunch + splitDinner + splitSnacks === 100 ? 'text-primary' : 'text-destructive'}`}>
+            Total: {splitBreakfast + splitLunch + splitDinner + splitSnacks}% {splitBreakfast + splitLunch + splitDinner + splitSnacks !== 100 && '(must be 100%)'}
+          </p>
         </div>
       </div>
 

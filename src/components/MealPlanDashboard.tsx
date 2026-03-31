@@ -10,7 +10,7 @@ import { getRecipeCost } from '@/lib/recipe-cost';
 import { computePES, getMealTargetCalories } from '@/lib/pes-engine';
 import { getBudgetSummary } from '@/lib/budget-service';
 import { calculatePortions } from '@/lib/portion-engine';
-import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
+import { getUnifiedBudget } from '@/lib/budget-engine';
 import { saveManualExpense } from '@/lib/expense-store';
 import { deductRecipeFromPantry } from '@/lib/pantry-deduction';
 import RecipeDetail from './RecipeDetail';
@@ -62,13 +62,10 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
   const currentDay = plan.days[selectedDayIdx];
   const shoppingList = useMemo(() => generateShoppingList(plan), [plan]);
   const weeklySummary = useMemo(() => getBudgetSummary('week'), [loggedDays]);
-  const enhanced = useMemo(() => getEnhancedBudgetSettings(), []);
+  const unifiedBudget = useMemo(() => getUnifiedBudget(), []);
 
   // Per-meal budget limits
-  const perMealBudget = useMemo(() => {
-    if (enhanced.perMeal) return enhanced.perMeal;
-    return { breakfast: 0, lunch: 0, dinner: 0, snacks: 0 };
-  }, [enhanced]);
+  const perMealBudget = unifiedBudget.perMeal;
 
   function getMealBudget(mealType: string): number {
     if (mealType === 'breakfast') return perMealBudget.breakfast;

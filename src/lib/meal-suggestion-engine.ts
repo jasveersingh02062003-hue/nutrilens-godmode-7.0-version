@@ -2,10 +2,9 @@
 
 import { recipes, getEnrichedRecipe, type Recipe, type EnrichedRecipe } from './recipes';
 import { getEffectiveRestrictions } from './logic-engine';
-import { getEnhancedBudgetSettings, type PerMealBudget } from './budget-alerts';
-import { getBudgetSettings, getExpensesForDate } from './expense-store';
 import { getDailyLog, getTodayKey, type UserProfile } from './store';
 import { computePES } from './pes-engine';
+import { getUnifiedBudget, getUnifiedRemainingMealBudget } from './budget-engine';
 
 export interface SuggestedRecipe extends EnrichedRecipe {
   matchReason?: string;
@@ -16,29 +15,7 @@ export interface SuggestedRecipe extends EnrichedRecipe {
  * Get the remaining budget for a specific meal slot today.
  */
 export function getRemainingMealBudget(mealType: string): number {
-  const enhanced = getEnhancedBudgetSettings();
-  const budgetSettings = getBudgetSettings();
-
-  const perMeal: PerMealBudget = enhanced.perMeal || {
-    breakfast: 100, lunch: 150, dinner: 200, snacks: 50,
-  };
-  const slotKey = mealType === 'snack' ? 'snacks' : mealType;
-  const mealBudget = (perMeal as any)[slotKey] || 0;
-  if (mealBudget <= 0) {
-    const daily = budgetSettings.period === 'week'
-      ? Math.round(budgetSettings.weeklyBudget / 7)
-      : Math.round(budgetSettings.monthlyBudget / 30);
-    const splits: Record<string, number> = { breakfast: 0.25, lunch: 0.35, dinner: 0.25, snacks: 0.15 };
-    return Math.round(daily * (splits[slotKey] || 0.25));
-  }
-
-  const today = getTodayKey();
-  const log = getDailyLog(today);
-  const spentOnSlot = log.meals
-    .filter(m => m.type === mealType)
-    .reduce((s, m) => s + (m.cost?.amount || 0), 0);
-
-  return Math.max(0, mealBudget - spentOnSlot);
+  return getUnifiedRemainingMealBudget(mealType);
 }
 
 /**
