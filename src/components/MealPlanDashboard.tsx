@@ -205,6 +205,14 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
           </div>
         )}
 
+        {/* Feasibility Warning */}
+        {feasibilityWarning && (
+          <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-destructive/8 border border-destructive/15">
+            <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+            <p className="text-[11px] text-destructive font-medium leading-snug">{feasibilityWarning}</p>
+          </div>
+        )}
+
         {/* Daily targets */}
         <div className="card-subtle p-3">
           <div className="flex justify-between">
