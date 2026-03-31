@@ -119,6 +119,19 @@ function syncToCloud(profile: UserProfile) {
 }
 
 function dbRowToProfile(row: any): UserProfile {
+  // Restore budget settings from cloud to their separate localStorage keys
+  if (row.budget) {
+    if (row.budget.settings) {
+      saveBudgetSettings(row.budget.settings);
+    }
+    if (row.budget.enhanced) {
+      saveEnhancedBudgetSettings(row.budget.enhanced);
+    }
+    if (row.budget.mealPlannerProfile) {
+      saveMealPlannerProfile(row.budget.mealPlannerProfile);
+    }
+  }
+
   return {
     name: row.name || '',
     gender: row.gender || '',
