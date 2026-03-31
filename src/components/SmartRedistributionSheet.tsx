@@ -13,6 +13,7 @@ import {
   calculateProportionalDistribution,
   applyRedistribution,
   markRedistributed,
+  isRedistributed,
   type RedistributionResult,
 } from '@/lib/redistribution-service';
 import { toast } from 'sonner';
