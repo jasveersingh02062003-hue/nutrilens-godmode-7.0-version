@@ -215,9 +215,25 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
 
         {/* Feasibility Warning */}
         {feasibilityWarning && (
-          <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-destructive/8 border border-destructive/15">
-            <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
-            <p className="text-[11px] text-destructive font-medium leading-snug">{feasibilityWarning}</p>
+          <div className={`flex items-start gap-2 px-3 py-2.5 rounded-xl border ${
+            feasibilitySeverity === 'insufficient' 
+              ? 'bg-destructive/8 border-destructive/15' 
+              : 'bg-accent/10 border-accent/20'
+          }`}>
+            {feasibilitySeverity === 'insufficient' 
+              ? <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+              : <AlertTriangle className="w-4 h-4 text-accent flex-shrink-0 mt-0.5" />
+            }
+            <div>
+              <p className={`text-[11px] font-medium leading-snug ${
+                feasibilitySeverity === 'insufficient' ? 'text-destructive' : 'text-accent-foreground'
+              }`}>{feasibilityWarning}</p>
+              {feasibilityResult?.minMonthly && feasibilitySeverity === 'insufficient' && (
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Recommended minimum: ₹{feasibilityResult.minMonthly.toLocaleString()}/month (₹{feasibilityResult.minDaily}/day)
+                </p>
+              )}
+            </div>
           </div>
         )}
 
