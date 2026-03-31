@@ -97,17 +97,24 @@ function BudgetOnboarding({ onComplete }: { onComplete: () => void }) {
     if (cooksHome === 'yes') base = Math.round(base * 0.85);
     else if (cooksHome === 'no') base = Math.round(base * 1.3);
 
-    const bkf = Math.round(base * 0.18);
-    const lnc = Math.round(base * 0.30);
-    const dnr = Math.round(base * 0.35);
-    const snk = Math.round(base * 0.07);
+    // AI suggests percentages, not absolute per-meal values
+    const bkfPct = 18;
+    const lncPct = 30;
+    const dnrPct = 35;
+    const snkPct = 17;
+
+    const daily = computeDailyBudget(base);
+    const bkf = Math.round(daily * bkfPct / 100);
+    const lnc = Math.round(daily * lncPct / 100);
+    const dnr = Math.round(daily * dnrPct / 100);
+    const snk = Math.round(daily * snkPct / 100);
 
     setAiSuggested({ monthly: base, breakfast: bkf, lunch: lnc, dinner: dnr, snacks: snk });
     setMonthly(String(base));
-    setBreakfast(String(bkf));
-    setLunch(String(lnc));
-    setDinner(String(dnr));
-    setSnacks(String(snk));
+    setSplitBreakfast(bkfPct);
+    setSplitLunch(lncPct);
+    setSplitDinner(dnrPct);
+    setSplitSnacks(snkPct);
     setOutsideLimit(String(outsideAdj || 1500));
     setMode('ai-result');
   };
