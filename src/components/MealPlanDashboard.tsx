@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RefreshCw, ShoppingCart, Clock, Flame, Beef, Wheat, Droplets, ArrowRight, Check, Repeat, IndianRupee, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { RefreshCw, ShoppingCart, Clock, Flame, Beef, Wheat, Droplets, ArrowRight, Check, Repeat, IndianRupee, AlertCircle, CheckCircle2, XCircle, AlertTriangle, TrendingUp } from 'lucide-react';
 import { WeekPlan, DayPlan, PlannedMeal } from '@/lib/meal-planner-store';
 import { MealPlannerProfile } from '@/lib/meal-planner-store';
 import { getRecipeById, getEnrichedRecipe, Recipe } from '@/lib/recipes';
@@ -10,7 +10,7 @@ import { getRecipeCost } from '@/lib/recipe-cost';
 import { computePES, getMealTargetCalories } from '@/lib/pes-engine';
 import { getBudgetSummary } from '@/lib/budget-service';
 import { calculatePortions } from '@/lib/portion-engine';
-import { getUnifiedBudget } from '@/lib/budget-engine';
+import { getUnifiedBudget, validateBudgetVsGoals } from '@/lib/budget-engine';
 import { saveManualExpense } from '@/lib/expense-store';
 import { getScaledMealInfo } from '@/lib/meal-scale';
 import { validatePlanFeasibility, validateDaySync } from '@/lib/plan-validator';
@@ -89,13 +89,18 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
     return total;
   }, [plan]);
 
-  // Feasibility warning
-  const feasibilityWarning = useMemo(() => {
+  // Feasibility warning — use real budget engine validation
+  const feasibilityResult = useMemo(() => {
     try {
-      const result = validatePlanFeasibility(profile, {} as any);
-      return result.feasible ? null : result.warning;
+      return validateBudgetVsGoals(
+        unifiedBudget.monthly,
+        profile.dailyCalories,
+        profile.dailyProtein || 60
+      );
     } catch { return null; }
-  }, [profile]);
+  }, [profile, unifiedBudget]);
+  const feasibilityWarning = feasibilityResult?.warning || null;
+  const feasibilitySeverity = feasibilityResult?.severity || 'ok';
 
   if (selectedRecipe) {
     return <RecipeDetail recipe={selectedRecipe} onBack={() => setSelectedRecipe(null)} />;
@@ -105,7 +110,9 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
     return <ShoppingList list={shoppingList} onBack={() => setShowShopping(false)} />;
   }
 
-  const budgetPct = weeklySummary.budget > 0 ? Math.min(100, Math.round((weeklySummary.spent / weeklySummary.budget) * 100)) : 0;
+  // Use unified budget for weekly display instead of raw weeklySummary
+  const weeklyBudgetFromMonthly = Math.round(unifiedBudget.monthly / 4.33);
+  const budgetPct = weeklyBudgetFromMonthly > 0 ? Math.min(100, Math.round((weeklySummary.spent / weeklyBudgetFromMonthly) * 100)) : 0;
   const barColor = budgetPct > 90 ? 'bg-destructive' : budgetPct > 70 ? 'bg-accent' : 'bg-primary';
 
   const isDayLogged = currentDay ? loggedDays.has(currentDay.date) : false;
@@ -184,22 +191,22 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
         </div>
 
         {/* Budget Bar */}
-        {weeklySummary.budget > 0 && (
+        {weeklyBudgetFromMonthly > 0 && (
           <div className="card-subtle p-3 space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <IndianRupee className="w-3.5 h-3.5 text-primary" />
-                <span className="text-[11px] font-bold text-foreground">Weekly Budget</span>
+                <span className="text-[11px] font-bold text-foreground">Weekly Budget (from ₹{unifiedBudget.monthly.toLocaleString()}/mo)</span>
               </div>
               <span className="text-[11px] font-bold text-muted-foreground">
-                ₹{weeklySummary.remaining.toLocaleString()} left
+                ₹{Math.max(0, weeklyBudgetFromMonthly - weeklySummary.spent).toLocaleString()} left
               </span>
             </div>
             <div className="h-2 rounded-full bg-muted overflow-hidden">
               <div className={`h-full rounded-full ${barColor} transition-all duration-500`} style={{ width: `${budgetPct}%` }} />
             </div>
             <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-              <span>Spent: ₹{weeklySummary.spent.toLocaleString()}</span>
+              <span>Spent: ₹{weeklySummary.spent.toLocaleString()} · Daily limit: ₹{Math.round(unifiedBudget.daily)}</span>
               <span>Plan cost: ~₹{weeklyPlanCost.toLocaleString()}</span>
             </div>
           </div>
@@ -207,9 +214,25 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
 
         {/* Feasibility Warning */}
         {feasibilityWarning && (
-          <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-destructive/8 border border-destructive/15">
-            <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
-            <p className="text-[11px] text-destructive font-medium leading-snug">{feasibilityWarning}</p>
+          <div className={`flex items-start gap-2 px-3 py-2.5 rounded-xl border ${
+            feasibilitySeverity === 'insufficient' 
+              ? 'bg-destructive/8 border-destructive/15' 
+              : 'bg-accent/10 border-accent/20'
+          }`}>
+            {feasibilitySeverity === 'insufficient' 
+              ? <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+              : <AlertTriangle className="w-4 h-4 text-accent flex-shrink-0 mt-0.5" />
+            }
+            <div>
+              <p className={`text-[11px] font-medium leading-snug ${
+                feasibilitySeverity === 'insufficient' ? 'text-destructive' : 'text-accent-foreground'
+              }`}>{feasibilityWarning}</p>
+              {feasibilityResult?.minMonthly && feasibilitySeverity === 'insufficient' && (
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Recommended minimum: ₹{feasibilityResult.minMonthly.toLocaleString()}/month (₹{feasibilityResult.minDaily}/day)
+                </p>
+              )}
+            </div>
           </div>
         )}
 
@@ -397,22 +420,58 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
               );
             })}
 
-            {/* Day totals */}
-            {currentDay && (
-              <div className="card-subtle p-3 mt-2">
-                <p className="text-xs font-semibold text-muted-foreground mb-2">Day Total</p>
-                <div className="flex justify-between text-sm">
-                  <span className="text-foreground font-bold">{dayTotalCal} kcal</span>
-                  <span className="text-muted-foreground">P: {dayTotalP}g · C: {dayTotalC}g · F: {dayTotalF}g</span>
+            {/* Day totals with status indicators */}
+            {currentDay && (() => {
+              const calPct = profile.dailyCalories > 0 ? dayTotalCal / profile.dailyCalories : 1;
+              const protPct = (profile.dailyProtein || 60) > 0 ? dayTotalP / (profile.dailyProtein || 60) : 1;
+              const budgetOver = unifiedBudget.daily > 0 ? dayTotalCost / unifiedBudget.daily : 0;
+              const calOk = calPct >= 0.8 && calPct <= 1.2;
+              const protOk = protPct >= 0.8;
+              const budgetOk = budgetOver <= 1.15;
+              const allGood = calOk && protOk && budgetOk;
+              const statusColor = allGood ? 'border-primary/20' : (!protOk || !calOk) ? 'border-destructive/20' : 'border-accent/20';
+              
+              return (
+                <div className={`card-subtle p-3 mt-2 border ${statusColor}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-muted-foreground">Day Total</p>
+                    {allGood ? (
+                      <span className="text-[10px] font-bold text-primary flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> On track</span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-destructive flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Needs attention</span>
+                    )}
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className={`font-bold ${calOk ? 'text-foreground' : 'text-destructive'}`}>{dayTotalCal} kcal</span>
+                    <span className="text-muted-foreground">
+                      <span className={protOk ? '' : 'text-destructive font-bold'}>P: {dayTotalP}g</span> · C: {dayTotalC}g · F: {dayTotalF}g
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs mt-1.5 pt-1.5 border-t border-border">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <IndianRupee className="w-3 h-3" /> Cost: ₹{dayTotalCost} / ₹{Math.round(unifiedBudget.daily)} budget
+                    </span>
+                    <span className={`font-bold ${budgetOk ? 'text-accent' : 'text-destructive'}`}>
+                      {budgetOk ? `₹${Math.max(0, Math.round(unifiedBudget.daily) - dayTotalCost)} left` : `₹${dayTotalCost - Math.round(unifiedBudget.daily)} over`}
+                    </span>
+                  </div>
+                  {/* Specific warnings */}
+                  {(!calOk || !protOk) && (
+                    <div className="mt-2 pt-1.5 border-t border-border space-y-1">
+                      {!calOk && calPct < 0.8 && (
+                        <p className="text-[10px] text-destructive">⚠️ {Math.round((1 - calPct) * profile.dailyCalories)} kcal below target</p>
+                      )}
+                      {!protOk && (
+                        <p className="text-[10px] text-destructive">⚠️ Protein {Math.round((profile.dailyProtein || 60) - dayTotalP)}g below target ({Math.round(protPct * 100)}%)</p>
+                      )}
+                      {!budgetOk && (
+                        <p className="text-[10px] text-accent">⚠️ Budget exceeded by ₹{dayTotalCost - Math.round(unifiedBudget.daily)}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="flex justify-between text-xs mt-1.5 pt-1.5 border-t border-border">
-                  <span className="text-muted-foreground flex items-center gap-1">
-                    <IndianRupee className="w-3 h-3" /> Estimated cost
-                  </span>
-                  <span className="font-bold text-accent">₹{dayTotalCost}</span>
-                </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Log All Meals Button */}
             {currentDay && !isDayLogged && (
