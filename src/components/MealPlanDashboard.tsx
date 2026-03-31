@@ -248,8 +248,8 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
             const isLogged = loggedDays.has(day.date);
             let dayCost = 0;
             day.meals.forEach(m => {
-              const r = getRecipeById(m.recipeId);
-              if (r) dayCost += getRecipeCost(r);
+              const info = getScaledMealInfo(m);
+              if (info) dayCost += info.cost;
             });
             return (
               <button key={day.date} onClick={() => setSelectedDayIdx(idx)}
