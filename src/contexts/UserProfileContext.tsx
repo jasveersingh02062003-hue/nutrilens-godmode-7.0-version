@@ -11,6 +11,9 @@ import { restoreLogsFromCloud } from '@/lib/daily-log-sync';
 import { migrateLocalDataToCloud } from '@/lib/cloud-migration';
 import { clearEngineCache } from '@/lib/calorie-correction';
 import { initStorageCleanup } from '@/lib/storage-cleanup';
+import { getBudgetSettings, saveBudgetSettings } from '@/lib/expense-store';
+import { getEnhancedBudgetSettings, saveEnhancedBudgetSettings } from '@/lib/budget-alerts';
+import { getMealPlannerProfile, saveMealPlannerProfile } from '@/lib/meal-planner-store';
 import type { PCOSCondition } from '@/lib/pcos-score';
 
 // Extended conditions interface
