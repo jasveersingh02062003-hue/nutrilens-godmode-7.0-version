@@ -269,11 +269,12 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
         <AnimatePresence mode="wait">
           <motion.div key={selectedDayIdx} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-3">
             {currentDay?.meals.map((meal, idx) => {
-              const recipe = getRecipeById(meal.recipeId);
-              if (!recipe) return null;
+              const scaled = getScaledMealInfo(meal);
+              if (!scaled) return null;
+              const recipe = scaled.recipe;
               const info = MEAL_LABELS[meal.mealType] || { label: meal.mealType, emoji: '🍽️' };
               const imageUrl = getRecipeImage(recipe.id, meal.mealType);
-              const cost = getRecipeCost(recipe);
+              const cost = scaled.cost;
               const mealBudget = getMealBudget(meal.mealType);
               const withinBudget = mealBudget <= 0 || cost <= mealBudget;
               const overAmount = mealBudget > 0 ? cost - mealBudget : 0;
