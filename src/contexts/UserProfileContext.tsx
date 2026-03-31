@@ -55,6 +55,17 @@ function syncToCloud(profile: UserProfile) {
   syncTimeout = setTimeout(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return;
+
+    // Pack budget settings from their separate localStorage keys into the budget JSON column
+    const budgetSettings = getBudgetSettings();
+    const enhancedBudget = getEnhancedBudgetSettings();
+    const mealPlannerProfile = getMealPlannerProfile();
+    const budgetPayload = {
+      settings: budgetSettings,
+      enhanced: enhancedBudget,
+      mealPlannerProfile: mealPlannerProfile,
+    };
+
     const row: Record<string, any> = {
       id: session.user.id,
       name: profile.name,
@@ -92,8 +103,8 @@ function syncToCloud(profile: UserProfile) {
       bmi: profile.bmi,
       bmr: profile.bmr,
       tdee: profile.tdee,
-      // Sync budget, conditions, coach, learning, and notification settings
-      budget: (profile as any).budget || null,
+      // Sync all extended data into JSON columns
+      budget: budgetPayload,
       conditions: (profile as any).conditions || null,
       coach_settings: (profile as any).coachSettings || null,
       learning: (profile as any).learning || null,
