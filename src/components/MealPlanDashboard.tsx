@@ -311,9 +311,10 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
                     <div className="absolute bottom-2 left-3 right-3">
                       <h3 className="font-bold text-sm text-white truncate">{recipe.name}</h3>
                       <div className="flex gap-3 mt-0.5 text-[10px] text-white/80">
-                        <span className="flex items-center gap-1"><Flame className="w-3 h-3" />{recipe.calories} kcal</span>
+                        <span className="flex items-center gap-1"><Flame className="w-3 h-3" />{scaled.calories} kcal</span>
                         <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{recipe.prepTime + recipe.cookTime}m</span>
                         <span className="capitalize">{recipe.difficulty}</span>
+                        {scaled.scale !== 1 && <span className="text-white/60">{scaled.scale}x</span>}
                       </div>
                     </div>
                   </div>
