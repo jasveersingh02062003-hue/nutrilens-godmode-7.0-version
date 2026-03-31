@@ -46,6 +46,7 @@ function AnimatedBar({ percentage, color }: { percentage: number; color: string 
 
 // ─── Budget Onboarding ───
 function BudgetOnboarding({ onComplete }: { onComplete: () => void }) {
+  const { profile: userProfile } = useUserProfile();
   const [mode, setMode] = useState<'choose' | 'manual' | 'ai' | 'ai-result'>('choose');
   const [monthly, setMonthly] = useState('5000');
   const [weekly, setWeekly] = useState('');
@@ -347,7 +348,7 @@ function BudgetOnboarding({ onComplete }: { onComplete: () => void }) {
         const m = Number(monthly) || 5000;
         const daily = computeDailyBudget(m);
         const perMeal = computePerMealBudgets(daily, { breakfast: splitBreakfast, lunch: splitLunch, dinner: splitDinner, snacks: splitSnacks });
-        const validation = validateBudgetVsGoals(m, 2000, 80);
+        const validation = validateBudgetVsGoals(m, userProfile?.dailyCalories || 2000, userProfile?.dailyProtein || 80);
         return (
           <>
             <div className="rounded-xl bg-muted/50 p-3 space-y-1">
