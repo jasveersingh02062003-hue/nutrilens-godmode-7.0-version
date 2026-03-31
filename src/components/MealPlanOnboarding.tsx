@@ -32,7 +32,7 @@ type FormData = Record<string, any>;
 
 export default function MealPlanOnboarding({ onComplete }: Props) {
   const mainProfile = getProfile();
-  const budgetSettings = getEnhancedBudgetSettings();
+  const unifiedBudget = getUnifiedBudget();
   const [stepIdx, setStepIdx] = useState(0);
   const [dir, setDir] = useState(1);
   const [form, setForm] = useState<FormData>({
