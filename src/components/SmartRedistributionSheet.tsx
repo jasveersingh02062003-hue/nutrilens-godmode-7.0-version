@@ -105,6 +105,12 @@ export default function SmartRedistributionSheet({
   }
 
   function handleApply() {
+    // Double-check at execution time to prevent double redistribution
+    if (isRedistributed(date, missedMealType)) {
+      toast.error('This meal has already been redistributed.');
+      onClose();
+      return;
+    }
     const carryAmount = carryOver ? carryOverAmount : undefined;
     applyRedistribution(activeResult, date, carryAmount);
     markRedistributed(date, missedMealType, activeResult.allocations);

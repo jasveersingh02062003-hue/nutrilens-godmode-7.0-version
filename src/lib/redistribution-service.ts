@@ -278,3 +278,61 @@ export function getAllRedistributionDetailsForDate(date: string): Record<string,
   const data = localStorage.getItem(detailKey);
   return data ? JSON.parse(data) : {};
 }
+
+// ── Undo Redistribution ──
+
+export function undoRedistribution(date: string, mealType: string): boolean {
+  // Check if actually redistributed
+  if (!isRedistributed(date, mealType)) return false;
+
+  // Get the allocation details so we know what to subtract
+  const details = getRedistributionDetails(date, mealType);
+  if (!details) {
+    // No details stored, just clear the flag
+    clearRedistributedFlag(date, mealType);
+    return true;
+  }
+
+  // Subtract the added amounts from each target meal's daily adjustments
+  const adjustments = getDailyAdjustments(date);
+  for (const alloc of details.allocations) {
+    const existing = adjustments[alloc.mealType];
+    if (existing) {
+      adjustments[alloc.mealType] = {
+        calories: existing.calories - alloc.addedCalories,
+        protein: existing.protein - alloc.addedProtein,
+        carbs: existing.carbs - alloc.addedCarbs,
+        fat: existing.fat - alloc.addedFat,
+      };
+    }
+  }
+  saveDailyAdjustments(date, adjustments);
+
+  // Clear the redistributed flag and details
+  clearRedistributedFlag(date, mealType);
+
+  // Remove from history
+  const history = getRedistributionHistory();
+  const filtered = history.filter(h => !(h.date === date && h.missedMealType === mealType));
+  localStorage.setItem(REDISTRIBUTION_HISTORY_KEY, JSON.stringify(filtered));
+
+  return true;
+}
+
+function clearRedistributedFlag(date: string, mealType: string) {
+  // Clear flag
+  const flagData = localStorage.getItem(REDISTRIBUTED_FLAG_KEY + date);
+  if (flagData) {
+    const flags: Record<string, boolean> = JSON.parse(flagData);
+    delete flags[mealType];
+    localStorage.setItem(REDISTRIBUTED_FLAG_KEY + date, JSON.stringify(flags));
+  }
+  // Clear details
+  const detailKey = REDISTRIBUTED_FLAG_KEY + date + '_details';
+  const detailData = localStorage.getItem(detailKey);
+  if (detailData) {
+    const details: Record<string, RedistributedMealInfo> = JSON.parse(detailData);
+    delete details[mealType];
+    localStorage.setItem(detailKey, JSON.stringify(details));
+  }
+}
