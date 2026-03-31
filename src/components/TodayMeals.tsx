@@ -18,7 +18,7 @@ import { getExerciseAdjustmentSummary } from '@/lib/exercise-adjustment';
 import { motion } from 'framer-motion';
 import { DayState, skipMeal as engineSkipMeal } from '@/lib/calorie-engine';
 import { getRemainingMealBudget } from '@/lib/meal-suggestion-engine';
-import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
+import { getUnifiedBudget } from '@/lib/budget-engine';
 import { getPESForMeal } from '@/lib/pes-engine';
 import PESBadge from '@/components/PESBadge';
 
