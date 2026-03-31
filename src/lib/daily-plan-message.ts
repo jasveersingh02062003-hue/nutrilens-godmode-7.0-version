@@ -3,9 +3,9 @@
 
 import { getProfile, type UserProfile } from './store';
 import { getAdjustedDailyTarget, getProteinTarget } from './calorie-correction';
-import { getBudgetSummary } from './budget-service';
 import { getMealTarget } from './meal-targets';
-import { getRecipesForMeal, getRemainingMealBudget } from './meal-suggestion-engine';
+import { getRecipesForMeal } from './meal-suggestion-engine';
+import { getUnifiedBudget, getUnifiedRemainingMealBudget } from './budget-engine';
 
 export interface DailyMealPlan {
   type: string;
