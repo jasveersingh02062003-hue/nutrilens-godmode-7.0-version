@@ -10,7 +10,7 @@ import { useUserProfile } from '@/contexts/UserProfileContext';
 import HealthBadge from '@/components/HealthBadge';
 import MealDetailSheet from '@/components/MealDetailSheet';
 import LoggingOptionsSheet from '@/components/LoggingOptionsSheet';
-import { getMissedMeals } from '@/lib/meal-targets';
+import { getMissedMeals, getMealTarget } from '@/lib/meal-targets';
 import { Progress } from '@/components/ui/progress';
 import { isRedistributed, getAllRedistributionDetailsForDate } from '@/lib/redistribution-service';
 import { resolveMealVisualState } from '@/lib/meal-state-service';
@@ -21,6 +21,7 @@ import { getRemainingMealBudget } from '@/lib/meal-suggestion-engine';
 import { getUnifiedBudget } from '@/lib/budget-engine';
 import { getPESForMeal } from '@/lib/pes-engine';
 import PESBadge from '@/components/PESBadge';
+import { getAdjustedMealTarget } from '@/lib/meal-targets';
 
 const mealIcons: Record<string, string> = {
   breakfast: '🌅',
