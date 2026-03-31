@@ -252,9 +252,17 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
       }
     });
 
+    // Listen for budget updates to trigger cloud sync
+    const handleBudgetUpdate = () => {
+      const current = getProfile();
+      if (current) syncToCloud(current);
+    };
+    window.addEventListener('nutrilens:budget-updated', handleBudgetUpdate);
+
     return () => {
       cancelled = true;
       subscription.unsubscribe();
+      window.removeEventListener('nutrilens:budget-updated', handleBudgetUpdate);
     };
   }, []);
 
