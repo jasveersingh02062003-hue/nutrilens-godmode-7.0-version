@@ -111,7 +111,9 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
     return <ShoppingList list={shoppingList} onBack={() => setShowShopping(false)} />;
   }
 
-  const budgetPct = weeklySummary.budget > 0 ? Math.min(100, Math.round((weeklySummary.spent / weeklySummary.budget) * 100)) : 0;
+  // Use unified budget for weekly display instead of raw weeklySummary
+  const weeklyBudgetFromMonthly = Math.round(unifiedBudget.monthly / 4.33);
+  const budgetPct = weeklyBudgetFromMonthly > 0 ? Math.min(100, Math.round((weeklySummary.spent / weeklyBudgetFromMonthly) * 100)) : 0;
   const barColor = budgetPct > 90 ? 'bg-destructive' : budgetPct > 70 ? 'bg-accent' : 'bg-primary';
 
   const isDayLogged = currentDay ? loggedDays.has(currentDay.date) : false;
