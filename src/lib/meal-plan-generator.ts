@@ -372,7 +372,7 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
     const meals: PlannedMealWithReason[] = [];
     let dayProtein = 0;
     let dayCost = 0;
-    const dailyBudget = Object.values(perMealBudget).reduce((s, v) => s + (v || 0), 0) * curveMultiplier;
+    const dailyBudget = Math.round(unifiedBudget.daily * curveMultiplier);
 
     for (const { type, budgetKey, macroKey } of mealTypes) {
       const mealBudgetRaw = (perMealBudget as any)[budgetKey] || 100;

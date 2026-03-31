@@ -69,8 +69,8 @@ export function getDailyPlanData(profile: UserProfile | null): DailyPlanData | n
   return {
     adjustedCalories,
     proteinTarget,
-    remainingBudget: budgetSummary.remaining,
-    currency: budgetSummary.currency,
+    remainingBudget: Math.round(unifiedBudget.daily),
+    currency: unifiedBudget.currency,
     meals,
   };
 }
