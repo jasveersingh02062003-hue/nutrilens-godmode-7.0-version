@@ -43,7 +43,7 @@ export function getDailyPlanData(profile: UserProfile | null): DailyPlanData | n
 
   const meals: DailyMealPlan[] = slots.map(slot => {
     const target = getMealTarget(p, slot);
-    const mealBudget = getRemainingMealBudget(slot);
+    const mealBudget = getUnifiedRemainingMealBudget(slot);
 
     // Get top suggestion
     let suggestion: string | undefined;
