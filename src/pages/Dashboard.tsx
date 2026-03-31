@@ -288,9 +288,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Daily Plan Card (once per day) */}
-        {showDailyPlan && profile && (
-          <DailyPlanCard profile={profile} onDismiss={() => setShowDailyPlan(false)} />
+        {/* Daily Plan Popup (once per day) */}
+        {profile && (
+          <DailyPlanCard profile={profile} open={showDailyPlan} onDismiss={() => setShowDailyPlan(false)} />
         )}
 
         {/* Planner setup banner (persistent until completed) */}
