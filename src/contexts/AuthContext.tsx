@@ -127,6 +127,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     bmi: profile.bmi,
     bmr: profile.bmr,
     tdee: profile.tdee,
+    join_date: profile.joinDate || null,
+    budget: (profile as any).budget || null,
+    conditions: (profile as any).conditions || null,
+    coach_settings: (profile as any).coachSettings || null,
+    learning: (profile as any).learning || null,
+    notification_settings: (profile as any).notificationSettings || null,
   });
 
   const dbRowToProfile = (row: any): UserProfile => ({
