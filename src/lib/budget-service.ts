@@ -258,10 +258,10 @@ export function isSurvivalModeManual(): boolean {
 const MEAL_ORDER = ['breakfast', 'lunch', 'snack', 'dinner'];
 
 export function cascadeMealBudget(mealType: string, spent: number): { nextMeal: string; reducedBudget: number } | null {
-  const enhanced = getEnhancedBudgetSettings();
-  const perMeal = enhanced.perMeal || { breakfast: 100, lunch: 150, dinner: 200, snacks: 50 };
+  const { getUnifiedBudget } = require('./budget-engine');
+  const unified = getUnifiedBudget();
   const slotKey = mealType === 'snack' ? 'snacks' : mealType;
-  const allocated = (perMeal as any)[slotKey] || 0;
+  const allocated = (unified.perMeal as any)[slotKey] || 0;
   const overage = spent - allocated;
 
   if (overage <= 0) return null;
@@ -271,7 +271,7 @@ export function cascadeMealBudget(mealType: string, spent: number): { nextMeal: 
 
   const nextMeal = MEAL_ORDER[idx + 1];
   const nextKey = nextMeal === 'snack' ? 'snacks' : nextMeal;
-  const nextBudget = (perMeal as any)[nextKey] || 0;
+  const nextBudget = (unified.perMeal as any)[nextKey] || 0;
   const reducedBudget = Math.max(10, nextBudget - overage);
 
   return { nextMeal, reducedBudget };

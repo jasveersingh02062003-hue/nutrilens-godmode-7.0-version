@@ -62,13 +62,10 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
   const currentDay = plan.days[selectedDayIdx];
   const shoppingList = useMemo(() => generateShoppingList(plan), [plan]);
   const weeklySummary = useMemo(() => getBudgetSummary('week'), [loggedDays]);
-  const enhanced = useMemo(() => getEnhancedBudgetSettings(), []);
+  const unifiedBudget = useMemo(() => getUnifiedBudget(), []);
 
   // Per-meal budget limits
-  const perMealBudget = useMemo(() => {
-    if (enhanced.perMeal) return enhanced.perMeal;
-    return { breakfast: 0, lunch: 0, dinner: 0, snacks: 0 };
-  }, [enhanced]);
+  const perMealBudget = unifiedBudget.perMeal;
 
   function getMealBudget(mealType: string): number {
     if (mealType === 'breakfast') return perMealBudget.breakfast;
