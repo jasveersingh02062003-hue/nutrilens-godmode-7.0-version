@@ -19,7 +19,7 @@ import SmartRedistributionSheet from '@/components/SmartRedistributionSheet';
 import MissedMealEducation from '@/components/MissedMealEducation';
 import EditMealTargetModal from '@/components/EditMealTargetModal';
 import { wasEducationShown } from '@/lib/education-service';
-import { isRedistributed, getRedistributionDetails, markRedistributed } from '@/lib/redistribution-service';
+import { isRedistributed, getRedistributionDetails, markRedistributed, undoRedistribution } from '@/lib/redistribution-service';
 import WeatherNudgeCard from '@/components/WeatherNudgeCard';
 import { getMealDetailNudge } from '@/lib/weather-nudge-service';
 import SmartAdjustmentCard from '@/components/SmartAdjustmentCard';
@@ -124,8 +124,10 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
 
   function handleRedistribute() {
     if (!profile || !nextMeal) return;
-    if (alreadyRedistributed) {
+    // Double-check at execution time to prevent double redistribution
+    if (isRedistributed(date, mealType)) {
       toast.error('This meal has already been redistributed.');
+      setShowRedistributeConfirm(false);
       return;
     }
     redistributeMissedMeal(profile, mealType, nextMeal, date);
@@ -144,6 +146,17 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
     setShowRedistributeConfirm(false);
     onChanged();
     forceUpdate();
+  }
+
+  function handleUndoRedistribution() {
+    const success = undoRedistribution(date, mealType);
+    if (success) {
+      toast.success(`Redistribution reversed for ${mealLabel}. You can now log your meal.`);
+      onChanged();
+      forceUpdate();
+    } else {
+      toast.error('Could not undo redistribution.');
+    }
   }
 
   function handleSmartRedistribute() {
@@ -444,8 +457,16 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
                   </div>
                 ))}
               </div>
+              <div className="flex items-center gap-2 mt-3">
+                <button
+                  onClick={handleUndoRedistribution}
+                  className="flex-1 py-2 rounded-xl bg-destructive/10 text-destructive text-xs font-semibold active:scale-95 transition-transform"
+                >
+                  ↩️ Undo & Log {mealLabel}
+                </button>
+              </div>
               <p className="text-[10px] text-muted-foreground mt-2 italic">
-                This meal has already been redistributed. You can still add food manually.
+                Already redistributed. Tap undo if you actually ate this meal.
               </p>
             </div>
           )}
