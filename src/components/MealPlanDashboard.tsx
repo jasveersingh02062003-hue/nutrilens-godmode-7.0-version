@@ -92,7 +92,6 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
   // Feasibility warning — use real budget engine validation
   const feasibilityResult = useMemo(() => {
     try {
-      const { validateBudgetVsGoals } = require('@/lib/budget-engine');
       return validateBudgetVsGoals(
         unifiedBudget.monthly,
         profile.dailyCalories,
