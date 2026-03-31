@@ -171,7 +171,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     bmi: Number(row.bmi) || 24,
     bmr: Number(row.bmr) || 1500,
     tdee: Number(row.tdee) || 2000,
-  });
+    joinDate: row.join_date || undefined,
+    skinConcerns: row.conditions?.skinConcerns || undefined,
+  } as UserProfile);
 
   const syncProfileToCloud = useCallback(async (profile: UserProfile) => {
     if (!user) throw new Error('Not authenticated');
