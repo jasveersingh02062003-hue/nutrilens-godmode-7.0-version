@@ -26,6 +26,10 @@ const MEAL_EMOJIS: Record<string, string> = {
 export default function DailyPlanCard({ profile, open, onDismiss }: DailyPlanCardProps) {
   const navigate = useNavigate();
   const plan = useMemo(() => getDailyPlanData(profile), [profile]);
+  const budgetValidation = useMemo(() => {
+    const unified = getUnifiedBudget();
+    return validateBudgetVsGoals(unified.monthly, profile.dailyCalories || 2000, profile.dailyProtein || 80);
+  }, [profile]);
 
   if (!plan) return null;
 
