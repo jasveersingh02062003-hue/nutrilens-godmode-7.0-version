@@ -37,7 +37,7 @@ export function getDailyPlanData(profile: UserProfile | null): DailyPlanData | n
 
   const adjustedCalories = getAdjustedDailyTarget(p);
   const proteinTarget = getProteinTarget(p);
-  const budgetSummary = getBudgetSummary();
+  const unifiedBudget = getUnifiedBudget();
 
   const slots = ['breakfast', 'lunch', 'snack', 'dinner'];
 

@@ -1,7 +1,7 @@
 import { MealPlannerProfile, WeekPlan, DayPlan, PlannedMeal } from './meal-planner-store';
 import { filterRecipes, getEnrichedRecipe, Recipe, recipes } from './recipes';
 import { getBudgetCurveMultiplier, getAdjustedDailyBudget } from './budget-service';
-import { getEnhancedBudgetSettings } from './budget-alerts';
+import { getUnifiedBudget } from './budget-engine';
 import { getMealMacroTargets, getRecipeComposition, shouldAvoidRecipe, validateWeeklyNutrition } from './plan-validator';
 import { getFeedbackScoreModifier } from './meal-plan-feedback';
 import { getComplexityRecommendation, getAdherenceHistory } from './adherence-service';
