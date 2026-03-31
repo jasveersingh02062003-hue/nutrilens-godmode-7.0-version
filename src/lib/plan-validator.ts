@@ -169,9 +169,10 @@ export function validateDaySync(
       continue;
     }
     const enriched = getEnrichedRecipe(recipe);
-    totalCalories += recipe.calories;
-    totalProtein += recipe.protein;
-    totalCost += enriched.estimatedCost;
+    const scale = meal.portionScale ?? 1;
+    totalCalories += Math.round(recipe.calories * scale);
+    totalProtein += Math.round(recipe.protein * scale);
+    totalCost += Math.round(enriched.estimatedCost * scale);
   }
 
   const calorieMismatch = Math.abs(totalCalories - profile.dailyCalories) > profile.dailyCalories * 0.2;
