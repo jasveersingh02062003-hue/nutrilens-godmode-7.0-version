@@ -14,7 +14,8 @@ import { generateWeekPlan, swapMeal } from '@/lib/meal-plan-generator';
 import { getRecipeById, getRecipesByMealType } from '@/lib/recipes';
 import SwapSimulatorSheet from '@/components/SwapSimulatorSheet';
 import type { SwapImpact } from '@/lib/swap-engine';
-import { getProfile as getUserProfile } from '@/lib/store';
+import { getProfile as getUserProfile, type UserProfile } from '@/lib/store';
+import { saveMealPlannerProfile } from '@/lib/meal-planner-store';
 import { getRecipeImage } from '@/lib/recipe-images';
 import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
 import type { WeekPlan } from '@/lib/meal-planner-store';
@@ -58,8 +59,35 @@ export default function MealPlanner() {
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const premium = isPremium();
 
+  // Sync planner profile targets with main UserProfile to prevent mismatches
   useEffect(() => {
     if (profile?.onboardingComplete) {
+      const mainProfile = getUserProfile();
+      if (mainProfile) {
+        let synced = false;
+        const updated = { ...profile };
+        if (mainProfile.dailyCalories && mainProfile.dailyCalories !== profile.dailyCalories) {
+          updated.dailyCalories = mainProfile.dailyCalories;
+          synced = true;
+        }
+        if (mainProfile.dailyProtein && mainProfile.dailyProtein !== profile.dailyProtein) {
+          updated.dailyProtein = mainProfile.dailyProtein;
+          synced = true;
+        }
+        if (mainProfile.dailyCarbs && mainProfile.dailyCarbs !== profile.dailyCarbs) {
+          updated.dailyCarbs = mainProfile.dailyCarbs;
+          synced = true;
+        }
+        if (mainProfile.dailyFat && mainProfile.dailyFat !== profile.dailyFat) {
+          updated.dailyFat = mainProfile.dailyFat;
+          synced = true;
+        }
+        if (synced) {
+          saveMealPlannerProfile(updated);
+          setProfile(updated);
+        }
+      }
+
       const weekStartStr = getCurrentWeekStart();
       let existing = getWeekPlan(weekStartStr);
       if (!existing) {
@@ -81,7 +109,7 @@ export default function MealPlanner() {
         setStep('dashboard');
       }
     }
-  }, [profile]);
+  }, [profile?.onboardingComplete]);
 
   const handleOnboardingComplete = (p: MealPlannerProfile) => {
     setProfile(p);
