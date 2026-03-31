@@ -998,6 +998,7 @@ function SetBudgetSheet({ open, onClose, onSaved }: {
   const handleSave = () => {
     saveBudgetSettings({ ...settings, weeklyBudget: weekly, monthlyBudget: monthly });
     saveEnhancedBudgetSettings({ ...enhanced, outsideFoodLimit: outsideLimit });
+    window.dispatchEvent(new Event('nutrilens:budget-updated'));
     onSaved();
     onClose();
   };
