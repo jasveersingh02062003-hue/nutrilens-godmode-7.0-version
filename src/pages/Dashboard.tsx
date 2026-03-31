@@ -55,7 +55,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 
 import DailyPlanCard from '@/components/DailyPlanCard';
-import { isDailyHidden } from '@/lib/daily-visibility';
+import { isDailyHidden, setDailyHidden } from '@/lib/daily-visibility';
+import { validateBudgetVsGoals, getUnifiedBudget } from '@/lib/budget-engine';
 import PESExplanationCard from '@/components/PESExplanationCard';
 import WeeklyFeedbackCard from '@/components/WeeklyFeedbackCard';
 import { shouldGenerateSummary, generateWeeklySummary, scheduleWeeklyNotification } from '@/lib/weekly-feedback';
