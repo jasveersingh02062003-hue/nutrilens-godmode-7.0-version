@@ -456,11 +456,99 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
       }
     }
 
+    // ─── Budget Utilization Pass ───
+    // If we have remaining budget AND protein is under target, swap weakest meal for a higher-protein option
+    const remainingBudget = dailyBudget - dayCost;
+    if (remainingBudget > 15 && dayProtein < targetProtein * 0.9 && meals.length > 0) {
+      // Find the meal with lowest protein contribution
+      let weakIdx = 0;
+      let weakProtein = Infinity;
+      let weakCost = 0;
+      for (let m = 0; m < meals.length; m++) {
+        const r = recipes.find(rx => rx.id === meals[m].recipeId);
+        if (r && r.protein * (meals[m].portionScale || 1) < weakProtein) {
+          weakProtein = r.protein * (meals[m].portionScale || 1);
+          weakCost = getEnrichedRecipe(r).estimatedCost * (meals[m].portionScale || 1);
+          weakIdx = m;
+        }
+      }
+      const swapBudget = Math.round(weakCost + remainingBudget);
+      const swapType = meals[weakIdx].mealType;
+      // Find higher-protein alternatives within expanded budget
+      let upgradeCandidates = recipes
+        .filter(r => r.mealType.includes(swapType as any) && r.protein > weakProtein * 1.3)
+        .filter(r => getEnrichedRecipe(r).estimatedCost <= swapBudget * 1.1);
+      if (allHealthConds.length > 0) {
+        upgradeCandidates = upgradeCandidates.filter(r => !shouldAvoidRecipe(r, allHealthConds));
+      }
+      if (upgradeCandidates.length > 0) {
+        const best = upgradeCandidates.reduce((a, b) => b.protein - a.protein > 0 ? b : a);
+        const macroKey = swapType === 'snack' ? 'snack' : swapType;
+        const macroTarget = (macroTargets as any)[macroKey] || { caloriePct: 0.25 };
+        const mealCalTarget = Math.round(targetCal * macroTarget.caloriePct);
+        const newScale = computePortionScale(best.calories, mealCalTarget);
+        const enriched = getEnrichedRecipe(best);
+        // Update day totals
+        dayProtein = dayProtein - weakProtein + Math.round(best.protein * newScale);
+        dayCost = dayCost - weakCost + Math.round(enriched.estimatedCost * newScale);
+        meals[weakIdx] = {
+          recipeId: best.id,
+          mealType: swapType,
+          cooked: false,
+          logged: false,
+          portionScale: newScale,
+          reason: `Upgraded for protein: ${best.protein}g (budget utilized)`,
+        };
+      }
+    }
+
+    // ─── Daily Budget Cap ───
+    // If day cost exceeds daily budget by >15%, swap the most expensive meal for a cheaper one
+    if (dayCost > dailyBudget * 1.15 && meals.length > 0) {
+      let expIdx = 0;
+      let expCost = 0;
+      for (let m = 0; m < meals.length; m++) {
+        const r = recipes.find(rx => rx.id === meals[m].recipeId);
+        if (r) {
+          const c = getEnrichedRecipe(r).estimatedCost * (meals[m].portionScale || 1);
+          if (c > expCost) { expCost = c; expIdx = m; }
+        }
+      }
+      const capType = meals[expIdx].mealType;
+      const capBudgetKey = capType === 'snack' ? 'snacks' : capType;
+      const capBudget = Math.round(((perMealBudget as any)[capBudgetKey] || 50) * curveMultiplier);
+      let cheaperOptions = recipes
+        .filter(r => r.mealType.includes(capType as any) && getEnrichedRecipe(r).estimatedCost <= capBudget)
+        .filter(r => r.protein >= 5);
+      if (allHealthConds.length > 0) {
+        cheaperOptions = cheaperOptions.filter(r => !shouldAvoidRecipe(r, allHealthConds));
+      }
+      if (cheaperOptions.length > 0) {
+        const best = cheaperOptions.reduce((a, b) =>
+          getEnrichedRecipe(a).proteinPerRupee > getEnrichedRecipe(b).proteinPerRupee ? a : b
+        );
+        const macroKey2 = capType === 'snack' ? 'snack' : capType;
+        const macroTarget2 = (macroTargets as any)[macroKey2] || { caloriePct: 0.25 };
+        const mealCalTarget2 = Math.round(targetCal * macroTarget2.caloriePct);
+        const newScale2 = computePortionScale(best.calories, mealCalTarget2);
+        const enriched2 = getEnrichedRecipe(best);
+        dayCost = dayCost - expCost + Math.round(enriched2.estimatedCost * newScale2);
+        meals[expIdx] = {
+          recipeId: best.id,
+          mealType: capType,
+          cooked: false,
+          logged: false,
+          portionScale: newScale2,
+          reason: `Budget-capped: ₹${enriched2.estimatedCost} (within daily limit)`,
+        };
+      }
+    }
+
     days.push({ date: dateStr, meals });
   }
 
   // ─── Fail-safe check: if too few valid recipes found, use simple plan ───
-  const minExpected = mealTypes.length * 7 * 0.4; // at least 40% of slots filled
+  const minExpected = mealTypes.length * 7 * 0.4;
   if (validRecipeCount < minExpected) {
     return generateSimplePlan(profile);
   }

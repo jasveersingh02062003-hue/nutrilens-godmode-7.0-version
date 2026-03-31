@@ -421,22 +421,58 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
               );
             })}
 
-            {/* Day totals */}
-            {currentDay && (
-              <div className="card-subtle p-3 mt-2">
-                <p className="text-xs font-semibold text-muted-foreground mb-2">Day Total</p>
-                <div className="flex justify-between text-sm">
-                  <span className="text-foreground font-bold">{dayTotalCal} kcal</span>
-                  <span className="text-muted-foreground">P: {dayTotalP}g · C: {dayTotalC}g · F: {dayTotalF}g</span>
+            {/* Day totals with status indicators */}
+            {currentDay && (() => {
+              const calPct = profile.dailyCalories > 0 ? dayTotalCal / profile.dailyCalories : 1;
+              const protPct = (profile.dailyProtein || 60) > 0 ? dayTotalP / (profile.dailyProtein || 60) : 1;
+              const budgetOver = unifiedBudget.daily > 0 ? dayTotalCost / unifiedBudget.daily : 0;
+              const calOk = calPct >= 0.8 && calPct <= 1.2;
+              const protOk = protPct >= 0.8;
+              const budgetOk = budgetOver <= 1.15;
+              const allGood = calOk && protOk && budgetOk;
+              const statusColor = allGood ? 'border-primary/20' : (!protOk || !calOk) ? 'border-destructive/20' : 'border-accent/20';
+              
+              return (
+                <div className={`card-subtle p-3 mt-2 border ${statusColor}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-muted-foreground">Day Total</p>
+                    {allGood ? (
+                      <span className="text-[10px] font-bold text-primary flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> On track</span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-destructive flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Needs attention</span>
+                    )}
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className={`font-bold ${calOk ? 'text-foreground' : 'text-destructive'}`}>{dayTotalCal} kcal</span>
+                    <span className="text-muted-foreground">
+                      <span className={protOk ? '' : 'text-destructive font-bold'}>P: {dayTotalP}g</span> · C: {dayTotalC}g · F: {dayTotalF}g
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs mt-1.5 pt-1.5 border-t border-border">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <IndianRupee className="w-3 h-3" /> Cost: ₹{dayTotalCost} / ₹{Math.round(unifiedBudget.daily)} budget
+                    </span>
+                    <span className={`font-bold ${budgetOk ? 'text-accent' : 'text-destructive'}`}>
+                      {budgetOk ? `₹${Math.max(0, Math.round(unifiedBudget.daily) - dayTotalCost)} left` : `₹${dayTotalCost - Math.round(unifiedBudget.daily)} over`}
+                    </span>
+                  </div>
+                  {/* Specific warnings */}
+                  {(!calOk || !protOk) && (
+                    <div className="mt-2 pt-1.5 border-t border-border space-y-1">
+                      {!calOk && calPct < 0.8 && (
+                        <p className="text-[10px] text-destructive">⚠️ {Math.round((1 - calPct) * profile.dailyCalories)} kcal below target</p>
+                      )}
+                      {!protOk && (
+                        <p className="text-[10px] text-destructive">⚠️ Protein {Math.round((profile.dailyProtein || 60) - dayTotalP)}g below target ({Math.round(protPct * 100)}%)</p>
+                      )}
+                      {!budgetOk && (
+                        <p className="text-[10px] text-accent">⚠️ Budget exceeded by ₹{dayTotalCost - Math.round(unifiedBudget.daily)}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="flex justify-between text-xs mt-1.5 pt-1.5 border-t border-border">
-                  <span className="text-muted-foreground flex items-center gap-1">
-                    <IndianRupee className="w-3 h-3" /> Estimated cost
-                  </span>
-                  <span className="font-bold text-accent">₹{dayTotalCost}</span>
-                </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Log All Meals Button */}
             {currentDay && !isDayLogged && (
