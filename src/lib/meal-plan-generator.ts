@@ -402,16 +402,19 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
 
       if (result) {
         const enriched = getEnrichedRecipe(result.recipe);
+        // Compute portion scale to hit target calories for this slot
+        const scale = computePortionScale(result.recipe.calories, mealCalTarget);
         meals.push({
           recipeId: result.recipe.id,
           mealType: type,
           cooked: false,
           logged: false,
+          portionScale: scale,
           reason: result.reason,
         });
         usedByType[type] = [...(usedByType[type] || []), result.recipe.id];
-        dayProtein += result.recipe.protein;
-        dayCost += enriched.estimatedCost;
+        dayProtein += Math.round(result.recipe.protein * scale);
+        dayCost += Math.round(enriched.estimatedCost * scale);
         validRecipeCount++;
       }
     }

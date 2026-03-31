@@ -339,9 +339,9 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
                     {/* Macro bars + PES badge */}
                     <div className="flex items-center gap-3">
                       {[
-                        { label: 'Protein', val: recipe.protein, color: 'bg-coral' },
-                        { label: 'Carbs', val: recipe.carbs, color: 'bg-primary' },
-                        { label: 'Fat', val: recipe.fat, color: 'bg-gold' },
+                        { label: 'Protein', val: scaled.protein, color: 'bg-coral' },
+                        { label: 'Carbs', val: scaled.carbs, color: 'bg-primary' },
+                        { label: 'Fat', val: scaled.fat, color: 'bg-gold' },
                       ].map(m => (
                         <div key={m.label} className="flex items-center gap-1.5 text-[10px]">
                           <div className={`w-1.5 h-1.5 rounded-full ${m.color}`} />

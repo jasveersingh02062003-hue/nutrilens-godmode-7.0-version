@@ -181,7 +181,7 @@ export default function TodayMealPlan() {
                       {overBudget && <AlertCircle className="w-3 h-3 text-destructive flex-shrink-0" />}
                     </div>
                     <div className="flex gap-2 mt-0.5 text-[10px] text-muted-foreground">
-                      <span className="flex items-center gap-0.5"><Flame className="w-2.5 h-2.5 text-coral" />{recipe.calories} kcal</span>
+                      <span className="flex items-center gap-0.5"><Flame className="w-2.5 h-2.5 text-coral" />{scaled.calories} kcal</span>
                       <span className="flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" />{recipe.prepTime + recipe.cookTime}m</span>
                       <span className={`flex items-center gap-0.5 font-semibold ${overBudget ? 'text-destructive' : 'text-accent'}`}>
                         ₹{cost}
