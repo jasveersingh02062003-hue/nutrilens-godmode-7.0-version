@@ -365,187 +365,45 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
     const dayOfWeek = date.getDay();
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-    // Weekend: relax prep time, allow slightly higher budget
     const weekendBudgetMult = (isWeekend && (profile.weekendStyle || 'relaxed') === 'relaxed') ? 1.15 : 1.0;
-    const weekendTimeMult = isWeekend ? 1.25 : 1.0; // +25% cook time on weekends
-
     const curveMultiplier = getBudgetCurveMultiplier(dayOfMonth);
-
-    const meals: PlannedMealWithReason[] = [];
-    let dayProtein = 0;
-    let dayCost = 0;
     const dailyBudget = Math.round(unifiedBudget.daily * curveMultiplier);
 
-    for (const { type, budgetKey, macroKey } of mealTypes) {
+    // Build slot targets for the constraint optimizer
+    const slots: SlotTarget[] = mealTypes.map(({ type, budgetKey, macroKey }) => {
       const mealBudgetRaw = (perMealBudget as any)[budgetKey] || 100;
       const mealBudget = Math.round(mealBudgetRaw * curveMultiplier * weekendBudgetMult);
       const macroTarget = (macroTargets as any)[macroKey] || { proteinPct: 0.33, caloriePct: 0.33 };
-      const mealProteinTarget = Math.round(targetProtein * macroTarget.proteinPct);
-      const mealCalTarget = Math.round(targetCal * macroTarget.caloriePct);
-      // Use adherence-adjusted prep time or user setting
-      const maxTime = Math.min(Math.round(getMaxTimeForMeal(type, profile.cookingTime) * weekendTimeMult), complexity.maxPrepTime);
+      return {
+        mealType: type,
+        calorieTarget: Math.round(targetCal * macroTarget.caloriePct),
+        proteinTarget: Math.round(targetProtein * macroTarget.proteinPct),
+        budgetLimit: mealBudget,
+      };
+    });
 
-      // Variety window: exclude last 3 breakfasts, last 2 lunch/dinner
-      const varietyWindow = type === 'breakfast' ? 3 : 2;
-      const excludeIds = (usedByType[type] || []).slice(-varietyWindow);
+    // Variety: exclude recent recipes per type
+    const excludeIds = Object.values(usedByType).flat().slice(-mealTypes.length * 2);
 
-      const result = findRecipeWithFallback(type, {
-        tags,
-        maxCalories: mealCalTarget + 150,
-        maxPrepTime: maxTime,
-        difficulty,
-        cuisines: cuisines.length ? cuisines : undefined,
-        maxCost: mealBudget,
-        targetProtein: mealProteinTarget,
-        excludeIds,
-        healthConditions: allHealthConds,
-      }, profile);
+    // Run constraint-based optimizer
+    const result = optimizeDayMeals({
+      slots,
+      dailyBudget,
+      targetCalories: targetCal,
+      targetProtein,
+      availableRecipes: recipes,
+      excludeIds,
+      healthConditions: allHealthConds,
+    });
 
-      if (result) {
-        const enriched = getEnrichedRecipe(result.recipe);
-        // Compute portion scale to hit target calories for this slot
-        const scale = computePortionScale(result.recipe.calories, mealCalTarget);
-        meals.push({
-          recipeId: result.recipe.id,
-          mealType: type,
-          cooked: false,
-          logged: false,
-          portionScale: scale,
-          reason: result.reason,
-        });
-        usedByType[type] = [...(usedByType[type] || []), result.recipe.id];
-        dayProtein += Math.round(result.recipe.protein * scale);
-        dayCost += Math.round(enriched.estimatedCost * scale);
-        validRecipeCount++;
-      }
+    // Track used recipe IDs for variety
+    for (const meal of result.meals) {
+      const type = meal.mealType;
+      usedByType[type] = [...(usedByType[type] || []), meal.recipeId];
+      validRecipeCount++;
     }
 
-    // Protein post-optimization: if daily protein < 90% target, swap weakest meal
-    if (dayProtein < targetProtein * 0.9 && meals.length > 0) {
-      let lowestIdx = 0;
-      let lowestProtein = Infinity;
-      for (let m = 0; m < meals.length; m++) {
-        const r = recipes.find(rx => rx.id === meals[m].recipeId);
-        if (r && r.protein < lowestProtein) {
-          lowestProtein = r.protein;
-          lowestIdx = m;
-        }
-      }
-      const slotType = meals[lowestIdx].mealType;
-      const slotBudgetKey = slotType === 'snack' ? 'snacks' : slotType;
-      const slotBudget = Math.round(((perMealBudget as any)[slotBudgetKey] || 100) * curveMultiplier);
-
-      const flexBudget = Math.round(slotBudget * 1.15);
-      let betterCandidates = filterRecipes({ mealType: slotType, tags })
-        .filter(r => r.protein > lowestProtein && getEnrichedRecipe(r).estimatedCost <= flexBudget);
-      // Health filter on swap candidates
-      if (allHealthConds.length > 0) {
-        betterCandidates = betterCandidates.filter(r => !shouldAvoidRecipe(r, allHealthConds));
-      }
-      if (betterCandidates.length) {
-        const best = betterCandidates.reduce((a, b) =>
-          getEnrichedRecipe(a).proteinPerRupee > getEnrichedRecipe(b).proteinPerRupee ? a : b
-        );
-        const enriched = getEnrichedRecipe(best);
-        meals[lowestIdx] = {
-          recipeId: best.id,
-          mealType: slotType,
-          cooked: false,
-          logged: false,
-          reason: `Swapped for protein: ${best.protein}g at ₹${enriched.estimatedCost}`,
-        };
-      }
-    }
-
-    // ─── Budget Utilization Pass ───
-    // If we have remaining budget AND protein is under target, swap weakest meal for a higher-protein option
-    const remainingBudget = dailyBudget - dayCost;
-    if (remainingBudget > 15 && dayProtein < targetProtein * 0.9 && meals.length > 0) {
-      // Find the meal with lowest protein contribution
-      let weakIdx = 0;
-      let weakProtein = Infinity;
-      let weakCost = 0;
-      for (let m = 0; m < meals.length; m++) {
-        const r = recipes.find(rx => rx.id === meals[m].recipeId);
-        if (r && r.protein * (meals[m].portionScale || 1) < weakProtein) {
-          weakProtein = r.protein * (meals[m].portionScale || 1);
-          weakCost = getEnrichedRecipe(r).estimatedCost * (meals[m].portionScale || 1);
-          weakIdx = m;
-        }
-      }
-      const swapBudget = Math.round(weakCost + remainingBudget);
-      const swapType = meals[weakIdx].mealType;
-      // Find higher-protein alternatives within expanded budget
-      let upgradeCandidates = recipes
-        .filter(r => r.mealType.includes(swapType as any) && r.protein > weakProtein * 1.3)
-        .filter(r => getEnrichedRecipe(r).estimatedCost <= swapBudget * 1.1);
-      if (allHealthConds.length > 0) {
-        upgradeCandidates = upgradeCandidates.filter(r => !shouldAvoidRecipe(r, allHealthConds));
-      }
-      if (upgradeCandidates.length > 0) {
-        const best = upgradeCandidates.reduce((a, b) => b.protein - a.protein > 0 ? b : a);
-        const macroKey = swapType === 'snack' ? 'snack' : swapType;
-        const macroTarget = (macroTargets as any)[macroKey] || { caloriePct: 0.25 };
-        const mealCalTarget = Math.round(targetCal * macroTarget.caloriePct);
-        const newScale = computePortionScale(best.calories, mealCalTarget);
-        const enriched = getEnrichedRecipe(best);
-        // Update day totals
-        dayProtein = dayProtein - weakProtein + Math.round(best.protein * newScale);
-        dayCost = dayCost - weakCost + Math.round(enriched.estimatedCost * newScale);
-        meals[weakIdx] = {
-          recipeId: best.id,
-          mealType: swapType,
-          cooked: false,
-          logged: false,
-          portionScale: newScale,
-          reason: `Upgraded for protein: ${best.protein}g (budget utilized)`,
-        };
-      }
-    }
-
-    // ─── Daily Budget Cap ───
-    // If day cost exceeds daily budget by >15%, swap the most expensive meal for a cheaper one
-    if (dayCost > dailyBudget * 1.15 && meals.length > 0) {
-      let expIdx = 0;
-      let expCost = 0;
-      for (let m = 0; m < meals.length; m++) {
-        const r = recipes.find(rx => rx.id === meals[m].recipeId);
-        if (r) {
-          const c = getEnrichedRecipe(r).estimatedCost * (meals[m].portionScale || 1);
-          if (c > expCost) { expCost = c; expIdx = m; }
-        }
-      }
-      const capType = meals[expIdx].mealType;
-      const capBudgetKey = capType === 'snack' ? 'snacks' : capType;
-      const capBudget = Math.round(((perMealBudget as any)[capBudgetKey] || 50) * curveMultiplier);
-      let cheaperOptions = recipes
-        .filter(r => r.mealType.includes(capType as any) && getEnrichedRecipe(r).estimatedCost <= capBudget)
-        .filter(r => r.protein >= 5);
-      if (allHealthConds.length > 0) {
-        cheaperOptions = cheaperOptions.filter(r => !shouldAvoidRecipe(r, allHealthConds));
-      }
-      if (cheaperOptions.length > 0) {
-        const best = cheaperOptions.reduce((a, b) =>
-          getEnrichedRecipe(a).proteinPerRupee > getEnrichedRecipe(b).proteinPerRupee ? a : b
-        );
-        const macroKey2 = capType === 'snack' ? 'snack' : capType;
-        const macroTarget2 = (macroTargets as any)[macroKey2] || { caloriePct: 0.25 };
-        const mealCalTarget2 = Math.round(targetCal * macroTarget2.caloriePct);
-        const newScale2 = computePortionScale(best.calories, mealCalTarget2);
-        const enriched2 = getEnrichedRecipe(best);
-        dayCost = dayCost - expCost + Math.round(enriched2.estimatedCost * newScale2);
-        meals[expIdx] = {
-          recipeId: best.id,
-          mealType: capType,
-          cooked: false,
-          logged: false,
-          portionScale: newScale2,
-          reason: `Budget-capped: ₹${enriched2.estimatedCost} (within daily limit)`,
-        };
-      }
-    }
-
-    days.push({ date: dateStr, meals });
+    days.push({ date: dateStr, meals: result.meals });
   }
 
   // ─── Fail-safe check: if too few valid recipes found, use simple plan ───
