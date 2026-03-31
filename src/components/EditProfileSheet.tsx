@@ -99,7 +99,7 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
     return age;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) {
       toast.error('Name is required');
       return;
