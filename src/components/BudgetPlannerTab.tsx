@@ -343,24 +343,54 @@ function BudgetOnboarding({ onComplete }: { onComplete: () => void }) {
         </div>
       </div>
 
-      <div className="space-y-2">
-        <label className="text-[11px] font-semibold text-muted-foreground uppercase">Per-Meal Budget (optional, daily)</label>
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            { label: '🌅 Breakfast', val: breakfast, set: setBreakfast },
-            { label: '☀️ Lunch', val: lunch, set: setLunch },
-            { label: '🌙 Dinner', val: dinner, set: setDinner },
-            { label: '🍎 Snacks', val: snacks, set: setSnacks },
-          ].map(m => (
-            <div key={m.label} className="space-y-1">
-              <span className="text-[10px] text-muted-foreground">{m.label}</span>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">₹</span>
-                <input type="number" value={m.val} onChange={e => m.set(e.target.value)}
-                  className="w-full pl-7 pr-2 py-2.5 rounded-xl bg-muted text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20 text-foreground" />
+      {(() => {
+        const m = Number(monthly) || 5000;
+        const daily = computeDailyBudget(m);
+        const perMeal = computePerMealBudgets(daily, { breakfast: splitBreakfast, lunch: splitLunch, dinner: splitDinner, snacks: splitSnacks });
+        const validation = validateBudgetVsGoals(m, 2000, 80);
+        return (
+          <>
+            <div className="rounded-xl bg-muted/50 p-3 space-y-1">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase">Daily Budget</p>
+              <p className="text-lg font-extrabold text-foreground">₹{Math.round(daily)}/day</p>
+              <div className="grid grid-cols-4 gap-1 mt-2">
+                <div className="text-center"><p className="text-[9px] text-muted-foreground">🌅 Bkf</p><p className="text-xs font-bold">₹{perMeal.breakfast}</p></div>
+                <div className="text-center"><p className="text-[9px] text-muted-foreground">☀️ Lunch</p><p className="text-xs font-bold">₹{perMeal.lunch}</p></div>
+                <div className="text-center"><p className="text-[9px] text-muted-foreground">🌙 Dinner</p><p className="text-xs font-bold">₹{perMeal.dinner}</p></div>
+                <div className="text-center"><p className="text-[9px] text-muted-foreground">🍎 Snacks</p><p className="text-xs font-bold">₹{perMeal.snacks}</p></div>
               </div>
             </div>
+            {validation.warning && (
+              <div className={`rounded-xl p-3 text-xs font-medium ${validation.severity === 'insufficient' ? 'bg-destructive/10 text-destructive' : 'bg-accent/10 text-accent-foreground'}`}>
+                <AlertTriangle className="w-3.5 h-3.5 inline mr-1" />
+                {validation.warning}
+              </div>
+            )}
+          </>
+        );
+      })()}
+
+      <div className="space-y-2">
+        <label className="text-[11px] font-semibold text-muted-foreground uppercase">Meal Split (% of daily budget)</label>
+        <div className="space-y-3">
+          {[
+            { label: '🌅 Breakfast', val: splitBreakfast, set: setSplitBreakfast },
+            { label: '☀️ Lunch', val: splitLunch, set: setSplitLunch },
+            { label: '🌙 Dinner', val: splitDinner, set: setSplitDinner },
+            { label: '🍎 Snacks', val: splitSnacks, set: setSplitSnacks },
+          ].map(m => (
+            <div key={m.label} className="space-y-1">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] text-muted-foreground">{m.label}</span>
+                <span className="text-xs font-bold text-foreground">{m.val}%</span>
+              </div>
+              <input type="range" min={5} max={60} value={m.val} onChange={e => m.set(Number(e.target.value))}
+                className="w-full accent-primary h-2" />
+            </div>
           ))}
+          <p className={`text-[10px] font-semibold ${splitBreakfast + splitLunch + splitDinner + splitSnacks === 100 ? 'text-primary' : 'text-destructive'}`}>
+            Total: {splitBreakfast + splitLunch + splitDinner + splitSnacks}% {splitBreakfast + splitLunch + splitDinner + splitSnacks !== 100 && '(must be 100%)'}
+          </p>
         </div>
       </div>
 
