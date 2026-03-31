@@ -134,7 +134,15 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
       dailyFat: decision.targetFat,
     });
 
-    toast.success('Profile updated! All targets recalculated.');
+    // Validate budget against new goals
+    const { getUnifiedBudget, validateBudgetVsGoals } = await import('@/lib/budget-engine');
+    const unified = getUnifiedBudget();
+    const budgetCheck = validateBudgetVsGoals(unified.monthly, decision.targetCalories, decision.targetProtein);
+    if (budgetCheck.severity === 'insufficient') {
+      toast.warning(budgetCheck.warning || `Your food budget may be too low for your new goals. Recommended: ₹${budgetCheck.minMonthly}/month`);
+    } else {
+      toast.success('Profile updated! All targets recalculated.');
+    }
     onClose();
   };
 

@@ -294,6 +294,26 @@ export default function Dashboard() {
           <DailyPlanCard profile={profile} open={showDailyPlan} onDismiss={() => setShowDailyPlan(false)} />
         )}
 
+        {/* Budget insufficient warning */}
+        {(() => {
+          if (isDailyHidden('budget_warning') || !profile) return null;
+          const unified = getUnifiedBudget();
+          const bv = validateBudgetVsGoals(unified.monthly, profile.dailyCalories || 2000, profile.dailyProtein || 80);
+          if (bv.severity !== 'insufficient') return null;
+          return (
+            <div className="animate-fade-in">
+              <div className="flex items-center gap-3 rounded-2xl bg-destructive/10 border border-destructive/20 px-4 py-3">
+                <ShieldAlert className="w-5 h-5 text-destructive shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-foreground">Your food budget of ₹{unified.monthly}/month may not cover your nutrition goals</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Recommended minimum: ₹{bv.minMonthly}/month</p>
+                </div>
+                <button onClick={() => { setDailyHidden('budget_warning'); }} className="text-muted-foreground"><X className="w-4 h-4" /></button>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Planner setup banner (persistent until completed) */}
         {showPlannerBanner && (
           <div className="animate-fade-in">

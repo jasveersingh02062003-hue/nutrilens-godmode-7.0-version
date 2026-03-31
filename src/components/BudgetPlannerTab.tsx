@@ -347,7 +347,8 @@ function BudgetOnboarding({ onComplete }: { onComplete: () => void }) {
         const m = Number(monthly) || 5000;
         const daily = computeDailyBudget(m);
         const perMeal = computePerMealBudgets(daily, { breakfast: splitBreakfast, lunch: splitLunch, dinner: splitDinner, snacks: splitSnacks });
-        const validation = validateBudgetVsGoals(m, 2000, 80);
+        const { profile: userProfile } = useUserProfile();
+        const validation = validateBudgetVsGoals(m, userProfile?.dailyCalories || 2000, userProfile?.dailyProtein || 80);
         return (
           <>
             <div className="rounded-xl bg-muted/50 p-3 space-y-1">

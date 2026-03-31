@@ -74,6 +74,21 @@ export default function DailyPlanCard({ profile, open, onDismiss }: DailyPlanCar
           </div>
         </div>
 
+        {budgetValidation.severity !== 'ok' && (
+          <div className={`rounded-xl px-3 py-2 mb-3 flex items-start gap-2 text-[11px] font-medium ${
+            budgetValidation.severity === 'insufficient'
+              ? 'bg-destructive/10 text-destructive'
+              : 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
+          }`}>
+            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            <span>
+              {budgetValidation.severity === 'insufficient'
+                ? `Budget too low for your goals. Recommended: ${plan?.currency || '₹'}${budgetValidation.minMonthly}/month`
+                : 'Budget is tight — high-PES meals prioritized'}
+            </span>
+          </div>
+        )}
+
         <div className="space-y-1.5 mb-4">
           {plan.meals.map(meal => (
             <div
