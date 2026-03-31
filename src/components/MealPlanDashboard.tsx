@@ -82,12 +82,20 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
     let total = 0;
     for (const day of plan.days) {
       for (const meal of day.meals) {
-        const recipe = getRecipeById(meal.recipeId);
-        if (recipe) total += getRecipeCost(recipe);
+        const info = getScaledMealInfo(meal);
+        if (info) total += info.cost;
       }
     }
     return total;
   }, [plan]);
+
+  // Feasibility warning
+  const feasibilityWarning = useMemo(() => {
+    try {
+      const result = validatePlanFeasibility(profile, {} as any);
+      return result.feasible ? null : result.warning;
+    } catch { return null; }
+  }, [profile]);
 
   if (selectedRecipe) {
     return <RecipeDetail recipe={selectedRecipe} onBack={() => setSelectedRecipe(null)} />;
