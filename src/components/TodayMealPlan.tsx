@@ -157,10 +157,11 @@ export default function TodayMealPlan() {
         <CollapsibleContent>
           <div className="px-4 pb-4 space-y-2">
             {todayPlan.meals.map(meal => {
-              const recipe = getRecipeById(meal.recipeId);
-              if (!recipe) return null;
+              const scaled = getScaledMealInfo(meal);
+              if (!scaled) return null;
+              const recipe = scaled.recipe;
               const imageUrl = getRecipeImage(recipe.id, meal.mealType);
-              const cost = getRecipeCost(recipe);
+              const cost = scaled.cost;
               const mealBudget = getMealBudget(meal.mealType);
               const overBudget = mealBudget > 0 && cost > mealBudget;
               const isLogged = meal.cooked || loggedMeals.has(meal.recipeId);
