@@ -337,9 +337,9 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
   // Get macro distribution targets
   const macroTargets = getMealMacroTargets(targetProtein, targetCal, mealsPerDay);
 
-  // Get per-meal budget from budget settings
-  const enhanced = getEnhancedBudgetSettings();
-  const perMealBudget = enhanced.perMeal || { breakfast: 100, lunch: 150, dinner: 200, snacks: 50 };
+  // Get per-meal budget from unified budget engine
+  const unifiedBudget = getUnifiedBudget();
+  const perMealBudget = unifiedBudget.perMeal;
 
   const mealTypes: { type: 'breakfast' | 'lunch' | 'dinner' | 'snack'; budgetKey: string; macroKey: string }[] = [
     { type: 'breakfast', budgetKey: 'breakfast', macroKey: 'breakfast' },
