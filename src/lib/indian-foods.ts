@@ -425,7 +425,7 @@ export const INDIAN_FOODS: IndianFood[] = [
   { id: 'in120', name: 'Plain Rice', hindi: 'सादा चावल', category: 'Cereals', calories: 130, protein: 2.7, carbs: 28, fat: 0.3, fiber: 0.4, iron: 0.2, calcium: 10, vitC: 0, defaultServing: 150, servingUnit: 'bowl' },
   { id: 'in121', name: 'Jeera Rice', hindi: 'जीरा चावल', category: 'Cereals', calories: 160, protein: 3.0, carbs: 28, fat: 3.8, fiber: 0.5, iron: 0.5, calcium: 15, vitC: 0, defaultServing: 150, servingUnit: 'bowl' },
   { id: 'in122', name: 'Lemon Rice', hindi: 'नींबू चावल', category: 'Cereals', calories: 165, protein: 3.2, carbs: 29, fat: 4.0, fiber: 0.5, iron: 0.5, calcium: 12, vitC: 5, defaultServing: 150, servingUnit: 'bowl' },
-  { id: 'in123', name: 'Curd Rice', hindi: 'दही चावल', category: 'Cereals', calories: 145, protein: 4.0, carbs: 25, fat: 3.0, fiber: 0.4, iron: 0.3, calcium: 80, vitC: 1, defaultServing: 200, servingUnit: 'bowl' },
+  { id: 'in123', name: 'Curd Rice', hindi: 'दही चावल', category: 'Cereals', calories: 145, protein: 4.0, carbs: 25, fat: 3.0, fiber: 0.4, iron: 0.3, calcium: 80, vitC: 1, defaultServing: 200, servingUnit: 'bowl', allergens: ['dairy'] },
 
   // ==========================================
   // === BREAKFAST ITEMS (15 items) ===
