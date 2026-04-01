@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import LastMealConfirmSheet from '@/components/LastMealConfirmSheet';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Camera, Mic, MicOff, Search, ArrowLeft, Plus, Minus, Check, X, Loader2, AlertTriangle } from 'lucide-react';
+import { Camera, Mic, MicOff, Search, ArrowLeft, Plus, Minus, Check, X, Loader2, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { addMealToLog, addMealToLogForDate, FoodItem, MealEntry, MealSource, MealCost, CookingMethod } from '@/lib/store';
 import { saveManualExpense } from '@/lib/expense-store';
 import CostSuggestionBanner from '@/components/CostSuggestionBanner';
@@ -22,6 +22,18 @@ import { syncDailyBalance, getContextualMealToast, getDinnerNotificationSummary 
 import AdjustmentExplanationModal from '@/components/AdjustmentExplanationModal';
 import LivePriceBanner from '@/components/LivePriceBanner';
 import { reportPrice } from '@/lib/live-price-service';
+import { checkAllergens, getAllergenLabel, getAllergenEmoji, hasSevereAllergen } from '@/lib/allergen-engine';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -52,6 +64,20 @@ export default function LogFood() {
   const [pendingCookingMethod, setPendingCookingMethod] = useState<CookingMethod | null | undefined>(undefined);
   const [adjModalOpen, setAdjModalOpen] = useState(false);
   const [lastMealSheetOpen, setLastMealSheetOpen] = useState(false);
+  const [pendingAllergenItem, setPendingAllergenItem] = useState<{ food: FoodItem; matched: string[] } | null>(null);
+  const [showSevereConfirm, setShowSevereConfirm] = useState(false);
+  const [severeButtonEnabled, setSevereButtonEnabled] = useState(false);
+
+  // userAllergens moved after profile declaration below
+
+  // Delayed enable for severe allergy confirmation button
+  useEffect(() => {
+    if (showSevereConfirm) {
+      setSevereButtonEnabled(false);
+      const timer = setTimeout(() => setSevereButtonEnabled(true), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSevereConfirm]);
 
   const mealLabels: Record<MealType, string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack' };
   
@@ -61,8 +87,34 @@ export default function LogFood() {
     : searchIndianFoods('').map(indianFoodToFoodItem);
 
   const addFood = (food: FoodItem) => {
-    setSelected(prev => [...prev, { ...food, id: Date.now().toString(), confidenceScore: 0.9 }]);
+    const finalItem = { ...food, id: Date.now().toString(), confidenceScore: 0.9 };
+    const allergenCheck = checkAllergens(food.name, userAllergens);
+    if (allergenCheck.hasConflict) {
+      setPendingAllergenItem({ food: finalItem, matched: allergenCheck.matched });
+      return;
+    }
+    setSelected(prev => [...prev, finalItem]);
     setStep('adjust');
+  };
+
+  const confirmAllergenAdd = () => {
+    if (!pendingAllergenItem) return;
+    if (hasSevereAllergen(pendingAllergenItem.matched) && !showSevereConfirm) {
+      setShowSevereConfirm(true);
+      return;
+    }
+    setSelected(prev => [...prev, pendingAllergenItem.food]);
+    setStep('adjust');
+    setPendingAllergenItem(null);
+    setShowSevereConfirm(false);
+  };
+
+  const findAllergenAlternative = () => {
+    if (pendingAllergenItem) {
+      setSearch('');
+      setPendingAllergenItem(null);
+      setShowSevereConfirm(false);
+    }
   };
 
   const updateQty = (id: string, delta: number) => {
@@ -98,6 +150,7 @@ export default function LogFood() {
 
   // Validation engine
   const profile = getProfile();
+  const userAllergens: string[] = (profile as any)?.allergens || [];
   const validationResult: ValidationResult = useMemo(
     () => validateMeal(selected, profile, { mealType }),
     [selected, profile, mealType]
@@ -476,24 +529,77 @@ export default function LogFood() {
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-0.5">
                 {search ? 'Results' : 'Popular Indian Foods'}
               </p>
-              {filtered.map(food => (
-                <button key={food.id} onClick={() => addFood(food)} className="card-subtle p-3 flex items-center gap-3 w-full text-left hover:shadow-md transition-shadow active:scale-[0.99]">
-                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                    <span className="text-xs font-bold text-muted-foreground">{food.calories}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-foreground">{food.name}</p>
-                    <p className="text-[10px] text-muted-foreground">1 {food.unit} · {food.calories} kcal · P {food.protein}g · C {food.carbs}g · F {food.fat}g</p>
-                  </div>
-                  <Plus className="w-4 h-4 text-primary" />
-                </button>
-              ))}
+              {filtered.map(food => {
+                const allergenCheck = checkAllergens(food.name, userAllergens);
+                return (
+                  <button key={food.id} onClick={() => addFood(food)} className="card-subtle p-3 flex items-center gap-3 w-full text-left hover:shadow-md transition-shadow active:scale-[0.99]">
+                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                      <span className="text-xs font-bold text-muted-foreground">{food.calories}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="font-semibold text-sm text-foreground">{food.name}</p>
+                        {allergenCheck.hasConflict && allergenCheck.matched.map(a => (
+                          <span key={a} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-destructive/10 border border-destructive/20 text-[9px] font-bold text-destructive animate-pulse">
+                            <AlertTriangle className="w-2.5 h-2.5" />
+                            {getAllergenLabel(a)}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">1 {food.unit} · {food.calories} kcal · P {food.protein}g · C {food.carbs}g · F {food.fat}g</p>
+                    </div>
+                    <Plus className={`w-4 h-4 ${allergenCheck.hasConflict ? 'text-destructive' : 'text-primary'}`} />
+                  </button>
+                );
+              })}
             </div>
           </>
         )}
 
         {step === 'adjust' && (
           <>
+            {/* Allergen warning banner for items added via voice/camera/barcode */}
+            {(() => {
+              const allergenItems = selected.filter(item => checkAllergens(item.name, userAllergens).hasConflict);
+              if (allergenItems.length === 0) return null;
+              return (
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', damping: 15 }}
+                  className="rounded-xl bg-destructive/10 border border-destructive/30 p-3.5 space-y-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <motion.div
+                      initial={{ rotate: -180, scale: 0 }}
+                      animate={{ rotate: 0, scale: 1 }}
+                      transition={{ type: 'spring', damping: 10 }}
+                    >
+                      <ShieldAlert className="w-5 h-5 text-destructive animate-pulse" />
+                    </motion.div>
+                    <span className="text-sm font-bold text-destructive">Allergen Warning</span>
+                  </div>
+                  {allergenItems.map(item => {
+                    const matched = checkAllergens(item.name, userAllergens).matched;
+                    return (
+                      <div key={item.id} className="flex items-center justify-between gap-2 bg-background/50 rounded-lg px-3 py-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-semibold text-foreground">{item.name}</span>
+                          {matched.map(a => (
+                            <span key={a} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-destructive/15 text-[9px] font-bold text-destructive">
+                              {getAllergenEmoji(a)} {getAllergenLabel(a)}
+                            </span>
+                          ))}
+                        </div>
+                        <button onClick={() => removeItem(item.id)} className="text-[10px] font-semibold text-destructive hover:underline shrink-0">
+                          Remove
+                        </button>
+                      </div>
+                    );
+                  })}
+                </motion.div>
+              );
+            })()}
             <div className="space-y-2">
               {selected.map(item => {
                 const itemCal = Math.round(item.calories * item.quantity);
@@ -641,6 +747,84 @@ export default function LogFood() {
         onClose={() => { setLastMealSheetOpen(false); navigate(targetDate ? '/progress' : '/dashboard'); }}
         todayKey={targetDate || new Date().toISOString().split('T')[0]}
       />
+
+      {/* Standard Allergen Confirmation Dialog */}
+      <AlertDialog open={!!pendingAllergenItem && !showSevereConfirm} onOpenChange={v => { if (!v) { setPendingAllergenItem(null); setShowSevereConfirm(false); } }}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="w-12 h-12 mx-auto mb-2 rounded-full bg-destructive/10 flex items-center justify-center"
+            >
+              <AlertTriangle className="w-6 h-6 text-destructive" />
+            </motion.div>
+            <AlertDialogTitle className="text-center">⚠️ Allergen Warning</AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              <span className="font-semibold text-foreground">{pendingAllergenItem?.food.name}</span> contains{' '}
+              <span className="font-bold text-destructive">
+                {pendingAllergenItem?.matched.map(a => `${getAllergenEmoji(a)} ${getAllergenLabel(a)}`).join(', ')}
+              </span>.
+              <br />
+              <span className="text-muted-foreground">Are you sure you want to log this?</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
+            <button onClick={findAllergenAlternative} className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold hover:bg-primary/90 transition-colors">
+              🔄 Find Safe Alternative
+            </button>
+            <AlertDialogAction onClick={confirmAllergenAdd} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Log Anyway
+            </AlertDialogAction>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Severe Allergy Double Confirmation */}
+      <AlertDialog open={showSevereConfirm} onOpenChange={v => { if (!v) { setShowSevereConfirm(false); setPendingAllergenItem(null); } }}>
+        <AlertDialogContent className="rounded-2xl border-2 border-destructive/50">
+          <AlertDialogHeader>
+            <motion.div
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', damping: 10 }}
+              className="w-16 h-16 mx-auto mb-2 rounded-full bg-destructive/20 flex items-center justify-center"
+            >
+              <ShieldAlert className="w-8 h-8 text-destructive animate-pulse" />
+            </motion.div>
+            <AlertDialogTitle className="text-center text-destructive text-lg">
+              🚨 Severe Allergy Risk
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center space-y-2">
+              <span className="block font-bold text-foreground text-base">{pendingAllergenItem?.food.name}</span>
+              <span className="block text-destructive font-semibold">
+                This food may contain {pendingAllergenItem?.matched.map(a => `${getAllergenEmoji(a)} ${getAllergenLabel(a)}`).join(', ')} which can cause a severe allergic reaction.
+              </span>
+              <span className="block text-muted-foreground text-xs mt-2">
+                This is a high-risk allergen. Please confirm you understand the risk.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
+            <button onClick={findAllergenAlternative} className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold hover:bg-primary/90 transition-colors">
+              🔄 Find Safe Alternative
+            </button>
+            <button
+              onClick={confirmAllergenAdd}
+              disabled={!severeButtonEnabled}
+              className={`w-full inline-flex items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold transition-all ${
+                severeButtonEnabled
+                  ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                  : 'bg-muted text-muted-foreground cursor-not-allowed opacity-50'
+              }`}
+            >
+              {severeButtonEnabled ? 'I understand the risk – Log Anyway' : 'Please wait (3s)...'}
+            </button>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
