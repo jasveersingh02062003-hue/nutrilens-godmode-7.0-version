@@ -27,6 +27,9 @@ export const ALLERGEN_KEYWORDS: Record<string, string[]> = {
     'cottage cheese', 'ricotta', 'mozzarella', 'cheddar', 'dulce',
     'doodh', 'khoya', 'paal', 'thayir', 'nei', 'perugu', 'haalu',
     'kadhi', 'rabdi',
+    // Regional expansions
+    'mawa', 'makkhan', 'paal aadai', 'paal kova', 'meegada', 'venna',
+    'benne', 'doode', 'toop', 'loni', 'chakka', 'mosaru',
   ],
   gluten: [
     'wheat', 'roti', 'chapati', 'chapatti', 'naan', 'paratha', 'bread',
@@ -36,16 +39,23 @@ export const ALLERGEN_KEYWORDS: Record<string, string[]> = {
     'seitan', 'couscous', 'barley', 'rye', 'atta', 'dalia', 'upma',
     'rava', 'sooji', 'hing', 'asafoetida', 'heeng',
     'godumai', 'pindi', 'godhi', 'haleem', 'jalebi', 'sev',
+    // Regional expansions
+    'godhuma maavu', 'perungayam', 'godhuma pindi', 'inguva',
+    'godhi hittu', 'hingu', 'gahu pith', 'seviyan',
   ],
   nuts: [
     'peanut', 'almond', 'cashew', 'kaju', 'badam', 'walnut', 'pistachio',
     'pista', 'groundnut', 'akhrot', 'mungfali', 'chironji', 'pine nut',
     'hazelnut', 'pecan', 'macadamia', 'brazil nut', 'mixed nuts',
     'dry fruit', 'trail mix', 'badami',
+    // Regional expansions
+    'mundhiri', 'jeedi pappu', 'geru', 'chilgoza',
   ],
   peanuts: [
     'peanut', 'groundnut', 'moongphali', 'singdana', 'mungfali',
     'verkadalai', 'pallilu', 'sheng dane',
+    // Regional expansions
+    'nilakkadalai', 'veru senaga pappu', 'palli', 'kadale kai beeja',
   ],
   soy: [
     'soya', 'tofu', 'soy', 'edamame', 'tempeh', 'miso', 'soy sauce',
@@ -55,19 +65,29 @@ export const ALLERGEN_KEYWORDS: Record<string, string[]> = {
     'egg', 'anda', 'omelette', 'omelet', 'scrambled', 'boiled egg',
     'fried egg', 'poached egg', 'egg curry', 'egg bhurji', 'meringue',
     'mayonnaise', 'mayo', 'muttai', 'guddu', 'motte', 'baida',
+    // Regional expansions
+    'ande',
   ],
   shellfish: [
     'prawn', 'shrimp', 'crab', 'lobster', 'crayfish', 'mussel',
     'oyster', 'clam', 'scallop', 'squid', 'calamari', 'jhinga', 'kekda',
+    // Regional expansions
+    'yera', 'nandu', 'royyalu', 'peeta', 'sigadi', 'kurli', 'kolambi',
   ],
   mustard: [
     'mustard', 'sarson', 'rai', 'kachi ghani', 'kadugu', 'avalu', 'sasive',
+    // Regional expansions
+    'mohri',
   ],
   sesame: [
     'sesame', 'til', 'gingelly', 'tahini', 'til ladoo',
+    // Regional expansions
+    'ellu', 'nuvvulu', 'teel',
   ],
   fish: [
     'fish', 'machli', 'meen', 'surimi', 'anchovy', 'sardine', 'tuna',
     'salmon', 'pomfret', 'hilsa', 'rohu', 'katla', 'bangda',
+    // Regional expansions
+    'machchhi', 'chepa', 'meenu', 'maasa',
   ],
 };
