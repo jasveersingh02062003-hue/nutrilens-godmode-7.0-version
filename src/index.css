@@ -166,3 +166,16 @@
   from { stroke-dashoffset: var(--ring-circumference, 565); }
   to { stroke-dashoffset: var(--ring-offset, 0); }
 }
+
+@keyframes pulse-warning {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); box-shadow: 0 0 12px rgba(220, 38, 38, 0.3); }
+}
+
+@keyframes slide-down-warning {
+  from { transform: translateY(-100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-pulse-warning { animation: pulse-warning 0.6s ease-in-out 2; }
+.animate-slide-down-warning { animation: slide-down-warning 0.25s ease-out; }

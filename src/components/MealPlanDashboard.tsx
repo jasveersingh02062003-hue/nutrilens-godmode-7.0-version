@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { checkAllergens, getAllergenLabel, getAllergenEmoji } from '@/lib/allergen-engine';
+import { checkFoodForConditions, getUserConditions } from '@/lib/condition-coach';
 import { RefreshCw, ShoppingCart, Clock, Flame, Beef, Wheat, Droplets, ArrowRight, Check, Repeat, IndianRupee, AlertCircle, CheckCircle2, XCircle, AlertTriangle, TrendingUp } from 'lucide-react';
 import { WeekPlan, DayPlan, PlannedMeal } from '@/lib/meal-planner-store';
 import { MealPlannerProfile } from '@/lib/meal-planner-store';
@@ -376,13 +377,26 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
                         <h3 className="font-bold text-sm text-white truncate">{recipe.name}</h3>
                         {(() => {
                           const userAllergens = (profile as any)?.allergens || [];
+                          const userConds = getUserConditions(profile as any);
                           const allergenCheck = checkAllergens(recipe.name, userAllergens);
-                          if (!allergenCheck.hasConflict) return null;
+                          const condWarnings = checkFoodForConditions(recipe.name, userConds);
+                          
                           return (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-destructive/90 text-[9px] font-bold text-white animate-scale-in shrink-0"
-                              title={allergenCheck.matched.map(a => getAllergenLabel(a)).join(', ')}>
-                              ⚠️ {allergenCheck.matched.map(a => getAllergenLabel(a)).join(', ')}
-                            </span>
+                            <>
+                              {allergenCheck.hasConflict && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-destructive/90 text-[9px] font-bold text-white animate-scale-in shrink-0"
+                                  title={allergenCheck.matched.map(a => getAllergenLabel(a)).join(', ')}>
+                                  ⚠️ {allergenCheck.matched.map(a => getAllergenLabel(a)).join(', ')}
+                                </span>
+                              )}
+                              {condWarnings.length > 0 && !allergenCheck.hasConflict && (
+                                <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold text-white shrink-0 animate-scale-in ${
+                                  condWarnings.some(w => w.severity === 'high') ? 'bg-destructive/90' : 'bg-orange-500/90'
+                                }`} title={condWarnings.map(w => w.text).join(', ')}>
+                                  {condWarnings[0].icon} {condWarnings[0].condition}
+                                </span>
+                              )}
+                            </>
                           );
                         })()}
                       </div>

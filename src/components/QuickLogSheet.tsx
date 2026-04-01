@@ -6,6 +6,7 @@ import { addMealToLog, type MealEntry, type FoodItem, getProfile } from '@/lib/s
 import { syncDailyBalance } from '@/lib/calorie-correction';
 import { reportPrice } from '@/lib/live-price-service';
 import { checkAllergens, getAllergenLabel, getAllergenEmoji } from '@/lib/allergen-engine';
+import { checkFoodForConditions, getUserConditions } from '@/lib/condition-coach';
 import { toast } from 'sonner';
 
 interface Props {
@@ -62,6 +63,18 @@ export default function QuickLogSheet({ open, onClose, onSaved }: Props) {
       }
       if (warnings.length > 0) {
         warnings.forEach(w => toast.error(`⚠️ ${w}`, { duration: 5000 }));
+      }
+    }
+
+    // Check for health condition warnings
+    const userConditions = getUserConditions(profile as any);
+    if (userConditions.length > 0) {
+      for (const item of items) {
+        const condWarnings = checkFoodForConditions(item.name, userConditions);
+        for (const w of condWarnings) {
+          const style = w.severity === 'high' ? 'error' as const : 'warning' as const;
+          toast[style](`${w.icon} ${item.name}: ${w.text}`, { duration: 5000 });
+        }
       }
     }
 

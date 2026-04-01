@@ -26,6 +26,8 @@ import FoodReplaceSheet from '@/components/FoodReplaceSheet';
 import { getUnitOptionsForFood, calculateNutrition, type UnitOption } from '@/lib/unit-conversion';
 import PESBreakdownModal from '@/components/PESBreakdownModal';
 import { checkAllergens, getAllergenLabel, getAllergenEmoji, hasSevereAllergen } from '@/lib/allergen-engine';
+import { checkFoodForConditions, getUserConditions, type FoodConditionWarning } from '@/lib/condition-coach';
+import AnimatedWarningBanner, { type WarningMessage } from '@/components/AnimatedWarningBanner';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 type Step = 'camera' | 'confirm' | 'edit' | 'save';
@@ -792,51 +794,65 @@ export default function CameraHome() {
           {/* Allergen warning banner */}
           {(() => {
             const userAllergens = profile?.allergens || [];
-            if (userAllergens.length === 0) return null;
+            if (userAllergens.length === 0 && getUserConditions(profile as any).length === 0) return null;
+            const userConds = getUserConditions(profile as any);
+
+            // Allergen messages
+            const allergenMessages: WarningMessage[] = [];
             const allergenItems = activeItems.filter(item => checkAllergens(item.name, userAllergens).hasConflict);
-            if (allergenItems.length === 0) return null;
+            for (const item of allergenItems) {
+              const matched = checkAllergens(item.name, userAllergens).matched;
+              for (const a of matched) {
+                allergenMessages.push({
+                  icon: getAllergenEmoji(a),
+                  text: `${item.name} contains ${getAllergenLabel(a)}`,
+                  itemId: item.id,
+                  itemName: item.name,
+                });
+              }
+            }
+
+            // Health condition messages
+            const condMessages: WarningMessage[] = [];
+            for (const item of activeItems) {
+              const warnings = checkFoodForConditions(item.name, userConds);
+              for (const w of warnings) {
+                condMessages.push({
+                  icon: w.icon,
+                  text: `${item.name}: ${w.text}`,
+                  condition: w.condition,
+                  itemId: item.id,
+                  itemName: item.name,
+                });
+              }
+            }
+
+            const allMessages = [...allergenMessages, ...condMessages];
+            if (allMessages.length === 0) return null;
+
             const allMatched = [...new Set(allergenItems.flatMap(item => checkAllergens(item.name, userAllergens).matched))];
             const isSevere = hasSevereAllergen(allMatched);
+            const hasHighCondition = condMessages.some(m => {
+              const item = activeItems.find(i => i.id === m.itemId);
+              if (!item) return false;
+              return checkFoodForConditions(item.name, userConds).some(w => w.severity === 'high');
+            });
+
+            const severity = (isSevere || hasHighCondition) ? 'high' as const : 'medium' as const;
+            const type = allergenMessages.length > 0 && condMessages.length > 0 ? 'combined' as const
+              : allergenMessages.length > 0 ? 'allergen' as const : 'health' as const;
+            const title = isSevere ? '🚨 Severe Allergen Detected'
+              : allergenMessages.length > 0 ? '⚠️ Allergen Warning'
+              : hasHighCondition ? '🚨 Health Condition Alert' : '⚠️ Health Advisory';
+
             return (
-              <motion.div
-                initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                className={`p-3.5 rounded-xl border-2 ${isSevere ? 'bg-destructive/15 border-destructive/40' : 'bg-destructive/10 border-destructive/20'}`}
-              >
-                <div className="flex items-start gap-2.5">
-                  <motion.div
-                    animate={isSevere ? { scale: [1, 1.2, 1] } : {}}
-                    transition={{ repeat: Infinity, duration: 1.5 }}
-                  >
-                    {isSevere
-                      ? <ShieldAlert className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-                      : <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-                    }
-                  </motion.div>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-destructive">
-                      {isSevere ? '🚨 Severe Allergen Detected' : '⚠️ Allergen Warning'}
-                    </p>
-                    <p className="text-xs text-destructive/80 mt-0.5">
-                      {allergenItems.map(i => i.name).join(', ')} contains{' '}
-                      <span className="font-bold">
-                        {allMatched.map(a => `${getAllergenEmoji(a)} ${getAllergenLabel(a)}`).join(', ')}
-                      </span>
-                    </p>
-                    <div className="flex gap-2 mt-2">
-                      {allergenItems.map(item => (
-                        <button
-                          key={item.id}
-                          onClick={() => toggleItemSelection(item.id)}
-                          className="px-2.5 py-1 rounded-lg bg-destructive/10 border border-destructive/20 text-[10px] font-semibold text-destructive hover:bg-destructive/20 transition-colors"
-                        >
-                          ✕ Remove {item.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
+              <AnimatedWarningBanner
+                type={type}
+                severity={severity}
+                title={title}
+                messages={allMessages}
+                onRemoveItem={(id) => toggleItemSelection(id)}
+              />
             );
           })()}
 

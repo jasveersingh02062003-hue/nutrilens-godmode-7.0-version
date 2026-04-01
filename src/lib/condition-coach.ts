@@ -475,6 +475,111 @@ export function evaluateConditions(
   return { messages: allMessages, overallColor, score };
 }
 
+// ── Per-item health condition check (lightweight, no totals needed) ──
+
+export interface FoodConditionWarning {
+  text: string;
+  condition: string;
+  severity: 'high' | 'medium' | 'low';
+  icon: string;
+}
+
+function nameMatchesAny(name: string, keywords: string[]): boolean {
+  const lower = name.toLowerCase();
+  return keywords.some(kw => lower.includes(kw));
+}
+
+const foodConditionRules: Record<string, { check: (name: string) => FoodConditionWarning[] }> = {
+  diabetes: {
+    check: (name) => {
+      const warnings: FoodConditionWarning[] = [];
+      if (nameMatchesAny(name, SUGAR_KEYWORDS)) {
+        warnings.push({ text: 'Contains sugar – may spike blood glucose', condition: 'Diabetes', severity: 'high', icon: '🩸' });
+      } else if (nameMatchesAny(name, HIGH_GI_KEYWORDS)) {
+        warnings.push({ text: 'High-GI food – may raise blood sugar', condition: 'Diabetes', severity: 'medium', icon: '📈' });
+      }
+      return warnings;
+    },
+  },
+  pcos: {
+    check: (name) => {
+      const warnings: FoodConditionWarning[] = [];
+      if (nameMatchesAny(name, HIGH_GI_KEYWORDS)) {
+        warnings.push({ text: 'High-GI – may worsen insulin resistance', condition: 'PCOS', severity: 'medium', icon: '⚠️' });
+      }
+      if (nameMatchesAny(name, DAIRY_KEYWORDS)) {
+        warnings.push({ text: 'Dairy may affect PCOS hormones', condition: 'PCOS', severity: 'low', icon: '🥛' });
+      }
+      return warnings;
+    },
+  },
+  hypertension: {
+    check: (name) => {
+      if (nameMatchesAny(name, HIGH_SODIUM_KEYWORDS)) {
+        return [{ text: 'High sodium – may raise blood pressure', condition: 'Hypertension', severity: 'high', icon: '🧂' }];
+      }
+      return [];
+    },
+  },
+  thyroid: {
+    check: (name) => {
+      if (nameMatchesAny(name, GOITROGENIC_RAW_KEYWORDS)) {
+        return [{ text: 'May interfere with thyroid if raw', condition: 'Thyroid', severity: 'low', icon: '🥦' }];
+      }
+      return [];
+    },
+  },
+  'lactose intolerance': {
+    check: (name) => {
+      if (nameMatchesAny(name, DAIRY_KEYWORDS)) {
+        return [{ text: 'Contains dairy – take lactase if sensitive', condition: 'Lactose', severity: 'high', icon: '🥛' }];
+      }
+      return [];
+    },
+  },
+  'gluten-free': {
+    check: (name) => {
+      if (nameMatchesAny(name, WHEAT_GLUTEN_KEYWORDS)) {
+        return [{ text: 'Contains gluten', condition: 'Gluten', severity: 'high', icon: '🌾' }];
+      }
+      return [];
+    },
+  },
+  'high cholesterol': {
+    check: (name) => {
+      const fried = ['fried', 'pakora', 'bhajia', 'samosa', 'puri', 'paratha', 'chips', 'deep fried'];
+      if (nameMatchesAny(name, fried)) {
+        return [{ text: 'Fried food raises LDL cholesterol', condition: 'Cholesterol', severity: 'medium', icon: '🍳' }];
+      }
+      return [];
+    },
+  },
+  pregnancy: {
+    check: (name) => {
+      const caffeine = ['coffee', 'tea', 'chai', 'espresso', 'cola', 'energy drink'];
+      if (nameMatchesAny(name, caffeine)) {
+        return [{ text: 'Limit caffeine during pregnancy', condition: 'Pregnancy', severity: 'medium', icon: '☕' }];
+      }
+      return [];
+    },
+  },
+};
+
+export function checkFoodForConditions(
+  foodName: string,
+  userConditions: string[],
+): FoodConditionWarning[] {
+  const warnings: FoodConditionWarning[] = [];
+  for (const raw of userConditions) {
+    const normalized = normalizeCondition(raw);
+    const rule = foodConditionRules[normalized];
+    if (rule) {
+      warnings.push(...rule.check(foodName));
+    }
+  }
+  return warnings;
+}
+
 // ── Get user's active conditions for display ──
 
 export function getUserConditions(profile: UserProfile | null): string[] {
