@@ -55,6 +55,7 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
   const [goal, setGoal] = useState('lose');
   const [goalSpeed, setGoalSpeed] = useState(0.5);
   const [healthConditions, setHealthConditions] = useState<string[]>([]);
+  const [allergens, setAllergens] = useState<string[]>([]);
   const [dietaryPrefs, setDietaryPrefs] = useState<string[]>([]);
   const [waterGoal, setWaterGoal] = useState(2000);
   const [occupation, setOccupation] = useState('');
