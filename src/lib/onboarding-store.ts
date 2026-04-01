@@ -119,6 +119,7 @@ export function saveOnboardingData(data: OnboardingData) {
     bmr,
     tdee, // ← ACTUAL TDEE, not goal calories
     skinConcerns: data.health.skin !== 'none' ? { [data.health.skin]: true } : undefined,
+    allergens: data.health.allergens || [],
     joinDate: toLocalDateKey(new Date()),
   };
   saveProfile(profile);

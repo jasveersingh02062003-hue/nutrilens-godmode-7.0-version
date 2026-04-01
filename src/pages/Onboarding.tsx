@@ -534,6 +534,7 @@ export default function Onboarding() {
       basic: { name: f.name, gender: f.gender, age: f.age, heightCm: f.heightCm, weightKg: f.weightKg },
       health: {
         conditions: f.conditions,
+        allergens: f.allergens,
         skin: f.skin || 'none',
         genderSpecific: {
           pcos: f.conditions.includes('pcos'),
