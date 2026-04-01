@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import LastMealConfirmSheet from '@/components/LastMealConfirmSheet';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Camera, Mic, MicOff, Search, ArrowLeft, Plus, Minus, Check, X, Loader2, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Camera, Mic, MicOff, Search, ArrowLeft, Plus, Minus, Check, X, Loader2, AlertTriangle, ShieldAlert, Scale } from 'lucide-react';
 import { addMealToLog, addMealToLogForDate, FoodItem, MealEntry, MealSource, MealCost, CookingMethod } from '@/lib/store';
 import { saveManualExpense } from '@/lib/expense-store';
 import CostSuggestionBanner from '@/components/CostSuggestionBanner';
@@ -9,6 +9,8 @@ import PESBreakdownModal from '@/components/PESBreakdownModal';
 import ContextPickerSheet from '@/components/ContextPickerSheet';
 import { getDefaultCategory, learnCookingMethod } from '@/lib/context-learning';
 import { searchIndianFoods, indianFoodToFoodItem, type IndianFood } from '@/lib/indian-foods';
+import ComparisonSheet from '@/components/ComparisonSheet';
+import { buildFromFoodItem, type CompareItem } from '@/lib/compare-helpers';
 import { supabase } from '@/integrations/supabase/client';
 import ConfidenceBadge from '@/components/ConfidenceBadge';
 import { validateMeal, validateSingleItem, type ValidationResult } from '@/lib/validation-engine';
@@ -69,6 +71,8 @@ export default function LogFood() {
   const [pendingAllergenItem, setPendingAllergenItem] = useState<{ food: FoodItem; matched: string[] } | null>(null);
   const [showSevereConfirm, setShowSevereConfirm] = useState(false);
   const [severeButtonEnabled, setSevereButtonEnabled] = useState(false);
+  const [compareSelection, setCompareSelection] = useState<FoodItem[]>([]);
+  const [compareSheetOpen, setCompareSheetOpen] = useState(false);
 
   // userAllergens moved after profile declaration below
 
@@ -536,42 +540,86 @@ export default function LogFood() {
                 const allergenCheck = checkAllergens(food.name, userAllergens);
                 const conditionWarnings = checkFoodForConditions(food.name, userConditions);
                 const hasAnyWarning = allergenCheck.hasConflict || conditionWarnings.length > 0;
+                const isCompareSelected = compareSelection.some(c => c.id === food.id);
                 return (
-                  <button key={food.id} onClick={() => addFood(food)} className="card-subtle p-3 flex items-center gap-3 w-full text-left hover:shadow-md transition-shadow active:scale-[0.99]">
-                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                      <span className="text-xs font-bold text-muted-foreground">{food.calories}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className="font-semibold text-sm text-foreground">{food.name}</p>
-                        {allergenCheck.hasConflict && allergenCheck.matched.map(a => (
-                          <span key={a} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-destructive/10 border border-destructive/20 text-[9px] font-bold text-destructive animate-pulse">
-                            <AlertTriangle className="w-2.5 h-2.5" />
-                            {getAllergenLabel(a)}
-                          </span>
-                        ))}
-                        {conditionWarnings.map((w, i) => (
-                          <span key={`cond-${i}`} className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border text-[9px] font-bold ${
-                            w.severity === 'high'
-                              ? 'bg-destructive/10 border-destructive/20 text-destructive animate-pulse'
-                              : w.severity === 'medium'
-                              ? 'bg-orange-500/10 border-orange-500/20 text-orange-600 dark:text-orange-400'
-                              : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-700 dark:text-yellow-400'
-                          }`}>
-                            <span className="text-[8px]">{w.icon}</span>
-                            {w.condition}
-                          </span>
-                        ))}
+                  <div key={food.id} className={`card-subtle p-3 flex items-center gap-3 w-full text-left hover:shadow-md transition-shadow ${isCompareSelected ? 'ring-2 ring-primary/50' : ''}`}>
+                    <button onClick={() => addFood(food)} className="flex items-center gap-3 flex-1 min-w-0 active:scale-[0.99]">
+                      <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                        <span className="text-xs font-bold text-muted-foreground">{food.calories}</span>
                       </div>
-                      <p className="text-[10px] text-muted-foreground">1 {food.unit} · {food.calories} kcal · P {food.protein}g · C {food.carbs}g · F {food.fat}g</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="font-semibold text-sm text-foreground">{food.name}</p>
+                          {allergenCheck.hasConflict && allergenCheck.matched.map(a => (
+                            <span key={a} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-destructive/10 border border-destructive/20 text-[9px] font-bold text-destructive animate-pulse">
+                              <AlertTriangle className="w-2.5 h-2.5" />
+                              {getAllergenLabel(a)}
+                            </span>
+                          ))}
+                          {conditionWarnings.map((w, i) => (
+                            <span key={`cond-${i}`} className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border text-[9px] font-bold ${
+                              w.severity === 'high'
+                                ? 'bg-destructive/10 border-destructive/20 text-destructive animate-pulse'
+                                : w.severity === 'medium'
+                                ? 'bg-orange-500/10 border-orange-500/20 text-orange-600 dark:text-orange-400'
+                                : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-700 dark:text-yellow-400'
+                            }`}>
+                              <span className="text-[8px]">{w.icon}</span>
+                              {w.condition}
+                            </span>
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">1 {food.unit} · {food.calories} kcal · P {food.protein}g · C {food.carbs}g · F {food.fat}g</p>
+                      </div>
+                    </button>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCompareSelection(prev => {
+                            if (prev.some(c => c.id === food.id)) return prev.filter(c => c.id !== food.id);
+                            if (prev.length >= 3) return prev;
+                            return [...prev, food];
+                          });
+                        }}
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center ${isCompareSelected ? 'bg-primary/20' : 'bg-muted'}`}
+                      >
+                        <Scale className={`w-3.5 h-3.5 ${isCompareSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                      </button>
+                      <button onClick={() => addFood(food)} className={`w-7 h-7 rounded-lg flex items-center justify-center ${hasAnyWarning ? 'bg-destructive/10' : 'bg-primary/10'}`}>
+                        <Plus className={`w-4 h-4 ${hasAnyWarning ? 'text-destructive' : 'text-primary'}`} />
+                      </button>
                     </div>
-                    <Plus className={`w-4 h-4 ${hasAnyWarning ? 'text-destructive' : 'text-primary'}`} />
-                  </button>
+                  </div>
                 );
               })}
             </div>
+
+            {/* Floating Compare Pill */}
+            {compareSelection.length >= 2 && (
+              <motion.button
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 px-5 py-3 rounded-full bg-primary text-primary-foreground font-bold text-sm shadow-fab flex items-center gap-2 active:scale-[0.97] transition-transform"
+                onClick={() => setCompareSheetOpen(true)}
+              >
+                <Scale className="w-4 h-4" /> Compare ({compareSelection.length})
+              </motion.button>
+            )}
           </>
         )}
+
+        {/* Comparison Sheet */}
+        <ComparisonSheet
+          open={compareSheetOpen}
+          onClose={() => { setCompareSheetOpen(false); setCompareSelection([]); }}
+          items={compareSelection.map(buildFromFoodItem)}
+          onPick={(picked) => {
+            const food = compareSelection.find(f => `food-${f.id}` === picked.id);
+            if (food) addFood(food);
+            setCompareSelection([]);
+          }}
+        />
 
         {step === 'adjust' && (
           <>

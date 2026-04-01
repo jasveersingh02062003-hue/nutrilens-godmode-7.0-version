@@ -5,9 +5,11 @@ import { getRecipeById } from '@/lib/recipes';
 import { getRecipeCost } from '@/lib/recipe-cost';
 import { getRecipeImage } from '@/lib/recipe-images';
 import { computePES } from '@/lib/pes-engine';
-import { Zap, ArrowLeft, AlertTriangle, Star, DollarSign, Dumbbell, Timer } from 'lucide-react';
+import { Zap, ArrowLeft, AlertTriangle, Star, DollarSign, Dumbbell, Timer, Scale } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import ComparisonSheet from '@/components/ComparisonSheet';
+import { buildFromRecipe, type CompareItem } from '@/lib/compare-helpers';
 
 interface Props {
   open: boolean;
@@ -22,6 +24,7 @@ export default function SwapSimulatorSheet({ open, onClose, originalRecipeId, me
   const [alternatives, setAlternatives] = useState<SwapAlternative[]>([]);
   const [selected, setSelected] = useState<SwapAlternative | null>(null);
   const [impact, setImpact] = useState<SwapImpact | null>(null);
+  const [compareAllOpen, setCompareAllOpen] = useState(false);
 
   const original = getRecipeById(originalRecipeId);
   const originalCost = original ? getRecipeCost(original) : 0;
@@ -67,6 +70,7 @@ export default function SwapSimulatorSheet({ open, onClose, originalRecipeId, me
   };
 
   return (
+    <>
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto p-0">
         <SheetHeader className="px-5 pt-5 pb-3">
@@ -93,7 +97,16 @@ export default function SwapSimulatorSheet({ open, onClose, originalRecipeId, me
               {alternatives.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">No alternatives found for this meal type.</p>
               ) : (
-                alternatives.map((alt, idx) => (
+                <>
+                  {alternatives.length >= 2 && (
+                    <button
+                      onClick={() => setCompareAllOpen(true)}
+                      className="w-full py-2.5 rounded-xl bg-primary/10 text-primary text-sm font-bold flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform mb-1"
+                    >
+                      <Scale className="w-4 h-4" /> Compare All ⚖️
+                    </button>
+                  )}
+                {alternatives.map((alt, idx) => (
                   <motion.button key={alt.recipe.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.08 }}
                     onClick={() => handleSelect(alt)}
                     className="w-full flex items-center gap-3 p-3 rounded-xl bg-card border border-border hover:border-primary/40 hover:shadow-sm transition-all text-left active:scale-[0.98]">
@@ -114,7 +127,8 @@ export default function SwapSimulatorSheet({ open, onClose, originalRecipeId, me
                       {alt.highlight === 'Best Choice' ? '⭐ Best Choice' : alt.highlight}
                     </span>
                   </motion.button>
-                ))
+                  ))}
+                </>
               )}
             </motion.div>
           )}
@@ -201,5 +215,24 @@ export default function SwapSimulatorSheet({ open, onClose, originalRecipeId, me
         </AnimatePresence>
       </SheetContent>
     </Sheet>
+
+    {/* Compare All Sheet */}
+    {original && (
+      <ComparisonSheet
+        open={compareAllOpen}
+        onClose={() => setCompareAllOpen(false)}
+        items={[buildFromRecipe(original), ...alternatives.map(a => buildFromRecipe(a.recipe))]}
+        onPick={(picked) => {
+          // Find if picked is one of the alternatives
+          const alt = alternatives.find(a => `recipe-${a.recipe.id}` === picked.id);
+          if (alt) {
+            const impactResult = calculateSwapImpact(originalRecipeId, alt.recipe);
+            onApply(alt.recipe.id, impactResult);
+          }
+          onClose();
+        }}
+      />
+    )}
+    </>
   );
 }
