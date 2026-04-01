@@ -127,6 +127,7 @@ export default function SwapSimulatorSheet({ open, onClose, originalRecipeId, me
                     </span>
                   </motion.button>
                 ))
+                </>
               )}
             </motion.div>
           )}
