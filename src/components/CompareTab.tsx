@@ -201,6 +201,68 @@ function VoiceInput({ onResult, onClose }: { onResult: (text: string) => void; o
   );
 }
 
+// ─── Quantity Adjuster ───
+function QuantityAdjuster({ item, onChange }: { item: CompareItem; onChange: (updated: CompareItem) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [inputVal, setInputVal] = useState(String(item.servingGrams));
+
+  const adjust = (delta: number) => {
+    const newGrams = Math.max(10, item.servingGrams + delta);
+    const rebuilt = rebuildFoodAtServing(item, newGrams);
+    if (rebuilt) onChange(rebuilt);
+  };
+
+  const commitEdit = () => {
+    const g = Math.max(10, Math.min(2000, parseInt(inputVal) || item.servingGrams));
+    const rebuilt = rebuildFoodAtServing(item, g);
+    if (rebuilt) onChange(rebuilt);
+    setEditing(false);
+  };
+
+  if (!item.sourceFoodId) {
+    // Non-editable (recipes/scanned) — show serving info only
+    return (
+      <span className="text-[9px] text-muted-foreground bg-muted rounded-md px-1.5 py-0.5">
+        {item.servingGrams}g
+      </span>
+    );
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1">
+        <input
+          autoFocus
+          type="number"
+          value={inputVal}
+          onChange={e => setInputVal(e.target.value)}
+          onBlur={commitEdit}
+          onKeyDown={e => e.key === 'Enter' && commitEdit()}
+          className="w-12 text-center text-[10px] font-bold bg-background border border-primary/30 rounded-md py-0.5 outline-none"
+        />
+        <span className="text-[9px] text-muted-foreground">g</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-0.5">
+      <motion.button whileTap={{ scale: 0.85 }} onClick={() => adjust(-25)}
+        className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
+        <Minus className="w-2.5 h-2.5 text-muted-foreground" />
+      </motion.button>
+      <button onClick={() => { setInputVal(String(item.servingGrams)); setEditing(true); }}
+        className="text-[10px] font-bold text-foreground bg-muted/60 rounded-md px-1.5 py-0.5 hover:bg-muted flex items-center gap-0.5">
+        {item.servingGrams}g <Pencil className="w-2 h-2 text-muted-foreground" />
+      </button>
+      <motion.button whileTap={{ scale: 0.85 }} onClick={() => adjust(25)}
+        className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
+        <Plus className="w-2.5 h-2.5 text-muted-foreground" />
+      </motion.button>
+    </div>
+  );
+}
+
 // ─── Side Slot (Search + Camera + Mic) ───
 function SideSlot({
   selected,
@@ -235,7 +297,7 @@ function SideSlot({
     setMode('search');
   }, [onSelect]);
 
-  // Selected state
+  // Selected state — with quantity adjuster
   if (selected) {
     return (
       <motion.div
@@ -251,8 +313,10 @@ function SideSlot({
         <div className="flex items-center gap-1">
           {selected.type === 'recipe' && <ChefHat className="w-2.5 h-2.5 text-muted-foreground" />}
           {selected.type === 'scanned' && <ScanLine className="w-2.5 h-2.5 text-primary" />}
-          <span className="text-[9px] text-muted-foreground">{selected.calories} kcal</span>
+          <span className="text-[9px] text-muted-foreground">{selected.calories} kcal · ₹{selected.cost}</span>
         </div>
+        {/* Quantity Adjuster */}
+        <QuantityAdjuster item={selected} onChange={onSelect} />
         <button onClick={onClear} className="mt-0.5 w-5 h-5 rounded-full bg-background border border-border flex items-center justify-center">
           <X className="w-2.5 h-2.5 text-muted-foreground" />
         </button>
