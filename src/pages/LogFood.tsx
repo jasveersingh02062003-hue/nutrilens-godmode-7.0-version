@@ -747,6 +747,84 @@ export default function LogFood() {
         onClose={() => { setLastMealSheetOpen(false); navigate(targetDate ? '/progress' : '/dashboard'); }}
         todayKey={targetDate || new Date().toISOString().split('T')[0]}
       />
+
+      {/* Standard Allergen Confirmation Dialog */}
+      <AlertDialog open={!!pendingAllergenItem && !showSevereConfirm} onOpenChange={v => { if (!v) { setPendingAllergenItem(null); setShowSevereConfirm(false); } }}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="w-12 h-12 mx-auto mb-2 rounded-full bg-destructive/10 flex items-center justify-center"
+            >
+              <AlertTriangle className="w-6 h-6 text-destructive" />
+            </motion.div>
+            <AlertDialogTitle className="text-center">⚠️ Allergen Warning</AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              <span className="font-semibold text-foreground">{pendingAllergenItem?.food.name}</span> contains{' '}
+              <span className="font-bold text-destructive">
+                {pendingAllergenItem?.matched.map(a => `${getAllergenEmoji(a)} ${getAllergenLabel(a)}`).join(', ')}
+              </span>.
+              <br />
+              <span className="text-muted-foreground">Are you sure you want to log this?</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
+            <button onClick={findAllergenAlternative} className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold hover:bg-primary/90 transition-colors">
+              🔄 Find Safe Alternative
+            </button>
+            <AlertDialogAction onClick={confirmAllergenAdd} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Log Anyway
+            </AlertDialogAction>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Severe Allergy Double Confirmation */}
+      <AlertDialog open={showSevereConfirm} onOpenChange={v => { if (!v) { setShowSevereConfirm(false); setPendingAllergenItem(null); } }}>
+        <AlertDialogContent className="rounded-2xl border-2 border-destructive/50">
+          <AlertDialogHeader>
+            <motion.div
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', damping: 10 }}
+              className="w-16 h-16 mx-auto mb-2 rounded-full bg-destructive/20 flex items-center justify-center"
+            >
+              <ShieldAlert className="w-8 h-8 text-destructive animate-pulse" />
+            </motion.div>
+            <AlertDialogTitle className="text-center text-destructive text-lg">
+              🚨 Severe Allergy Risk
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center space-y-2">
+              <span className="block font-bold text-foreground text-base">{pendingAllergenItem?.food.name}</span>
+              <span className="block text-destructive font-semibold">
+                This food may contain {pendingAllergenItem?.matched.map(a => `${getAllergenEmoji(a)} ${getAllergenLabel(a)}`).join(', ')} which can cause a severe allergic reaction.
+              </span>
+              <span className="block text-muted-foreground text-xs mt-2">
+                This is a high-risk allergen. Please confirm you understand the risk.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
+            <button onClick={findAllergenAlternative} className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold hover:bg-primary/90 transition-colors">
+              🔄 Find Safe Alternative
+            </button>
+            <button
+              onClick={confirmAllergenAdd}
+              disabled={!severeButtonEnabled}
+              className={`w-full inline-flex items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold transition-all ${
+                severeButtonEnabled
+                  ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                  : 'bg-muted text-muted-foreground cursor-not-allowed opacity-50'
+              }`}
+            >
+              {severeButtonEnabled ? 'I understand the risk – Log Anyway' : 'Please wait (3s)...'}
+            </button>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
