@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Star, Scale, ChefHat, Home, Camera, Mic, ScanLine, Sparkles, Minus, Plus, Pencil, IndianRupee } from 'lucide-react';
+import { Search, X, Star, Scale, ChefHat, Home, Camera, Mic, ScanLine, Sparkles, Minus, Plus, Pencil, IndianRupee, ImagePlus } from 'lucide-react';
 import { searchIndianFoods, type IndianFood } from '@/lib/indian-foods';
 import { recipes, type Recipe } from '@/lib/recipes';
 import { type CompareItem, buildFromFood, buildFromRecipe, buildFromAnalyzed, rebuildFoodAtServing, COMPARE_METRICS } from '@/lib/compare-helpers';
@@ -153,7 +153,92 @@ function CameraCapture({ onCapture, onClose }: { onCapture: (item: CompareItem) 
   );
 }
 
-// ─── Voice Input Component ───
+// ─── Upload from Gallery Component ───
+function UploadCapture({ onCapture, onClose }: { onCapture: (item: CompareItem) => void; onClose: () => void }) {
+  const [analyzing, setAnalyzing] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Auto-open file picker on mount
+    fileRef.current?.click();
+  }, []);
+
+  const handleFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) { onClose(); return; }
+
+    setAnalyzing(true);
+
+    // Read as data URL for preview
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      setPreview(dataUrl);
+      const base64 = dataUrl.split(',')[1];
+
+      try {
+        const { data } = await supabase.functions.invoke('analyze-food', {
+          body: { image: base64 },
+        });
+        if (data?.items?.[0]) {
+          const item = data.items[0];
+          onCapture(buildFromAnalyzed({
+            name: item.name,
+            calories: item.calories || 0,
+            protein: item.protein || 0,
+            carbs: item.carbs || 0,
+            fat: item.fat || 0,
+            fiber: item.fiber || 0,
+          }));
+        } else {
+          onClose();
+        }
+      } catch {
+        onClose();
+      }
+    };
+    reader.onerror = () => onClose();
+    reader.readAsDataURL(file);
+  }, [onCapture, onClose]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="rounded-xl bg-muted/80 p-3 flex flex-col items-center gap-2"
+    >
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFile}
+      />
+      {analyzing ? (
+        <>
+          {preview && (
+            <img src={preview} alt="Uploaded" className="w-20 h-20 rounded-lg object-cover" />
+          )}
+          <div className="flex items-center gap-1.5">
+            <ScanLine className="w-4 h-4 text-primary animate-pulse" />
+            <span className="text-[10px] text-muted-foreground font-medium">Analyzing photo...</span>
+          </div>
+        </>
+      ) : (
+        <div className="flex flex-col items-center gap-1.5 py-2">
+          <ImagePlus className="w-6 h-6 text-muted-foreground" />
+          <span className="text-[10px] text-muted-foreground">Select a photo</span>
+          <button onClick={() => fileRef.current?.click()}
+            className="text-[10px] text-primary font-semibold">Browse</button>
+        </div>
+      )}
+      <button onClick={onClose} className="text-[9px] text-destructive font-semibold">Cancel</button>
+    </motion.div>
+  );
+}
+
 function VoiceInput({ onResult, onClose }: { onResult: (text: string) => void; onClose: () => void }) {
   const [amplitude, setAmplitude] = useState(0);
   const [transcript, setTranscript] = useState('');
@@ -326,7 +411,7 @@ function SideSlot({
   onClear: () => void;
   side: 'left' | 'right';
 }) {
-  const [mode, setMode] = useState<'search' | 'camera' | 'mic' | null>('search');
+  const [mode, setMode] = useState<'search' | 'camera' | 'mic' | 'upload' | null>('search');
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
   const results = useSearch(query);
@@ -383,6 +468,7 @@ function SideSlot({
       <div className="flex gap-1 justify-center">
         <ModeButton icon={Search} label="Search" active={mode === 'search'} onClick={() => setMode('search')} />
         <ModeButton icon={Camera} label="Scan" active={mode === 'camera'} onClick={() => setMode('camera')} />
+        <ModeButton icon={ImagePlus} label="Upload" active={mode === 'upload'} onClick={() => setMode('upload')} />
         <ModeButton icon={Mic} label="Voice" active={mode === 'mic'} onClick={() => setMode('mic')} />
       </div>
 
@@ -443,6 +529,13 @@ function SideSlot({
           <VoiceInput
             key="mic"
             onResult={handleVoiceResult}
+            onClose={() => setMode('search')}
+          />
+        )}
+        {mode === 'upload' && (
+          <UploadCapture
+            key="upload"
+            onCapture={(item) => { onSelect(item); setMode('search'); }}
             onClose={() => setMode('search')}
           />
         )}
