@@ -192,9 +192,9 @@ export const INDIAN_FOODS: IndianFood[] = [
   { id: 'in207', name: 'Omelette', hindi: 'ऑमलेट', category: 'Non-Veg', calories: 175, protein: 12.0, carbs: 1.5, fat: 13.5, fiber: 0, iron: 1.5, calcium: 55, vitC: 2, defaultServing: 100, servingUnit: 'piece', allergens: ['eggs'] },
   { id: 'in05A', name: 'Egg Bhurji', hindi: 'एग भुर्जी', category: 'Non-Veg', calories: 165, protein: 11.0, carbs: 3, fat: 12.5, fiber: 0.5, iron: 1.8, calcium: 50, vitC: 5, defaultServing: 100, servingUnit: 'serving', allergens: ['eggs'] },
   { id: 'in05B', name: 'Anda Paratha', hindi: 'अंडा पराठा', category: 'Non-Veg', calories: 280, protein: 10.0, carbs: 35, fat: 12.0, fiber: 2.5, iron: 2.5, calcium: 45, vitC: 2, defaultServing: 100, servingUnit: 'piece', allergens: ['gluten', 'eggs'] },
-  { id: 'in05C', name: 'Chicken Fried Rice', hindi: 'चिकन फ्राइड राइस', category: 'Non-Veg', calories: 175, protein: 10.0, carbs: 25, fat: 5.0, fiber: 1.0, iron: 1.2, calcium: 20, vitC: 3, defaultServing: 250, servingUnit: 'plate' },
-  { id: 'in05D', name: 'Chicken Momos', hindi: 'चिकन मोमो', category: 'Non-Veg', calories: 195, protein: 12.0, carbs: 22, fat: 7.0, fiber: 1.0, iron: 1.5, calcium: 20, vitC: 2, defaultServing: 80, servingUnit: 'serving' },
-  { id: 'in05E', name: 'Egg Fried Rice', hindi: 'एग फ्राइड राइस', category: 'Non-Veg', calories: 165, protein: 7.0, carbs: 26, fat: 4.5, fiber: 1.0, iron: 1.0, calcium: 25, vitC: 2, defaultServing: 250, servingUnit: 'plate' },
+  { id: 'in05C', name: 'Chicken Fried Rice', hindi: 'चिकन फ्राइड राइस', category: 'Non-Veg', calories: 175, protein: 10.0, carbs: 25, fat: 5.0, fiber: 1.0, iron: 1.2, calcium: 20, vitC: 3, defaultServing: 250, servingUnit: 'plate', allergens: ['soy'] },
+  { id: 'in05D', name: 'Chicken Momos', hindi: 'चिकन मोमो', category: 'Non-Veg', calories: 195, protein: 12.0, carbs: 22, fat: 7.0, fiber: 1.0, iron: 1.5, calcium: 20, vitC: 2, defaultServing: 80, servingUnit: 'serving', allergens: ['gluten'] },
+  { id: 'in05E', name: 'Egg Fried Rice', hindi: 'एग फ्राइड राइस', category: 'Non-Veg', calories: 165, protein: 7.0, carbs: 26, fat: 4.5, fiber: 1.0, iron: 1.0, calcium: 25, vitC: 2, defaultServing: 250, servingUnit: 'plate', allergens: ['eggs', 'soy'] },
 
   // ==========================================
   // === SNACKS & STREET FOOD (60 items) ===
