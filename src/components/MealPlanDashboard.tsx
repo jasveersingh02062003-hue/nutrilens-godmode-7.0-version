@@ -599,6 +599,21 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ComparisonSheet
+        open={showCompare}
+        onClose={() => setShowCompare(false)}
+        items={compareItems}
+        onPick={(item) => {
+          if (currentDay && item.id.startsWith('recipe-')) {
+            const pickedRecipeId = item.id.replace('recipe-', '');
+            const currentMeal = currentDay.meals.find(m => compareItems[0]?.id === `recipe-${m.recipeId}`);
+            if (currentMeal && pickedRecipeId !== currentMeal.recipeId) {
+              onSwapMeal(currentDay.date, pickedRecipeId);
+            }
+          }
+        }}
+      />
     </div>
   );
 }
