@@ -1,52 +1,97 @@
 
 
-# Fix: Allergen Warnings in Manual Entry, Voice & Barcode Flows
+# Unified Animated Warning System — Allergens + Health Conditions
 
-## Problem
-The allergen warning system works in the camera flow (`CameraHome.tsx`) and the "Add Missing Item" sheet (`AddFoodSheet.tsx`), but the main logging page **`LogFood.tsx`** — which handles manual search, voice input, and barcode scanning from the Dashboard — has zero allergen integration. When you tap "+" on Breakfast/Dinner in the Dashboard, you end up in `LogFood.tsx`, which never checks allergens.
+## Current State
 
-## What Needs to Change
+- **Allergen warnings**: Already working in `LogFood.tsx`, `CameraHome.tsx`, `AddFoodSheet.tsx`, `QuickLogSheet.tsx` with confirmation dialogs and animated badges
+- **Health condition engine**: `condition-coach.ts` has a full rule engine (`evaluateConditions()`) for diabetes, PCOS, hypertension, thyroid, pregnancy, cholesterol, lactose, gluten — but it's **only used post-save** in `MealDetailSheet` and `meal-feedback.ts`
+- **Gap**: Health condition warnings never appear during logging. No unified reusable warning component exists — each file duplicates warning UI
 
-### File: `src/pages/LogFood.tsx` (the only file that needs changes)
+## What We'll Build
 
-**1. Search results — allergen badges (like AddFoodSheet already does)**
-- Import `checkAllergens`, `getAllergenLabel`, `getAllergenEmoji`, `hasSevereAllergen` from `allergen-engine`
-- Import `getProfile` for user allergens (already imported)
-- In the search results list (~line 479-490), run `checkAllergens(food.name, userAllergens)` on each result
-- Show red allergen badges (⚠️ DAIRY, ⚠️ NUTS) next to food names that conflict — with `animate-pulse` animation
-- Change the "+" button to red when allergen conflict exists
+### 1. New Component: `AnimatedWarningBanner.tsx`
+A reusable, animated warning component used everywhere.
 
-**2. Add food gate — confirmation dialog before adding**
-- Add state for `pendingAllergenItem` and `showSevereConfirm` (same pattern as AddFoodSheet)
-- When user taps a food with allergen conflict, intercept `addFood()` and show the allergen confirmation `AlertDialog` instead of adding directly
-- Dialog has 3 options: "Find Safe Alternative", "Log Anyway", "Cancel"
-- For severe allergens (nuts, peanuts, shellfish), show double confirmation with 3-second delayed button
+**Props**: `type` (allergen | health), `severity` (high | medium | low), `title`, `messages[]` (each with icon, text, condition), `onDismiss?`, `onAction?` (for "Find Alternative")
 
-**3. Adjust step — allergen warning banner on selected items**
-- In the adjust step (~line 498-535), after adding items via voice/camera/barcode, run allergen check on each selected item
-- Show a prominent animated red warning banner (matching CameraHome's style) with `ShieldAlert` icon for any items that conflict
-- Include per-item "Remove [food]" buttons in the banner
+**Visual design**:
+- **High severity** (red): `bg-destructive/10 border-destructive/30` with `motion.div` spring entrance + `animate-pulse` on icon
+- **Medium severity** (orange): `bg-orange-500/10 border-orange-500/30` with slide-in only
+- **Low severity** (yellow): `bg-yellow-500/10 border-yellow-500/30` with fade-in
+- Spring animation: `initial={{ scale: 0.9, opacity: 0, y: -10 }}` → `animate={{ scale: 1, opacity: 1, y: 0 }}`
+- `ShieldAlert` icon with rotate-in spring for high severity; `AlertTriangle` for medium/low
 
-**4. Pre-save allergen check**
-- In `saveMeal()` (~line 115), before proceeding to context picker, run allergen check on all selected items
-- If any conflicts found, show a final warning toast as a safety net
+### 2. New Utility: `checkHealthWarnings()` in `condition-coach.ts`
+A lightweight per-item check (unlike `evaluateConditions` which needs full meal totals). Checks individual food names against condition keyword lists and returns warnings.
 
-**5. Animated warning styling**
-- Use `motion.div` from framer-motion for entrance animations (scale + fade)
-- `animate-pulse` on warning badges
-- `ShieldAlert` icon with spring animation for severe warnings
-- Red banner: `bg-destructive/10 border-destructive/30` with WCAG AA contrast
+```
+checkFoodForConditions(foodName: string, userConditions: string[]): ConditionMessage[]
+```
 
-## What This Fixes
-- **Dashboard manual entry**: Breakfast/Lunch/Dinner/Snack "+" buttons → search → allergen warnings
-- **Voice logging**: After voice recognition resolves foods → allergen banner on results
-- **Barcode scanning**: After barcode resolves to a product → allergen banner on results
-- **All paths through LogFood.tsx** now have allergen safety friction
+This enables real-time warnings in search results before the meal is assembled.
 
-## No Changes Needed
-- `CameraHome.tsx` — already fully implemented
-- `AddFoodSheet.tsx` — already fully implemented
-- `QuickLogSheet.tsx` — already has toast warnings
-- `allergen-engine.ts` / `allergen-tags.ts` — already complete
-- No database or backend changes
+### 3. Integration Points (6 surfaces)
+
+**A. `LogFood.tsx` — Search results (already has allergen badges)**
+- Add health condition badges alongside allergen badges in search results
+- Orange badges for condition warnings (e.g., "🩸 DIABETES" on jalebi)
+- Call `checkFoodForConditions()` per search result
+- Show combined allergen + health warnings in the confirmation dialog
+
+**B. `LogFood.tsx` — Adjust step (already has allergen banner)**
+- Replace the inline allergen banner with `<AnimatedWarningBanner>` 
+- Add health condition warnings from `evaluateConditions()` (now we have full meal totals)
+- Show combined card: allergen items in red section, condition warnings in orange section
+
+**C. `CameraHome.tsx` — Confirm step (already has allergen banner)**
+- Add health condition evaluation after food detection
+- Show `<AnimatedWarningBanner>` with both allergen and condition messages merged
+- Condition warnings appear below allergen warnings in same card
+
+**D. `QuickLogSheet.tsx` — After parse**
+- Already shows allergen toasts
+- Add condition toasts: orange-styled for health warnings
+
+**E. `AddFoodSheet.tsx` — Search results**
+- Add condition badges (orange) next to allergen badges (red) on search results
+- Combined confirmation dialog shows both types
+
+**F. `MealPlanDashboard.tsx` — Planned meals**
+- Already has allergen badges on recipes
+- Add condition warning icon (orange ⚠️) next to meals that conflict with conditions
+
+### 4. CSS Animations (in `index.css`)
+```css
+@keyframes pulse-warning {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); box-shadow: 0 0 12px rgba(220, 38, 38, 0.3); }
+}
+@keyframes slide-down-warning {
+  from { transform: translateY(-100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+```
+
+## Files to Create
+| File | Purpose |
+|---|---|
+| `src/components/AnimatedWarningBanner.tsx` | Reusable warning component with severity levels and animations |
+
+## Files to Modify
+| File | Change |
+|---|---|
+| `src/lib/condition-coach.ts` | Add `checkFoodForConditions()` for per-item health checks |
+| `src/pages/LogFood.tsx` | Add health condition badges in search + combined banner in adjust step |
+| `src/pages/CameraHome.tsx` | Add health condition warnings to confirm step |
+| `src/components/QuickLogSheet.tsx` | Add condition warning toasts |
+| `src/components/AddFoodSheet.tsx` | Add condition badges in search results |
+| `src/components/MealPlanDashboard.tsx` | Add condition warning icons on planned meals |
+| `src/index.css` | Add warning animation keyframes |
+
+## What Stays Unchanged
+- All existing allergen logic (checkAllergens, confirmation dialogs, severe 3s delay)
+- `condition-coach.ts` existing `evaluateConditions()` function
+- All meal saving, calculation, and budget logic
+- Database and backend
 
