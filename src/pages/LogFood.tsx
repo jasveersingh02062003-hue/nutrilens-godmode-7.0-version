@@ -153,6 +153,7 @@ export default function LogFood() {
   // Validation engine
   const profile = getProfile();
   const userAllergens: string[] = (profile as any)?.allergens || [];
+  const userConditions: string[] = getUserConditions(profile as any);
   const validationResult: ValidationResult = useMemo(
     () => validateMeal(selected, profile, { mealType }),
     [selected, profile, mealType]
