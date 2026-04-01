@@ -214,5 +214,24 @@ export default function SwapSimulatorSheet({ open, onClose, originalRecipeId, me
         </AnimatePresence>
       </SheetContent>
     </Sheet>
+
+    {/* Compare All Sheet */}
+    {original && (
+      <ComparisonSheet
+        open={compareAllOpen}
+        onClose={() => setCompareAllOpen(false)}
+        items={[buildFromRecipe(original), ...alternatives.map(a => buildFromRecipe(a.recipe))]}
+        onPick={(picked) => {
+          // Find if picked is one of the alternatives
+          const alt = alternatives.find(a => `recipe-${a.recipe.id}` === picked.id);
+          if (alt) {
+            const impactResult = calculateSwapImpact(originalRecipeId, alt.recipe);
+            onApply(alt.recipe.id, impactResult);
+          }
+          onClose();
+        }}
+      />
+    )}
+    </>
   );
 }
