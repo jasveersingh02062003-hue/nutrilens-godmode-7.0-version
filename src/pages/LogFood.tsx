@@ -594,8 +594,32 @@ export default function LogFood() {
                 );
               })}
             </div>
+
+            {/* Floating Compare Pill */}
+            {compareSelection.length >= 2 && (
+              <motion.button
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 px-5 py-3 rounded-full bg-primary text-primary-foreground font-bold text-sm shadow-fab flex items-center gap-2 active:scale-[0.97] transition-transform"
+                onClick={() => setCompareSheetOpen(true)}
+              >
+                <Scale className="w-4 h-4" /> Compare ({compareSelection.length})
+              </motion.button>
+            )}
           </>
         )}
+
+        {/* Comparison Sheet */}
+        <ComparisonSheet
+          open={compareSheetOpen}
+          onClose={() => { setCompareSheetOpen(false); setCompareSelection([]); }}
+          items={compareSelection.map(buildFromFoodItem)}
+          onPick={(picked) => {
+            const food = compareSelection.find(f => `food-${f.id}` === picked.id);
+            if (food) addFood(food);
+            setCompareSelection([]);
+          }}
+        />
 
         {step === 'adjust' && (
           <>
