@@ -280,6 +280,27 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
               </div>
             </Section>
 
+            {/* Allergies & Intolerances */}
+            <Section title="Allergies & Intolerances" icon={Shield}>
+              <div className="flex flex-wrap gap-2">
+                {COMMON_ALLERGENS.map(a => (
+                  <button key={a.value} onClick={() => setAllergens(toggleArrayItem(allergens, a.value))}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${allergens.includes(a.value) ? 'bg-destructive text-destructive-foreground' : 'bg-muted text-muted-foreground'}`}>
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+              {allergens.length > 0 && (
+                <motion.p
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-[10px] text-destructive font-medium mt-1"
+                >
+                  🛡️ You'll be warned before logging foods with these allergens.
+                </motion.p>
+              )}
+            </Section>
+
             {/* Dietary Preferences */}
             <Section title="Dietary Preferences" icon={Apple}>
               <div className="flex flex-wrap gap-2">
