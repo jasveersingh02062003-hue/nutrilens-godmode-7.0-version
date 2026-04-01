@@ -529,18 +529,29 @@ export default function LogFood() {
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-0.5">
                 {search ? 'Results' : 'Popular Indian Foods'}
               </p>
-              {filtered.map(food => (
-                <button key={food.id} onClick={() => addFood(food)} className="card-subtle p-3 flex items-center gap-3 w-full text-left hover:shadow-md transition-shadow active:scale-[0.99]">
-                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                    <span className="text-xs font-bold text-muted-foreground">{food.calories}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-foreground">{food.name}</p>
-                    <p className="text-[10px] text-muted-foreground">1 {food.unit} · {food.calories} kcal · P {food.protein}g · C {food.carbs}g · F {food.fat}g</p>
-                  </div>
-                  <Plus className="w-4 h-4 text-primary" />
-                </button>
-              ))}
+              {filtered.map(food => {
+                const allergenCheck = checkAllergens(food.name, userAllergens);
+                return (
+                  <button key={food.id} onClick={() => addFood(food)} className="card-subtle p-3 flex items-center gap-3 w-full text-left hover:shadow-md transition-shadow active:scale-[0.99]">
+                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                      <span className="text-xs font-bold text-muted-foreground">{food.calories}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="font-semibold text-sm text-foreground">{food.name}</p>
+                        {allergenCheck.hasConflict && allergenCheck.matched.map(a => (
+                          <span key={a} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-destructive/10 border border-destructive/20 text-[9px] font-bold text-destructive animate-pulse">
+                            <AlertTriangle className="w-2.5 h-2.5" />
+                            {getAllergenLabel(a)}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">1 {food.unit} · {food.calories} kcal · P {food.protein}g · C {food.carbs}g · F {food.fat}g</p>
+                    </div>
+                    <Plus className={`w-4 h-4 ${allergenCheck.hasConflict ? 'text-destructive' : 'text-primary'}`} />
+                  </button>
+                );
+              })}
             </div>
           </>
         )}
