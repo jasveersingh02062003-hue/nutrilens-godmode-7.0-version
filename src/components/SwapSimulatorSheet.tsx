@@ -70,6 +70,7 @@ export default function SwapSimulatorSheet({ open, onClose, originalRecipeId, me
   };
 
   return (
+    <>
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto p-0">
         <SheetHeader className="px-5 pt-5 pb-3">
