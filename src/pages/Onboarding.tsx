@@ -345,7 +345,7 @@ export default function Onboarding() {
   const [f, setF] = useState<FormState>({
     name: '', gender: '', age: 25, heightCm: 170, weightKg: 70,
     heightUnit: 'cm', weightUnit: 'kg', heightFt: 5, heightIn: 7,
-    conditions: [], skin: '',
+    conditions: [], allergens: [], skin: '',
     pcosSeverity: 3, pregnant: false, breastfeeding: false, menstrualPhase: '',
     prostateConcerns: false, testosteroneConcerns: false,
     work: '', exercise: '',
