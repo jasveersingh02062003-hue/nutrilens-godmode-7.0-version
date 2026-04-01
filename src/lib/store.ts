@@ -414,6 +414,15 @@ export function addWaterForDate(date: string) {
   const log = getDailyLog(date);
   log.waterCups += 1;
   saveDailyLog(log);
+  // Sync to water_logs table
+  import('@/integrations/supabase/client').then(({ supabase }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user) return;
+      supabase.from('water_logs' as any).upsert({
+        user_id: session.user.id, log_date: date, cups: log.waterCups,
+      }, { onConflict: 'user_id,log_date' } as any).then(() => {});
+    });
+  }).catch(() => {});
   return log;
 }
 
@@ -421,6 +430,15 @@ export function removeWaterForDate(date: string) {
   const log = getDailyLog(date);
   log.waterCups = Math.max(0, log.waterCups - 1);
   saveDailyLog(log);
+  // Sync to water_logs table
+  import('@/integrations/supabase/client').then(({ supabase }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user) return;
+      supabase.from('water_logs' as any).upsert({
+        user_id: session.user.id, log_date: date, cups: log.waterCups,
+      }, { onConflict: 'user_id,log_date' } as any).then(() => {});
+    });
+  }).catch(() => {});
   return log;
 }
 
