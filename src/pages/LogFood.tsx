@@ -534,6 +534,8 @@ export default function LogFood() {
               </p>
               {filtered.map(food => {
                 const allergenCheck = checkAllergens(food.name, userAllergens);
+                const conditionWarnings = checkFoodForConditions(food.name, userConditions);
+                const hasAnyWarning = allergenCheck.hasConflict || conditionWarnings.length > 0;
                 return (
                   <button key={food.id} onClick={() => addFood(food)} className="card-subtle p-3 flex items-center gap-3 w-full text-left hover:shadow-md transition-shadow active:scale-[0.99]">
                     <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
@@ -548,10 +550,22 @@ export default function LogFood() {
                             {getAllergenLabel(a)}
                           </span>
                         ))}
+                        {conditionWarnings.map((w, i) => (
+                          <span key={`cond-${i}`} className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border text-[9px] font-bold ${
+                            w.severity === 'high'
+                              ? 'bg-destructive/10 border-destructive/20 text-destructive animate-pulse'
+                              : w.severity === 'medium'
+                              ? 'bg-orange-500/10 border-orange-500/20 text-orange-600 dark:text-orange-400'
+                              : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-700 dark:text-yellow-400'
+                          }`}>
+                            <span className="text-[8px]">{w.icon}</span>
+                            {w.condition}
+                          </span>
+                        ))}
                       </div>
                       <p className="text-[10px] text-muted-foreground">1 {food.unit} · {food.calories} kcal · P {food.protein}g · C {food.carbs}g · F {food.fat}g</p>
                     </div>
-                    <Plus className={`w-4 h-4 ${allergenCheck.hasConflict ? 'text-destructive' : 'text-primary'}`} />
+                    <Plus className={`w-4 h-4 ${hasAnyWarning ? 'text-destructive' : 'text-primary'}`} />
                   </button>
                 );
               })}
