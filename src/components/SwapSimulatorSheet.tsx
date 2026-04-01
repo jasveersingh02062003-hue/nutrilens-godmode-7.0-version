@@ -96,6 +96,15 @@ export default function SwapSimulatorSheet({ open, onClose, originalRecipeId, me
               {alternatives.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">No alternatives found for this meal type.</p>
               ) : (
+                <>
+                  {alternatives.length >= 2 && (
+                    <button
+                      onClick={() => setCompareAllOpen(true)}
+                      className="w-full py-2.5 rounded-xl bg-primary/10 text-primary text-sm font-bold flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform mb-1"
+                    >
+                      <Scale className="w-4 h-4" /> Compare All ⚖️
+                    </button>
+                  )}
                 alternatives.map((alt, idx) => (
                   <motion.button key={alt.recipe.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.08 }}
                     onClick={() => handleSelect(alt)}
