@@ -8,7 +8,7 @@ import { estimateCost } from '@/lib/price-database';
 import { getPantryItems } from '@/lib/pantry-store';
 
 export interface CompareItem {
-  type: 'food' | 'recipe';
+  type: 'food' | 'recipe' | 'scanned';
   id: string;
   name: string;
   calories: number;
@@ -16,6 +16,9 @@ export interface CompareItem {
   carbs: number;
   fat: number;
   fiber: number;
+  iron: number;
+  calcium: number;
+  vitC: number;
   cost: number;
   pes: number;
   image?: string;
@@ -29,9 +32,12 @@ export function buildFromFood(food: IndianFood): CompareItem {
   const carb = +(food.carbs * servingFactor).toFixed(1);
   const fat = +(food.fat * servingFactor).toFixed(1);
   const fib = +(food.fiber * servingFactor).toFixed(1);
+  const iron = +(food.iron * servingFactor).toFixed(1);
+  const calcium = +((food.calcium ?? 0) * servingFactor).toFixed(1);
+  const vitC = +((food.vitC ?? 0) * servingFactor).toFixed(1);
   const cost = estimateCost([{ name: food.name, quantity: food.defaultServing, unit: 'g' }]) ?? Math.round(cal * 0.04);
   const pes = computePES({ protein: pro, calories: cal, cost }, {});
-  return { type: 'food', id: `food-${food.id}`, name: food.name, calories: cal, protein: pro, carbs: carb, fat, fiber: fib, cost, pes };
+  return { type: 'food', id: `food-${food.id}`, name: food.name, calories: cal, protein: pro, carbs: carb, fat, fiber: fib, iron, calcium, vitC, cost, pes };
 }
 
 export function buildFromFoodItem(food: FoodItem): CompareItem {
@@ -46,6 +52,9 @@ export function buildFromFoodItem(food: FoodItem): CompareItem {
     carbs: food.carbs,
     fat: food.fat,
     fiber: food.fiber || 0,
+    iron: 0,
+    calcium: 0,
+    vitC: 0,
     cost,
     pes,
   };
@@ -75,6 +84,9 @@ export function buildFromRecipe(recipe: Recipe): CompareItem {
     carbs: recipe.carbs,
     fat: recipe.fat,
     fiber: recipe.fiber,
+    iron: 0,
+    calcium: 0,
+    vitC: 0,
     cost,
     pes,
     image: getRecipeImage(recipe.id, recipe.mealType[0]),
@@ -82,20 +94,52 @@ export function buildFromRecipe(recipe: Recipe): CompareItem {
   };
 }
 
+/** Build a CompareItem from AI-analyzed food data (camera scan) */
+export function buildFromAnalyzed(item: {
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+}): CompareItem {
+  const cost = Math.round(item.calories * 0.04);
+  const pes = computePES({ protein: item.protein, calories: item.calories, cost }, {});
+  return {
+    type: 'scanned',
+    id: `scanned-${Date.now()}`,
+    name: item.name,
+    calories: Math.round(item.calories),
+    protein: +item.protein.toFixed(1),
+    carbs: +item.carbs.toFixed(1),
+    fat: +item.fat.toFixed(1),
+    fiber: +(item.fiber || 0).toFixed(1),
+    iron: 0,
+    calcium: 0,
+    vitC: 0,
+    cost,
+    pes,
+  };
+}
+
 export interface CompareMetric {
   label: string;
-  key: keyof Pick<CompareItem, 'cost' | 'calories' | 'protein' | 'carbs' | 'fat' | 'fiber'>;
+  key: keyof Pick<CompareItem, 'cost' | 'calories' | 'protein' | 'carbs' | 'fat' | 'fiber' | 'iron' | 'calcium' | 'vitC'>;
   unit: string;
   lowerIsBetter?: boolean;
+  section?: 'macro' | 'micro';
 }
 
 export const COMPARE_METRICS: CompareMetric[] = [
-  { label: 'Price', key: 'cost', unit: '₹', lowerIsBetter: true },
-  { label: 'Calories', key: 'calories', unit: '', lowerIsBetter: true },
-  { label: 'Protein', key: 'protein', unit: 'g' },
-  { label: 'Carbs', key: 'carbs', unit: 'g', lowerIsBetter: true },
-  { label: 'Fat', key: 'fat', unit: 'g', lowerIsBetter: true },
-  { label: 'Fiber', key: 'fiber', unit: 'g' },
+  { label: 'Price', key: 'cost', unit: '₹', lowerIsBetter: true, section: 'macro' },
+  { label: 'Calories', key: 'calories', unit: '', lowerIsBetter: true, section: 'macro' },
+  { label: 'Protein', key: 'protein', unit: 'g', section: 'macro' },
+  { label: 'Carbs', key: 'carbs', unit: 'g', lowerIsBetter: true, section: 'macro' },
+  { label: 'Fat', key: 'fat', unit: 'g', lowerIsBetter: true, section: 'macro' },
+  { label: 'Fiber', key: 'fiber', unit: 'g', section: 'macro' },
+  { label: 'Iron', key: 'iron', unit: 'mg', section: 'micro' },
+  { label: 'Calcium', key: 'calcium', unit: 'mg', section: 'micro' },
+  { label: 'Vitamin C', key: 'vitC', unit: 'mg', section: 'micro' },
 ];
 
 /** Given an array of values, returns the index of the "winner" (or -1 if tied) */
