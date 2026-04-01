@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { searchIndianFoods, indianFoodToFoodItem } from '@/lib/indian-foods';
-import { addMealToLog, type MealEntry, type FoodItem } from '@/lib/store';
+import { addMealToLog, type MealEntry, type FoodItem, getProfile } from '@/lib/store';
 import { syncDailyBalance } from '@/lib/calorie-correction';
 import { reportPrice } from '@/lib/live-price-service';
+import { checkAllergens, getAllergenLabel, getAllergenEmoji } from '@/lib/allergen-engine';
 import { toast } from 'sonner';
 
 interface Props {
