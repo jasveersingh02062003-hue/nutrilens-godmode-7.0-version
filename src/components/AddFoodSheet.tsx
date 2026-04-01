@@ -301,6 +301,21 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Comparison Sheet */}
+      <ComparisonSheet
+        open={compareSheetOpen}
+        onClose={() => { setCompareSheetOpen(false); setCompareSelection([]); }}
+        items={compareSelection.map(buildFromFoodItem)}
+        onPick={(picked) => {
+          const food = compareSelection.find(f => `food-${f.id}` === picked.id);
+          if (food) {
+            onAdd(food);
+            setQuery('');
+          }
+          setCompareSelection([]);
+        }}
+      />
     </>
   );
 }
