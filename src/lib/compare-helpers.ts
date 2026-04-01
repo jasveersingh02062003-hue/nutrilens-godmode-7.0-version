@@ -1,4 +1,4 @@
-import { type IndianFood } from '@/lib/indian-foods';
+import { type IndianFood, INDIAN_FOODS } from '@/lib/indian-foods';
 import { type FoodItem } from '@/lib/store';
 import { type Recipe, getEnrichedRecipe } from '@/lib/recipes';
 import { getRecipeCost } from '@/lib/recipe-cost';
@@ -23,10 +23,17 @@ export interface CompareItem {
   pes: number;
   image?: string;
   pantryMatch?: { available: number; total: number };
+  /** grams used for this calculation — enables quantity editing */
+  servingGrams: number;
+  /** original food id from INDIAN_FOODS for recalculation */
+  sourceFoodId?: string;
+  /** original recipe id for reference */
+  sourceRecipeId?: string;
 }
 
-export function buildFromFood(food: IndianFood): CompareItem {
-  const servingFactor = food.defaultServing / 100;
+export function buildFromFood(food: IndianFood, servingGrams?: number): CompareItem {
+  const grams = servingGrams ?? food.defaultServing;
+  const servingFactor = grams / 100;
   const cal = Math.round(food.calories * servingFactor);
   const pro = +(food.protein * servingFactor).toFixed(1);
   const carb = +(food.carbs * servingFactor).toFixed(1);
@@ -35,9 +42,21 @@ export function buildFromFood(food: IndianFood): CompareItem {
   const iron = +(food.iron * servingFactor).toFixed(1);
   const calcium = +((food.calcium ?? 0) * servingFactor).toFixed(1);
   const vitC = +((food.vitC ?? 0) * servingFactor).toFixed(1);
-  const cost = estimateCost([{ name: food.name, quantity: food.defaultServing, unit: 'g' }]) ?? Math.round(cal * 0.04);
+  const cost = estimateCost([{ name: food.name, quantity: grams, unit: 'g' }]) ?? Math.round(cal * 0.04);
   const pes = computePES({ protein: pro, calories: cal, cost }, {});
-  return { type: 'food', id: `food-${food.id}`, name: food.name, calories: cal, protein: pro, carbs: carb, fat, fiber: fib, iron, calcium, vitC, cost, pes };
+  return {
+    type: 'food', id: `food-${food.id}`, name: food.name,
+    calories: cal, protein: pro, carbs: carb, fat, fiber: fib, iron, calcium, vitC,
+    cost, pes, servingGrams: grams, sourceFoodId: food.id,
+  };
+}
+
+/** Rebuild a food CompareItem at a different serving size */
+export function rebuildFoodAtServing(item: CompareItem, newGrams: number): CompareItem | null {
+  if (!item.sourceFoodId) return null;
+  const food = INDIAN_FOODS.find(f => f.id === item.sourceFoodId);
+  if (!food) return null;
+  return buildFromFood(food, newGrams);
 }
 
 export function buildFromFoodItem(food: FoodItem): CompareItem {
@@ -52,17 +71,16 @@ export function buildFromFoodItem(food: FoodItem): CompareItem {
     carbs: food.carbs,
     fat: food.fat,
     fiber: food.fiber || 0,
-    iron: 0,
-    calcium: 0,
-    vitC: 0,
-    cost,
-    pes,
+    iron: 0, calcium: 0, vitC: 0,
+    cost, pes,
+    servingGrams: food.quantity || 100,
   };
 }
 
-export function buildFromRecipe(recipe: Recipe): CompareItem {
+export function buildFromRecipe(recipe: Recipe, servings?: number): CompareItem {
   const enriched = getEnrichedRecipe(recipe);
-  const cost = getRecipeCost(recipe);
+  const baseCost = getRecipeCost(recipe);
+  const factor = servings ? servings / recipe.servings : 1;
   const pes = computePES(enriched, {});
   const pantryItems = getPantryItems();
 
@@ -79,18 +97,18 @@ export function buildFromRecipe(recipe: Recipe): CompareItem {
     type: 'recipe',
     id: `recipe-${recipe.id}`,
     name: recipe.name,
-    calories: recipe.calories,
-    protein: recipe.protein,
-    carbs: recipe.carbs,
-    fat: recipe.fat,
-    fiber: recipe.fiber,
-    iron: 0,
-    calcium: 0,
-    vitC: 0,
-    cost,
+    calories: Math.round(recipe.calories * factor),
+    protein: +(recipe.protein * factor).toFixed(1),
+    carbs: +(recipe.carbs * factor).toFixed(1),
+    fat: +(recipe.fat * factor).toFixed(1),
+    fiber: +(recipe.fiber * factor).toFixed(1),
+    iron: 0, calcium: 0, vitC: 0,
+    cost: Math.round(baseCost * factor),
     pes,
     image: getRecipeImage(recipe.id, recipe.mealType[0]),
     pantryMatch: { available, total },
+    servingGrams: Math.round((servings ?? recipe.servings) * 100),
+    sourceRecipeId: recipe.id,
   };
 }
 
@@ -102,7 +120,8 @@ export function buildFromAnalyzed(item: {
   carbs: number;
   fat: number;
   fiber: number;
-}): CompareItem {
+}, grams?: number): CompareItem {
+  const g = grams ?? 100;
   const cost = Math.round(item.calories * 0.04);
   const pes = computePES({ protein: item.protein, calories: item.calories, cost }, {});
   return {
@@ -114,11 +133,9 @@ export function buildFromAnalyzed(item: {
     carbs: +item.carbs.toFixed(1),
     fat: +item.fat.toFixed(1),
     fiber: +(item.fiber || 0).toFixed(1),
-    iron: 0,
-    calcium: 0,
-    vitC: 0,
-    cost,
-    pes,
+    iron: 0, calcium: 0, vitC: 0,
+    cost, pes,
+    servingGrams: g,
   };
 }
 
