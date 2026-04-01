@@ -37,6 +37,8 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
   const [pendingItem, setPendingItem] = useState<{ food: any; item: FoodItem; matched: string[] } | null>(null);
   const [showSevereConfirm, setShowSevereConfirm] = useState(false);
   const [severeButtonEnabled, setSevereButtonEnabled] = useState(false);
+  const [compareSelection, setCompareSelection] = useState<any[]>([]);
+  const [compareSheetOpen, setCompareSheetOpen] = useState(false);
 
   // Delayed enable for severe allergy confirmation button
   useEffect(() => {
