@@ -49,6 +49,22 @@ export default function QuickLogSheet({ open, onClose, onSaved }: Props) {
       return;
     }
 
+    // Check for allergens
+    const profile = getProfile();
+    const userAllergens = profile?.allergens || [];
+    if (userAllergens.length > 0) {
+      const warnings: string[] = [];
+      for (const item of items) {
+        const check = checkAllergens(item.name, userAllergens);
+        if (check.hasConflict) {
+          warnings.push(`${item.name} contains ${check.matched.map(a => `${getAllergenEmoji(a)} ${getAllergenLabel(a)}`).join(', ')}`);
+        }
+      }
+      if (warnings.length > 0) {
+        warnings.forEach(w => toast.error(`⚠️ ${w}`, { duration: 5000 }));
+      }
+    }
+
     const hour = new Date().getHours();
     const mealType = hour < 11 ? 'breakfast' : hour < 15 ? 'lunch' : hour < 18 ? 'snack' : 'dinner';
 
