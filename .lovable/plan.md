@@ -1,79 +1,52 @@
 
-# Allergen Safety System — FULLY IMPLEMENTED (Production-Hardened)
 
-## What Was Built
+# Fix: Allergen Warnings in Manual Entry, Voice & Barcode Flows
 
-### Phase 1 (Initial)
-- `src/lib/allergen-tags.ts` — Keyword→allergen mapping for 6 categories
-- `src/lib/allergen-engine.ts` — `checkAllergens()` detection engine
-- Onboarding allergen selection step
-- EditProfileSheet allergen management
-- AddFoodSheet red badges + confirmation dialog
-- QuickLogSheet toast warnings
-- MealDetailSheet + MealPlanDashboard allergen badges
-- Cloud sync via `conditions` JSON column
+## Problem
+The allergen warning system works in the camera flow (`CameraHome.tsx`) and the "Add Missing Item" sheet (`AddFoodSheet.tsx`), but the main logging page **`LogFood.tsx`** — which handles manual search, voice input, and barcode scanning from the Dashboard — has zero allergen integration. When you tap "+" on Breakfast/Dinner in the Dashboard, you end up in `LogFood.tsx`, which never checks allergens.
 
-### Phase 2 (Production Hardening)
+## What Needs to Change
 
-#### Gap 1: Regional Keywords & Hing Mapping ✅
-- Added `hing`, `asafoetida`, `heeng` → gluten keywords
-- Added Hindi/Tamil/regional terms: `doodh`, `muttai`, `verkadalai`, `sarson`, etc.
-- Added new allergen categories: `mustard`, `peanuts`, `sesame`, `fish`
+### File: `src/pages/LogFood.tsx` (the only file that needs changes)
 
-#### Gap 2: Explicit Allergen Tags on Foods ✅
-- Added `allergens?: string[]` to `IndianFood` interface
-- Tagged 80+ high-risk foods with explicit allergen arrays
-- Covers: cereals (gluten/dairy), paneer dishes (dairy), sweets (dairy/nuts/gluten), snacks, non-veg (eggs/fish), protein items (soy)
+**1. Search results — allergen badges (like AddFoodSheet already does)**
+- Import `checkAllergens`, `getAllergenLabel`, `getAllergenEmoji`, `hasSevereAllergen` from `allergen-engine`
+- Import `getProfile` for user allergens (already imported)
+- In the search results list (~line 479-490), run `checkAllergens(food.name, userAllergens)` on each result
+- Show red allergen badges (⚠️ DAIRY, ⚠️ NUTS) next to food names that conflict — with `animate-pulse` animation
+- Change the "+" button to red when allergen conflict exists
 
-#### Gap 3: Swap Engine Allergen Filter ✅
-- `getSwapAlternatives()` now filters out candidates that conflict with user allergens
-- Uses `checkAllergens()` on each candidate recipe name
+**2. Add food gate — confirmation dialog before adding**
+- Add state for `pendingAllergenItem` and `showSevereConfirm` (same pattern as AddFoodSheet)
+- When user taps a food with allergen conflict, intercept `addFood()` and show the allergen confirmation `AlertDialog` instead of adding directly
+- Dialog has 3 options: "Find Safe Alternative", "Log Anyway", "Cancel"
+- For severe allergens (nuts, peanuts, shellfish), show double confirmation with 3-second delayed button
 
-#### Gap 4: "Find Safe Alternative" Button ✅
-- AddFoodSheet allergen dialog now has 3 options: Find Safe Alternative, Log Anyway, Cancel
-- "Find Safe Alternative" clears pending item and sets search to food's category
+**3. Adjust step — allergen warning banner on selected items**
+- In the adjust step (~line 498-535), after adding items via voice/camera/barcode, run allergen check on each selected item
+- Show a prominent animated red warning banner (matching CameraHome's style) with `ShieldAlert` icon for any items that conflict
+- Include per-item "Remove [food]" buttons in the banner
 
-#### Gap 5: Camera/AI Scan Allergen Warning ✅
-- Red banner in confirm step shows allergen conflicts for detected items
-- Severe allergens (nuts/shellfish) get animated pulsing ShieldAlert icon
-- Per-item "Remove" buttons for quick deselection of flagged foods
+**4. Pre-save allergen check**
+- In `saveMeal()` (~line 115), before proceeding to context picker, run allergen check on all selected items
+- If any conflicts found, show a final warning toast as a safety net
 
-#### Gap 6: Severe Allergy Double Confirmation ✅
-- For `nuts`, `peanuts`, `shellfish` → second confirmation modal
-- 3-second delay before "Log Anyway" button becomes clickable
-- Explicit risk warning text with ShieldAlert animation
+**5. Animated warning styling**
+- Use `motion.div` from framer-motion for entrance animations (scale + fade)
+- `animate-pulse` on warning badges
+- `ShieldAlert` icon with spring animation for severe warnings
+- Red banner: `bg-destructive/10 border-destructive/30` with WCAG AA contrast
 
-### Phase 3 (Spec Alignment & Data Hardening)
+## What This Fixes
+- **Dashboard manual entry**: Breakfast/Lunch/Dinner/Snack "+" buttons → search → allergen warnings
+- **Voice logging**: After voice recognition resolves foods → allergen banner on results
+- **Barcode scanning**: After barcode resolves to a product → allergen banner on results
+- **All paths through LogFood.tsx** now have allergen safety friction
 
-#### Gap A: Expanded Regional Language Keywords ✅
-- Added ~40 new regional terms across all 10 categories
-- Tamil: `mundhiri`, `muttai`, `verkadalai`, `nilakkadalai`, `kadugu`, `ellu`, `meen`, `yera`, `nandu`, `godhuma maavu`, `perungayam`
-- Telugu: `jeedi pappu`, `veru senaga pappu`, `nuvvulu`, `chepa`, `royyalu`, `godhuma pindi`, `inguva`
-- Kannada: `geru`, `kadale kai beeja`, `sasive`, `meenu`, `sigadi`, `godhi hittu`, `hingu`
-- Marathi: `mohri`, `teel`, `maasa`, `kolambi`, `gahu pith`
-- Other: `mawa`, `makkhan`, `paal aadai`, `paal kova`, `meegada`, `venna`, `benne`, `doode`, `toop`, `loni`, `chakka`, `mosaru`, `chilgoza`, `palli`, `seviyan`, `ande`, `peeta`, `kurli`
+## No Changes Needed
+- `CameraHome.tsx` — already fully implemented
+- `AddFoodSheet.tsx` — already fully implemented
+- `QuickLogSheet.tsx` — already has toast warnings
+- `allergen-engine.ts` / `allergen-tags.ts` — already complete
+- No database or backend changes
 
-#### Gap B: Additional Food Allergen Tags ✅
-- Tagged 40+ more foods with explicit allergen arrays
-- Non-veg: Prawn Masala/Curry/Crab → `shellfish`; Fish Fry/Tikka/Pomfret/Goan/Molee → `fish`; Rogan Josh → `dairy`; Korma → `dairy, nuts`; Shammi Kebab → `eggs`; Malai Tikka → `dairy, nuts`; Nihari → `gluten`; Boiled Egg/Omelette/Bhurji → `eggs`; Chicken Lollipop → `eggs, soy, gluten`
-- South Indian: Pongal/Ven Pongal → `dairy, nuts`; Bisi Bele Bath → `peanuts, dairy`; Rava Dosa → `gluten`; Pulihora → `peanuts, mustard`
-- Snacks: Dhokla → `mustard`; Khandvi → `mustard, sesame`
-- Beverages: Thandai/Badam Milk → `dairy, nuts`
-- Fast Food: Noodles/Manchurian/Spring Roll → `gluten, soy`; Paneer Chilli → `dairy, soy, gluten`; Burgers → `gluten`; Pizza → `gluten, dairy`; Sandwiches → `gluten, dairy`
-- Breakfast: Aloo/Gobi Paratha/Thepla → `gluten, dairy`; Curd Rice → `dairy`
-- Undhiyu → `nuts, peanuts, mustard`
-
-#### Gap C: Culinary-Aware Safe Swap Mappings ✅
-- Added `SAFE_SWAP_SUGGESTIONS` map in `swap-engine.ts` with 12 high-value dish mappings
-- Covers: Paneer→Tofu, Naan/Roti→Millet breads, Korma→Coconut/Chettinad, Samosa→Bonda/Vada, Upma→Poha/Idli, Biryani→Lemon/Tomato Rice, Lassi→Coconut Water/Nimbu Pani
-
-### Files Modified/Created
-
-| File | Change |
-|------|--------|
-| `src/lib/allergen-tags.ts` | Expanded to 10 categories, 110+ keywords, comprehensive regional terms |
-| `src/lib/allergen-engine.ts` | Accepts explicit `allergens[]`, `hasSevereAllergen()` function |
-| `src/lib/indian-foods.ts` | `allergens?: string[]` on interface, 120+ foods tagged with explicit allergen arrays |
-| `src/lib/swap-engine.ts` | Allergen filter in candidate selection + `SAFE_SWAP_SUGGESTIONS` map |
-| `src/components/AddFoodSheet.tsx` | Find Alternative button, severe allergy double confirm |
-| `src/pages/CameraHome.tsx` | Allergen warning banner in confirm step |
