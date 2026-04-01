@@ -193,6 +193,8 @@ export function getComputedAge(profile: UserProfile): number {
 
 export function saveProfile(profile: UserProfile) {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  // Dispatch event so UserProfileContext auto-syncs to cloud
+  window.dispatchEvent(new CustomEvent('nutrilens:profile-updated'));
 }
 
 export function getTodayKey(): string {
