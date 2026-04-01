@@ -558,6 +558,48 @@ export default function LogFood() {
 
         {step === 'adjust' && (
           <>
+            {/* Allergen warning banner for items added via voice/camera/barcode */}
+            {(() => {
+              const allergenItems = selected.filter(item => checkAllergens(item.name, userAllergens).hasConflict);
+              if (allergenItems.length === 0) return null;
+              return (
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', damping: 15 }}
+                  className="rounded-xl bg-destructive/10 border border-destructive/30 p-3.5 space-y-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <motion.div
+                      initial={{ rotate: -180, scale: 0 }}
+                      animate={{ rotate: 0, scale: 1 }}
+                      transition={{ type: 'spring', damping: 10 }}
+                    >
+                      <ShieldAlert className="w-5 h-5 text-destructive animate-pulse" />
+                    </motion.div>
+                    <span className="text-sm font-bold text-destructive">Allergen Warning</span>
+                  </div>
+                  {allergenItems.map(item => {
+                    const matched = checkAllergens(item.name, userAllergens).matched;
+                    return (
+                      <div key={item.id} className="flex items-center justify-between gap-2 bg-background/50 rounded-lg px-3 py-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-semibold text-foreground">{item.name}</span>
+                          {matched.map(a => (
+                            <span key={a} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-destructive/15 text-[9px] font-bold text-destructive">
+                              {getAllergenEmoji(a)} {getAllergenLabel(a)}
+                            </span>
+                          ))}
+                        </div>
+                        <button onClick={() => removeItem(item.id)} className="text-[10px] font-semibold text-destructive hover:underline shrink-0">
+                          Remove
+                        </button>
+                      </div>
+                    );
+                  })}
+                </motion.div>
+              );
+            })()}
             <div className="space-y-2">
               {selected.map(item => {
                 const itemCal = Math.round(item.calories * item.quantity);
