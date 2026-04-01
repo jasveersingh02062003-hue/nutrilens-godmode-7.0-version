@@ -364,10 +364,12 @@ function SideSlot({
         <div className="flex items-center gap-1">
           {selected.type === 'recipe' && <ChefHat className="w-2.5 h-2.5 text-muted-foreground" />}
           {selected.type === 'scanned' && <ScanLine className="w-2.5 h-2.5 text-primary" />}
-          <span className="text-[9px] text-muted-foreground">{selected.calories} kcal · ₹{selected.cost}</span>
+          <span className="text-[9px] text-muted-foreground">{selected.calories} kcal</span>
         </div>
         {/* Quantity Adjuster */}
         <QuantityAdjuster item={selected} onChange={onSelect} />
+        {/* Price Adjuster */}
+        <PriceAdjuster item={selected} onChange={onSelect} />
         <button onClick={onClear} className="mt-0.5 w-5 h-5 rounded-full bg-background border border-border flex items-center justify-center">
           <X className="w-2.5 h-2.5 text-muted-foreground" />
         </button>
