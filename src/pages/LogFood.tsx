@@ -64,6 +64,20 @@ export default function LogFood() {
   const [pendingCookingMethod, setPendingCookingMethod] = useState<CookingMethod | null | undefined>(undefined);
   const [adjModalOpen, setAdjModalOpen] = useState(false);
   const [lastMealSheetOpen, setLastMealSheetOpen] = useState(false);
+  const [pendingAllergenItem, setPendingAllergenItem] = useState<{ food: FoodItem; matched: string[] } | null>(null);
+  const [showSevereConfirm, setShowSevereConfirm] = useState(false);
+  const [severeButtonEnabled, setSevereButtonEnabled] = useState(false);
+
+  const userAllergens = profile?.allergens || [];
+
+  // Delayed enable for severe allergy confirmation button
+  useEffect(() => {
+    if (showSevereConfirm) {
+      setSevereButtonEnabled(false);
+      const timer = setTimeout(() => setSevereButtonEnabled(true), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSevereConfirm]);
 
   const mealLabels: Record<MealType, string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack' };
   
