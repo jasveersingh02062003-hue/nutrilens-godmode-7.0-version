@@ -19,6 +19,7 @@ export interface IndianFood {
   vitC: number; // mg
   defaultServing: number; // grams
   servingUnit: string;
+  allergens?: string[]; // explicit allergen tags
 }
 
 export const INDIAN_FOODS: IndianFood[] = [
