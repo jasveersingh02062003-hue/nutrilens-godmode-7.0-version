@@ -532,6 +532,13 @@ function SideSlot({
             onClose={() => setMode('search')}
           />
         )}
+        {mode === 'upload' && (
+          <UploadCapture
+            key="upload"
+            onCapture={(item) => { onSelect(item); setMode('search'); }}
+            onClose={() => setMode('search')}
+          />
+        )}
       </AnimatePresence>
     </div>
   );
