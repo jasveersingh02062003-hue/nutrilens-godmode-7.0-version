@@ -8,6 +8,43 @@ import { supabase } from '@/integrations/supabase/client';
 import VoiceWaveform from '@/components/VoiceWaveform';
 import { toast } from 'sonner';
 
+// ─── Shared: analyze image via edge function ───
+async function analyzeImageBase64(base64: string): Promise<CompareItem | null> {
+  try {
+    const { data, error } = await supabase.functions.invoke('analyze-food', {
+      body: { imageBase64: base64 },
+    });
+    if (error) {
+      console.error('analyze-food error:', error);
+      toast.error('Food analysis failed. Please try again.');
+      return null;
+    }
+    if (data?.error) {
+      console.error('analyze-food returned error:', data.error);
+      toast.error(data.error);
+      return null;
+    }
+    const item = data?.foodItems?.[0];
+    if (!item) {
+      toast.error('Could not identify food. Try a clearer photo.');
+      return null;
+    }
+    toast.success(`Identified: ${item.name}`);
+    return buildFromAnalyzed({
+      name: item.name,
+      calories: item.calories || 0,
+      protein: item.protein || 0,
+      carbs: item.carbs || 0,
+      fat: item.fat || 0,
+      fiber: item.fiber || 0,
+    });
+  } catch (e) {
+    console.error('analyze-food exception:', e);
+    toast.error('Network error. Check your connection.');
+    return null;
+  }
+}
+
 // ─── Search hook ───
 interface SearchResult {
   id: string;
