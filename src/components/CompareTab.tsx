@@ -285,17 +285,20 @@ function UploadCapture({ onCapture, onClose }: { onCapture: (item: CompareItem) 
     reader.onload = async () => {
       const dataUrl = reader.result as string;
       setPreview(dataUrl);
-      const base64 = dataUrl.split(',')[1];
 
-      if (!base64 || base64.length < 100) {
-        toast.error('Invalid image file. Try another photo.');
-        onClose();
-        return;
-      }
-
-      const result = await analyzeImageBase64(base64);
-      if (result) {
-        onCapture(result);
+      try {
+        const base64 = await compressImage(dataUrl);
+        if (!base64 || base64.length < 100) {
+          toast.error('Invalid image file. Try another photo.');
+          onClose();
+          return;
+        }
+        const result = await analyzeImageBase64(base64);
+        if (result) {
+          onCapture(result);
+        }
+      } catch {
+        toast.error('Failed to process image. Try again.');
       }
       onClose();
     };
