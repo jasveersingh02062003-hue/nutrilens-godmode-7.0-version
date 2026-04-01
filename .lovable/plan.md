@@ -1,5 +1,5 @@
 
-# Allergen Safety System — FULLY IMPLEMENTED
+# Allergen Safety System — FULLY IMPLEMENTED (Production-Hardened)
 
 ## What Was Built
 
@@ -43,13 +43,37 @@
 - 3-second delay before "Log Anyway" button becomes clickable
 - Explicit risk warning text with ShieldAlert animation
 
+### Phase 3 (Spec Alignment & Data Hardening)
+
+#### Gap A: Expanded Regional Language Keywords ✅
+- Added ~40 new regional terms across all 10 categories
+- Tamil: `mundhiri`, `muttai`, `verkadalai`, `nilakkadalai`, `kadugu`, `ellu`, `meen`, `yera`, `nandu`, `godhuma maavu`, `perungayam`
+- Telugu: `jeedi pappu`, `veru senaga pappu`, `nuvvulu`, `chepa`, `royyalu`, `godhuma pindi`, `inguva`
+- Kannada: `geru`, `kadale kai beeja`, `sasive`, `meenu`, `sigadi`, `godhi hittu`, `hingu`
+- Marathi: `mohri`, `teel`, `maasa`, `kolambi`, `gahu pith`
+- Other: `mawa`, `makkhan`, `paal aadai`, `paal kova`, `meegada`, `venna`, `benne`, `doode`, `toop`, `loni`, `chakka`, `mosaru`, `chilgoza`, `palli`, `seviyan`, `ande`, `peeta`, `kurli`
+
+#### Gap B: Additional Food Allergen Tags ✅
+- Tagged 40+ more foods with explicit allergen arrays
+- Non-veg: Prawn Masala/Curry/Crab → `shellfish`; Fish Fry/Tikka/Pomfret/Goan/Molee → `fish`; Rogan Josh → `dairy`; Korma → `dairy, nuts`; Shammi Kebab → `eggs`; Malai Tikka → `dairy, nuts`; Nihari → `gluten`; Boiled Egg/Omelette/Bhurji → `eggs`; Chicken Lollipop → `eggs, soy, gluten`
+- South Indian: Pongal/Ven Pongal → `dairy, nuts`; Bisi Bele Bath → `peanuts, dairy`; Rava Dosa → `gluten`; Pulihora → `peanuts, mustard`
+- Snacks: Dhokla → `mustard`; Khandvi → `mustard, sesame`
+- Beverages: Thandai/Badam Milk → `dairy, nuts`
+- Fast Food: Noodles/Manchurian/Spring Roll → `gluten, soy`; Paneer Chilli → `dairy, soy, gluten`; Burgers → `gluten`; Pizza → `gluten, dairy`; Sandwiches → `gluten, dairy`
+- Breakfast: Aloo/Gobi Paratha/Thepla → `gluten, dairy`; Curd Rice → `dairy`
+- Undhiyu → `nuts, peanuts, mustard`
+
+#### Gap C: Culinary-Aware Safe Swap Mappings ✅
+- Added `SAFE_SWAP_SUGGESTIONS` map in `swap-engine.ts` with 12 high-value dish mappings
+- Covers: Paneer→Tofu, Naan/Roti→Millet breads, Korma→Coconut/Chettinad, Samosa→Bonda/Vada, Upma→Poha/Idli, Biryani→Lemon/Tomato Rice, Lassi→Coconut Water/Nimbu Pani
+
 ### Files Modified/Created
 
 | File | Change |
 |------|--------|
-| `src/lib/allergen-tags.ts` | Expanded to 10 categories, 80+ keywords, regional terms, `SEVERE_ALLERGENS` |
+| `src/lib/allergen-tags.ts` | Expanded to 10 categories, 110+ keywords, comprehensive regional terms |
 | `src/lib/allergen-engine.ts` | Accepts explicit `allergens[]`, `hasSevereAllergen()` function |
-| `src/lib/indian-foods.ts` | `allergens?: string[]` on interface, 80+ foods tagged |
-| `src/lib/swap-engine.ts` | Allergen filter in candidate selection |
+| `src/lib/indian-foods.ts` | `allergens?: string[]` on interface, 120+ foods tagged with explicit allergen arrays |
+| `src/lib/swap-engine.ts` | Allergen filter in candidate selection + `SAFE_SWAP_SUGGESTIONS` map |
 | `src/components/AddFoodSheet.tsx` | Find Alternative button, severe allergy double confirm |
 | `src/pages/CameraHome.tsx` | Allergen warning banner in confirm step |
