@@ -273,6 +273,7 @@ interface FormState {
   heightFt: number;
   heightIn: number;
   conditions: string[];
+  allergens: string[];
   skin: string;
   pcosSeverity: number;
   pregnant: boolean;
