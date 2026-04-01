@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, AlertTriangle } from 'lucide-react';
+import { Search, Plus, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { searchIndianFoods, indianFoodToFoodItem } from '@/lib/indian-foods';
 import { estimateCost } from '@/lib/price-database';
-import { checkAllergens, getAllergenLabel, getAllergenEmoji } from '@/lib/allergen-engine';
+import { checkAllergens, getAllergenLabel, getAllergenEmoji, hasSevereAllergen } from '@/lib/allergen-engine';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -31,6 +31,17 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
   const userAllergens = profile?.allergens || [];
   const results = query.trim().length >= 2 ? searchIndianFoods(query) : [];
   const [pendingItem, setPendingItem] = useState<{ food: any; item: FoodItem; matched: string[] } | null>(null);
+  const [showSevereConfirm, setShowSevereConfirm] = useState(false);
+  const [severeButtonEnabled, setSevereButtonEnabled] = useState(false);
+
+  // Delayed enable for severe allergy confirmation button
+  useEffect(() => {
+    if (showSevereConfirm) {
+      setSevereButtonEnabled(false);
+      const timer = setTimeout(() => setSevereButtonEnabled(true), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSevereConfirm]);
 
   const handleAdd = (food: any) => {
     const item = indianFoodToFoodItem(food);
@@ -42,7 +53,7 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
       confidenceScore: 0.9,
     };
 
-    const allergenCheck = checkAllergens(food.name, userAllergens);
+    const allergenCheck = checkAllergens(food.name, userAllergens, food.allergens);
     if (allergenCheck.hasConflict) {
       setPendingItem({ food, item: finalItem, matched: allergenCheck.matched });
       return;
@@ -53,10 +64,27 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
   };
 
   const confirmAdd = () => {
+    if (!pendingItem) return;
+
+    // Check if severe allergen needs double confirmation
+    if (hasSevereAllergen(pendingItem.matched) && !showSevereConfirm) {
+      setShowSevereConfirm(true);
+      return;
+    }
+
+    onAdd(pendingItem.item);
+    setPendingItem(null);
+    setShowSevereConfirm(false);
+    setQuery('');
+  };
+
+  const findAlternative = () => {
     if (pendingItem) {
-      onAdd(pendingItem.item);
+      // Set query to the food's category to help find alternatives
+      const food = pendingItem.food;
+      setQuery(food.category || '');
       setPendingItem(null);
-      setQuery('');
+      setShowSevereConfirm(false);
     }
   };
 
@@ -87,7 +115,7 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
               {results.map((food, idx) => {
                 const item = indianFoodToFoodItem(food);
                 const cost = estimateCost([{ name: food.name, quantity: 1, unit: food.servingUnit }]);
-                const allergenCheck = checkAllergens(food.name, userAllergens);
+                const allergenCheck = checkAllergens(food.name, userAllergens, food.allergens);
 
                 return (
                   <motion.button
@@ -137,8 +165,8 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
         </SheetContent>
       </Sheet>
 
-      {/* Allergen Confirmation Dialog */}
-      <AlertDialog open={!!pendingItem} onOpenChange={v => { if (!v) setPendingItem(null); }}>
+      {/* Standard Allergen Confirmation Dialog */}
+      <AlertDialog open={!!pendingItem && !showSevereConfirm} onOpenChange={v => { if (!v) { setPendingItem(null); setShowSevereConfirm(false); } }}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
             <motion.div
@@ -159,12 +187,66 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
+            <button
+              onClick={findAlternative}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold hover:bg-primary/90 transition-colors"
+            >
+              🔄 Find Safe Alternative
+            </button>
             <AlertDialogAction
               onClick={confirmAdd}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Log Anyway
             </AlertDialogAction>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Severe Allergy Double Confirmation */}
+      <AlertDialog open={showSevereConfirm} onOpenChange={v => { if (!v) { setShowSevereConfirm(false); setPendingItem(null); } }}>
+        <AlertDialogContent className="rounded-2xl border-2 border-destructive/50">
+          <AlertDialogHeader>
+            <motion.div
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', damping: 10 }}
+              className="w-16 h-16 mx-auto mb-2 rounded-full bg-destructive/20 flex items-center justify-center"
+            >
+              <ShieldAlert className="w-8 h-8 text-destructive animate-pulse" />
+            </motion.div>
+            <AlertDialogTitle className="text-center text-destructive text-lg">
+              🚨 Severe Allergy Risk
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center space-y-2">
+              <span className="block font-bold text-foreground text-base">{pendingItem?.food.name}</span>
+              <span className="block text-destructive font-semibold">
+                This food may contain {pendingItem?.matched.map(a => `${getAllergenEmoji(a)} ${getAllergenLabel(a)}`).join(', ')} which can cause a severe allergic reaction.
+              </span>
+              <span className="block text-muted-foreground text-xs mt-2">
+                This is a high-risk allergen. Please confirm you understand the risk.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
+            <button
+              onClick={findAlternative}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold hover:bg-primary/90 transition-colors"
+            >
+              🔄 Find Safe Alternative
+            </button>
+            <button
+              onClick={confirmAdd}
+              disabled={!severeButtonEnabled}
+              className={`w-full inline-flex items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold transition-all ${
+                severeButtonEnabled
+                  ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                  : 'bg-muted text-muted-foreground cursor-not-allowed opacity-50'
+              }`}
+            >
+              {severeButtonEnabled ? 'I understand the risk – Log Anyway' : 'Please wait (3s)...'}
+            </button>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>

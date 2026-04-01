@@ -8,6 +8,7 @@ import { getAdjustedDailyBudget } from './budget-service';
 import { getProfile } from './store';
 import { getTodayKey } from './store';
 import { computePES, getMealTargetCalories } from './pes-engine';
+import { checkAllergens } from './allergen-engine';
 
 export interface SwapAlternative {
   recipe: EnrichedRecipe;
@@ -41,6 +42,7 @@ export function getSwapAlternatives(
   const userProfile = getProfile();
   const dietaryPrefs = profileOverride?.dietaryPrefs || userProfile?.dietaryPrefs || [];
   const healthConditions = profileOverride?.healthConditions || userProfile?.healthConditions || [];
+  const userAllergens = profileOverride?.allergies || userProfile?.allergens || [];
 
   // Filter candidates
   const candidates = recipes.filter(r => {
@@ -50,6 +52,8 @@ export function getSwapAlternatives(
     if (Math.abs(r.calories - original.calories) > original.calories * 0.2) return false;
     // Health conditions
     if (shouldAvoidRecipe(r, healthConditions)) return false;
+    // Allergen safety: exclude any recipe that conflicts with user allergens
+    if (userAllergens.length > 0 && checkAllergens(r.name, userAllergens).hasConflict) return false;
     // Dietary prefs
     if (dietaryPrefs.includes('vegetarian') && !r.tags.some(t => ['vegetarian', 'vegan'].includes(t))) return false;
     if (dietaryPrefs.includes('vegan') && !r.tags.includes('vegan')) return false;

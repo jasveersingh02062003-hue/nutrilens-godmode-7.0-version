@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Camera, Mic, MicOff, RotateCcw, ImageIcon, Check, X, Plus, Minus, Loader2, AlertTriangle, ChevronUp, IndianRupee, Search, Gift, ArrowLeft, Sparkles, Pencil } from 'lucide-react';
+import { Camera, Mic, MicOff, RotateCcw, ImageIcon, Check, X, Plus, Minus, Loader2, AlertTriangle, ChevronUp, IndianRupee, Search, Gift, ArrowLeft, Sparkles, Pencil, ShieldAlert } from 'lucide-react';
 import CostSuggestionBanner from '@/components/CostSuggestionBanner';
 import WeatherNudgeCard from '@/components/WeatherNudgeCard';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -25,6 +25,7 @@ import UpgradePrompt from '@/components/UpgradePrompt';
 import FoodReplaceSheet from '@/components/FoodReplaceSheet';
 import { getUnitOptionsForFood, calculateNutrition, type UnitOption } from '@/lib/unit-conversion';
 import PESBreakdownModal from '@/components/PESBreakdownModal';
+import { checkAllergens, getAllergenLabel, getAllergenEmoji, hasSevereAllergen } from '@/lib/allergen-engine';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 type Step = 'camera' | 'confirm' | 'edit' | 'save';
@@ -787,6 +788,57 @@ export default function CameraHome() {
             className="w-full py-2.5 rounded-xl border border-dashed border-border text-sm font-medium text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors flex items-center justify-center gap-1.5">
             <Plus className="w-4 h-4" /> Add Missing Item
           </button>
+
+          {/* Allergen warning banner */}
+          {(() => {
+            const userAllergens = profile?.allergens || [];
+            if (userAllergens.length === 0) return null;
+            const allergenItems = activeItems.filter(item => checkAllergens(item.name, userAllergens).hasConflict);
+            if (allergenItems.length === 0) return null;
+            const allMatched = [...new Set(allergenItems.flatMap(item => checkAllergens(item.name, userAllergens).matched))];
+            const isSevere = hasSevereAllergen(allMatched);
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                className={`p-3.5 rounded-xl border-2 ${isSevere ? 'bg-destructive/15 border-destructive/40' : 'bg-destructive/10 border-destructive/20'}`}
+              >
+                <div className="flex items-start gap-2.5">
+                  <motion.div
+                    animate={isSevere ? { scale: [1, 1.2, 1] } : {}}
+                    transition={{ repeat: Infinity, duration: 1.5 }}
+                  >
+                    {isSevere
+                      ? <ShieldAlert className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                      : <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                    }
+                  </motion.div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-destructive">
+                      {isSevere ? '🚨 Severe Allergen Detected' : '⚠️ Allergen Warning'}
+                    </p>
+                    <p className="text-xs text-destructive/80 mt-0.5">
+                      {allergenItems.map(i => i.name).join(', ')} contains{' '}
+                      <span className="font-bold">
+                        {allMatched.map(a => `${getAllergenEmoji(a)} ${getAllergenLabel(a)}`).join(', ')}
+                      </span>
+                    </p>
+                    <div className="flex gap-2 mt-2">
+                      {allergenItems.map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => toggleItemSelection(item.id)}
+                          className="px-2.5 py-1 rounded-lg bg-destructive/10 border border-destructive/20 text-[10px] font-semibold text-destructive hover:bg-destructive/20 transition-colors"
+                        >
+                          ✕ Remove {item.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })()}
 
           {/* Low confidence warning */}
           {detectedItems.some(f => f.confidence !== undefined && f.confidence < 70) && (
