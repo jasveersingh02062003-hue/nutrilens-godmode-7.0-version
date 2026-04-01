@@ -109,21 +109,34 @@ function CameraCapture({ onCapture, onClose }: { onCapture: (item: CompareItem) 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [cameraError, setCameraError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError(true);
+      toast.error('Camera not available. Try uploading a photo instead.');
+      return;
+    }
     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 640, height: 480 } })
       .then(stream => {
         if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
         streamRef.current = stream;
         if (videoRef.current) videoRef.current.srcObject = stream;
       })
-      .catch(() => onClose());
+      .catch((err) => {
+        console.error('Camera access failed:', err);
+        setCameraError(true);
+        toast.error('Camera permission denied. Try uploading a photo instead.');
+      });
     return () => { cancelled = true; streamRef.current?.getTracks().forEach(t => t.stop()); };
-  }, [onClose]);
+  }, []);
 
   const capture = useCallback(async () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || videoRef.current.videoWidth === 0) {
+      toast.error('Camera not ready. Wait a moment and try again.');
+      return;
+    }
     setAnalyzing(true);
     const canvas = document.createElement('canvas');
     canvas.width = videoRef.current.videoWidth;
@@ -131,28 +144,30 @@ function CameraCapture({ onCapture, onClose }: { onCapture: (item: CompareItem) 
     canvas.getContext('2d')?.drawImage(videoRef.current, 0, 0);
     const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
-    try {
-      const { data } = await supabase.functions.invoke('analyze-food', {
-        body: { imageBase64: base64 },
-      });
-      if (data?.foodItems?.[0]) {
-        const item = data.foodItems[0];
-        onCapture(buildFromAnalyzed({
-          name: item.name,
-          calories: item.calories || 0,
-          protein: item.protein || 0,
-          carbs: item.carbs || 0,
-          fat: item.fat || 0,
-          fiber: item.fiber || 0,
-        }));
-      }
-    } catch {
-      // silently fail
-    } finally {
-      streamRef.current?.getTracks().forEach(t => t.stop());
-      onClose();
+    const result = await analyzeImageBase64(base64);
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    if (result) {
+      onCapture(result);
     }
+    onClose();
   }, [onCapture, onClose]);
+
+  if (cameraError) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="rounded-xl bg-muted/80 p-4 flex flex-col items-center gap-2"
+      >
+        <AlertCircle className="w-8 h-8 text-destructive/70" />
+        <p className="text-[11px] text-center text-muted-foreground font-medium">
+          Camera unavailable.<br/>Use <strong>Upload</strong> to pick a photo from your gallery.
+        </p>
+        <button onClick={onClose} className="text-[10px] text-primary font-semibold mt-1">Go Back</button>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -166,7 +181,7 @@ function CameraCapture({ onCapture, onClose }: { onCapture: (item: CompareItem) 
         <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
           <div className="flex flex-col items-center gap-2">
             <ScanLine className="w-6 h-6 text-primary animate-pulse" />
-            <span className="text-[10px] text-white font-medium">Analyzing...</span>
+            <span className="text-[10px] text-white font-medium">Analyzing food...</span>
           </div>
         </div>
       )}
@@ -175,7 +190,7 @@ function CameraCapture({ onCapture, onClose }: { onCapture: (item: CompareItem) 
           whileTap={{ scale: 0.85 }}
           onClick={capture}
           disabled={analyzing}
-          className="w-12 h-12 rounded-full bg-white/90 border-4 border-primary flex items-center justify-center shadow-lg"
+          className="w-12 h-12 rounded-full bg-white/90 border-4 border-primary flex items-center justify-center shadow-lg disabled:opacity-50"
         >
           <Camera className="w-5 h-5 text-primary" />
         </motion.button>
@@ -196,47 +211,59 @@ function UploadCapture({ onCapture, onClose }: { onCapture: (item: CompareItem) 
   const [analyzing, setAnalyzing] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const hasOpened = useRef(false);
 
   useEffect(() => {
-    // Auto-open file picker on mount
-    fileRef.current?.click();
+    // Auto-open file picker on mount (only once)
+    if (!hasOpened.current) {
+      hasOpened.current = true;
+      // Small delay to ensure DOM is ready
+      setTimeout(() => fileRef.current?.click(), 100);
+    }
   }, []);
 
   const handleFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) { onClose(); return; }
 
+    // Validate it's an image
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file.');
+      onClose();
+      return;
+    }
+
+    // Validate size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image too large. Max 10MB.');
+      onClose();
+      return;
+    }
+
     setAnalyzing(true);
 
-    // Read as data URL for preview
     const reader = new FileReader();
     reader.onload = async () => {
       const dataUrl = reader.result as string;
       setPreview(dataUrl);
       const base64 = dataUrl.split(',')[1];
 
-      try {
-        const { data } = await supabase.functions.invoke('analyze-food', {
-          body: { imageBase64: base64 },
-        });
-        if (data?.foodItems?.[0]) {
-          const item = data.foodItems[0];
-          onCapture(buildFromAnalyzed({
-            name: item.name,
-            calories: item.calories || 0,
-            protein: item.protein || 0,
-            carbs: item.carbs || 0,
-            fat: item.fat || 0,
-            fiber: item.fiber || 0,
-          }));
-        } else {
-          onClose();
-        }
-      } catch {
+      if (!base64 || base64.length < 100) {
+        toast.error('Invalid image file. Try another photo.');
         onClose();
+        return;
       }
+
+      const result = await analyzeImageBase64(base64);
+      if (result) {
+        onCapture(result);
+      }
+      onClose();
     };
-    reader.onerror = () => onClose();
+    reader.onerror = () => {
+      toast.error('Failed to read file. Try again.');
+      onClose();
+    };
     reader.readAsDataURL(file);
   }, [onCapture, onClose]);
 
@@ -251,6 +278,7 @@ function UploadCapture({ onCapture, onClose }: { onCapture: (item: CompareItem) 
         ref={fileRef}
         type="file"
         accept="image/*"
+        capture={undefined}
         className="hidden"
         onChange={handleFile}
       />
@@ -267,9 +295,9 @@ function UploadCapture({ onCapture, onClose }: { onCapture: (item: CompareItem) 
       ) : (
         <div className="flex flex-col items-center gap-1.5 py-2">
           <ImagePlus className="w-6 h-6 text-muted-foreground" />
-          <span className="text-[10px] text-muted-foreground">Select a photo</span>
+          <span className="text-[10px] text-muted-foreground">Select a food photo</span>
           <button onClick={() => fileRef.current?.click()}
-            className="text-[10px] text-primary font-semibold">Browse</button>
+            className="text-[10px] text-primary font-semibold px-3 py-1 rounded-lg bg-primary/10">Browse Gallery</button>
         </div>
       )}
       <button onClick={onClose} className="text-[9px] text-destructive font-semibold">Cancel</button>
