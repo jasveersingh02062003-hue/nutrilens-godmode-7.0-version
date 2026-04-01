@@ -152,13 +152,13 @@ export const INDIAN_FOODS: IndianFood[] = [
   // ==========================================
   // === NON-VEG (70 items) ===
   // ==========================================
-  { id: 'in050', name: 'Butter Chicken', hindi: 'बटर चिकन', category: 'Non-Veg', calories: 195, protein: 15.0, carbs: 8, fat: 12.0, fiber: 1.0, iron: 1.8, calcium: 45, vitC: 5, defaultServing: 150, servingUnit: 'bowl' },
+  { id: 'in050', name: 'Butter Chicken', hindi: 'बटर चिकन', category: 'Non-Veg', calories: 195, protein: 15.0, carbs: 8, fat: 12.0, fiber: 1.0, iron: 1.8, calcium: 45, vitC: 5, defaultServing: 150, servingUnit: 'bowl', allergens: ['dairy', 'nuts'] },
   { id: 'in051', name: 'Chicken Curry', hindi: 'चिकन करी', category: 'Non-Veg', calories: 165, protein: 18.0, carbs: 5, fat: 8.5, fiber: 1.0, iron: 2.0, calcium: 30, vitC: 4, defaultServing: 150, servingUnit: 'bowl' },
-  { id: 'in052', name: 'Tandoori Chicken', hindi: 'तंदूरी चिकन', category: 'Non-Veg', calories: 148, protein: 22.0, carbs: 3, fat: 5.5, fiber: 0.5, iron: 2.2, calcium: 25, vitC: 3, defaultServing: 150, servingUnit: 'piece' },
-  { id: 'in053', name: 'Chicken Tikka', hindi: 'चिकन टिक्का', category: 'Non-Veg', calories: 155, protein: 24.0, carbs: 4, fat: 5.0, fiber: 0.5, iron: 2.0, calcium: 22, vitC: 3, defaultServing: 120, servingUnit: 'serving' },
-  { id: 'in054', name: 'Fish Curry', hindi: 'मछली करी', category: 'Non-Veg', calories: 140, protein: 16.0, carbs: 5, fat: 6.5, fiber: 0.8, iron: 1.5, calcium: 35, vitC: 4, defaultServing: 150, servingUnit: 'bowl' },
+  { id: 'in052', name: 'Tandoori Chicken', hindi: 'तंदूरी चिकन', category: 'Non-Veg', calories: 148, protein: 22.0, carbs: 3, fat: 5.5, fiber: 0.5, iron: 2.2, calcium: 25, vitC: 3, defaultServing: 150, servingUnit: 'piece', allergens: ['dairy'] },
+  { id: 'in053', name: 'Chicken Tikka', hindi: 'चिकन टिक्का', category: 'Non-Veg', calories: 155, protein: 24.0, carbs: 4, fat: 5.0, fiber: 0.5, iron: 2.0, calcium: 22, vitC: 3, defaultServing: 120, servingUnit: 'serving', allergens: ['dairy'] },
+  { id: 'in054', name: 'Fish Curry', hindi: 'मछली करी', category: 'Non-Veg', calories: 140, protein: 16.0, carbs: 5, fat: 6.5, fiber: 0.8, iron: 1.5, calcium: 35, vitC: 4, defaultServing: 150, servingUnit: 'bowl', allergens: ['fish'] },
   { id: 'in055', name: 'Mutton Curry', hindi: 'मटन करी', category: 'Non-Veg', calories: 195, protein: 16.5, carbs: 5, fat: 12.5, fiber: 0.8, iron: 3.5, calcium: 28, vitC: 3, defaultServing: 150, servingUnit: 'bowl' },
-  { id: 'in056', name: 'Egg Curry', hindi: 'अंडा करी', category: 'Non-Veg', calories: 155, protein: 10.0, carbs: 6, fat: 10.5, fiber: 1.0, iron: 2.0, calcium: 55, vitC: 4, defaultServing: 150, servingUnit: 'bowl' },
+  { id: 'in056', name: 'Egg Curry', hindi: 'अंडा करी', category: 'Non-Veg', calories: 155, protein: 10.0, carbs: 6, fat: 10.5, fiber: 1.0, iron: 2.0, calcium: 55, vitC: 4, defaultServing: 150, servingUnit: 'bowl', allergens: ['eggs'] },
   { id: 'in057', name: 'Keema', hindi: 'कीमा', category: 'Non-Veg', calories: 200, protein: 18.0, carbs: 6, fat: 12.0, fiber: 1.5, iron: 3.8, calcium: 30, vitC: 5, defaultServing: 150, servingUnit: 'bowl' },
   { id: 'in058', name: 'Prawn Masala', hindi: 'झींगा मसाला', category: 'Non-Veg', calories: 145, protein: 18.0, carbs: 5, fat: 6.0, fiber: 1.0, iron: 2.5, calcium: 75, vitC: 5, defaultServing: 150, servingUnit: 'bowl' },
   { id: 'in059', name: 'Chicken Korma', hindi: 'चिकन कोरमा', category: 'Non-Veg', calories: 210, protein: 16.0, carbs: 8, fat: 13.5, fiber: 1.0, iron: 2.0, calcium: 40, vitC: 3, defaultServing: 150, servingUnit: 'bowl' },
