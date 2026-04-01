@@ -108,6 +108,7 @@ function syncToCloud(profile: UserProfile) {
       conditions: {
         ...((profile as any).conditions || {}),
         allergens: profile.allergens || [],
+        skinConcerns: profile.skinConcerns || undefined,
       },
       coach_settings: (profile as any).coachSettings || null,
       learning: (profile as any).learning || null,
