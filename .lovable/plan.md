@@ -1,74 +1,49 @@
 
 
-# Add "Compare" Tab to Meal Planner
+# Extend Side-by-Side Comparison to Multiple Entry Points
 
-## What We're Building
+## Overview
+We already have the **Compare tab** in Planner with `CompareTab.tsx` and its `CompareItem` + `buildFromFood`/`buildFromRecipe` helpers. Now we'll create a **reusable `ComparisonSheet.tsx`** bottom sheet and integrate compare triggers into 4 surfaces.
 
-A new **Compare** tab in the Planner tab bar (`Budget | Meal Plan | Groceries | ⚖️ Compare | Recipes`) with two independent search bars for side-by-side food/recipe comparison.
+## Files to Create
 
-## Files to Change
+### 1. `src/components/ComparisonSheet.tsx`
+- Reusable bottom sheet (Sheet component) that accepts `items: CompareItem[]` (2-3 items) and `onPick: (item) => void`
+- Reuse `CompareItem` interface and winner-highlighting logic from `CompareTab.tsx` (extract to shared util or import)
+- Two-column layout (or 3-col scrollable) with green winner highlights per row
+- Rows: Price, Calories, Protein, Carbs, Fat, Fiber, PES Score
+- "Pick this" button under each column
+- Staggered framer-motion row animations
 
-### 1. `src/components/MealPlannerTabs.tsx`
-- Add `'Compare'` to `TAB_ITEMS` array (between Groceries and Recipes)
-- Add `{activeTab === 'Compare' && <CompareTab />}` in the tab content area
-- Import the new `CompareTab` component
+## Files to Modify
 
-### 2. New file: `src/components/CompareTab.tsx`
+### 2. `src/components/SwapSimulatorSheet.tsx`
+- Add a **"Compare All ⚖️"** button in the `alternatives` step (above the list)
+- When tapped, opens `ComparisonSheet` with `original + all alternatives` converted to `CompareItem[]` using `buildFromRecipe`
+- `onPick` → calls existing `onApply` with the selected recipe's impact
 
-**Empty state**: Two search inputs stacked vertically with prompt text "Pick any two foods or recipes to compare"
+### 3. `src/pages/LogFood.tsx`
+- Add **multi-select compare mode** in the search results (step === 'search'):
+  - Each food result gets a small `⚖️` icon button (next to the existing `+` button)
+  - Tapping it toggles the food into a `compareSelection: IndianFood[]` state (max 3)
+  - Selected items get a blue border highlight
+  - When 2+ items selected, show a **floating "Compare (N)" pill** at bottom
+  - Tapping the pill opens `ComparisonSheet` with items built via `buildFromFood`
+  - `onPick` → calls existing `addFood()` to add the picked item to the meal
 
-**Search**: Each input uses `searchIndianFoods()` from `indian-foods.ts` + `recipes.filter()` to show a dropdown of matching foods/recipes. User picks one from each dropdown.
+### 4. `src/components/AddFoodSheet.tsx`
+- Same pattern as LogFood: add `⚖️` toggle on each search result, floating compare pill, opens `ComparisonSheet`
+- `onPick` → calls existing `onAdd()` with the picked food converted to `FoodItem`
 
-**Comparison view** (appears after both items selected): Two-column card layout showing:
+### 5. Extract shared helpers
+- Move `CompareItem`, `buildFromFood`, `buildFromRecipe`, and the winner-detection logic from `CompareTab.tsx` into a new `src/lib/compare-helpers.ts` so both `CompareTab` and `ComparisonSheet` can reuse them
 
-| Row | Data Source |
-|---|---|
-| Name + image | `getRecipeImage()` or food name |
-| Price (₹) | `getRecipeCost()` or `findPrice()` |
-| Calories | food/recipe `.calories` |
-| Protein | food/recipe `.protein` |
-| Carbs | food/recipe `.carbs` |
-| Fat | food/recipe `.fat` |
-| Fiber | food/recipe `.fiber` |
-| PES Score | `computePES()` |
-| Pantry match | `getPantryItems()` ingredient check |
+## User Journeys
 
-- **Winner highlighting**: Each row's better value gets a green background
-- **PES badge**: Star icon on the higher PES column
-- **Actions**: "Add to Plan" button under each column
+**LogFood / AddFoodSheet**: Search → tap ⚖️ on 2 items → floating pill → sheet with side-by-side → "Pick this" → logs/adds the food
 
-**Animations**: `framer-motion` staggered row entrance
+**SwapSimulator**: See alternatives → tap "Compare All" → horizontal comparison table with current + alternatives → "Pick this" → applies swap
 
-### 3. Dependencies (all existing, no new installs)
-- `searchIndianFoods`, `getFoodByName` from `indian-foods.ts`
-- `recipes`, `getRecipeById` from `recipes.ts`
-- `getRecipeCost` from `recipe-cost.ts`
-- `computePES` from `pes-engine.ts`
-- `getPantryItems` from `pantry-store.ts`
-- `getRecipeImage` from `recipe-images.ts`
-
-## User Journey
-
-```text
-1. Planner page → tap "Compare" tab
-2. See two search bars: "Search first item..." / "Search second item..."
-3. Type "paneer" in first → dropdown shows matches → pick "Palak Paneer"
-4. Type "chicken" in second → pick "Chicken Breast Curry"
-5. Comparison table animates in below:
-   ┌──────────────────┬──────────────────┐
-   │  Palak Paneer    │  Chicken Curry   │
-   │  230 kcal        │  195 kcal  ✅    │
-   │  ₹45             │  ₹60             │
-   │  12g protein     │  26g protein ✅  │
-   │  PES: 6.2        │  PES: 8.1  ⭐   │
-   │  🏠 4/6 pantry   │  🏠 2/4 pantry   │
-   └──────────────────┴──────────────────┘
-6. Tap "Add to Plan" on preferred item
-7. Tap "✕" on either item to swap it for something else
-```
-
-## No Changes Needed
-- No database/backend changes
-- No new packages
-- No changes to existing tabs' functionality
+## No backend changes needed
+All data comes from existing `searchIndianFoods`, `getRecipeCost`, `computePES`, `checkAllergens`, `checkFoodForConditions`.
 
