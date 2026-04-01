@@ -1,66 +1,74 @@
 
 
-# Fix: QuickLog Parser + Smarter NextMealCard with Pantry Integration
+# Add "Compare" Tab to Meal Planner
 
-## Problem 1: Inconsistent Food Recognition in QuickLog
+## What We're Building
 
-**Root cause**: `parseQuickText("1 apple")` splits into `{ name: "apple", qty: 1 }` — this works. But inputs like `"an apple"`, `"apple x3"`, `"half bowl dal"`, or `"2x roti"` fail because the parser only matches `^(\d+\.?\d*)\s*(.+)`.
+A new **Compare** tab in the Planner tab bar (`Budget | Meal Plan | Groceries | ⚖️ Compare | Recipes`) with two independent search bars for side-by-side food/recipe comparison.
 
-**Current parser** (line 22-28 in QuickLogSheet):
+## Files to Change
+
+### 1. `src/components/MealPlannerTabs.tsx`
+- Add `'Compare'` to `TAB_ITEMS` array (between Groceries and Recipes)
+- Add `{activeTab === 'Compare' && <CompareTab />}` in the tab content area
+- Import the new `CompareTab` component
+
+### 2. New file: `src/components/CompareTab.tsx`
+
+**Empty state**: Two search inputs stacked vertically with prompt text "Pick any two foods or recipes to compare"
+
+**Search**: Each input uses `searchIndianFoods()` from `indian-foods.ts` + `recipes.filter()` to show a dropdown of matching foods/recipes. User picks one from each dropdown.
+
+**Comparison view** (appears after both items selected): Two-column card layout showing:
+
+| Row | Data Source |
+|---|---|
+| Name + image | `getRecipeImage()` or food name |
+| Price (₹) | `getRecipeCost()` or `findPrice()` |
+| Calories | food/recipe `.calories` |
+| Protein | food/recipe `.protein` |
+| Carbs | food/recipe `.carbs` |
+| Fat | food/recipe `.fat` |
+| Fiber | food/recipe `.fiber` |
+| PES Score | `computePES()` |
+| Pantry match | `getPantryItems()` ingredient check |
+
+- **Winner highlighting**: Each row's better value gets a green background
+- **PES badge**: Star icon on the higher PES column
+- **Actions**: "Add to Plan" button under each column
+
+**Animations**: `framer-motion` staggered row entrance
+
+### 3. Dependencies (all existing, no new installs)
+- `searchIndianFoods`, `getFoodByName` from `indian-foods.ts`
+- `recipes`, `getRecipeById` from `recipes.ts`
+- `getRecipeCost` from `recipe-cost.ts`
+- `computePES` from `pes-engine.ts`
+- `getPantryItems` from `pantry-store.ts`
+- `getRecipeImage` from `recipe-images.ts`
+
+## User Journey
+
+```text
+1. Planner page → tap "Compare" tab
+2. See two search bars: "Search first item..." / "Search second item..."
+3. Type "paneer" in first → dropdown shows matches → pick "Palak Paneer"
+4. Type "chicken" in second → pick "Chicken Breast Curry"
+5. Comparison table animates in below:
+   ┌──────────────────┬──────────────────┐
+   │  Palak Paneer    │  Chicken Curry   │
+   │  230 kcal        │  195 kcal  ✅    │
+   │  ₹45             │  ₹60             │
+   │  12g protein     │  26g protein ✅  │
+   │  PES: 6.2        │  PES: 8.1  ⭐   │
+   │  🏠 4/6 pantry   │  🏠 2/4 pantry   │
+   └──────────────────┴──────────────────┘
+6. Tap "Add to Plan" on preferred item
+7. Tap "✕" on either item to swap it for something else
 ```
-const match = part.match(/^(\d+\.?\d*)\s*(.+)/);
-```
 
-**Fix — Enhance `parseQuickText` with:**
-1. Strip articles: remove "a ", "an ", "one ", "half " (→ qty 0.5) before matching
-2. Handle trailing quantities: "roti x3", "apple x 2", "dal × 2"
-3. Handle Hindi units: "2 katori dal" → strip "katori" and pass "dal" to search
-4. Normalize common synonyms before search: "curd" → also try "dahi", "chapati" → also try "roti"
-
-**Also improve `searchIndianFoods`:**
-5. Add a synonym map at the top of `indian-foods.ts` (e.g., `{ "apple": "apple (indian)", "curd": "curd / dahi", "chapati": "wheat roti" }`)
-6. Before scoring, resolve the query through the synonym map
-7. Add Levenshtein-based fuzzy matching for typos (e.g., "panneer" → "paneer") — a simple edit-distance ≤ 2 check on food names
-
-**Files to modify:**
-- `src/components/QuickLogSheet.tsx` — enhance `parseQuickText()`
-- `src/lib/indian-foods.ts` — add synonym map + typo tolerance to `searchIndianFoods()`
-
----
-
-## Problem 2: NextMealCard Needs Pantry Intelligence
-
-**Current state**: `NextMealCard` calls `getRecipesForMeal()` which filters recipes by budget, dietary prefs, and calories — but completely ignores what the user actually has at home in their pantry (`pantry-store.ts`).
-
-**Fix — Pantry-aware ranking in `meal-suggestion-engine.ts`:**
-
-1. Import `getPantryItems()` from `pantry-store.ts`
-2. In `getRecipesForMeal()`, after filtering, add a pantry match bonus to the rank score:
-   - For each recipe, check how many of its ingredients match pantry item names (fuzzy)
-   - `pantryMatchRatio = matchedIngredients / totalIngredients`
-   - Add `pantryMatchRatio * 30` to the rank score (so pantry-available meals rank higher)
-3. Show a "🏠 From your pantry" badge on NextMealCard when pantryMatchRatio > 0.5
-4. Add a secondary line: "You have 3/5 ingredients at home"
-
-**Also enhance NextMealCard UI:**
-5. Show 2-3 alternatives as swipeable dots (not just the top 1 recipe)
-6. Add a "Not this — show another" button that cycles to next suggestion
-7. Add remaining macro context: "You need 25g more protein today" as a subtitle
-
-**Files to modify:**
-- `src/lib/meal-suggestion-engine.ts` — add pantry matching to ranking
-- `src/components/NextMealCard.tsx` — show pantry badge, alternatives, macro context
-
----
-
-## Summary
-
-| Change | File | Effort |
-|---|---|---|
-| Smarter text parser (articles, trailing qty, Hindi units) | `QuickLogSheet.tsx` | Small |
-| Synonym map + typo tolerance | `indian-foods.ts` | Small |
-| Pantry-aware recipe ranking | `meal-suggestion-engine.ts` | Medium |
-| Pantry badge + alternatives UI | `NextMealCard.tsx` | Medium |
-
-No database, backend, or existing logic changes. Pure parser + ranking + UI enhancements.
+## No Changes Needed
+- No database/backend changes
+- No new packages
+- No changes to existing tabs' functionality
 
