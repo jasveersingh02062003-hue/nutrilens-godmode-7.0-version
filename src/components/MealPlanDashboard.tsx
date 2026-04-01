@@ -126,6 +126,17 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
 
   const isDayLogged = currentDay ? loggedDays.has(currentDay.date) : false;
 
+  const handleCompare = (recipeId: string, mealType: string) => {
+    const original = getRecipeById(recipeId);
+    if (!original) return;
+    const alts = getSwapAlternatives(recipeId, mealType);
+    const items: CompareItem[] = [buildFromRecipe(original)];
+    alts.slice(0, 2).forEach(a => items.push(buildFromRecipe(a.recipe)));
+    if (items.length < 2) { toast.info('No alternatives found to compare'); return; }
+    setCompareItems(items);
+    setShowCompare(true);
+  };
+
   const handleLogAllMeals = () => {
     if (!currentDay) return;
     setShowLogConfirm(true);
