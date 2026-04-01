@@ -447,6 +447,15 @@ export function addSupplementForDate(date: string, entry: SupplementEntry) {
   log.supplements = log.supplements || [];
   log.supplements.push(entry);
   saveDailyLog(log);
+  // Sync to supplement_logs table
+  import('@/integrations/supabase/client').then(({ supabase }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user) return;
+      supabase.from('supplement_logs' as any).upsert({
+        user_id: session.user.id, log_date: date, supplements: log.supplements as any,
+      }, { onConflict: 'user_id,log_date' } as any).then(() => {});
+    });
+  }).catch(() => {});
   return log;
 }
 
@@ -454,6 +463,15 @@ export function deleteSupplementFromLog(date: string, id: string) {
   const log = getDailyLog(date);
   log.supplements = (log.supplements || []).filter(s => s.id !== id);
   saveDailyLog(log);
+  // Sync to supplement_logs table
+  import('@/integrations/supabase/client').then(({ supabase }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user) return;
+      supabase.from('supplement_logs' as any).upsert({
+        user_id: session.user.id, log_date: date, supplements: log.supplements as any,
+      }, { onConflict: 'user_id,log_date' } as any).then(() => {});
+    });
+  }).catch(() => {});
   return log;
 }
 

@@ -257,17 +257,19 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
       }
     });
 
-    // Listen for budget updates to trigger cloud sync
-    const handleBudgetUpdate = () => {
+    // Listen for budget and profile updates to trigger cloud sync
+    const handleExternalSync = () => {
       const current = getProfile();
       if (current) syncToCloud(current);
     };
-    window.addEventListener('nutrilens:budget-updated', handleBudgetUpdate);
+    window.addEventListener('nutrilens:budget-updated', handleExternalSync);
+    window.addEventListener('nutrilens:profile-updated', handleExternalSync);
 
     return () => {
       cancelled = true;
       subscription.unsubscribe();
-      window.removeEventListener('nutrilens:budget-updated', handleBudgetUpdate);
+      window.removeEventListener('nutrilens:budget-updated', handleExternalSync);
+      window.removeEventListener('nutrilens:profile-updated', handleExternalSync);
     };
   }, []);
 
