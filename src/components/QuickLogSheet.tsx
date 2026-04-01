@@ -6,6 +6,7 @@ import { addMealToLog, type MealEntry, type FoodItem, getProfile } from '@/lib/s
 import { syncDailyBalance } from '@/lib/calorie-correction';
 import { reportPrice } from '@/lib/live-price-service';
 import { checkAllergens, getAllergenLabel, getAllergenEmoji } from '@/lib/allergen-engine';
+import { checkFoodForConditions, getUserConditions } from '@/lib/condition-coach';
 import { toast } from 'sonner';
 
 interface Props {
