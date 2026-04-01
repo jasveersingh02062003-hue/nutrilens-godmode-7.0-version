@@ -10,6 +10,51 @@ import { getTodayKey } from './store';
 import { computePES, getMealTargetCalories } from './pes-engine';
 import { checkAllergens } from './allergen-engine';
 
+// Culinary-aware safe swap suggestions for common allergen-containing dishes
+// Maps food name keywords to safer alternatives that maintain flavor profile
+export const SAFE_SWAP_SUGGESTIONS: Record<string, { allergen: string; alternatives: string[] }[]> = {
+  'paneer': [
+    { allergen: 'dairy', alternatives: ['Tofu', 'Soy Chunks', 'Mushroom'] },
+  ],
+  'butter chicken': [
+    { allergen: 'dairy', alternatives: ['Coconut Chicken Curry', 'Chicken Chettinad'] },
+    { allergen: 'nuts', alternatives: ['Chicken Curry', 'Kadai Chicken'] },
+  ],
+  'naan': [
+    { allergen: 'gluten', alternatives: ['Bajra Roti', 'Jowar Roti', 'Ragi Roti'] },
+    { allergen: 'dairy', alternatives: ['Tandoori Roti', 'Rumali Roti'] },
+  ],
+  'roti': [
+    { allergen: 'gluten', alternatives: ['Bajra Roti', 'Jowar Roti', 'Ragi Roti', 'Makki Ki Roti'] },
+  ],
+  'paratha': [
+    { allergen: 'gluten', alternatives: ['Bajra Roti', 'Jowar Roti', 'Dosa'] },
+  ],
+  'korma': [
+    { allergen: 'dairy', alternatives: ['Coconut Curry', 'Chettinad'] },
+    { allergen: 'nuts', alternatives: ['Do Pyaza', 'Kadai'] },
+  ],
+  'kheer': [
+    { allergen: 'dairy', alternatives: ['Coconut Payasam', 'Fruit Salad'] },
+    { allergen: 'nuts', alternatives: ['Phirni', 'Coconut Laddu'] },
+  ],
+  'samosa': [
+    { allergen: 'gluten', alternatives: ['Masala Bonda', 'Medu Vada', 'Sabudana Vada'] },
+  ],
+  'upma': [
+    { allergen: 'gluten', alternatives: ['Poha', 'Idli', 'Pesarattu'] },
+  ],
+  'kaju katli': [
+    { allergen: 'nuts', alternatives: ['Coconut Laddu', 'Til Laddu', 'Peda'] },
+  ],
+  'biryani': [
+    { allergen: 'dairy', alternatives: ['Lemon Rice', 'Tomato Rice', 'Tamarind Rice'] },
+  ],
+  'lassi': [
+    { allergen: 'dairy', alternatives: ['Coconut Water', 'Nimbu Pani', 'Aam Panna'] },
+  ],
+};
+
 export interface SwapAlternative {
   recipe: EnrichedRecipe;
   cost: number;
