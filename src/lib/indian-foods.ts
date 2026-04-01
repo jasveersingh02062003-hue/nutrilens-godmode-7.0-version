@@ -464,11 +464,11 @@ export const INDIAN_FOODS: IndianFood[] = [
   // ==========================================
   // === PROTEIN ITEMS (10 items) ===
   // ==========================================
-  { id: 'in800', name: 'Soy Chunks (cooked)', hindi: 'सोया चंक्स', category: 'Protein', calories: 345, protein: 52.0, carbs: 33, fat: 0.5, fiber: 13.0, iron: 20.0, calcium: 350, vitC: 0, defaultServing: 30, servingUnit: 'bowl' },
-  { id: 'in801', name: 'Tofu', hindi: 'टोफू', category: 'Protein', calories: 76, protein: 8.0, carbs: 1.9, fat: 4.8, fiber: 0.3, iron: 5.4, calcium: 350, vitC: 0, defaultServing: 100, servingUnit: 'piece' },
-  { id: 'in802', name: 'Soy Milk', hindi: 'सोया दूध', category: 'Protein', calories: 54, protein: 3.3, carbs: 6, fat: 1.8, fiber: 0.6, iron: 0.6, calcium: 25, vitC: 0, defaultServing: 250, servingUnit: 'glass' },
-  { id: 'in803', name: 'Whey Protein (scoop)', hindi: 'व्हे प्रोटीन', category: 'Protein', calories: 120, protein: 24.0, carbs: 3, fat: 1.0, fiber: 0, iron: 0.5, calcium: 100, vitC: 0, defaultServing: 30, servingUnit: 'scoop' },
-  { id: 'in804', name: 'Tempeh', hindi: 'टेम्पे', category: 'Protein', calories: 192, protein: 20.3, carbs: 8, fat: 11.0, fiber: 7.0, iron: 2.7, calcium: 111, vitC: 0, defaultServing: 100, servingUnit: 'serving' },
+  { id: 'in800', name: 'Soy Chunks (cooked)', hindi: 'सोया चंक्स', category: 'Protein', calories: 345, protein: 52.0, carbs: 33, fat: 0.5, fiber: 13.0, iron: 20.0, calcium: 350, vitC: 0, defaultServing: 30, servingUnit: 'bowl', allergens: ['soy'] },
+  { id: 'in801', name: 'Tofu', hindi: 'टोफू', category: 'Protein', calories: 76, protein: 8.0, carbs: 1.9, fat: 4.8, fiber: 0.3, iron: 5.4, calcium: 350, vitC: 0, defaultServing: 100, servingUnit: 'piece', allergens: ['soy'] },
+  { id: 'in802', name: 'Soy Milk', hindi: 'सोया दूध', category: 'Protein', calories: 54, protein: 3.3, carbs: 6, fat: 1.8, fiber: 0.6, iron: 0.6, calcium: 25, vitC: 0, defaultServing: 250, servingUnit: 'glass', allergens: ['soy'] },
+  { id: 'in803', name: 'Whey Protein (scoop)', hindi: 'व्हे प्रोटीन', category: 'Protein', calories: 120, protein: 24.0, carbs: 3, fat: 1.0, fiber: 0, iron: 0.5, calcium: 100, vitC: 0, defaultServing: 30, servingUnit: 'scoop', allergens: ['dairy'] },
+  { id: 'in804', name: 'Tempeh', hindi: 'टेम्पे', category: 'Protein', calories: 192, protein: 20.3, carbs: 8, fat: 11.0, fiber: 7.0, iron: 2.7, calcium: 111, vitC: 0, defaultServing: 100, servingUnit: 'serving', allergens: ['soy'] },
 ];
 
 // Search function that matches across name, hindi name, and category
