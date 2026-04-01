@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { checkAllergens, getAllergenLabel, getAllergenEmoji } from '@/lib/allergen-engine';
 import { RefreshCw, ShoppingCart, Clock, Flame, Beef, Wheat, Droplets, ArrowRight, Check, Repeat, IndianRupee, AlertCircle, CheckCircle2, XCircle, AlertTriangle, TrendingUp } from 'lucide-react';
 import { WeekPlan, DayPlan, PlannedMeal } from '@/lib/meal-planner-store';
 import { MealPlannerProfile } from '@/lib/meal-planner-store';
