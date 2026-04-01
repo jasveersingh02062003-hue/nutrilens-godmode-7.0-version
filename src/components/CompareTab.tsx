@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Star, Scale, ChefHat, Home, Camera, Mic, ScanLine, Sparkles, Minus, Plus, Pencil } from 'lucide-react';
+import { Search, X, Star, Scale, ChefHat, Home, Camera, Mic, ScanLine, Sparkles, Minus, Plus, Pencil, IndianRupee } from 'lucide-react';
 import { searchIndianFoods, type IndianFood } from '@/lib/indian-foods';
 import { recipes, type Recipe } from '@/lib/recipes';
 import { type CompareItem, buildFromFood, buildFromRecipe, buildFromAnalyzed, rebuildFoodAtServing, COMPARE_METRICS } from '@/lib/compare-helpers';
