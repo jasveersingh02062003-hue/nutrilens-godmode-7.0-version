@@ -126,7 +126,7 @@ export default function SwapSimulatorSheet({ open, onClose, originalRecipeId, me
                       {alt.highlight === 'Best Choice' ? '⭐ Best Choice' : alt.highlight}
                     </span>
                   </motion.button>
-                ))
+                  ))}
                 </>
               )}
             </motion.div>
