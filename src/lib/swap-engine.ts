@@ -8,6 +8,7 @@ import { getAdjustedDailyBudget } from './budget-service';
 import { getProfile } from './store';
 import { getTodayKey } from './store';
 import { computePES, getMealTargetCalories } from './pes-engine';
+import { checkAllergens } from './allergen-engine';
 
 export interface SwapAlternative {
   recipe: EnrichedRecipe;
