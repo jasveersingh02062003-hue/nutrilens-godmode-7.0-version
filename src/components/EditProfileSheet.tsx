@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Camera, User, Ruler, Scale, Target, Activity, Heart, Apple, ChefHat, Save } from 'lucide-react';
+import { X, Camera, User, Ruler, Scale, Target, Activity, Heart, Apple, ChefHat, Save, Shield } from 'lucide-react';
+import { COMMON_ALLERGENS } from '@/lib/allergen-tags';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { calculateBMI, calculateBMR, calculateTDEE } from '@/lib/nutrition';
 import { determineGoalAndTargets } from '@/lib/goal-engine';
@@ -54,6 +55,7 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
   const [goal, setGoal] = useState('lose');
   const [goalSpeed, setGoalSpeed] = useState(0.5);
   const [healthConditions, setHealthConditions] = useState<string[]>([]);
+  const [allergens, setAllergens] = useState<string[]>([]);
   const [dietaryPrefs, setDietaryPrefs] = useState<string[]>([]);
   const [waterGoal, setWaterGoal] = useState(2000);
   const [occupation, setOccupation] = useState('');
@@ -70,6 +72,7 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
       setGoal(profile.goal || 'lose');
       setGoalSpeed(profile.goalSpeed || 0.5);
       setHealthConditions(profile.healthConditions || []);
+      setAllergens(profile.allergens || []);
       setDietaryPrefs(profile.dietaryPrefs || []);
       setWaterGoal(profile.waterGoal || 2000);
       setOccupation(profile.occupation || '');
@@ -122,6 +125,7 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
       goal: decision.effectiveGoal,
       goalSpeed,
       healthConditions,
+      allergens,
       dietaryPrefs,
       waterGoal,
       occupation,
@@ -274,6 +278,27 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
                   </button>
                 ))}
               </div>
+            </Section>
+
+            {/* Allergies & Intolerances */}
+            <Section title="Allergies & Intolerances" icon={Shield}>
+              <div className="flex flex-wrap gap-2">
+                {COMMON_ALLERGENS.map(a => (
+                  <button key={a.value} onClick={() => setAllergens(toggleArrayItem(allergens, a.value))}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${allergens.includes(a.value) ? 'bg-destructive text-destructive-foreground' : 'bg-muted text-muted-foreground'}`}>
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+              {allergens.length > 0 && (
+                <motion.p
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-[10px] text-destructive font-medium mt-1"
+                >
+                  🛡️ You'll be warned before logging foods with these allergens.
+                </motion.p>
+              )}
             </Section>
 
             {/* Dietary Preferences */}

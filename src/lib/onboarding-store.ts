@@ -13,6 +13,7 @@ export interface OnboardingData {
   basic: { name: string; gender: string; age: number; heightCm: number; weightKg: number };
   health: {
     conditions: string[];
+    allergens?: string[];
     skin: string;
     genderSpecific: {
       pcos: boolean;
@@ -118,6 +119,7 @@ export function saveOnboardingData(data: OnboardingData) {
     bmr,
     tdee, // ← ACTUAL TDEE, not goal calories
     skinConcerns: data.health.skin !== 'none' ? { [data.health.skin]: true } : undefined,
+    allergens: data.health.allergens || [],
     joinDate: toLocalDateKey(new Date()),
   };
   saveProfile(profile);

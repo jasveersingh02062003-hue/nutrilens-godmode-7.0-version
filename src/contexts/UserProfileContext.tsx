@@ -105,7 +105,10 @@ function syncToCloud(profile: UserProfile) {
       tdee: profile.tdee,
       // Sync all extended data into JSON columns
       budget: budgetPayload,
-      conditions: (profile as any).conditions || null,
+      conditions: {
+        ...((profile as any).conditions || {}),
+        allergens: profile.allergens || [],
+      },
       coach_settings: (profile as any).coachSettings || null,
       learning: (profile as any).learning || null,
       notification_settings: (profile as any).notificationSettings || null,
@@ -170,6 +173,7 @@ function dbRowToProfile(row: any): UserProfile {
     tdee: Number(row.tdee) || 2000,
     // Restore extended fields from cloud
     skinConcerns: row.conditions?.skinConcerns || undefined,
+    allergens: row.conditions?.allergens || [],
     joinDate: row.join_date || undefined,
   } as UserProfile;
 }

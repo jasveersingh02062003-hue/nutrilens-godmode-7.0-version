@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { checkAllergens, getAllergenLabel } from '@/lib/allergen-engine';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { ChevronLeft, Trash2, Plus, Minus, Camera, Mic, Search, Pencil, IndianRupee, ArrowRight, Settings2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -491,8 +492,18 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
                       {item.emoji || '🍽️'}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
+                        {(() => {
+                          const userAllergens = profile?.allergens || [];
+                          const allergenCheck = checkAllergens(item.name, userAllergens);
+                          if (!allergenCheck.hasConflict) return null;
+                          return allergenCheck.matched.map(a => (
+                            <span key={a} className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full bg-destructive/10 border border-destructive/20 text-[8px] font-bold text-destructive animate-scale-in">
+                              ⚠️ {getAllergenLabel(a)}
+                            </span>
+                          ));
+                        })()}
                         <button
                           onClick={() => { setEditingItemId(item.id); setEditingItemMealId(item.mealId); }}
                           className="w-5 h-5 rounded-md hover:bg-primary/10 flex items-center justify-center shrink-0 transition-colors"

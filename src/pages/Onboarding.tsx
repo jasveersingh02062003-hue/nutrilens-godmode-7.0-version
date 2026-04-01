@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, Sparkles, Heart, User, Dumbbell, Ruler, Scale, Target, TrendingDown, Droplets, AlertTriangle, ChevronDown, Clock, Loader2, UtensilsCrossed, Zap, Camera, ShieldAlert, Pencil, CheckCircle, Info, Lightbulb } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Sparkles, Heart, User, Dumbbell, Ruler, Scale, Target, TrendingDown, Droplets, AlertTriangle, ChevronDown, Clock, Loader2, UtensilsCrossed, Zap, Camera, ShieldAlert, Pencil, CheckCircle, Info, Lightbulb, Shield } from 'lucide-react';
+import { COMMON_ALLERGENS } from '@/lib/allergen-tags';
 import PESFeatureFlex from '@/components/PESFeatureFlex';
 import MonikaGuide, { MONIKA_MESSAGES } from '@/components/onboarding/MonikaGuide';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -273,6 +274,7 @@ interface FormState {
   heightFt: number;
   heightIn: number;
   conditions: string[];
+  allergens: string[];
   skin: string;
   pcosSeverity: number;
   pregnant: boolean;
@@ -344,7 +346,7 @@ export default function Onboarding() {
   const [f, setF] = useState<FormState>({
     name: '', gender: '', age: 25, heightCm: 170, weightKg: 70,
     heightUnit: 'cm', weightUnit: 'kg', heightFt: 5, heightIn: 7,
-    conditions: [], skin: '',
+    conditions: [], allergens: [], skin: '',
     pcosSeverity: 3, pregnant: false, breastfeeding: false, menstrualPhase: '',
     prostateConcerns: false, testosteroneConcerns: false,
     work: '', exercise: '',
@@ -533,6 +535,7 @@ export default function Onboarding() {
       basic: { name: f.name, gender: f.gender, age: f.age, heightCm: f.heightCm, weightKg: f.weightKg },
       health: {
         conditions: f.conditions,
+        allergens: f.allergens,
         skin: f.skin || 'none',
         genderSpecific: {
           pcos: f.conditions.includes('pcos'),
@@ -900,6 +903,37 @@ export default function Onboarding() {
                 </ul>
               </motion.div>
             )}
+
+            {/* Allergen Selection */}
+            <div className="pt-4 border-t border-border space-y-3">
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-destructive" />
+                <p className="text-xs font-semibold text-foreground">Any food allergies?</p>
+              </div>
+              <ChipSelect
+                options={COMMON_ALLERGENS.map(a => ({ value: a.value, label: a.label }))}
+                selected={f.allergens}
+                onToggle={v => {
+                  const curr = f.allergens;
+                  set('allergens', curr.includes(v) ? curr.filter(x => x !== v) : [...curr, v]);
+                }}
+              />
+              <motion.button whileTap={{ scale: 0.98 }} onClick={() => set('allergens', [])}
+                className={`w-full px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all border ${f.allergens.length === 0 ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border'}`}>
+                ✅ No allergies
+              </motion.button>
+              {f.allergens.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  className="bg-destructive/5 border border-destructive/20 rounded-xl p-4"
+                >
+                  <p className="text-xs text-foreground leading-relaxed font-medium">
+                    🛡️ We'll warn you before logging any food containing <strong>{f.allergens.map(a => COMMON_ALLERGENS.find(c => c.value === a)?.label.split(' ')[1] || a).join(', ')}</strong>.
+                  </p>
+                </motion.div>
+              )}
+            </div>
           </div>
         );
       }

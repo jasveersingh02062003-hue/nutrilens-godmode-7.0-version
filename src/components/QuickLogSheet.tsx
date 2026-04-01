@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { searchIndianFoods, indianFoodToFoodItem } from '@/lib/indian-foods';
-import { addMealToLog, type MealEntry, type FoodItem } from '@/lib/store';
+import { addMealToLog, type MealEntry, type FoodItem, getProfile } from '@/lib/store';
 import { syncDailyBalance } from '@/lib/calorie-correction';
 import { reportPrice } from '@/lib/live-price-service';
+import { checkAllergens, getAllergenLabel, getAllergenEmoji } from '@/lib/allergen-engine';
 import { toast } from 'sonner';
 
 interface Props {
@@ -46,6 +47,22 @@ export default function QuickLogSheet({ open, onClose, onSaved }: Props) {
       toast.error("Couldn't recognize any foods. Try 'dal rice' or '2 rotis'.");
       setSaving(false);
       return;
+    }
+
+    // Check for allergens
+    const profile = getProfile();
+    const userAllergens = profile?.allergens || [];
+    if (userAllergens.length > 0) {
+      const warnings: string[] = [];
+      for (const item of items) {
+        const check = checkAllergens(item.name, userAllergens);
+        if (check.hasConflict) {
+          warnings.push(`${item.name} contains ${check.matched.map(a => `${getAllergenEmoji(a)} ${getAllergenLabel(a)}`).join(', ')}`);
+        }
+      }
+      if (warnings.length > 0) {
+        warnings.forEach(w => toast.error(`⚠️ ${w}`, { duration: 5000 }));
+      }
     }
 
     const hour = new Date().getHours();
