@@ -8,17 +8,56 @@ import { supabase } from '@/integrations/supabase/client';
 import VoiceWaveform from '@/components/VoiceWaveform';
 import { toast } from 'sonner';
 
+// ─── Compress image to max 800px and JPEG quality 0.6 ───
+function compressImage(dataUrl: string, maxDim = 800, quality = 0.6): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        const ratio = Math.min(maxDim / width, maxDim / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('canvas')); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      const compressed = canvas.toDataURL('image/jpeg', quality);
+      resolve(compressed.split(',')[1]);
+    };
+    img.onerror = () => reject(new Error('image load failed'));
+    img.src = dataUrl;
+  });
+}
+
 // ─── Shared: analyze image via edge function ───
 async function analyzeImageBase64(base64: string): Promise<CompareItem | null> {
   try {
-    const { data, error } = await supabase.functions.invoke('analyze-food', {
-      body: { imageBase64: base64 },
+    const projId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+    const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const url = `https://${projId}.supabase.co/functions/v1/analyze-food`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': anonKey,
+        'Authorization': `Bearer ${anonKey}`,
+      },
+      body: JSON.stringify({ imageBase64: base64 }),
     });
-    if (error) {
-      console.error('analyze-food error:', error);
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('analyze-food HTTP error:', response.status, errText);
       toast.error('Food analysis failed. Please try again.');
       return null;
     }
+
+    const data = await response.json();
     if (data?.error) {
       console.error('analyze-food returned error:', data.error);
       toast.error(data.error);
