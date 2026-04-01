@@ -74,7 +74,7 @@ export const INDIAN_FOODS: IndianFood[] = [
   // === DALS & LEGUMES (40 items) ===
   // ==========================================
   { id: 'in020', name: 'Dal Tadka (toor dal)', hindi: 'दाल तड़का', category: 'Dals', calories: 130, protein: 8.5, carbs: 18, fat: 3.2, fiber: 4.5, iron: 2.5, calcium: 55, vitC: 2, defaultServing: 150, servingUnit: 'bowl' },
-  { id: 'in021', name: 'Dal Makhani', hindi: 'दाल मखनी', category: 'Dals', calories: 165, protein: 7.8, carbs: 15, fat: 8.5, fiber: 5.2, iron: 3.0, calcium: 60, vitC: 1, defaultServing: 150, servingUnit: 'bowl' },
+  { id: 'in021', name: 'Dal Makhani', hindi: 'दाल मखनी', category: 'Dals', calories: 165, protein: 7.8, carbs: 15, fat: 8.5, fiber: 5.2, iron: 3.0, calcium: 60, vitC: 1, defaultServing: 150, servingUnit: 'bowl', allergens: ['dairy'] },
   { id: 'in022', name: 'Chana Dal', hindi: 'चना दाल', category: 'Dals', calories: 140, protein: 9.0, carbs: 19, fat: 3.5, fiber: 5.0, iron: 2.8, calcium: 58, vitC: 2, defaultServing: 150, servingUnit: 'bowl' },
   { id: 'in023', name: 'Moong Dal', hindi: 'मूंग दाल', category: 'Dals', calories: 105, protein: 8.5, carbs: 15, fat: 1.5, fiber: 3.5, iron: 2.0, calcium: 45, vitC: 2, defaultServing: 150, servingUnit: 'bowl' },
   { id: 'in024', name: 'Rajma (kidney beans curry)', hindi: 'राजमा', category: 'Dals', calories: 140, protein: 8.0, carbs: 20, fat: 3.0, fiber: 6.5, iron: 3.2, calcium: 52, vitC: 3, defaultServing: 150, servingUnit: 'bowl' },
