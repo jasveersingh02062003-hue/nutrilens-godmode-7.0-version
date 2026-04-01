@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Search, Plus, AlertTriangle, ShieldAlert, Scale } from 'lucide-react';
 import { searchIndianFoods, indianFoodToFoodItem } from '@/lib/indian-foods';
 import { estimateCost } from '@/lib/price-database';
 import { checkAllergens, getAllergenLabel, getAllergenEmoji, hasSevereAllergen } from '@/lib/allergen-engine';
 import { checkFoodForConditions, getUserConditions } from '@/lib/condition-coach';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import ComparisonSheet from '@/components/ComparisonSheet';
+import { buildFromFoodItem } from '@/lib/compare-helpers';
 import {
   AlertDialog,
   AlertDialogAction,
