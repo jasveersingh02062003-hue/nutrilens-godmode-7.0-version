@@ -8,17 +8,56 @@ import { supabase } from '@/integrations/supabase/client';
 import VoiceWaveform from '@/components/VoiceWaveform';
 import { toast } from 'sonner';
 
+// ─── Compress image to max 800px and JPEG quality 0.6 ───
+function compressImage(dataUrl: string, maxDim = 800, quality = 0.6): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        const ratio = Math.min(maxDim / width, maxDim / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('canvas')); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      const compressed = canvas.toDataURL('image/jpeg', quality);
+      resolve(compressed.split(',')[1]);
+    };
+    img.onerror = () => reject(new Error('image load failed'));
+    img.src = dataUrl;
+  });
+}
+
 // ─── Shared: analyze image via edge function ───
 async function analyzeImageBase64(base64: string): Promise<CompareItem | null> {
   try {
-    const { data, error } = await supabase.functions.invoke('analyze-food', {
-      body: { imageBase64: base64 },
+    const projId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+    const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const url = `https://${projId}.supabase.co/functions/v1/analyze-food`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': anonKey,
+        'Authorization': `Bearer ${anonKey}`,
+      },
+      body: JSON.stringify({ imageBase64: base64 }),
     });
-    if (error) {
-      console.error('analyze-food error:', error);
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('analyze-food HTTP error:', response.status, errText);
       toast.error('Food analysis failed. Please try again.');
       return null;
     }
+
+    const data = await response.json();
     if (data?.error) {
       console.error('analyze-food returned error:', data.error);
       toast.error(data.error);
@@ -139,10 +178,14 @@ function CameraCapture({ onCapture, onClose }: { onCapture: (item: CompareItem) 
     }
     setAnalyzing(true);
     const canvas = document.createElement('canvas');
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
-    canvas.getContext('2d')?.drawImage(videoRef.current, 0, 0);
-    const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+    const vw = videoRef.current.videoWidth;
+    const vh = videoRef.current.videoHeight;
+    const maxDim = 800;
+    const ratio = Math.min(maxDim / vw, maxDim / vh, 1);
+    canvas.width = Math.round(vw * ratio);
+    canvas.height = Math.round(vh * ratio);
+    canvas.getContext('2d')?.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    const base64 = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
 
     const result = await analyzeImageBase64(base64);
     streamRef.current?.getTracks().forEach(t => t.stop());
@@ -246,17 +289,20 @@ function UploadCapture({ onCapture, onClose }: { onCapture: (item: CompareItem) 
     reader.onload = async () => {
       const dataUrl = reader.result as string;
       setPreview(dataUrl);
-      const base64 = dataUrl.split(',')[1];
 
-      if (!base64 || base64.length < 100) {
-        toast.error('Invalid image file. Try another photo.');
-        onClose();
-        return;
-      }
-
-      const result = await analyzeImageBase64(base64);
-      if (result) {
-        onCapture(result);
+      try {
+        const base64 = await compressImage(dataUrl);
+        if (!base64 || base64.length < 100) {
+          toast.error('Invalid image file. Try another photo.');
+          onClose();
+          return;
+        }
+        const result = await analyzeImageBase64(base64);
+        if (result) {
+          onCapture(result);
+        }
+      } catch {
+        toast.error('Failed to process image. Try again.');
       }
       onClose();
     };
