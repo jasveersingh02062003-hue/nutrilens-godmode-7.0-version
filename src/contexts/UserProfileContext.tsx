@@ -173,6 +173,7 @@ function dbRowToProfile(row: any): UserProfile {
     tdee: Number(row.tdee) || 2000,
     // Restore extended fields from cloud
     skinConcerns: row.conditions?.skinConcerns || undefined,
+    allergens: row.conditions?.allergens || [],
     joinDate: row.join_date || undefined,
   } as UserProfile;
 }

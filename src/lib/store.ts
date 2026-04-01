@@ -37,6 +37,7 @@ export interface UserProfile {
   bmr: number;
   tdee: number;
   joinDate?: string; // YYYY-MM-DD, set once during onboarding
+  allergens?: string[]; // e.g. ['dairy', 'gluten', 'nuts']
   skinConcerns?: {
     oily?: boolean;
     dry?: boolean;
