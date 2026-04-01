@@ -5,9 +5,11 @@ import { getRecipeById } from '@/lib/recipes';
 import { getRecipeCost } from '@/lib/recipe-cost';
 import { getRecipeImage } from '@/lib/recipe-images';
 import { computePES } from '@/lib/pes-engine';
-import { Zap, ArrowLeft, AlertTriangle, Star, DollarSign, Dumbbell, Timer } from 'lucide-react';
+import { Zap, ArrowLeft, AlertTriangle, Star, DollarSign, Dumbbell, Timer, Scale } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import ComparisonSheet from '@/components/ComparisonSheet';
+import { buildFromRecipe, type CompareItem } from '@/lib/compare-helpers';
 
 interface Props {
   open: boolean;
