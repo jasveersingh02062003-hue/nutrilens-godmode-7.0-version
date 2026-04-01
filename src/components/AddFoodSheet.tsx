@@ -126,15 +126,16 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
                 const hasAnyWarning = allergenCheck.hasConflict || conditionWarnings.length > 0;
 
                 return (
-                  <motion.button
+                  <motion.div
                     key={food.id}
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.03 }}
-                    onClick={() => handleAdd(food)}
-                    className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 active:scale-[0.98] transition-all"
+                    className={`w-full flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-all ${
+                      compareSelection.some(c => c.id === food.id) ? 'ring-2 ring-primary/50' : ''
+                    }`}
                   >
-                    <div className="text-left flex-1 min-w-0">
+                    <button onClick={() => handleAdd(food)} className="text-left flex-1 min-w-0 active:scale-[0.98]">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="text-sm font-medium text-foreground">{food.name}</p>
                         {allergenCheck.hasConflict && (
@@ -171,16 +172,45 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
                         {food.hindi} · {food.defaultServing}{food.servingUnit} · {item.calories} kcal
                         {cost ? ` · ₹${cost}` : ''}
                       </p>
+                    </button>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => {
+                          const foodItem = { ...indianFoodToFoodItem(food), id: food.id, itemCost: cost || 0 };
+                          setCompareSelection(prev => {
+                            if (prev.some(c => c.id === food.id)) return prev.filter(c => c.id !== food.id);
+                            if (prev.length >= 3) return prev;
+                            return [...prev, foodItem];
+                          });
+                        }}
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                          compareSelection.some(c => c.id === food.id) ? 'bg-primary/20' : 'bg-muted'
+                        }`}
+                      >
+                        <Scale className={`w-3.5 h-3.5 ${compareSelection.some(c => c.id === food.id) ? 'text-primary' : 'text-muted-foreground'}`} />
+                      </button>
+                      <button onClick={() => handleAdd(food)} className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                        hasAnyWarning ? 'bg-destructive/10' : 'bg-primary/10'
+                      }`}>
+                        <Plus className={`w-4 h-4 ${hasAnyWarning ? 'text-destructive' : 'text-primary'}`} />
+                      </button>
                     </div>
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                      hasAnyWarning ? 'bg-destructive/10' : 'bg-primary/10'
-                    }`}>
-                      <Plus className={`w-4 h-4 ${hasAnyWarning ? 'text-destructive' : 'text-primary'}`} />
-                    </div>
-                  </motion.button>
+                  </motion.div>
                 );
               })}
             </AnimatePresence>
+
+            {/* Floating Compare Pill */}
+            {compareSelection.length >= 2 && (
+              <motion.button
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="sticky bottom-2 left-1/2 -translate-x-1/2 z-40 px-5 py-3 rounded-full bg-primary text-primary-foreground font-bold text-sm shadow-fab flex items-center gap-2 mx-auto active:scale-[0.97] transition-transform"
+                onClick={() => setCompareSheetOpen(true)}
+              >
+                <Scale className="w-4 h-4" /> Compare ({compareSelection.length})
+              </motion.button>
+            )}
           </div>
         </SheetContent>
       </Sheet>
