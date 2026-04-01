@@ -147,7 +147,7 @@ export const INDIAN_FOODS: IndianFood[] = [
   { id: 'in04y', name: 'Potato (boiled)', hindi: 'आलू (उबला)', category: 'Vegetables', calories: 87, protein: 1.9, carbs: 20, fat: 0.1, fiber: 1.8, iron: 0.3, calcium: 5, vitC: 13, defaultServing: 100, servingUnit: 'piece' },
   { id: 'in04z', name: 'Sweet Potato (boiled)', hindi: 'शकरकंद', category: 'Vegetables', calories: 86, protein: 1.6, carbs: 20, fat: 0.1, fiber: 3.0, iron: 0.6, calcium: 30, vitC: 2.4, defaultServing: 100, servingUnit: 'piece' },
   { id: 'in04A', name: 'Palak Corn', hindi: 'पालक कॉर्न', category: 'Vegetables', calories: 105, protein: 4.0, carbs: 12, fat: 5.0, fiber: 3.0, iron: 2.5, calcium: 70, vitC: 15, defaultServing: 150, servingUnit: 'bowl' },
-  { id: 'in04B', name: 'Undhiyu', hindi: 'ऊंधियू', category: 'Vegetables', calories: 145, protein: 4.5, carbs: 16, fat: 7.5, fiber: 4.0, iron: 2.0, calcium: 50, vitC: 10, defaultServing: 200, servingUnit: 'bowl' },
+  { id: 'in04B', name: 'Undhiyu', hindi: 'ऊंधियू', category: 'Vegetables', calories: 145, protein: 4.5, carbs: 16, fat: 7.5, fiber: 4.0, iron: 2.0, calcium: 50, vitC: 10, defaultServing: 200, servingUnit: 'bowl', allergens: ['nuts', 'peanuts', 'mustard'] },
 
   // ==========================================
   // === NON-VEG (70 items) ===
