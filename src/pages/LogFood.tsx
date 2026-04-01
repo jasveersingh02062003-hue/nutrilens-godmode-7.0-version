@@ -23,6 +23,8 @@ import AdjustmentExplanationModal from '@/components/AdjustmentExplanationModal'
 import LivePriceBanner from '@/components/LivePriceBanner';
 import { reportPrice } from '@/lib/live-price-service';
 import { checkAllergens, getAllergenLabel, getAllergenEmoji, hasSevereAllergen } from '@/lib/allergen-engine';
+import { checkFoodForConditions, getUserConditions, type FoodConditionWarning } from '@/lib/condition-coach';
+import AnimatedWarningBanner, { type WarningMessage } from '@/components/AnimatedWarningBanner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   AlertDialog,
