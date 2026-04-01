@@ -34,6 +34,23 @@ export function buildFromFood(food: IndianFood): CompareItem {
   return { type: 'food', id: `food-${food.id}`, name: food.name, calories: cal, protein: pro, carbs: carb, fat, fiber: fib, cost, pes };
 }
 
+export function buildFromFoodItem(food: FoodItem): CompareItem {
+  const cost = food.itemCost || estimateCost([{ name: food.name, quantity: food.quantity, unit: food.unit }]) || Math.round(food.calories * 0.04);
+  const pes = computePES({ protein: food.protein, calories: food.calories, cost }, {});
+  return {
+    type: 'food',
+    id: `food-${food.id}`,
+    name: food.name,
+    calories: food.calories,
+    protein: food.protein,
+    carbs: food.carbs,
+    fat: food.fat,
+    fiber: food.fiber || 0,
+    cost,
+    pes,
+  };
+}
+
 export function buildFromRecipe(recipe: Recipe): CompareItem {
   const enriched = getEnrichedRecipe(recipe);
   const cost = getRecipeCost(recipe);
