@@ -903,6 +903,37 @@ export default function Onboarding() {
                 </ul>
               </motion.div>
             )}
+
+            {/* Allergen Selection */}
+            <div className="pt-4 border-t border-border space-y-3">
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-destructive" />
+                <p className="text-xs font-semibold text-foreground">Any food allergies?</p>
+              </div>
+              <ChipSelect
+                options={COMMON_ALLERGENS.map(a => ({ value: a.value, label: a.label }))}
+                selected={f.allergens}
+                onToggle={v => {
+                  const curr = f.allergens;
+                  set('allergens', curr.includes(v) ? curr.filter(x => x !== v) : [...curr, v]);
+                }}
+              />
+              <motion.button whileTap={{ scale: 0.98 }} onClick={() => set('allergens', [])}
+                className={`w-full px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all border ${f.allergens.length === 0 ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border'}`}>
+                ✅ No allergies
+              </motion.button>
+              {f.allergens.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  className="bg-destructive/5 border border-destructive/20 rounded-xl p-4"
+                >
+                  <p className="text-xs text-foreground leading-relaxed font-medium">
+                    🛡️ We'll warn you before logging any food containing <strong>{f.allergens.map(a => COMMON_ALLERGENS.find(c => c.value === a)?.label.split(' ')[1] || a).join(', ')}</strong>.
+                  </p>
+                </motion.div>
+              )}
+            </div>
           </div>
         );
       }
