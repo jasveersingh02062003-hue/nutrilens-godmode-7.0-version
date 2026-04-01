@@ -178,10 +178,14 @@ function CameraCapture({ onCapture, onClose }: { onCapture: (item: CompareItem) 
     }
     setAnalyzing(true);
     const canvas = document.createElement('canvas');
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
-    canvas.getContext('2d')?.drawImage(videoRef.current, 0, 0);
-    const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+    const vw = videoRef.current.videoWidth;
+    const vh = videoRef.current.videoHeight;
+    const maxDim = 800;
+    const ratio = Math.min(maxDim / vw, maxDim / vh, 1);
+    canvas.width = Math.round(vw * ratio);
+    canvas.height = Math.round(vh * ratio);
+    canvas.getContext('2d')?.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    const base64 = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
 
     const result = await analyzeImageBase64(base64);
     streamRef.current?.getTracks().forEach(t => t.stop());
