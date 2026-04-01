@@ -1,55 +1,94 @@
 
 
-# Fix: Double Redistribution Bug & Add Undo/Notification System
+# Allergen Safety System — Implementation Plan
 
-## Problem
+## Overview
 
-From the screenshots: Breakfast is already marked as "Redistributed" with "Goal: 0 kcal", yet the app still shows a "Redistribute Breakfast?" confirmation dialog offering to add 781 kcal to Lunch. Confirming this doubles the redistributed calories, breaking the calorie balance entirely.
+Add a full allergen detection and warning system that protects users with food allergies (nuts, dairy, gluten, soy, eggs, shellfish) across all food logging and meal planning flows.
 
-## Root Cause
+## What Gets Built
 
-The guard at `MealDetailSheet.tsx:406` (`isMissed && !alreadyRedistributed`) correctly hides the redistribute buttons. However, there are two issues:
+### 1. Allergen Keyword Mapping (`src/lib/allergen-tags.ts` — NEW)
 
-1. **Stale state on re-open**: `MealDetailSheet` reads `isRedistributed()` once when rendered. If the sheet was already open when redistribution happened (or opened from a cached state), `alreadyRedistributed` may be `false` from the initial render.
-2. **No guard on the confirmation dialog itself**: The `AlertDialog` at line 824 and `handleRedistribute()` only check `alreadyRedistributed` inside `handleRedistribute`, but the dialog can still be opened if the banner was visible before state updated.
-3. **No notification when auto-redistribution happens**: Users don't know their meals were adjusted until they tap in.
-4. **No undo flow**: If a user actually ate breakfast but forgot to log, there's no way to reverse the redistribution.
+A dictionary mapping ~60 food keywords to allergen categories:
+- **dairy**: paneer, ghee, curd, dahi, lassi, kheer, cheese, cream, milk, raita, butter, malai
+- **gluten**: wheat, roti, naan, paratha, bread, pasta, maida, suji, semolina, bhatura, puri
+- **nuts**: peanut, almond, cashew, kaju, badam, walnut, pistachio
+- **soy**: soya, tofu, soy
+- **eggs**: egg, anda, omelette
+- **shellfish**: prawn, shrimp, crab, lobster
 
-## Plan
+Export: `ALLERGEN_KEYWORDS: Record<string, string[]>` and `COMMON_ALLERGENS` list for UI chips.
 
-### Step 1: Harden Redistribution Guards (MealDetailSheet.tsx)
+### 2. Allergen Detection Engine (`src/lib/allergen-engine.ts` — NEW)
 
-- Move `isRedistributed` check to be re-evaluated on every render (it already is via `const alreadyRedistributed = isRedistributed(date, mealType)`, but ensure it's not stale).
-- Add a guard directly inside the `AlertDialog`'s confirm handler AND inside `SmartRedistributionSheet.handleApply()` — double-check `isRedistributed()` at execution time, not just render time.
-- Disable the "Quick Redistribute" and "Smart Redistribute" buttons if `isRedistributed` returns true, as a belt-and-suspenders approach.
+```typescript
+function checkAllergens(foodName: string, userAllergens: string[]): {
+  hasConflict: boolean;
+  matched: string[];  // e.g. ["dairy", "gluten"]
+}
+```
 
-### Step 2: Add Redistribution Notification Toast (Dashboard)
+Scans the food name against `ALLERGEN_KEYWORDS`. Returns matched allergen categories that intersect with the user's declared allergens. Case-insensitive, handles multi-word names.
 
-- In `src/pages/Dashboard.tsx` (or `Index.tsx`), on page load, check if any meal was auto-missed and not yet redistributed. If the user has `autoDistribute: true` preference, perform the redistribution and show a toast:
-  - "Breakfast was missed. 322 kcal redistributed to Lunch, Dinner & Snacks. Tap to undo."
-- If `autoDistribute: false`, show an info toast: "Breakfast was missed. Tap to redistribute or log it now."
+### 3. User Profile — Store Allergens
 
-### Step 3: Add Undo Redistribution (redistribution-service.ts + MealDetailSheet.tsx)
+- Add `allergens?: string[]` to `UserProfile` interface in `src/lib/store.ts`
+- Stored inside the existing `conditions` JSON column in the cloud `profiles` table (as `conditions.allergens`) — no DB migration needed
+- Sync via existing `UserProfileContext` cloud sync (already syncs `conditions`)
 
-- Add `undoRedistribution(date, mealType)` function to `redistribution-service.ts`:
-  - Read the stored allocation details
-  - Subtract the added calories/protein/carbs/fat from each target meal's daily adjustments
-  - Clear the redistributed flag
-  - Remove the history entry
-- In `MealDetailSheet.tsx`, when viewing a redistributed meal, show an "Undo & Log Breakfast" button that:
-  - Calls `undoRedistribution()`
-  - Opens the food logging sheet for that meal
-  - Shows toast: "Redistribution reversed. Log your breakfast now."
+### 4. Onboarding — Allergen Selection Step
 
-### Step 4: Prevent Double-Apply in SmartRedistributionSheet
+Insert a new step after Health Conditions (step 6) → becomes **step 7** (all subsequent steps shift by 1).
 
-- In `SmartRedistributionSheet.tsx`, check `isRedistributed(date, missedMealType)` at the start of `handleApply()`. If already redistributed, show error toast and close sheet.
+UI: Multi-select chips with animated stagger (reusing existing `ChipSelect` component):
+- 🥜 Nuts, 🥛 Dairy, 🌾 Gluten, 🫘 Soy, 🥚 Eggs, 🦐 Shellfish, + "Other" free-text input
+- "None" button clears selection
+- Insight box: "We'll warn you before logging any food containing these allergens."
 
-## Technical Details
+Store in `f.allergens` in the form state, save to `profile.allergens` on completion.
 
-**Files to modify:**
-- `src/lib/redistribution-service.ts` — add `undoRedistribution()` function
-- `src/components/MealDetailSheet.tsx` — harden guards, add undo button on redistributed banner
-- `src/components/SmartRedistributionSheet.tsx` — add guard in `handleApply()`
-- `src/pages/Index.tsx` or `src/pages/Dashboard.tsx` — add auto-redistribution notification on load
+### 5. Profile Settings — Allergen Management
+
+Add an "Allergies & Intolerances" section to `EditProfileSheet.tsx` between Health Conditions and Dietary Preferences. Same chip UI as onboarding. Changes save immediately via `updateProfile`.
+
+### 6. Warning UI in Logging Flows
+
+**AddFoodSheet** — After each search result renders, call `checkAllergens`. If conflict:
+- Show animated red pill badge: `⚠️ Contains DAIRY` next to the food name (pulse animation)
+- On tap, show confirmation dialog: "This food contains dairy. Log anyway?" with "Log Anyway" and "Find Alternative" buttons
+- "Find Alternative" filters results excluding the allergen
+
+**QuickLogSheet** — After `parseQuickText` resolves foods, check each item. If any conflict, show a red toast with shake animation: `⚠️ "Paneer" contains DAIRY — tap to remove`
+
+**MealDetailSheet** — When viewing a meal's items, show a small red badge on any item containing user allergens.
+
+### 7. Meal Planner Warnings
+
+In `MealPlanDashboard.tsx`, when rendering meal cards, check each recipe's name against user allergens. Show a small animated red `⚠️` badge on the meal card if any allergen is detected. Tooltip on hover/tap shows which allergens.
+
+### 8. Animations
+
+- **Red badge**: `animate-pulse` on first appearance, then static
+- **Warning toast**: slide-in from top with `animate-fade-in` + red background
+- **Confirmation modal**: `animate-scale-in` with red-tinted header
+- **Chip selection**: existing stagger animation from onboarding `ChipSelect`
+- **Badge on meal cards**: subtle `animate-scale-in` entrance
+
+## Files Modified/Created
+
+| File | Action |
+|------|--------|
+| `src/lib/allergen-tags.ts` | **NEW** — keyword→allergen mapping |
+| `src/lib/allergen-engine.ts` | **NEW** — `checkAllergens()` function |
+| `src/lib/store.ts` | Add `allergens?: string[]` to `UserProfile` |
+| `src/contexts/UserProfileContext.tsx` | Map `allergens` in cloud sync (via conditions) |
+| `src/pages/Onboarding.tsx` | Add allergen step after health conditions, shift step numbers |
+| `src/components/EditProfileSheet.tsx` | Add allergen chips section |
+| `src/components/AddFoodSheet.tsx` | Red badge + confirmation dialog for allergen foods |
+| `src/components/QuickLogSheet.tsx` | Toast warning on allergen conflict |
+| `src/components/MealDetailSheet.tsx` | Red badge on flagged items |
+| `src/components/MealPlanDashboard.tsx` | Badge on meal cards with allergens |
+
+No database migration needed — allergens stored in existing `conditions` JSON column.
 
