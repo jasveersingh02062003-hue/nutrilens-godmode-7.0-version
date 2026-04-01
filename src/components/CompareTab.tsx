@@ -179,7 +179,7 @@ function UploadCapture({ onCapture, onClose }: { onCapture: (item: CompareItem) 
 
       try {
         const { data } = await supabase.functions.invoke('analyze-food', {
-          body: { image: base64 },
+          body: { imageBase64: base64 },
         });
         if (data?.items?.[0]) {
           const item = data.items[0];
