@@ -372,7 +372,20 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
                       </span>
                     </div>
                     <div className="absolute bottom-2 left-3 right-3">
-                      <h3 className="font-bold text-sm text-white truncate">{recipe.name}</h3>
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="font-bold text-sm text-white truncate">{recipe.name}</h3>
+                        {(() => {
+                          const userAllergens = (profile as any)?.allergens || [];
+                          const allergenCheck = checkAllergens(recipe.name, userAllergens);
+                          if (!allergenCheck.hasConflict) return null;
+                          return (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-destructive/90 text-[9px] font-bold text-white animate-scale-in shrink-0"
+                              title={allergenCheck.matched.map(a => getAllergenLabel(a)).join(', ')}>
+                              ⚠️ {allergenCheck.matched.map(a => getAllergenLabel(a)).join(', ')}
+                            </span>
+                          );
+                        })()}
+                      </div>
                       <div className="flex gap-3 mt-0.5 text-[10px] text-white/80">
                         <span className="flex items-center gap-1"><Flame className="w-3 h-3" />{scaled.calories} kcal</span>
                         <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{recipe.prepTime + recipe.cookTime}m</span>
