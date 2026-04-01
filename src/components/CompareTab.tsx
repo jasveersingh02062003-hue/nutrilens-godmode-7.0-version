@@ -2,69 +2,9 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, Star, Scale, ChefHat, Home } from 'lucide-react';
 import { searchIndianFoods, type IndianFood } from '@/lib/indian-foods';
-import { recipes, getEnrichedRecipe, type Recipe } from '@/lib/recipes';
-import { getRecipeCost } from '@/lib/recipe-cost';
+import { recipes, type Recipe } from '@/lib/recipes';
 import { getRecipeImage } from '@/lib/recipe-images';
-import { computePES } from '@/lib/pes-engine';
-import { estimateCost } from '@/lib/price-database';
-import { getPantryItems } from '@/lib/pantry-store';
-
-// Unified item type for comparison
-interface CompareItem {
-  type: 'food' | 'recipe';
-  name: string;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-  fiber: number;
-  cost: number;
-  pes: number;
-  image?: string;
-  pantryMatch?: { available: number; total: number };
-}
-
-function buildFromFood(food: IndianFood): CompareItem {
-  const servingFactor = food.defaultServing / 100;
-  const cal = Math.round(food.calories * servingFactor);
-  const pro = +(food.protein * servingFactor).toFixed(1);
-  const carb = +(food.carbs * servingFactor).toFixed(1);
-  const fat = +(food.fat * servingFactor).toFixed(1);
-  const fib = +(food.fiber * servingFactor).toFixed(1);
-  const cost = estimateCost([{ name: food.name, quantity: food.defaultServing, unit: 'g' }]) ?? Math.round(cal * 0.04);
-  const pes = computePES({ protein: pro, calories: cal, cost }, {});
-  return { type: 'food', name: food.name, calories: cal, protein: pro, carbs: carb, fat, fiber: fib, cost, pes };
-}
-
-function buildFromRecipe(recipe: Recipe): CompareItem {
-  const enriched = getEnrichedRecipe(recipe);
-  const cost = getRecipeCost(recipe);
-  const pes = computePES(enriched, {});
-  const pantryItems = getPantryItems();
-
-  let available = 0;
-  const total = recipe.ingredients.length;
-  for (const ing of recipe.ingredients) {
-    const ingName = ing.name.toLowerCase();
-    if (pantryItems.some(p => p.name.toLowerCase().includes(ingName) || ingName.includes(p.name.toLowerCase()))) {
-      available++;
-    }
-  }
-
-  return {
-    type: 'recipe',
-    name: recipe.name,
-    calories: recipe.calories,
-    protein: recipe.protein,
-    carbs: recipe.carbs,
-    fat: recipe.fat,
-    fiber: recipe.fiber,
-    cost,
-    pes,
-    image: getRecipeImage(recipe.id, recipe.mealType[0]),
-    pantryMatch: { available, total },
-  };
-}
+import { type CompareItem, buildFromFood, buildFromRecipe } from '@/lib/compare-helpers';
 
 interface SearchResult {
   id: string;
