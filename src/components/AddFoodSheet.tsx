@@ -30,6 +30,7 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
   const [query, setQuery] = useState('');
   const { profile } = useUserProfile();
   const userAllergens = profile?.allergens || [];
+  const userConditions = getUserConditions(profile as any);
   const results = query.trim().length >= 2 ? searchIndianFoods(query) : [];
   const [pendingItem, setPendingItem] = useState<{ food: any; item: FoodItem; matched: string[] } | null>(null);
   const [showSevereConfirm, setShowSevereConfirm] = useState(false);
