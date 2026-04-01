@@ -321,7 +321,7 @@ export const INDIAN_FOODS: IndianFood[] = [
   { id: 'in109', name: 'Ven Pongal', hindi: 'वेन पोंगल', category: 'South Indian', calories: 155, protein: 5.5, carbs: 22, fat: 5.0, fiber: 2.0, iron: 1.5, calcium: 22, vitC: 1, defaultServing: 200, servingUnit: 'bowl', allergens: ['dairy', 'nuts'] },
   { id: 'in10a', name: 'Idiyappam (String Hoppers)', hindi: 'इडियप्पम', category: 'South Indian', calories: 130, protein: 2.5, carbs: 28, fat: 0.5, fiber: 1.0, iron: 0.5, calcium: 10, vitC: 0, defaultServing: 80, servingUnit: 'serving' },
   { id: 'in10b', name: 'Tomato Rice', hindi: 'टोमैटो राइस', category: 'South Indian', calories: 160, protein: 3.5, carbs: 28, fat: 4.0, fiber: 1.0, iron: 0.8, calcium: 15, vitC: 8, defaultServing: 200, servingUnit: 'bowl' },
-  { id: 'in10c', name: 'Tamarind Rice (Pulihora)', hindi: 'पुलिहोरा', category: 'South Indian', calories: 170, protein: 3.0, carbs: 30, fat: 4.5, fiber: 1.0, iron: 1.0, calcium: 15, vitC: 3, defaultServing: 200, servingUnit: 'bowl' },
+  { id: 'in10c', name: 'Tamarind Rice (Pulihora)', hindi: 'पुलिहोरा', category: 'South Indian', calories: 170, protein: 3.0, carbs: 30, fat: 4.5, fiber: 1.0, iron: 1.0, calcium: 15, vitC: 3, defaultServing: 200, servingUnit: 'bowl', allergens: ['peanuts', 'mustard'] },
   { id: 'in10d', name: 'Poriyal (dry veg)', hindi: 'पोरियल', category: 'South Indian', calories: 70, protein: 2.5, carbs: 6, fat: 4.0, fiber: 3.0, iron: 1.0, calcium: 30, vitC: 15, defaultServing: 100, servingUnit: 'bowl' },
   { id: 'in10e', name: 'Kuzhambu', hindi: 'कुझम्बु', category: 'South Indian', calories: 85, protein: 3.0, carbs: 10, fat: 4.0, fiber: 2.5, iron: 1.5, calcium: 35, vitC: 5, defaultServing: 150, servingUnit: 'bowl' },
 
