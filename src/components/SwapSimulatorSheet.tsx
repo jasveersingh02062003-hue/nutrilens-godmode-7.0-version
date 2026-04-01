@@ -24,6 +24,7 @@ export default function SwapSimulatorSheet({ open, onClose, originalRecipeId, me
   const [alternatives, setAlternatives] = useState<SwapAlternative[]>([]);
   const [selected, setSelected] = useState<SwapAlternative | null>(null);
   const [impact, setImpact] = useState<SwapImpact | null>(null);
+  const [compareAllOpen, setCompareAllOpen] = useState(false);
 
   const original = getRecipeById(originalRecipeId);
   const originalCost = original ? getRecipeCost(original) : 0;
