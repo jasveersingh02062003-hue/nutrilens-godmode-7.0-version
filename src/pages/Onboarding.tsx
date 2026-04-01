@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, Sparkles, Heart, User, Dumbbell, Ruler, Scale, Target, TrendingDown, Droplets, AlertTriangle, ChevronDown, Clock, Loader2, UtensilsCrossed, Zap, Camera, ShieldAlert, Pencil, CheckCircle, Info, Lightbulb } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Sparkles, Heart, User, Dumbbell, Ruler, Scale, Target, TrendingDown, Droplets, AlertTriangle, ChevronDown, Clock, Loader2, UtensilsCrossed, Zap, Camera, ShieldAlert, Pencil, CheckCircle, Info, Lightbulb, Shield } from 'lucide-react';
+import { COMMON_ALLERGENS } from '@/lib/allergen-tags';
 import PESFeatureFlex from '@/components/PESFeatureFlex';
 import MonikaGuide, { MONIKA_MESSAGES } from '@/components/onboarding/MonikaGuide';
 import { motion, AnimatePresence } from 'framer-motion';
