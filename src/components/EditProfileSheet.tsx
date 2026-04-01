@@ -125,6 +125,7 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
       goal: decision.effectiveGoal,
       goalSpeed,
       healthConditions,
+      allergens,
       dietaryPrefs,
       waterGoal,
       occupation,
