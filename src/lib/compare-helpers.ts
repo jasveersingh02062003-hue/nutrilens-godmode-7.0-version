@@ -1,4 +1,5 @@
 import { type IndianFood } from '@/lib/indian-foods';
+import { type FoodItem } from '@/lib/store';
 import { type Recipe, getEnrichedRecipe } from '@/lib/recipes';
 import { getRecipeCost } from '@/lib/recipe-cost';
 import { getRecipeImage } from '@/lib/recipe-images';
