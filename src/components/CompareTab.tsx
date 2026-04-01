@@ -468,6 +468,7 @@ function SideSlot({
       <div className="flex gap-1 justify-center">
         <ModeButton icon={Search} label="Search" active={mode === 'search'} onClick={() => setMode('search')} />
         <ModeButton icon={Camera} label="Scan" active={mode === 'camera'} onClick={() => setMode('camera')} />
+        <ModeButton icon={ImagePlus} label="Upload" active={mode === 'upload'} onClick={() => setMode('upload')} />
         <ModeButton icon={Mic} label="Voice" active={mode === 'mic'} onClick={() => setMode('mic')} />
       </div>
 
