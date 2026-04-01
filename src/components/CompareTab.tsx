@@ -411,7 +411,7 @@ function SideSlot({
   onClear: () => void;
   side: 'left' | 'right';
 }) {
-  const [mode, setMode] = useState<'search' | 'camera' | 'mic' | null>('search');
+  const [mode, setMode] = useState<'search' | 'camera' | 'mic' | 'upload' | null>('search');
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
   const results = useSearch(query);
