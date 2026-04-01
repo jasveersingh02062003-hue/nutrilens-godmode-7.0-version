@@ -8,8 +8,9 @@ import { getRecipeImage } from '@/lib/recipe-images';
 import type { WeekPlan } from '@/lib/meal-planner-store';
 import BudgetPlannerTab from './BudgetPlannerTab';
 import SurvivalKitSheet from './SurvivalKitSheet';
+import CompareTab from './CompareTab';
 import { getSavedSurvivalKit, clearSurvivalKit } from '@/lib/grocery-survival';
-const TAB_ITEMS = ['Budget', 'Meal Plan', 'Groceries', 'Recipes'] as const;
+const TAB_ITEMS = ['Budget', 'Meal Plan', 'Groceries', 'Compare', 'Recipes'] as const;
 type TabName = typeof TAB_ITEMS[number];
 
 interface MealPlannerTabsProps {
