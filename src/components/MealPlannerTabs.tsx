@@ -8,8 +8,9 @@ import { getRecipeImage } from '@/lib/recipe-images';
 import type { WeekPlan } from '@/lib/meal-planner-store';
 import BudgetPlannerTab from './BudgetPlannerTab';
 import SurvivalKitSheet from './SurvivalKitSheet';
+import CompareTab from './CompareTab';
 import { getSavedSurvivalKit, clearSurvivalKit } from '@/lib/grocery-survival';
-const TAB_ITEMS = ['Budget', 'Meal Plan', 'Groceries', 'Recipes'] as const;
+const TAB_ITEMS = ['Budget', 'Meal Plan', 'Groceries', 'Compare', 'Recipes'] as const;
 type TabName = typeof TAB_ITEMS[number];
 
 interface MealPlannerTabsProps {
@@ -354,6 +355,7 @@ export default function MealPlannerTabs({ plan, activeTab, onTabChange, mealPlan
             {activeTab === 'Budget' && <BudgetPlannerTab onOnboardingComplete={onBudgetComplete} />}
             {activeTab === 'Meal Plan' && mealPlanContent}
             {activeTab === 'Groceries' && <GroceriesTab plan={plan} />}
+            {activeTab === 'Compare' && <CompareTab />}
             {activeTab === 'Recipes' && <RecipesTab />}
           </motion.div>
         </AnimatePresence>
