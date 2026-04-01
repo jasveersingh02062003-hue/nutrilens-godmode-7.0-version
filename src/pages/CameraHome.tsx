@@ -26,6 +26,8 @@ import FoodReplaceSheet from '@/components/FoodReplaceSheet';
 import { getUnitOptionsForFood, calculateNutrition, type UnitOption } from '@/lib/unit-conversion';
 import PESBreakdownModal from '@/components/PESBreakdownModal';
 import { checkAllergens, getAllergenLabel, getAllergenEmoji, hasSevereAllergen } from '@/lib/allergen-engine';
+import { checkFoodForConditions, getUserConditions, type FoodConditionWarning } from '@/lib/condition-coach';
+import AnimatedWarningBanner, { type WarningMessage } from '@/components/AnimatedWarningBanner';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 type Step = 'camera' | 'confirm' | 'edit' | 'save';
