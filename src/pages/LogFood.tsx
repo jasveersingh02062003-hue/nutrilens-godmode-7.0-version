@@ -68,7 +68,7 @@ export default function LogFood() {
   const [showSevereConfirm, setShowSevereConfirm] = useState(false);
   const [severeButtonEnabled, setSevereButtonEnabled] = useState(false);
 
-  const userAllergens = profile?.allergens || [];
+  // userAllergens moved after profile declaration below
 
   // Delayed enable for severe allergy confirmation button
   useEffect(() => {
