@@ -72,6 +72,7 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
       setGoal(profile.goal || 'lose');
       setGoalSpeed(profile.goalSpeed || 0.5);
       setHealthConditions(profile.healthConditions || []);
+      setAllergens(profile.allergens || []);
       setDietaryPrefs(profile.dietaryPrefs || []);
       setWaterGoal(profile.waterGoal || 2000);
       setOccupation(profile.occupation || '');
