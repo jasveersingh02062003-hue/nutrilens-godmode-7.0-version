@@ -87,8 +87,34 @@ export default function LogFood() {
     : searchIndianFoods('').map(indianFoodToFoodItem);
 
   const addFood = (food: FoodItem) => {
-    setSelected(prev => [...prev, { ...food, id: Date.now().toString(), confidenceScore: 0.9 }]);
+    const finalItem = { ...food, id: Date.now().toString(), confidenceScore: 0.9 };
+    const allergenCheck = checkAllergens(food.name, userAllergens);
+    if (allergenCheck.hasConflict) {
+      setPendingAllergenItem({ food: finalItem, matched: allergenCheck.matched });
+      return;
+    }
+    setSelected(prev => [...prev, finalItem]);
     setStep('adjust');
+  };
+
+  const confirmAllergenAdd = () => {
+    if (!pendingAllergenItem) return;
+    if (hasSevereAllergen(pendingAllergenItem.matched) && !showSevereConfirm) {
+      setShowSevereConfirm(true);
+      return;
+    }
+    setSelected(prev => [...prev, pendingAllergenItem.food]);
+    setStep('adjust');
+    setPendingAllergenItem(null);
+    setShowSevereConfirm(false);
+  };
+
+  const findAllergenAlternative = () => {
+    if (pendingAllergenItem) {
+      setSearch('');
+      setPendingAllergenItem(null);
+      setShowSevereConfirm(false);
+    }
   };
 
   const updateQty = (id: string, delta: number) => {
