@@ -1,97 +1,66 @@
 
 
-# Unified Animated Warning System — Allergens + Health Conditions
+# Fix: QuickLog Parser + Smarter NextMealCard with Pantry Integration
 
-## Current State
+## Problem 1: Inconsistent Food Recognition in QuickLog
 
-- **Allergen warnings**: Already working in `LogFood.tsx`, `CameraHome.tsx`, `AddFoodSheet.tsx`, `QuickLogSheet.tsx` with confirmation dialogs and animated badges
-- **Health condition engine**: `condition-coach.ts` has a full rule engine (`evaluateConditions()`) for diabetes, PCOS, hypertension, thyroid, pregnancy, cholesterol, lactose, gluten — but it's **only used post-save** in `MealDetailSheet` and `meal-feedback.ts`
-- **Gap**: Health condition warnings never appear during logging. No unified reusable warning component exists — each file duplicates warning UI
+**Root cause**: `parseQuickText("1 apple")` splits into `{ name: "apple", qty: 1 }` — this works. But inputs like `"an apple"`, `"apple x3"`, `"half bowl dal"`, or `"2x roti"` fail because the parser only matches `^(\d+\.?\d*)\s*(.+)`.
 
-## What We'll Build
-
-### 1. New Component: `AnimatedWarningBanner.tsx`
-A reusable, animated warning component used everywhere.
-
-**Props**: `type` (allergen | health), `severity` (high | medium | low), `title`, `messages[]` (each with icon, text, condition), `onDismiss?`, `onAction?` (for "Find Alternative")
-
-**Visual design**:
-- **High severity** (red): `bg-destructive/10 border-destructive/30` with `motion.div` spring entrance + `animate-pulse` on icon
-- **Medium severity** (orange): `bg-orange-500/10 border-orange-500/30` with slide-in only
-- **Low severity** (yellow): `bg-yellow-500/10 border-yellow-500/30` with fade-in
-- Spring animation: `initial={{ scale: 0.9, opacity: 0, y: -10 }}` → `animate={{ scale: 1, opacity: 1, y: 0 }}`
-- `ShieldAlert` icon with rotate-in spring for high severity; `AlertTriangle` for medium/low
-
-### 2. New Utility: `checkHealthWarnings()` in `condition-coach.ts`
-A lightweight per-item check (unlike `evaluateConditions` which needs full meal totals). Checks individual food names against condition keyword lists and returns warnings.
-
+**Current parser** (line 22-28 in QuickLogSheet):
 ```
-checkFoodForConditions(foodName: string, userConditions: string[]): ConditionMessage[]
+const match = part.match(/^(\d+\.?\d*)\s*(.+)/);
 ```
 
-This enables real-time warnings in search results before the meal is assembled.
+**Fix — Enhance `parseQuickText` with:**
+1. Strip articles: remove "a ", "an ", "one ", "half " (→ qty 0.5) before matching
+2. Handle trailing quantities: "roti x3", "apple x 2", "dal × 2"
+3. Handle Hindi units: "2 katori dal" → strip "katori" and pass "dal" to search
+4. Normalize common synonyms before search: "curd" → also try "dahi", "chapati" → also try "roti"
 
-### 3. Integration Points (6 surfaces)
+**Also improve `searchIndianFoods`:**
+5. Add a synonym map at the top of `indian-foods.ts` (e.g., `{ "apple": "apple (indian)", "curd": "curd / dahi", "chapati": "wheat roti" }`)
+6. Before scoring, resolve the query through the synonym map
+7. Add Levenshtein-based fuzzy matching for typos (e.g., "panneer" → "paneer") — a simple edit-distance ≤ 2 check on food names
 
-**A. `LogFood.tsx` — Search results (already has allergen badges)**
-- Add health condition badges alongside allergen badges in search results
-- Orange badges for condition warnings (e.g., "🩸 DIABETES" on jalebi)
-- Call `checkFoodForConditions()` per search result
-- Show combined allergen + health warnings in the confirmation dialog
+**Files to modify:**
+- `src/components/QuickLogSheet.tsx` — enhance `parseQuickText()`
+- `src/lib/indian-foods.ts` — add synonym map + typo tolerance to `searchIndianFoods()`
 
-**B. `LogFood.tsx` — Adjust step (already has allergen banner)**
-- Replace the inline allergen banner with `<AnimatedWarningBanner>` 
-- Add health condition warnings from `evaluateConditions()` (now we have full meal totals)
-- Show combined card: allergen items in red section, condition warnings in orange section
+---
 
-**C. `CameraHome.tsx` — Confirm step (already has allergen banner)**
-- Add health condition evaluation after food detection
-- Show `<AnimatedWarningBanner>` with both allergen and condition messages merged
-- Condition warnings appear below allergen warnings in same card
+## Problem 2: NextMealCard Needs Pantry Intelligence
 
-**D. `QuickLogSheet.tsx` — After parse**
-- Already shows allergen toasts
-- Add condition toasts: orange-styled for health warnings
+**Current state**: `NextMealCard` calls `getRecipesForMeal()` which filters recipes by budget, dietary prefs, and calories — but completely ignores what the user actually has at home in their pantry (`pantry-store.ts`).
 
-**E. `AddFoodSheet.tsx` — Search results**
-- Add condition badges (orange) next to allergen badges (red) on search results
-- Combined confirmation dialog shows both types
+**Fix — Pantry-aware ranking in `meal-suggestion-engine.ts`:**
 
-**F. `MealPlanDashboard.tsx` — Planned meals**
-- Already has allergen badges on recipes
-- Add condition warning icon (orange ⚠️) next to meals that conflict with conditions
+1. Import `getPantryItems()` from `pantry-store.ts`
+2. In `getRecipesForMeal()`, after filtering, add a pantry match bonus to the rank score:
+   - For each recipe, check how many of its ingredients match pantry item names (fuzzy)
+   - `pantryMatchRatio = matchedIngredients / totalIngredients`
+   - Add `pantryMatchRatio * 30` to the rank score (so pantry-available meals rank higher)
+3. Show a "🏠 From your pantry" badge on NextMealCard when pantryMatchRatio > 0.5
+4. Add a secondary line: "You have 3/5 ingredients at home"
 
-### 4. CSS Animations (in `index.css`)
-```css
-@keyframes pulse-warning {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.03); box-shadow: 0 0 12px rgba(220, 38, 38, 0.3); }
-}
-@keyframes slide-down-warning {
-  from { transform: translateY(-100%); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-```
+**Also enhance NextMealCard UI:**
+5. Show 2-3 alternatives as swipeable dots (not just the top 1 recipe)
+6. Add a "Not this — show another" button that cycles to next suggestion
+7. Add remaining macro context: "You need 25g more protein today" as a subtitle
 
-## Files to Create
-| File | Purpose |
-|---|---|
-| `src/components/AnimatedWarningBanner.tsx` | Reusable warning component with severity levels and animations |
+**Files to modify:**
+- `src/lib/meal-suggestion-engine.ts` — add pantry matching to ranking
+- `src/components/NextMealCard.tsx` — show pantry badge, alternatives, macro context
 
-## Files to Modify
-| File | Change |
-|---|---|
-| `src/lib/condition-coach.ts` | Add `checkFoodForConditions()` for per-item health checks |
-| `src/pages/LogFood.tsx` | Add health condition badges in search + combined banner in adjust step |
-| `src/pages/CameraHome.tsx` | Add health condition warnings to confirm step |
-| `src/components/QuickLogSheet.tsx` | Add condition warning toasts |
-| `src/components/AddFoodSheet.tsx` | Add condition badges in search results |
-| `src/components/MealPlanDashboard.tsx` | Add condition warning icons on planned meals |
-| `src/index.css` | Add warning animation keyframes |
+---
 
-## What Stays Unchanged
-- All existing allergen logic (checkAllergens, confirmation dialogs, severe 3s delay)
-- `condition-coach.ts` existing `evaluateConditions()` function
-- All meal saving, calculation, and budget logic
-- Database and backend
+## Summary
+
+| Change | File | Effort |
+|---|---|---|
+| Smarter text parser (articles, trailing qty, Hindi units) | `QuickLogSheet.tsx` | Small |
+| Synonym map + typo tolerance | `indian-foods.ts` | Small |
+| Pantry-aware recipe ranking | `meal-suggestion-engine.ts` | Medium |
+| Pantry badge + alternatives UI | `NextMealCard.tsx` | Medium |
+
+No database, backend, or existing logic changes. Pure parser + ranking + UI enhancements.
 
