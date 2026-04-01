@@ -118,6 +118,8 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
                 const item = indianFoodToFoodItem(food);
                 const cost = estimateCost([{ name: food.name, quantity: 1, unit: food.servingUnit }]);
                 const allergenCheck = checkAllergens(food.name, userAllergens, food.allergens);
+                const conditionWarnings = checkFoodForConditions(food.name, userConditions);
+                const hasAnyWarning = allergenCheck.hasConflict || conditionWarnings.length > 0;
 
                 return (
                   <motion.button
@@ -129,7 +131,7 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
                     className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 active:scale-[0.98] transition-all"
                   >
                     <div className="text-left flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="text-sm font-medium text-foreground">{food.name}</p>
                         {allergenCheck.hasConflict && (
                           <motion.div
@@ -148,6 +150,18 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
                             ))}
                           </motion.div>
                         )}
+                        {conditionWarnings.map((w, i) => (
+                          <span key={`cond-${i}`} className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border text-[9px] font-bold ${
+                            w.severity === 'high'
+                              ? 'bg-destructive/10 border-destructive/20 text-destructive'
+                              : w.severity === 'medium'
+                              ? 'bg-orange-500/10 border-orange-500/20 text-orange-600 dark:text-orange-400'
+                              : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-700 dark:text-yellow-400'
+                          }`}>
+                            <span className="text-[8px]">{w.icon}</span>
+                            {w.condition}
+                          </span>
+                        ))}
                       </div>
                       <p className="text-[11px] text-muted-foreground">
                         {food.hindi} · {food.defaultServing}{food.servingUnit} · {item.calories} kcal
@@ -155,9 +169,9 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
                       </p>
                     </div>
                     <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                      allergenCheck.hasConflict ? 'bg-destructive/10' : 'bg-primary/10'
+                      hasAnyWarning ? 'bg-destructive/10' : 'bg-primary/10'
                     }`}>
-                      <Plus className={`w-4 h-4 ${allergenCheck.hasConflict ? 'text-destructive' : 'text-primary'}`} />
+                      <Plus className={`w-4 h-4 ${hasAnyWarning ? 'text-destructive' : 'text-primary'}`} />
                     </div>
                   </motion.button>
                 );

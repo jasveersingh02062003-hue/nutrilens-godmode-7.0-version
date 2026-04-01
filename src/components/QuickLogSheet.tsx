@@ -66,6 +66,18 @@ export default function QuickLogSheet({ open, onClose, onSaved }: Props) {
       }
     }
 
+    // Check for health condition warnings
+    const userConditions = getUserConditions(profile as any);
+    if (userConditions.length > 0) {
+      for (const item of items) {
+        const condWarnings = checkFoodForConditions(item.name, userConditions);
+        for (const w of condWarnings) {
+          const style = w.severity === 'high' ? 'error' as const : 'warning' as const;
+          toast[style](`${w.icon} ${item.name}: ${w.text}`, { duration: 5000 });
+        }
+      }
+    }
+
     const hour = new Date().getHours();
     const mealType = hour < 11 ? 'breakfast' : hour < 15 ? 'lunch' : hour < 18 ? 'snack' : 'dinner';
 
