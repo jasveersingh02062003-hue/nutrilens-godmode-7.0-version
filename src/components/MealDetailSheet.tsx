@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { checkAllergens, getAllergenLabel } from '@/lib/allergen-engine';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { ChevronLeft, Trash2, Plus, Minus, Camera, Mic, Search, Pencil, IndianRupee, ArrowRight, Settings2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
