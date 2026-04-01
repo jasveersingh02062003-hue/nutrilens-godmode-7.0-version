@@ -229,8 +229,8 @@ export const INDIAN_FOODS: IndianFood[] = [
   { id: 'in06r', name: 'Mathri', hindi: 'मठरी', category: 'Snacks', calories: 440, protein: 7.0, carbs: 48, fat: 25.0, fiber: 2.5, iron: 2.5, calcium: 30, vitC: 0, defaultServing: 30, servingUnit: 'piece' },
   { id: 'in06s', name: 'Chakli', hindi: 'चकली', category: 'Snacks', calories: 410, protein: 8.0, carbs: 52, fat: 20.0, fiber: 3.0, iron: 2.5, calcium: 28, vitC: 0, defaultServing: 30, servingUnit: 'piece' },
   { id: 'in06t', name: 'Khakhra', hindi: 'खाखरा', category: 'Snacks', calories: 380, protein: 10.0, carbs: 60, fat: 12.0, fiber: 5.0, iron: 4.0, calcium: 40, vitC: 0, defaultServing: 25, servingUnit: 'piece' },
-  { id: 'in133', name: 'Dhokla', hindi: 'ढोकला', category: 'Snacks', calories: 155, protein: 6.5, carbs: 22, fat: 4.5, fiber: 1.5, iron: 1.5, calcium: 25, vitC: 2, defaultServing: 80, servingUnit: 'piece' },
-  { id: 'in06u', name: 'Khandvi', hindi: 'खांडवी', category: 'Snacks', calories: 135, protein: 6.0, carbs: 18, fat: 4.5, fiber: 1.0, iron: 1.2, calcium: 20, vitC: 1, defaultServing: 80, servingUnit: 'serving' },
+  { id: 'in133', name: 'Dhokla', hindi: 'ढोकला', category: 'Snacks', calories: 155, protein: 6.5, carbs: 22, fat: 4.5, fiber: 1.5, iron: 1.5, calcium: 25, vitC: 2, defaultServing: 80, servingUnit: 'piece', allergens: ['mustard'] },
+  { id: 'in06u', name: 'Khandvi', hindi: 'खांडवी', category: 'Snacks', calories: 135, protein: 6.0, carbs: 18, fat: 4.5, fiber: 1.0, iron: 1.2, calcium: 20, vitC: 1, defaultServing: 80, servingUnit: 'serving', allergens: ['mustard', 'sesame'] },
   { id: 'in06v', name: 'Fafda', hindi: 'फाफड़ा', category: 'Snacks', calories: 450, protein: 10.0, carbs: 48, fat: 25.0, fiber: 3.0, iron: 3.0, calcium: 35, vitC: 0, defaultServing: 40, servingUnit: 'serving' },
   { id: 'in06w', name: 'Gathiya', hindi: 'गांठिया', category: 'Snacks', calories: 440, protein: 12.0, carbs: 45, fat: 25.0, fiber: 3.5, iron: 3.5, calcium: 40, vitC: 0, defaultServing: 40, servingUnit: 'serving' },
 
