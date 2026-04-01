@@ -9,6 +9,8 @@ import PESBreakdownModal from '@/components/PESBreakdownModal';
 import ContextPickerSheet from '@/components/ContextPickerSheet';
 import { getDefaultCategory, learnCookingMethod } from '@/lib/context-learning';
 import { searchIndianFoods, indianFoodToFoodItem, type IndianFood } from '@/lib/indian-foods';
+import ComparisonSheet from '@/components/ComparisonSheet';
+import { buildFromFood, type CompareItem } from '@/lib/compare-helpers';
 import { supabase } from '@/integrations/supabase/client';
 import ConfidenceBadge from '@/components/ConfidenceBadge';
 import { validateMeal, validateSingleItem, type ValidationResult } from '@/lib/validation-engine';
