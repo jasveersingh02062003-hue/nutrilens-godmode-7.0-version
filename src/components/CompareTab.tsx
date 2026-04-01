@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Star, Scale, ChefHat, Home, Camera, Mic, ScanLine, Sparkles, Minus, Plus, Pencil } from 'lucide-react';
+import { Search, X, Star, Scale, ChefHat, Home, Camera, Mic, ScanLine, Sparkles, Minus, Plus, Pencil, IndianRupee } from 'lucide-react';
 import { searchIndianFoods, type IndianFood } from '@/lib/indian-foods';
 import { recipes, type Recipe } from '@/lib/recipes';
 import { type CompareItem, buildFromFood, buildFromRecipe, buildFromAnalyzed, rebuildFoodAtServing, COMPARE_METRICS } from '@/lib/compare-helpers';
@@ -263,6 +263,57 @@ function QuantityAdjuster({ item, onChange }: { item: CompareItem; onChange: (up
   );
 }
 
+// ─── Price Adjuster ───
+function PriceAdjuster({ item, onChange }: { item: CompareItem; onChange: (updated: CompareItem) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [inputVal, setInputVal] = useState(String(item.cost));
+
+  const adjust = (delta: number) => {
+    const newCost = Math.max(1, item.cost + delta);
+    onChange({ ...item, cost: newCost });
+  };
+
+  const commitEdit = () => {
+    const c = Math.max(1, Math.min(9999, parseInt(inputVal) || item.cost));
+    onChange({ ...item, cost: c });
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1">
+        <IndianRupee className="w-2.5 h-2.5 text-muted-foreground" />
+        <input
+          autoFocus
+          type="number"
+          value={inputVal}
+          onChange={e => setInputVal(e.target.value)}
+          onBlur={commitEdit}
+          onKeyDown={e => e.key === 'Enter' && commitEdit()}
+          className="w-12 text-center text-[10px] font-bold bg-background border border-primary/30 rounded-md py-0.5 outline-none"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-0.5">
+      <motion.button whileTap={{ scale: 0.85 }} onClick={() => adjust(-5)}
+        className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
+        <Minus className="w-2.5 h-2.5 text-muted-foreground" />
+      </motion.button>
+      <button onClick={() => { setInputVal(String(item.cost)); setEditing(true); }}
+        className="text-[10px] font-bold text-foreground bg-muted/60 rounded-md px-1.5 py-0.5 hover:bg-muted flex items-center gap-0.5">
+        <IndianRupee className="w-2.5 h-2.5" />{item.cost} <Pencil className="w-2 h-2 text-muted-foreground" />
+      </button>
+      <motion.button whileTap={{ scale: 0.85 }} onClick={() => adjust(5)}
+        className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
+        <Plus className="w-2.5 h-2.5 text-muted-foreground" />
+      </motion.button>
+    </div>
+  );
+}
+
 // ─── Side Slot (Search + Camera + Mic) ───
 function SideSlot({
   selected,
@@ -313,10 +364,12 @@ function SideSlot({
         <div className="flex items-center gap-1">
           {selected.type === 'recipe' && <ChefHat className="w-2.5 h-2.5 text-muted-foreground" />}
           {selected.type === 'scanned' && <ScanLine className="w-2.5 h-2.5 text-primary" />}
-          <span className="text-[9px] text-muted-foreground">{selected.calories} kcal · ₹{selected.cost}</span>
+          <span className="text-[9px] text-muted-foreground">{selected.calories} kcal</span>
         </div>
         {/* Quantity Adjuster */}
         <QuantityAdjuster item={selected} onChange={onSelect} />
+        {/* Price Adjuster */}
+        <PriceAdjuster item={selected} onChange={onSelect} />
         <button onClick={onClear} className="mt-0.5 w-5 h-5 rounded-full bg-background border border-border flex items-center justify-center">
           <X className="w-2.5 h-2.5 text-muted-foreground" />
         </button>
