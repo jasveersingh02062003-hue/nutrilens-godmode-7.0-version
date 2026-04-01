@@ -105,7 +105,7 @@ export default function SwapSimulatorSheet({ open, onClose, originalRecipeId, me
                       <Scale className="w-4 h-4" /> Compare All ⚖️
                     </button>
                   )}
-                alternatives.map((alt, idx) => (
+                {alternatives.map((alt, idx) => (
                   <motion.button key={alt.recipe.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.08 }}
                     onClick={() => handleSelect(alt)}
                     className="w-full flex items-center gap-3 p-3 rounded-xl bg-card border border-border hover:border-primary/40 hover:shadow-sm transition-all text-left active:scale-[0.98]">
