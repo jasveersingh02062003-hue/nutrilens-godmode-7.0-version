@@ -430,9 +430,9 @@ export const INDIAN_FOODS: IndianFood[] = [
   // ==========================================
   // === BREAKFAST ITEMS (15 items) ===
   // ==========================================
-  { id: 'in130', name: 'Aloo Paratha', hindi: 'आलू पराठा', category: 'Cereals', calories: 300, protein: 6.5, carbs: 40, fat: 13.0, fiber: 3.5, iron: 2.8, calcium: 35, vitC: 5, defaultServing: 80, servingUnit: 'piece' },
-  { id: 'in131', name: 'Gobi Paratha', hindi: 'गोभी पराठा', category: 'Cereals', calories: 280, protein: 7.0, carbs: 38, fat: 11.5, fiber: 4.0, iron: 3.0, calcium: 40, vitC: 15, defaultServing: 80, servingUnit: 'piece' },
-  { id: 'in132', name: 'Thepla', hindi: 'थेपला', category: 'Cereals', calories: 250, protein: 7.5, carbs: 35, fat: 9.5, fiber: 4.5, iron: 3.5, calcium: 55, vitC: 5, defaultServing: 50, servingUnit: 'piece' },
+  { id: 'in130', name: 'Aloo Paratha', hindi: 'आलू पराठा', category: 'Cereals', calories: 300, protein: 6.5, carbs: 40, fat: 13.0, fiber: 3.5, iron: 2.8, calcium: 35, vitC: 5, defaultServing: 80, servingUnit: 'piece', allergens: ['gluten', 'dairy'] },
+  { id: 'in131', name: 'Gobi Paratha', hindi: 'गोभी पराठा', category: 'Cereals', calories: 280, protein: 7.0, carbs: 38, fat: 11.5, fiber: 4.0, iron: 3.0, calcium: 40, vitC: 15, defaultServing: 80, servingUnit: 'piece', allergens: ['gluten', 'dairy'] },
+  { id: 'in132', name: 'Thepla', hindi: 'थेपला', category: 'Cereals', calories: 250, protein: 7.5, carbs: 35, fat: 9.5, fiber: 4.5, iron: 3.5, calcium: 55, vitC: 5, defaultServing: 50, servingUnit: 'piece', allergens: ['gluten', 'dairy'] },
 
   // ==========================================
   // === FAST FOOD / CHINESE (20 items) ===
