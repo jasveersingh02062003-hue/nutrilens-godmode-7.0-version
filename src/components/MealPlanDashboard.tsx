@@ -63,6 +63,8 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [showShopping, setShowShopping] = useState(false);
   const [showLogConfirm, setShowLogConfirm] = useState(false);
+  const [compareItems, setCompareItems] = useState<CompareItem[]>([]);
+  const [showCompare, setShowCompare] = useState(false);
   const [loggedDays, setLoggedDays] = useState<Set<string>>(() => {
     const saved = localStorage.getItem('nutrilens_logged_meal_days');
     return saved ? new Set(JSON.parse(saved)) : new Set();
