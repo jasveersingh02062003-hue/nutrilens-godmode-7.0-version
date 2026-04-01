@@ -13,6 +13,7 @@ export interface OnboardingData {
   basic: { name: string; gender: string; age: number; heightCm: number; weightKg: number };
   health: {
     conditions: string[];
+    allergens?: string[];
     skin: string;
     genderSpecific: {
       pcos: boolean;
