@@ -487,9 +487,13 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
                         className="flex-1 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center gap-1.5">
                         View Recipe <ArrowRight className="w-3 h-3" />
                       </button>
+                      <button onClick={() => handleCompare(meal.recipeId, meal.mealType)}
+                        className="px-3 py-2 rounded-xl bg-muted text-muted-foreground text-xs font-semibold flex items-center gap-1.5">
+                        <Scale className="w-3 h-3" /> Compare
+                      </button>
                       <button onClick={() => onSwapMeal(currentDay.date, meal.recipeId)}
                         className="px-3 py-2 rounded-xl bg-muted text-muted-foreground text-xs font-semibold flex items-center gap-1.5">
-                        <Repeat className="w-3 h-3" /> ⚡ Try Swap
+                        <Repeat className="w-3 h-3" /> Swap
                       </button>
                       {!meal.cooked && (
                         <button onClick={() => onMarkCooked(currentDay.date, meal.recipeId)}
