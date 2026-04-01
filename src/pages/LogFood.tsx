@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import LastMealConfirmSheet from '@/components/LastMealConfirmSheet';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Camera, Mic, MicOff, Search, ArrowLeft, Plus, Minus, Check, X, Loader2, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Camera, Mic, MicOff, Search, ArrowLeft, Plus, Minus, Check, X, Loader2, AlertTriangle, ShieldAlert, Scale } from 'lucide-react';
 import { addMealToLog, addMealToLogForDate, FoodItem, MealEntry, MealSource, MealCost, CookingMethod } from '@/lib/store';
 import { saveManualExpense } from '@/lib/expense-store';
 import CostSuggestionBanner from '@/components/CostSuggestionBanner';
