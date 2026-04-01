@@ -71,7 +71,7 @@ export default function LogFood() {
   const [pendingAllergenItem, setPendingAllergenItem] = useState<{ food: FoodItem; matched: string[] } | null>(null);
   const [showSevereConfirm, setShowSevereConfirm] = useState(false);
   const [severeButtonEnabled, setSevereButtonEnabled] = useState(false);
-  const [compareSelection, setCompareSelection] = useState<IndianFood[]>([]);
+  const [compareSelection, setCompareSelection] = useState<FoodItem[]>([]);
   const [compareSheetOpen, setCompareSheetOpen] = useState(false);
 
   // userAllergens moved after profile declaration below
