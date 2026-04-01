@@ -15,13 +15,56 @@ interface Props {
   onSaved?: () => void;
 }
 
-// Simple parser: "2 rotis + sabzi" → [{name: "roti", qty: 2}, {name: "sabzi", qty: 1}]
+// Hindi / common units to strip (container words that aren't food names)
+const STRIP_UNITS = ['katori', 'katora', 'bowl', 'plate', 'glass', 'cup', 'piece', 'slice', 'serving', 'scoop', 'tbsp', 'tsp', 'spoon', 'handful', 'bunch', 'packet', 'pkt'];
+
+// Enhanced parser: handles "2 rotis + sabzi", "an apple", "roti x3", "half bowl dal", "2 katori dal"
 function parseQuickText(text: string): Array<{ name: string; qty: number }> {
   const parts = text.split(/[+,&]/).map(s => s.trim()).filter(Boolean);
   return parts.map(part => {
-    const match = part.match(/^(\d+\.?\d*)\s*(.+)/);
-    if (match) return { name: match[2].trim(), qty: parseFloat(match[1]) };
-    return { name: part, qty: 1 };
+    let p = part.trim();
+
+    // 1. Handle articles and word-based quantities
+    let qty = 1;
+    if (/^half\b/i.test(p)) { qty = 0.5; p = p.replace(/^half\s*/i, ''); }
+    else if (/^quarter\b/i.test(p)) { qty = 0.25; p = p.replace(/^quarter\s*/i, ''); }
+    else if (/^double\b/i.test(p)) { qty = 2; p = p.replace(/^double\s*/i, ''); }
+    else if (/^(an?|one)\s+/i.test(p)) { qty = 1; p = p.replace(/^(an?|one)\s+/i, ''); }
+    else if (/^two\s+/i.test(p)) { qty = 2; p = p.replace(/^two\s+/i, ''); }
+    else if (/^three\s+/i.test(p)) { qty = 3; p = p.replace(/^three\s+/i, ''); }
+
+    // 2. Leading number: "2 rotis", "1.5 bowl dal"
+    const leadMatch = p.match(/^(\d+\.?\d*)\s*[x×]?\s*(.+)/i);
+    if (leadMatch) {
+      qty = parseFloat(leadMatch[1]) * (qty !== 1 ? qty : 1);
+      p = leadMatch[2].trim();
+    }
+
+    // 3. Trailing quantity: "roti x3", "dal × 2", "apple x 2"
+    const trailMatch = p.match(/^(.+?)\s*[x×]\s*(\d+\.?\d*)$/i);
+    if (trailMatch) {
+      p = trailMatch[1].trim();
+      qty = parseFloat(trailMatch[2]) * (qty !== 1 ? qty : 1);
+    }
+
+    // 4. Strip unit words: "2 katori dal" → "dal", "1 bowl rice" → "rice"
+    for (const unit of STRIP_UNITS) {
+      const unitRegex = new RegExp(`^${unit}s?\\s+`, 'i');
+      if (unitRegex.test(p)) {
+        p = p.replace(unitRegex, '');
+        break;
+      }
+      const unitRegexEnd = new RegExp(`\\s+${unit}s?$`, 'i');
+      if (unitRegexEnd.test(p)) {
+        p = p.replace(unitRegexEnd, '');
+        break;
+      }
+    }
+
+    // 5. Strip trailing 's' for plurals: "rotis" → "roti", "eggs" → "egg"
+    const name = p.replace(/s$/i, '').trim() || p.trim();
+
+    return { name, qty };
   });
 }
 
