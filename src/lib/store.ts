@@ -193,6 +193,8 @@ export function getComputedAge(profile: UserProfile): number {
 
 export function saveProfile(profile: UserProfile) {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  // Dispatch event so UserProfileContext auto-syncs to cloud
+  window.dispatchEvent(new CustomEvent('nutrilens:profile-updated'));
 }
 
 export function getTodayKey(): string {
@@ -412,6 +414,15 @@ export function addWaterForDate(date: string) {
   const log = getDailyLog(date);
   log.waterCups += 1;
   saveDailyLog(log);
+  // Sync to water_logs table
+  import('@/integrations/supabase/client').then(({ supabase }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user) return;
+      supabase.from('water_logs' as any).upsert({
+        user_id: session.user.id, log_date: date, cups: log.waterCups,
+      }, { onConflict: 'user_id,log_date' } as any).then(() => {});
+    });
+  }).catch(() => {});
   return log;
 }
 
@@ -419,6 +430,15 @@ export function removeWaterForDate(date: string) {
   const log = getDailyLog(date);
   log.waterCups = Math.max(0, log.waterCups - 1);
   saveDailyLog(log);
+  // Sync to water_logs table
+  import('@/integrations/supabase/client').then(({ supabase }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user) return;
+      supabase.from('water_logs' as any).upsert({
+        user_id: session.user.id, log_date: date, cups: log.waterCups,
+      }, { onConflict: 'user_id,log_date' } as any).then(() => {});
+    });
+  }).catch(() => {});
   return log;
 }
 
@@ -427,6 +447,15 @@ export function addSupplementForDate(date: string, entry: SupplementEntry) {
   log.supplements = log.supplements || [];
   log.supplements.push(entry);
   saveDailyLog(log);
+  // Sync to supplement_logs table
+  import('@/integrations/supabase/client').then(({ supabase }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user) return;
+      supabase.from('supplement_logs' as any).upsert({
+        user_id: session.user.id, log_date: date, supplements: log.supplements as any,
+      }, { onConflict: 'user_id,log_date' } as any).then(() => {});
+    });
+  }).catch(() => {});
   return log;
 }
 
@@ -434,6 +463,15 @@ export function deleteSupplementFromLog(date: string, id: string) {
   const log = getDailyLog(date);
   log.supplements = (log.supplements || []).filter(s => s.id !== id);
   saveDailyLog(log);
+  // Sync to supplement_logs table
+  import('@/integrations/supabase/client').then(({ supabase }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user) return;
+      supabase.from('supplement_logs' as any).upsert({
+        user_id: session.user.id, log_date: date, supplements: log.supplements as any,
+      }, { onConflict: 'user_id,log_date' } as any).then(() => {});
+    });
+  }).catch(() => {});
   return log;
 }
 
