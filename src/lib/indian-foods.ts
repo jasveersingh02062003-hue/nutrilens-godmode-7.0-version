@@ -471,28 +471,117 @@ export const INDIAN_FOODS: IndianFood[] = [
   { id: 'in804', name: 'Tempeh', hindi: 'टेम्पे', category: 'Protein', calories: 192, protein: 20.3, carbs: 8, fat: 11.0, fiber: 7.0, iron: 2.7, calcium: 111, vitC: 0, defaultServing: 100, servingUnit: 'serving', allergens: ['soy'] },
 ];
 
+// ─── Synonym map for common alternate names ───
+const FOOD_SYNONYMS: Record<string, string[]> = {
+  'curd': ['dahi', 'yogurt', 'yoghurt'],
+  'dahi': ['curd', 'yogurt'],
+  'chapati': ['roti', 'wheat roti'],
+  'roti': ['chapati', 'wheat roti'],
+  'paneer': ['cottage cheese'],
+  'cottage cheese': ['paneer'],
+  'dal': ['daal', 'lentil'],
+  'daal': ['dal', 'lentil'],
+  'aloo': ['potato'],
+  'potato': ['aloo'],
+  'gobi': ['cauliflower'],
+  'cauliflower': ['gobi'],
+  'palak': ['spinach'],
+  'spinach': ['palak'],
+  'tamatar': ['tomato'],
+  'tomato': ['tamatar'],
+  'chawal': ['rice', 'chaval'],
+  'rice': ['chawal', 'chaval'],
+  'anda': ['egg'],
+  'egg': ['anda'],
+  'gosht': ['mutton', 'meat'],
+  'mutton': ['gosht'],
+  'murgh': ['chicken'],
+  'chicken': ['murgh'],
+  'bhindi': ['okra', 'lady finger'],
+  'okra': ['bhindi'],
+  'baingan': ['eggplant', 'brinjal'],
+  'eggplant': ['baingan', 'brinjal'],
+  'jeera': ['cumin'],
+  'haldi': ['turmeric'],
+  'adrak': ['ginger'],
+  'pyaaz': ['onion'],
+  'lassi': ['buttermilk', 'chaas'],
+  'chaas': ['buttermilk', 'lassi'],
+};
+
+/** Simple Levenshtein distance for short strings */
+function editDistance(a: string, b: string): number {
+  if (a.length > 20 || b.length > 20) return 99; // skip long strings
+  const m = a.length, n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) => {
+    const row = new Array(n + 1).fill(0);
+    row[0] = i;
+    return row;
+  });
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+/** Resolve synonyms: returns the original query + any synonym expansions */
+function expandSynonyms(query: string): string[] {
+  const q = query.toLowerCase().trim();
+  const results = [q];
+  for (const [key, synonyms] of Object.entries(FOOD_SYNONYMS)) {
+    if (q === key || q.includes(key)) {
+      for (const s of synonyms) {
+        results.push(q.replace(key, s));
+      }
+    }
+  }
+  return [...new Set(results)];
+}
+
 // Search function that matches across name, hindi name, and category
+// Now with synonym expansion and typo tolerance
 export function searchIndianFoods(query: string): IndianFood[] {
   if (!query.trim()) return INDIAN_FOODS.slice(0, 20);
-  const q = query.toLowerCase().trim();
+  
+  const queries = expandSynonyms(query);
   
   const scored = INDIAN_FOODS.map(food => {
     const name = food.name.toLowerCase();
     const hindi = food.hindi.toLowerCase();
     const cat = food.category.toLowerCase();
     
-    let score = 0;
-    if (name === q || hindi === q) score = 100;
-    else if (name.startsWith(q) || hindi.startsWith(q)) score = 80;
-    else if (name.includes(q) || hindi.includes(q)) score = 60;
-    else if (cat.includes(q)) score = 30;
-    else {
-      // fuzzy: check each word
-      const words = q.split(/\s+/);
-      const matches = words.filter(w => name.includes(w) || hindi.includes(w) || cat.includes(w));
-      score = (matches.length / words.length) * 50;
+    let bestScore = 0;
+    
+    for (const q of queries) {
+      let score = 0;
+      if (name === q || hindi === q) score = 100;
+      else if (name.startsWith(q) || hindi.startsWith(q)) score = 80;
+      else if (name.includes(q) || hindi.includes(q)) score = 60;
+      else if (cat.includes(q)) score = 30;
+      else {
+        // fuzzy: check each word
+        const words = q.split(/\s+/);
+        const matches = words.filter(w => name.includes(w) || hindi.includes(w) || cat.includes(w));
+        score = (matches.length / words.length) * 50;
+      }
+      
+      // Typo tolerance: if no good match, try edit distance on first word of name
+      if (score === 0 && q.length >= 3) {
+        const nameFirstWord = name.split(/[\s(]+/)[0];
+        const hindiWord = hindi.split(/[\s(]+/)[0];
+        const dist = Math.min(editDistance(q, nameFirstWord), editDistance(q, hindiWord));
+        if (dist <= 2) score = 40 - dist * 10;
+      }
+      
+      bestScore = Math.max(bestScore, score);
     }
-    return { food, score };
+    
+    return { food, score: bestScore };
   }).filter(r => r.score > 0);
 
   scored.sort((a, b) => b.score - a.score);

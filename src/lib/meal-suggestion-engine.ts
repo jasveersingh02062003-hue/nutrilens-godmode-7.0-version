@@ -5,10 +5,14 @@ import { getEffectiveRestrictions } from './logic-engine';
 import { getDailyLog, getTodayKey, type UserProfile } from './store';
 import { computePES } from './pes-engine';
 import { getUnifiedBudget, getUnifiedRemainingMealBudget } from './budget-engine';
+import { getPantryItems, type PantryItem } from './pantry-store';
 
 export interface SuggestedRecipe extends EnrichedRecipe {
   matchReason?: string;
   rankScore: number;
+  pantryMatchRatio?: number;
+  pantryMatchCount?: number;
+  totalIngredientCount?: number;
 }
 
 /**
@@ -19,7 +23,34 @@ export function getRemainingMealBudget(mealType: string): number {
 }
 
 /**
- * Get recipe suggestions for a meal slot, ranked by satiety + budget + health.
+ * Check how many recipe ingredients are available in the pantry.
+ */
+function computePantryMatch(recipe: EnrichedRecipe, pantryItems: PantryItem[]): { ratio: number; matched: number; total: number } {
+  if (!recipe.ingredients || recipe.ingredients.length === 0) return { ratio: 0, matched: 0, total: 0 };
+  
+  const pantryNames = pantryItems
+    .filter(p => p.quantity > 0)
+    .map(p => p.name.toLowerCase());
+  
+  let matched = 0;
+  for (const ing of recipe.ingredients) {
+    const ingName = ing.name.toLowerCase();
+    const found = pantryNames.some(pn => 
+      pn.includes(ingName) || ingName.includes(pn) ||
+      ingName.split(/\s+/).some(w => w.length > 2 && pantryNames.some(pn2 => pn2.includes(w)))
+    );
+    if (found) matched++;
+  }
+  
+  return {
+    ratio: recipe.ingredients.length > 0 ? matched / recipe.ingredients.length : 0,
+    matched,
+    total: recipe.ingredients.length,
+  };
+}
+
+/**
+ * Get recipe suggestions for a meal slot, ranked by satiety + budget + health + pantry.
  */
 export function getRecipesForMeal(
   mealType: string,
@@ -30,6 +61,7 @@ export function getRecipesForMeal(
 ): SuggestedRecipe[] {
   const restrictions = getEffectiveRestrictions(profile);
   const dietPrefs = profile?.dietaryPrefs || [];
+  const pantryItems = getPantryItems();
 
   const enriched = recipes
     .filter(r => r.mealType.includes(mealType as any))
@@ -58,7 +90,7 @@ export function getRecipesForMeal(
     return true;
   });
 
-  // Compute rank score using unified PES engine
+  // Compute rank score using unified PES engine + pantry bonus
   const scored: SuggestedRecipe[] = filtered.map(r => {
     const allText = [r.name.toLowerCase(), ...r.tags, ...r.ingredients.map(i => i.name.toLowerCase())].join(' ');
     const prefMatches = restrictions.prefer.filter(kw => allText.includes(kw.toLowerCase()));
@@ -67,13 +99,25 @@ export function getRecipesForMeal(
       targetCalories: remainingCalories,
       budgetPerMeal: maxCost > 0 ? maxCost : undefined,
     });
-    const rankScore = baseScore + (prefMatches.length * 0.05);
+    
+    // Pantry match bonus
+    const pantryMatch = computePantryMatch(r, pantryItems);
+    const pantryBonus = pantryMatch.ratio * 30; // Up to 30 bonus points
+    
+    const rankScore = baseScore + (prefMatches.length * 0.05) + pantryBonus;
 
     return {
       ...r,
       nutritionScore: Math.min(10, r.nutritionScore + prefMatches.length),
-      matchReason: prefMatches.length > 0 ? `Has ${prefMatches.slice(0, 2).join(', ')}` : undefined,
+      matchReason: pantryMatch.ratio > 0.5 
+        ? `🏠 ${pantryMatch.matched}/${pantryMatch.total} ingredients at home`
+        : prefMatches.length > 0 
+          ? `Has ${prefMatches.slice(0, 2).join(', ')}` 
+          : undefined,
       rankScore,
+      pantryMatchRatio: pantryMatch.ratio,
+      pantryMatchCount: pantryMatch.matched,
+      totalIngredientCount: pantryMatch.total,
     };
   });
 
