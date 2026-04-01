@@ -2,7 +2,10 @@ import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { checkAllergens, getAllergenLabel, getAllergenEmoji } from '@/lib/allergen-engine';
 import { checkFoodForConditions, getUserConditions } from '@/lib/condition-coach';
-import { RefreshCw, ShoppingCart, Clock, Flame, Beef, Wheat, Droplets, ArrowRight, Check, Repeat, IndianRupee, AlertCircle, CheckCircle2, XCircle, AlertTriangle, TrendingUp } from 'lucide-react';
+import { RefreshCw, ShoppingCart, Clock, Flame, Beef, Wheat, Droplets, ArrowRight, Check, Repeat, IndianRupee, AlertCircle, CheckCircle2, XCircle, AlertTriangle, TrendingUp, Scale } from 'lucide-react';
+import { getSwapAlternatives } from '@/lib/swap-engine';
+import { buildFromRecipe, type CompareItem } from '@/lib/compare-helpers';
+import ComparisonSheet from './ComparisonSheet';
 import { WeekPlan, DayPlan, PlannedMeal } from '@/lib/meal-planner-store';
 import { MealPlannerProfile } from '@/lib/meal-planner-store';
 import { getRecipeById, getEnrichedRecipe, Recipe } from '@/lib/recipes';
@@ -60,6 +63,8 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [showShopping, setShowShopping] = useState(false);
   const [showLogConfirm, setShowLogConfirm] = useState(false);
+  const [compareItems, setCompareItems] = useState<CompareItem[]>([]);
+  const [showCompare, setShowCompare] = useState(false);
   const [loggedDays, setLoggedDays] = useState<Set<string>>(() => {
     const saved = localStorage.getItem('nutrilens_logged_meal_days');
     return saved ? new Set(JSON.parse(saved)) : new Set();
@@ -120,6 +125,17 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
   const barColor = budgetPct > 90 ? 'bg-destructive' : budgetPct > 70 ? 'bg-accent' : 'bg-primary';
 
   const isDayLogged = currentDay ? loggedDays.has(currentDay.date) : false;
+
+  const handleCompare = (recipeId: string, mealType: string) => {
+    const original = getRecipeById(recipeId);
+    if (!original) return;
+    const alts = getSwapAlternatives(recipeId, mealType);
+    const items: CompareItem[] = [buildFromRecipe(original)];
+    alts.slice(0, 2).forEach(a => items.push(buildFromRecipe(a.recipe)));
+    if (items.length < 2) { toast.info('No alternatives found to compare'); return; }
+    setCompareItems(items);
+    setShowCompare(true);
+  };
 
   const handleLogAllMeals = () => {
     if (!currentDay) return;
@@ -471,9 +487,13 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
                         className="flex-1 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center gap-1.5">
                         View Recipe <ArrowRight className="w-3 h-3" />
                       </button>
+                      <button onClick={() => handleCompare(meal.recipeId, meal.mealType)}
+                        className="px-3 py-2 rounded-xl bg-muted text-muted-foreground text-xs font-semibold flex items-center gap-1.5">
+                        <Scale className="w-3 h-3" /> Compare
+                      </button>
                       <button onClick={() => onSwapMeal(currentDay.date, meal.recipeId)}
                         className="px-3 py-2 rounded-xl bg-muted text-muted-foreground text-xs font-semibold flex items-center gap-1.5">
-                        <Repeat className="w-3 h-3" /> ⚡ Try Swap
+                        <Repeat className="w-3 h-3" /> Swap
                       </button>
                       {!meal.cooked && (
                         <button onClick={() => onMarkCooked(currentDay.date, meal.recipeId)}
@@ -579,6 +599,21 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ComparisonSheet
+        open={showCompare}
+        onClose={() => setShowCompare(false)}
+        items={compareItems}
+        onPick={(item) => {
+          if (currentDay && item.id.startsWith('recipe-')) {
+            const pickedRecipeId = item.id.replace('recipe-', '');
+            const currentMeal = currentDay.meals.find(m => compareItems[0]?.id === `recipe-${m.recipeId}`);
+            if (currentMeal && pickedRecipeId !== currentMeal.recipeId) {
+              onSwapMeal(currentDay.date, pickedRecipeId);
+            }
+          }
+        }}
+      />
     </div>
   );
 }
