@@ -787,6 +787,20 @@ export function getAdjustedDailyTarget(profile: UserProfile | null): number {
   // Active plan override — plan targets take priority
   const activePlan = getActivePlan();
   if (activePlan) {
+    // Refeed day logic: Day 10 of a 21-day sprint → TDEE (no deficit)
+    const { getPlanProgress } = require('./event-plan-service');
+    const progress = getPlanProgress();
+    if (progress && progress.dayNumber === 10 && activePlan.planId === 'celebrity_transformation') {
+      return p.tdee || p.dailyCalories || 1600;
+    }
+    // Calorie cycling for muscle gain: rest days get -200 kcal
+    if (activePlan.planId === 'gym_muscle_gain') {
+      const trainingDays = _getTrainingDays();
+      const today = new Date().getDay(); // 0=Sun
+      if (!trainingDays.includes(today)) {
+        return Math.max(1200, activePlan.dailyCalories - 200);
+      }
+    }
     return activePlan.dailyCalories;
   }
 
