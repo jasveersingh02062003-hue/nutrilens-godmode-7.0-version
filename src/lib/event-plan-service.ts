@@ -1,7 +1,7 @@
 // Event Plan Service — plan catalog, target calculation, active plan state
 
-export type PlanType = 'celebrity_transformation' | 'sugar_cut' | 'gym_fat_loss' | 'gym_muscle_gain';
-export type PlanCategory = 'weight_loss' | 'sugar_free' | 'muscle' | 'all';
+export type PlanType = 'celebrity_transformation' | 'sugar_cut' | 'gym_fat_loss' | 'gym_muscle_gain' | 'madhavan_21_day';
+export type PlanCategory = 'weight_loss' | 'sugar_free' | 'muscle' | 'circadian' | 'all';
 
 export interface PlanMeta {
   id: PlanType;
