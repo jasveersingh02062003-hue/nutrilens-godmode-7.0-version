@@ -74,6 +74,7 @@ export default function LogFood() {
   const [severeButtonEnabled, setSevereButtonEnabled] = useState(false);
   const [compareSelection, setCompareSelection] = useState<FoodItem[]>([]);
   const [compareSheetOpen, setCompareSheetOpen] = useState(false);
+  const [showChewingTimer, setShowChewingTimer] = useState(false);
 
   // userAllergens moved after profile declaration below
 
