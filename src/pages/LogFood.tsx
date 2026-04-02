@@ -918,6 +918,15 @@ export default function LogFood() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Madhavan Chewing Timer */}
+      <ChewingTimerModal
+        open={showChewingTimer}
+        onClose={() => {
+          setShowChewingTimer(false);
+          navigate(targetDate ? '/progress' : '/dashboard');
+        }}
+      />
     </div>
   );
 }
