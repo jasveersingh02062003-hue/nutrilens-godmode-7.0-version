@@ -1,6 +1,8 @@
 import { Droplets, Plus } from 'lucide-react';
 import { getWeather } from '@/lib/weather-service';
 import { getWeatherWaterBonus } from '@/lib/food-tags';
+import { getActivePlan } from '@/lib/event-plan-service';
+import { getProfile } from '@/lib/store';
 import { useMemo } from 'react';
 
 interface Props {
@@ -12,7 +14,18 @@ interface Props {
 export default function WaterTrackerCompact({ cups, goal, onAdd }: Props) {
   const weather = useMemo(() => getWeather(), []);
   const weatherBonus = useMemo(() => getWeatherWaterBonus(weather.temperature, weather.season), [weather]);
-  const adjustedGoal = goal + weatherBonus.extraCups * 250;
+  const activePlan = getActivePlan();
+  const profile = getProfile();
+
+  // Madhavan override: weightKg × 40ml, clamped 3000-5000ml
+  let adjustedGoal = goal + weatherBonus.extraCups * 250;
+  let madhavanLabel = '';
+  if (activePlan?.planId === 'madhavan_21_day' && profile?.weightKg) {
+    const multiplier = activePlan.customSettings?.waterMultiplier || 40;
+    adjustedGoal = Math.min(5000, Math.max(3000, Math.round(profile.weightKg * multiplier)));
+    madhavanLabel = 'Madhavan hydration target';
+  }
+
   const goalCups = Math.round(adjustedGoal / 250);
   const pct = Math.min(100, (cups / goalCups) * 100);
 
