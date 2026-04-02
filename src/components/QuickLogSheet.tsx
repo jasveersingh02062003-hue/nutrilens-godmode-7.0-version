@@ -75,7 +75,6 @@ export default function QuickLogSheet({ open, onClose, onSaved }: Props) {
   const [saving, setSaving] = useState(false);
   const [sugarWarningItems, setSugarWarningItems] = useState<FoodItem[]>([]);
   const [showSugarWarning, setShowSugarWarning] = useState(false);
-  const [saving, setSaving] = useState(false);
 
   const handleSave = () => {
     if (!text.trim()) return;
