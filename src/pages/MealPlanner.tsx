@@ -20,7 +20,7 @@ import { getRecipeImage } from '@/lib/recipe-images';
 import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
 import type { WeekPlan } from '@/lib/meal-planner-store';
 import MonikaFab from '@/components/MonikaFab';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 type PlannerStep = 'initial' | 'dates' | 'onboarding' | 'generating' | 'preview' | 'dashboard';
