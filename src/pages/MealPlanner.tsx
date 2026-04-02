@@ -43,6 +43,7 @@ function formatDate(dateStr: string): string {
 }
 
 export default function MealPlanner() {
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<MealPlannerProfile | null>(getMealPlannerProfile());
   const [plan, setPlan] = useState<WeekPlan | null>(null);
