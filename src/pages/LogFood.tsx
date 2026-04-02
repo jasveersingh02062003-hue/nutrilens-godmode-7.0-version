@@ -259,6 +259,15 @@ export default function LogFood() {
     const mealToast = getContextualMealToast();
     if (mealToast) toast(mealToast.message, { duration: 4000 });
 
+    // Madhavan plan: show chewing timer after meal log
+    const activePlan = getActivePlan();
+    if (activePlan?.planId === 'madhavan_21_day') {
+      setContextPickerOpen(false);
+      setShowPES(false);
+      setShowChewingTimer(true);
+      return;
+    }
+
     // After-dinner: show LastMealConfirmSheet
     if (mealType === 'dinner') {
       const todayKey = targetDate || new Date().toISOString().split('T')[0];
