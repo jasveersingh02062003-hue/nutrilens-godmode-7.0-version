@@ -127,18 +127,33 @@ export function getRecipesForMeal(
     const pantryMatch = computePantryMatch(r, pantryItems);
     const pantryBonus = pantryMatch.ratio * 30;
 
-    // Plan-specific bonus
+    // Plan-specific bonus + workout timing
     let planBonus = 0;
     let planCompliant = true;
+    let workoutTiming: 'pre' | 'post' | 'rest' | undefined;
     if (activePlan) {
       if (activePlan.planId === 'gym_fat_loss' || activePlan.planId === 'celebrity_transformation') {
-        // Boost high-protein recipes
         if (r.protein >= 20) planBonus += 15;
         if (r.protein >= 30) planBonus += 10;
       }
       if (activePlan.planId === 'gym_muscle_gain') {
-        // Boost high-calorie high-protein
         if (r.calories >= 300 && r.protein >= 20) planBonus += 15;
+      }
+      // Gym nutrient timing nudges
+      if (activePlan.planId === 'gym_fat_loss' || activePlan.planId === 'gym_muscle_gain') {
+        const isPreSlot = mealType === 'breakfast' || mealType === 'lunch';
+        const isPostSlot = mealType === 'snack' || mealType === 'dinner';
+        if (isPreSlot && r.carbs >= 20 && r.protein >= 10) {
+          workoutTiming = 'pre';
+          planBonus += 10;
+        } else if (isPostSlot && r.protein >= 20) {
+          workoutTiming = 'post';
+          planBonus += 12;
+        }
+      }
+      // Celebrity low-carb evening compliance badge
+      if (activePlan.planId === 'celebrity_transformation' && mealType === 'dinner' && r.carbs <= 25) {
+        planBonus += 8;
       }
       if (sugarActive) {
         const sugarCheck = detectSugar(r.name);
