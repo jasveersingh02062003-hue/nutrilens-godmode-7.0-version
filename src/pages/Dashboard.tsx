@@ -495,8 +495,9 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Active Plan Banner */}
+        {/* Active Plan Banner or Promo Card */}
         <ActivePlanBanner />
+        <PlanPromoCard />
         <PlanCompletionModal open={showPlanComplete} onClose={() => setShowPlanComplete(false)} />
 
         {/* 2. Calorie Ring */}
