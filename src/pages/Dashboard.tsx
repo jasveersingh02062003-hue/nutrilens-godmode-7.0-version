@@ -496,6 +496,7 @@ export default function Dashboard() {
 
         {/* Active Plan Banner */}
         <ActivePlanBanner />
+        <PlanCompletionModal open={showPlanComplete} onClose={() => setShowPlanComplete(false)} />
 
         {/* 2. Calorie Ring */}
         <div className="animate-scale-in">
