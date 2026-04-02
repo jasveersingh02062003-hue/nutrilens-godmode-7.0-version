@@ -218,6 +218,7 @@ export function getRecipesForMeal(
       totalIngredientCount: pantryMatch.total,
       planCompliant,
       weatherBoost,
+      workoutTiming,
     };
   });
 

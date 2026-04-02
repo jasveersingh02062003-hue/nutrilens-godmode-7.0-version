@@ -832,7 +832,23 @@ export function getProteinTarget(profile: UserProfile | null): number {
  */
 export function getCarbTarget(profile: UserProfile | null): number {
   const activePlan = getActivePlan();
-  if (activePlan) return activePlan.dailyCarbs;
+  if (activePlan) {
+    // Refeed day: +50% carbs on Day 10 of celebrity plan
+    const { getPlanProgress } = require('./event-plan-service');
+    const progress = getPlanProgress();
+    if (progress && progress.dayNumber === 10 && activePlan.planId === 'celebrity_transformation') {
+      return Math.round(activePlan.dailyCarbs * 1.5);
+    }
+    // Rest day cycling for muscle gain: reduce carbs by 30g
+    if (activePlan.planId === 'gym_muscle_gain') {
+      const trainingDays = _getTrainingDays();
+      const today = new Date().getDay();
+      if (!trainingDays.includes(today)) {
+        return Math.max(50, activePlan.dailyCarbs - 30);
+      }
+    }
+    return activePlan.dailyCarbs;
+  }
   return profile?.dailyCarbs || 200;
 }
 
@@ -841,8 +857,41 @@ export function getCarbTarget(profile: UserProfile | null): number {
  */
 export function getFatTarget(profile: UserProfile | null): number {
   const activePlan = getActivePlan();
-  if (activePlan) return activePlan.dailyFat;
+  if (activePlan) {
+    // Rest day cycling for muscle gain: increase fat by 15g
+    if (activePlan.planId === 'gym_muscle_gain') {
+      const trainingDays = _getTrainingDays();
+      const today = new Date().getDay();
+      if (!trainingDays.includes(today)) {
+        return activePlan.dailyFat + 15;
+      }
+    }
+    return activePlan.dailyFat;
+  }
   return profile?.dailyFat || 55;
+}
+
+// Training days helper for calorie cycling (default: Mon-Fri)
+const TRAINING_DAYS_KEY = 'nutrilens_training_days';
+
+function _getTrainingDays(): number[] {
+  try {
+    const raw = localStorage.getItem(TRAINING_DAYS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return [1, 2, 3, 4, 5]; // Mon-Fri default
+}
+
+export function setTrainingDays(days: number[]): void {
+  localStorage.setItem(TRAINING_DAYS_KEY, JSON.stringify(days));
+}
+
+export function getTrainingDays(): number[] {
+  return _getTrainingDays();
+}
+
+export function isTrainingDay(): boolean {
+  return _getTrainingDays().includes(new Date().getDay());
 }
 
 /**
