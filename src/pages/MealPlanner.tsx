@@ -56,7 +56,13 @@ export default function MealPlanner() {
   });
   const [swapTarget, setSwapTarget] = useState<{ date: string; recipeId: string; mealType: string } | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabName>('Budget');
+  const [activeTab, setActiveTab] = useState<TabName>(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['Budget', 'Meal Plan', 'Plans', 'Compare', 'Kitchen'].includes(tabParam)) {
+      return tabParam as TabName;
+    }
+    return 'Budget';
+  });
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const premium = isPremium();
 
