@@ -19,6 +19,7 @@ export interface SuggestedRecipe extends EnrichedRecipe {
   totalIngredientCount?: number;
   planCompliant?: boolean;
   weatherBoost?: boolean;
+  workoutTiming?: 'pre' | 'post' | 'rest';
 }
 
 /**
