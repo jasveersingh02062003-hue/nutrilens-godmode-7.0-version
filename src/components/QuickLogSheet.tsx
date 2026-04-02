@@ -159,6 +159,42 @@ export default function QuickLogSheet({ open, onClose, onSaved }: Props) {
     onClose();
   };
 
+  const proceedWithSugarItems = () => {
+    setShowSugarWarning(false);
+    // Re-run save logic bypassing sugar check
+    const parsed = parseQuickText(text);
+    const items: FoodItem[] = [];
+    for (const p of parsed) {
+      const results = searchIndianFoods(p.name);
+      if (results.length > 0) {
+        const food = indianFoodToFoodItem(results[0]);
+        items.push({ ...food, id: Date.now().toString() + Math.random(), quantity: p.qty, confidenceScore: 0.6 } as FoodItem);
+      }
+    }
+    if (items.length === 0) return;
+
+    const hour = new Date().getHours();
+    const mealType = hour < 11 ? 'breakfast' : hour < 15 ? 'lunch' : hour < 18 ? 'snack' : 'dinner';
+    const meal: MealEntry = {
+      id: Date.now().toString(),
+      type: mealType as any,
+      items,
+      totalCalories: Math.round(items.reduce((s, i) => s + i.calories * i.quantity, 0)),
+      totalProtein: Math.round(items.reduce((s, i) => s + i.protein * i.quantity, 0)),
+      totalCarbs: Math.round(items.reduce((s, i) => s + i.carbs * i.quantity, 0)),
+      totalFat: Math.round(items.reduce((s, i) => s + i.fat * i.quantity, 0)),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+    addMealToLog(meal);
+    syncDailyBalance();
+    toast.success(`Quick log saved ✅ ${items.length} item${items.length !== 1 ? 's' : ''} added`);
+    setText('');
+    onSaved?.();
+    onClose();
+  };
+
+  const sugarWarnings = showSugarWarning ? getSugarWarnings(sugarWarningItems) : null;
+
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
       <SheetContent side="bottom" className="rounded-t-2xl">
@@ -167,6 +203,21 @@ export default function QuickLogSheet({ open, onClose, onSaved }: Props) {
           <SheetDescription>Type what you ate — we'll estimate the rest.</SheetDescription>
         </SheetHeader>
         <div className="space-y-4 pt-4">
+          {showSugarWarning && sugarWarnings?.hasWarnings && (
+            <AnimatedWarningBanner
+              type="health"
+              severity={sugarWarnings.severity === 'high' ? 'high' : 'medium'}
+              title="🚫 Sugar Cut Plan Active"
+              messages={sugarWarnings.messages.map(m => ({ icon: m.icon, text: m.text, itemName: m.itemName }))}
+              onDismiss={() => setShowSugarWarning(false)}
+              onFindAlternative={() => { setShowSugarWarning(false); setText(''); }}
+            />
+          )}
+          {showSugarWarning && (
+            <Button variant="outline" onClick={proceedWithSugarItems} className="w-full text-destructive border-destructive/30">
+              Log Anyway (breaks streak)
+            </Button>
+          )}
           <input
             type="text"
             value={text}

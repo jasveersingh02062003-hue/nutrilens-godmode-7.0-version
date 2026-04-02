@@ -66,6 +66,15 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
       return;
     }
 
+    // Sugar Cut plan warning
+    if (isSugarDetectionActive()) {
+      const sugarCheck = detectSugar(food.name);
+      if (sugarCheck.hasSugar && sugarCheck.severity !== 'low') {
+        setPendingItem({ food, item: finalItem, matched: [`sugar: ${sugarCheck.keywords[0] || 'detected'}`] });
+        return;
+      }
+    }
+
     onAdd(finalItem);
     setQuery('');
   };
