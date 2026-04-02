@@ -50,6 +50,7 @@ import SubscriptionBadge from '@/components/SubscriptionBadge';
 import NextMealCard from '@/components/NextMealCard';
 import ActivePlanBanner from '@/components/ActivePlanBanner';
 import PlanCompletionModal from '@/components/PlanCompletionModal';
+import PlanPromoCard from '@/components/PlanPromoCard';
 import { getPlanProgress } from '@/lib/event-plan-service';
 import { getDualSyncInsight, isSurvivalModeManual, getLatestBudgetAlert, clearLatestBudgetAlert, type BudgetAlertResult } from '@/lib/budget-service';
 import UpgradeBanner from '@/components/UpgradeBanner';
@@ -64,7 +65,7 @@ import PESExplanationCard from '@/components/PESExplanationCard';
 import WeeklyFeedbackCard from '@/components/WeeklyFeedbackCard';
 import { shouldGenerateSummary, generateWeeklySummary, scheduleWeeklyNotification } from '@/lib/weekly-feedback';
 import { hasBrowserPermission, startProactiveChecks } from '@/lib/notifications';
-import { processEndOfDay, getAdjustedDailyTarget, getProteinTarget, isTargetAdjusted, getAdherenceScore, getBalanceStreak, getDayType, setDayType, onCalorieBankUpdate, offCalorieBankUpdate, getAdjustmentExplanation, getContextualMealToast, type DayType } from '@/lib/calorie-correction';
+import { processEndOfDay, getAdjustedDailyTarget, getProteinTarget, getCarbTarget, getFatTarget, isTargetAdjusted, getAdherenceScore, getBalanceStreak, getDayType, setDayType, onCalorieBankUpdate, offCalorieBankUpdate, getAdjustmentExplanation, getContextualMealToast, type DayType } from '@/lib/calorie-correction';
 import { Flame } from 'lucide-react';
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -494,8 +495,9 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Active Plan Banner */}
+        {/* Active Plan Banner or Promo Card */}
         <ActivePlanBanner />
+        <PlanPromoCard />
         <PlanCompletionModal open={showPlanComplete} onClose={() => setShowPlanComplete(false)} />
 
         {/* 2. Calorie Ring */}
@@ -511,8 +513,8 @@ export default function Dashboard() {
         {/* 3. Macros */}
         <div className="flex gap-2 animate-slide-up">
           <MacroCard label="Protein" current={totals.protein} goal={getProteinTarget(profile)} variant="coral" icon="protein" />
-          <MacroCard label="Carbs" current={totals.carbs} goal={profile.dailyCarbs} variant="primary" icon="carbs" />
-          <MacroCard label="Fats" current={totals.fat} goal={profile.dailyFat} variant="gold" icon="fat" />
+          <MacroCard label="Carbs" current={totals.carbs} goal={getCarbTarget(profile)} variant="primary" icon="carbs" />
+          <MacroCard label="Fats" current={totals.fat} goal={getFatTarget(profile)} variant="gold" icon="fat" />
         </div>
 
         {/* 3a. Budget Summary */}

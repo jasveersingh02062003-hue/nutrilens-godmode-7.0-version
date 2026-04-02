@@ -1,4 +1,7 @@
 import { Droplets, Plus } from 'lucide-react';
+import { getWeather } from '@/lib/weather-service';
+import { getWeatherWaterBonus } from '@/lib/food-tags';
+import { useMemo } from 'react';
 
 interface Props {
   cups: number;
@@ -7,7 +10,10 @@ interface Props {
 }
 
 export default function WaterTrackerCompact({ cups, goal, onAdd }: Props) {
-  const goalCups = Math.round(goal / 250);
+  const weather = useMemo(() => getWeather(), []);
+  const weatherBonus = useMemo(() => getWeatherWaterBonus(weather.temperature, weather.season), [weather]);
+  const adjustedGoal = goal + weatherBonus.extraCups * 250;
+  const goalCups = Math.round(adjustedGoal / 250);
   const pct = Math.min(100, (cups / goalCups) * 100);
 
   return (
@@ -26,13 +32,16 @@ export default function WaterTrackerCompact({ cups, goal, onAdd }: Props) {
           <Plus className="w-3.5 h-3.5" />
         </button>
       </div>
-      <p className="text-[11px] text-muted-foreground mb-1.5">{cups * 250}ml / {goal}ml</p>
+      <p className="text-[11px] text-muted-foreground mb-1.5">{cups * 250}ml / {adjustedGoal}ml</p>
       <div className="flex items-center gap-1.5">
         <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
           <div className="h-full rounded-full bg-secondary transition-all duration-500 ease-out" style={{ width: `${pct}%` }} />
         </div>
         <span className="text-[10px] font-semibold text-muted-foreground">{cups}/{goalCups}</span>
       </div>
+      {weatherBonus.extraCups > 0 && (
+        <p className="text-[9px] text-secondary font-medium mt-1">{weatherBonus.nudge}</p>
+      )}
     </div>
   );
 }

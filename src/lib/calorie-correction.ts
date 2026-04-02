@@ -808,12 +808,27 @@ export function getAdjustedDailyTarget(profile: UserProfile | null): number {
  * Protein target — always returns the original, never reduced.
  */
 export function getProteinTarget(profile: UserProfile | null): number {
-  // Active plan override
   const activePlan = getActivePlan();
-  if (activePlan) {
-    return activePlan.dailyProtein;
-  }
+  if (activePlan) return activePlan.dailyProtein;
   return profile?.dailyProtein || 60;
+}
+
+/**
+ * Carb target — active plan override or profile default.
+ */
+export function getCarbTarget(profile: UserProfile | null): number {
+  const activePlan = getActivePlan();
+  if (activePlan) return activePlan.dailyCarbs;
+  return profile?.dailyCarbs || 200;
+}
+
+/**
+ * Fat target — active plan override or profile default.
+ */
+export function getFatTarget(profile: UserProfile | null): number {
+  const activePlan = getActivePlan();
+  if (activePlan) return activePlan.dailyFat;
+  return profile?.dailyFat || 55;
 }
 
 /**
