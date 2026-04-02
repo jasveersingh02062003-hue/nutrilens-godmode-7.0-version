@@ -788,7 +788,6 @@ export function getAdjustedDailyTarget(profile: UserProfile | null): number {
   const activePlan = getActivePlan();
   if (activePlan) {
     // Refeed day logic: Day 10 of a 21-day sprint → TDEE (no deficit)
-    const { getPlanProgress } = require('./event-plan-service');
     const progress = getPlanProgress();
     if (progress && progress.dayNumber === 10 && activePlan.planId === 'celebrity_transformation') {
       return p.tdee || p.dailyCalories || 1600;
