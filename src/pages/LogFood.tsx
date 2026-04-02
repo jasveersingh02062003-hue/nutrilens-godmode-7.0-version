@@ -29,6 +29,7 @@ import { checkFoodForConditions, getUserConditions, type FoodConditionWarning } 
 import AnimatedWarningBanner, { type WarningMessage } from '@/components/AnimatedWarningBanner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getActivePlan } from '@/lib/event-plan-service';
+import ChewingTimerModal from '@/components/ChewingTimerModal';
 import {
   AlertDialog,
   AlertDialogAction,
