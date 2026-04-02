@@ -49,6 +49,7 @@ import { getWeather, fetchLiveWeather, type WeatherData } from '@/lib/weather-se
 import SubscriptionBadge from '@/components/SubscriptionBadge';
 import NextMealCard from '@/components/NextMealCard';
 import ActivePlanBanner from '@/components/ActivePlanBanner';
+import MadhavanPlanBanner from '@/components/MadhavanPlanBanner';
 import PlanCompletionModal from '@/components/PlanCompletionModal';
 import PlanPromoCard from '@/components/PlanPromoCard';
 import { getPlanProgress } from '@/lib/event-plan-service';
