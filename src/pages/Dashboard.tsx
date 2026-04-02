@@ -50,6 +50,7 @@ import SubscriptionBadge from '@/components/SubscriptionBadge';
 import NextMealCard from '@/components/NextMealCard';
 import ActivePlanBanner from '@/components/ActivePlanBanner';
 import PlanCompletionModal from '@/components/PlanCompletionModal';
+import PlanPromoCard from '@/components/PlanPromoCard';
 import { getPlanProgress } from '@/lib/event-plan-service';
 import { getDualSyncInsight, isSurvivalModeManual, getLatestBudgetAlert, clearLatestBudgetAlert, type BudgetAlertResult } from '@/lib/budget-service';
 import UpgradeBanner from '@/components/UpgradeBanner';
