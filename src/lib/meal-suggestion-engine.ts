@@ -89,8 +89,11 @@ export function getRecipesForMeal(
       if (sugarCheck.hasSugar && sugarCheck.severity === 'high') return false;
     }
     if (activePlan?.planId === 'gym_fat_loss') {
-      // Exclude high-carb recipes (>40g carbs)
       if (r.carbs > 40) return false;
+    }
+    // Celebrity plan: low-carb evenings
+    if (activePlan?.planId === 'celebrity_transformation' && mealType === 'dinner') {
+      if (r.carbs > 25) return false;
     }
 
     if (dietPrefs.includes('vegetarian') || dietPrefs.includes('veg')) {
