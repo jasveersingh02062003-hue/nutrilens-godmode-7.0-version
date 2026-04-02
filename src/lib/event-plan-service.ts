@@ -120,6 +120,38 @@ export const PLAN_CATALOG: PlanMeta[] = [
     rules: ['Caloric surplus 300-500 kcal', '2g protein/kg', 'High carb on training days', 'Moderate fat'],
     includes: ['Bulking meal plan', 'Training day / rest day splits', 'Calorie cycling', 'Progress tracking', 'Weekly adjustments'],
   },
+  {
+    id: 'madhavan_21_day',
+    name: 'Madhavan 21-Day Metabolic Reset',
+    emoji: '🧘',
+    description: 'Align with circadian rhythms, mindful eating, and low-intensity movement. No gym required.',
+    shortBenefit: 'Circadian reset & fat loss',
+    price: 599,
+    durationOptions: [21],
+    defaultDuration: 21,
+    category: 'circadian',
+    rating: 4.9,
+    reviewCount: 1583,
+    rules: [
+      'Intermittent fasting 12h',
+      'Chew 50 times per bite',
+      'Home-cooked only',
+      'No junk food',
+      'Leafy greens daily',
+      'No raw food after 3 PM',
+      'Hydration 40ml/kg',
+      'Sleep by 10 PM',
+    ],
+    includes: [
+      'Circadian meal plan',
+      'Chewing timer',
+      'Body awareness journal',
+      'Eating window guard',
+      'Reverse diet transition',
+      'Progress tracking',
+      'PDF export',
+    ],
+  },
 ];
 
 export function getPlanById(id: PlanType): PlanMeta | undefined {
