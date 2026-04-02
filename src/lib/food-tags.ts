@@ -185,6 +185,9 @@ export function getSeasonalPicks(season: string, temperature: number): SeasonalP
       { name: 'Cucumber Raita', emoji: '🥒', reason: 'Cooling probiotic side dish', calories: 65, tags: { isHydrating: true, isLight: true } },
       { name: 'Sattu Drink', emoji: '🥤', reason: 'Traditional summer coolant', calories: 80, tags: { isHydrating: true, isLight: true } },
       { name: 'Curd Rice', emoji: '🍚', reason: 'Light & cooling comfort food', calories: 180, tags: { isHydrating: true, isLight: true } },
+      { name: 'Nimbu Pani', emoji: '🍋', reason: 'Electrolyte-rich natural lemonade', calories: 25, tags: { isHydrating: true, isLight: true } },
+      { name: 'Coconut Water', emoji: '🥥', reason: 'Natural electrolytes & potassium', calories: 45, tags: { isHydrating: true, isLight: true } },
+      { name: 'Aam Panna', emoji: '🥭', reason: 'Raw mango drink prevents heat stroke', calories: 60, tags: { isHydrating: true, isLight: true } },
     ];
   }
 
@@ -195,6 +198,8 @@ export function getSeasonalPicks(season: string, temperature: number): SeasonalP
       { name: 'Corn on the Cob', emoji: '🌽', reason: 'Classic monsoon snack', calories: 90, tags: { isLight: true } },
       { name: 'Pakora (Baked)', emoji: '🥙', reason: 'Lighter version of monsoon fave', calories: 140, tags: { isLight: true } },
       { name: 'Turmeric Milk', emoji: '🥛', reason: 'Anti-inflammatory immunity boost', calories: 60, tags: { isHydrating: true } },
+      { name: 'Masala Chai', emoji: '☕', reason: 'Warm spiced tea for rainy days', calories: 50, tags: { isHydrating: true } },
+      { name: 'Warm Lemon Water', emoji: '🍋', reason: 'Detox & immunity in monsoon', calories: 10, tags: { isHydrating: true, isLight: true } },
     ];
   }
 
@@ -205,6 +210,9 @@ export function getSeasonalPicks(season: string, temperature: number): SeasonalP
       { name: 'Mixed Vegetable Soup', emoji: '🥣', reason: 'Warm & nutrient-dense', calories: 90, tags: { isLight: true, isHydrating: true } },
       { name: 'Methi Thepla', emoji: '🫓', reason: 'Iron-rich winter flatbread', calories: 150, tags: { isLight: true } },
       { name: 'Dry Fruit Ladoo', emoji: '🟤', reason: 'Natural energy in cold weather', calories: 120, tags: { } },
+      { name: 'Adrak Chai', emoji: '☕', reason: 'Warming ginger tea for winter', calories: 30, tags: { isHydrating: true } },
+      { name: 'Hot Turmeric Milk', emoji: '🥛', reason: 'Golden milk for cold nights', calories: 80, tags: { isHydrating: true } },
+      { name: 'Pumpkin Soup', emoji: '🎃', reason: 'Seasonal hearty winter soup', calories: 110, tags: { isLight: true, isHydrating: true } },
     ];
   }
 
@@ -216,4 +224,21 @@ export function getSeasonalPicks(season: string, temperature: number): SeasonalP
     { name: 'Khichdi', emoji: '🍲', reason: 'Gentle on digestion', calories: 120, tags: { isLight: true } },
     { name: 'Nimbu Pani', emoji: '🍋', reason: 'Refreshing vitamin C boost', calories: 25, tags: { isHydrating: true, isLight: true } },
   ];
+}
+
+/**
+ * Get weather-adjusted water goal bonus.
+ * Returns extra cups to add based on temperature/season.
+ */
+export function getWeatherWaterBonus(temperature: number, season: string): { extraCups: number; nudge: string } {
+  if (temperature > 34 || season === 'summer') {
+    return { extraCups: 2, nudge: '☀️ Hot day — aim for 2 extra cups of water!' };
+  }
+  if (temperature > 30) {
+    return { extraCups: 1, nudge: '🌤️ Warm day — drink 1 extra cup' };
+  }
+  if (season === 'monsoon') {
+    return { extraCups: 1, nudge: '🌧️ Humid weather — stay hydrated with 1 extra cup' };
+  }
+  return { extraCups: 0, nudge: '' };
 }
