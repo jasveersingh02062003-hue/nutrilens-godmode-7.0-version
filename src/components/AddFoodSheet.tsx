@@ -6,6 +6,7 @@ import { searchIndianFoods, indianFoodToFoodItem } from '@/lib/indian-foods';
 import { estimateCost } from '@/lib/price-database';
 import { checkAllergens, getAllergenLabel, getAllergenEmoji, hasSevereAllergen } from '@/lib/allergen-engine';
 import { checkFoodForConditions, getUserConditions } from '@/lib/condition-coach';
+import { detectSugar, isSugarDetectionActive } from '@/lib/sugar-detector';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import ComparisonSheet from '@/components/ComparisonSheet';
