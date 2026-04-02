@@ -808,6 +808,12 @@ export function getAdjustedDailyTarget(profile: UserProfile | null): number {
  * Protein target — always returns the original, never reduced.
  */
 export function getProteinTarget(profile: UserProfile | null): number {
+  // Active plan override
+  const { getActivePlan } = require('@/lib/event-plan-service');
+  const activePlan = getActivePlan();
+  if (activePlan) {
+    return activePlan.dailyProtein;
+  }
   return profile?.dailyProtein || 60;
 }
 
