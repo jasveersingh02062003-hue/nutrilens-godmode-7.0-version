@@ -20,7 +20,7 @@ import { getRecipeImage } from '@/lib/recipe-images';
 import { getEnhancedBudgetSettings } from '@/lib/budget-alerts';
 import type { WeekPlan } from '@/lib/meal-planner-store';
 import MonikaFab from '@/components/MonikaFab';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 type PlannerStep = 'initial' | 'dates' | 'onboarding' | 'generating' | 'preview' | 'dashboard';
@@ -43,6 +43,7 @@ function formatDate(dateStr: string): string {
 }
 
 export default function MealPlanner() {
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<MealPlannerProfile | null>(getMealPlannerProfile());
   const [plan, setPlan] = useState<WeekPlan | null>(null);
@@ -55,7 +56,13 @@ export default function MealPlanner() {
   });
   const [swapTarget, setSwapTarget] = useState<{ date: string; recipeId: string; mealType: string } | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabName>('Budget');
+  const [activeTab, setActiveTab] = useState<TabName>(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['Budget', 'Meal Plan', 'Plans', 'Compare', 'Kitchen'].includes(tabParam)) {
+      return tabParam as TabName;
+    }
+    return 'Budget';
+  });
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const premium = isPremium();
 

@@ -9,8 +9,10 @@ import type { WeekPlan } from '@/lib/meal-planner-store';
 import BudgetPlannerTab from './BudgetPlannerTab';
 import SurvivalKitSheet from './SurvivalKitSheet';
 import CompareTab from './CompareTab';
+import KitchenTab from './KitchenTab';
+import SpecialPlansTab from './SpecialPlansTab';
 import { getSavedSurvivalKit, clearSurvivalKit } from '@/lib/grocery-survival';
-const TAB_ITEMS = ['Budget', 'Meal Plan', 'Groceries', 'Compare', 'Recipes'] as const;
+const TAB_ITEMS = ['Budget', 'Meal Plan', 'Plans', 'Compare', 'Kitchen'] as const;
 type TabName = typeof TAB_ITEMS[number];
 
 interface MealPlannerTabsProps {
@@ -354,9 +356,14 @@ export default function MealPlannerTabs({ plan, activeTab, onTabChange, mealPlan
           >
             {activeTab === 'Budget' && <BudgetPlannerTab onOnboardingComplete={onBudgetComplete} />}
             {activeTab === 'Meal Plan' && mealPlanContent}
-            {activeTab === 'Groceries' && <GroceriesTab plan={plan} />}
+            {activeTab === 'Plans' && <SpecialPlansTab />}
             {activeTab === 'Compare' && <CompareTab />}
-            {activeTab === 'Recipes' && <RecipesTab />}
+            {activeTab === 'Kitchen' && (
+              <KitchenTab
+                groceriesContent={<GroceriesTab plan={plan} />}
+                recipesContent={<RecipesTab />}
+              />
+            )}
           </motion.div>
         </AnimatePresence>
       </div>
