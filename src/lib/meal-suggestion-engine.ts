@@ -1,4 +1,4 @@
-// ─── Budget + Health-Aware Meal Suggestion Engine ───
+// ─── Budget + Health + Plan + Weather-Aware Meal Suggestion Engine ───
 
 import { recipes, getEnrichedRecipe, type Recipe, type EnrichedRecipe } from './recipes';
 import { getEffectiveRestrictions } from './logic-engine';
@@ -6,6 +6,10 @@ import { getDailyLog, getTodayKey, type UserProfile } from './store';
 import { computePES } from './pes-engine';
 import { getUnifiedBudget, getUnifiedRemainingMealBudget } from './budget-engine';
 import { getPantryItems, type PantryItem } from './pantry-store';
+import { getActivePlan } from './event-plan-service';
+import { detectSugar, isSugarDetectionActive } from './sugar-detector';
+import { getWeather } from './weather-service';
+import { getTagsForFood } from './food-tags';
 
 export interface SuggestedRecipe extends EnrichedRecipe {
   matchReason?: string;
@@ -13,6 +17,8 @@ export interface SuggestedRecipe extends EnrichedRecipe {
   pantryMatchRatio?: number;
   pantryMatchCount?: number;
   totalIngredientCount?: number;
+  planCompliant?: boolean;
+  weatherBoost?: boolean;
 }
 
 /**
