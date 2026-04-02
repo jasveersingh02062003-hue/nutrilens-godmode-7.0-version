@@ -1,7 +1,7 @@
 // Event Plan Service — plan catalog, target calculation, active plan state
 
-export type PlanType = 'celebrity_transformation' | 'sugar_cut' | 'gym_fat_loss' | 'gym_muscle_gain';
-export type PlanCategory = 'weight_loss' | 'sugar_free' | 'muscle' | 'all';
+export type PlanType = 'celebrity_transformation' | 'sugar_cut' | 'gym_fat_loss' | 'gym_muscle_gain' | 'madhavan_21_day';
+export type PlanCategory = 'weight_loss' | 'sugar_free' | 'muscle' | 'circadian' | 'all';
 
 export interface PlanMeta {
   id: PlanType;
@@ -19,6 +19,16 @@ export interface PlanMeta {
   includes: string[];
 }
 
+export interface MadhavanSettings {
+  eatingWindowStart: string; // HH:MM
+  eatingWindowEnd: string;
+  stepsTarget: number;
+  waterMultiplier: number; // ml per kg
+  chewCount: number;
+  sleepTime: string;
+  noRawFoodAfter: string; // HH:MM (15:00)
+}
+
 export interface ActivePlan {
   planId: PlanType;
   startDate: string; // YYYY-MM-DD
@@ -30,6 +40,7 @@ export interface ActivePlan {
   dailyFat: number;
   dailyDeficit: number;
   activatedAt: string;
+  customSettings?: MadhavanSettings;
 }
 
 export interface PlanTargets {
@@ -108,6 +119,38 @@ export const PLAN_CATALOG: PlanMeta[] = [
     reviewCount: 678,
     rules: ['Caloric surplus 300-500 kcal', '2g protein/kg', 'High carb on training days', 'Moderate fat'],
     includes: ['Bulking meal plan', 'Training day / rest day splits', 'Calorie cycling', 'Progress tracking', 'Weekly adjustments'],
+  },
+  {
+    id: 'madhavan_21_day',
+    name: 'Madhavan 21-Day Metabolic Reset',
+    emoji: '🧘',
+    description: 'Align with circadian rhythms, mindful eating, and low-intensity movement. No gym required.',
+    shortBenefit: 'Circadian reset & fat loss',
+    price: 599,
+    durationOptions: [21],
+    defaultDuration: 21,
+    category: 'circadian',
+    rating: 4.9,
+    reviewCount: 1583,
+    rules: [
+      'Intermittent fasting 12h',
+      'Chew 50 times per bite',
+      'Home-cooked only',
+      'No junk food',
+      'Leafy greens daily',
+      'No raw food after 3 PM',
+      'Hydration 40ml/kg',
+      'Sleep by 10 PM',
+    ],
+    includes: [
+      'Circadian meal plan',
+      'Chewing timer',
+      'Body awareness journal',
+      'Eating window guard',
+      'Reverse diet transition',
+      'Progress tracking',
+      'PDF export',
+    ],
   },
 ];
 

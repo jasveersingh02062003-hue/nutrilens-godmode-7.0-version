@@ -96,6 +96,16 @@ export function getRecipesForMeal(
       if (r.carbs > 25) return false;
     }
 
+    // Madhavan plan filters
+    if (activePlan?.planId === 'madhavan_21_day') {
+      // Home-cooked only — exclude restaurant/junk/fast_food/processed
+      const junkTags = ['restaurant', 'junk', 'processed', 'fast_food'];
+      if (r.tags.some(t => junkTags.includes(t.toLowerCase()))) return false;
+      // No raw food after 3 PM for dinner/snack slots
+      const isAfternoonSlot = mealType === 'dinner' || mealType === 'snack';
+      if (isAfternoonSlot && r.tags.some(t => t.toLowerCase() === 'raw')) return false;
+    }
+
     if (dietPrefs.includes('vegetarian') || dietPrefs.includes('veg')) {
       if (!r.tags.some(t => ['vegetarian', 'veg'].includes(t.toLowerCase()))) return false;
     }
@@ -154,6 +164,18 @@ export function getRecipesForMeal(
       // Celebrity low-carb evening compliance badge
       if (activePlan.planId === 'celebrity_transformation' && mealType === 'dinner' && r.carbs <= 25) {
         planBonus += 8;
+      }
+      // Madhavan plan boosts
+      if (activePlan.planId === 'madhavan_21_day') {
+        const madhavanBoostTags = ['leafy_greens', 'home_cooked', 'millet', 'fermented'];
+        const hasBoostTag = r.tags.some(t => madhavanBoostTags.includes(t.toLowerCase()));
+        if (hasBoostTag) planBonus += 15;
+        // Boost healthy oils
+        const healthyOils = ['coconut oil', 'sesame oil', 'til oil', 'nariyal tel'];
+        const hasHealthyOil = r.ingredients.some(i => healthyOils.some(o => i.name.toLowerCase().includes(o)));
+        if (hasHealthyOil) planBonus += 8;
+        // Protein targets for Madhavan
+        if (r.protein >= 15) planBonus += 10;
       }
       if (sugarActive) {
         const sugarCheck = detectSugar(r.name);

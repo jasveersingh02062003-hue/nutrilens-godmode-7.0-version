@@ -7,6 +7,7 @@
 
 import { getDailyLog, getDailyTotals, getProfile, getRecentLogs, getAllLogDates, type UserProfile, type DailyLog } from '@/lib/store';
 import { getActivePlan, getPlanProgress } from '@/lib/event-plan-service';
+import { getReverseDietTarget } from '@/lib/reverse-diet-service';
 
 // ── Types ──
 
@@ -801,6 +802,12 @@ export function getAdjustedDailyTarget(profile: UserProfile | null): number {
       }
     }
     return activePlan.dailyCalories;
+  }
+
+  // Reverse diet override — graduated return to TDEE after plan completion
+  const reverseDietTarget = getReverseDietTarget();
+  if (reverseDietTarget !== null) {
+    return Math.max(1200, reverseDietTarget);
   }
 
   const baseTarget = p.dailyCalories || 1600;

@@ -49,9 +49,11 @@ import { getWeather, fetchLiveWeather, type WeatherData } from '@/lib/weather-se
 import SubscriptionBadge from '@/components/SubscriptionBadge';
 import NextMealCard from '@/components/NextMealCard';
 import ActivePlanBanner from '@/components/ActivePlanBanner';
+import MadhavanPlanBanner from '@/components/MadhavanPlanBanner';
 import PlanCompletionModal from '@/components/PlanCompletionModal';
 import PlanPromoCard from '@/components/PlanPromoCard';
-import { getPlanProgress } from '@/lib/event-plan-service';
+import { getPlanProgress, getActivePlan } from '@/lib/event-plan-service';
+import { isReverseDietActive, getReverseDietWeek } from '@/lib/reverse-diet-service';
 import { getDualSyncInsight, isSurvivalModeManual, getLatestBudgetAlert, clearLatestBudgetAlert, type BudgetAlertResult } from '@/lib/budget-service';
 import UpgradeBanner from '@/components/UpgradeBanner';
 import { getMealPlannerProfile } from '@/lib/meal-planner-store';
@@ -495,10 +497,23 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Active Plan Banner or Promo Card */}
-        <ActivePlanBanner />
+        {/* Active Plan Banner — Madhavan gets custom banner */}
+        {getActivePlan()?.planId === 'madhavan_21_day' ? <MadhavanPlanBanner /> : <ActivePlanBanner />}
         <PlanPromoCard />
         <PlanCompletionModal open={showPlanComplete} onClose={() => setShowPlanComplete(false)} />
+
+        {/* Reverse Diet Banner */}
+        {isReverseDietActive() && !getActivePlan() && (
+          <div className="animate-fade-in">
+            <div className="flex items-center gap-3 rounded-2xl px-4 py-3 border bg-accent/10 border-accent/20">
+              <span className="text-sm">🔄</span>
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-foreground">Reverse Diet — Week {getReverseDietWeek()}/3</p>
+                <p className="text-[10px] text-muted-foreground">Gradually returning to maintenance calories</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 2. Calorie Ring */}
         <div className="animate-scale-in">

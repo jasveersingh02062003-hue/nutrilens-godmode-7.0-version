@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { getPlanProgress, getActivePlan, clearActivePlan, getPlanById, setActivePlan, type ActivePlan } from '@/lib/event-plan-service';
+import { startReverseDiet } from '@/lib/reverse-diet-service';
+import { getProfile } from '@/lib/store';
 import ConfettiCelebration from '@/components/ConfettiCelebration';
-import { Trophy, RotateCcw, ArrowRight } from 'lucide-react';
+import { Trophy, RotateCcw, ArrowRight, RefreshCw } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -35,6 +37,25 @@ export default function PlanCompletionModal({ open, onClose }: Props) {
     setActivePlan(newPlan);
     onClose();
   };
+
+  const handleStartReverseDiet = () => {
+    if (!plan) return;
+    const profile = getProfile();
+    if (!profile) return;
+    const actMultiplier = profile.tdee && profile.bmr ? profile.tdee / profile.bmr : 1.4;
+    startReverseDiet(
+      profile.weightKg || 70,
+      profile.heightCm || 170,
+      profile.age || 30,
+      profile.gender || 'male',
+      actMultiplier,
+      plan.planId
+    );
+    clearActivePlan();
+    onClose();
+  };
+
+  const isMadhavan = plan?.planId === 'madhavan_21_day';
 
   if (!plan || !meta) return null;
 
@@ -71,20 +92,37 @@ export default function PlanCompletionModal({ open, onClose }: Props) {
               </div>
             </div>
 
+            {isMadhavan && (
+              <div className="bg-accent/5 border border-accent/20 rounded-xl p-3">
+                <p className="text-xs font-semibold text-foreground mb-1">🔄 Reverse Diet Recommended</p>
+                <p className="text-[10px] text-muted-foreground">
+                  Gradually increase calories over 3 weeks to prevent weight regain and stabilize metabolism.
+                </p>
+              </div>
+            )}
+
             <p className="text-xs text-center text-muted-foreground">
-              Great discipline! Your regular targets will resume now.
+              {isMadhavan ? 'Start reverse dieting for a smooth transition back to maintenance.' : 'Great discipline! Your regular targets will resume now.'}
             </p>
           </div>
 
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleExtend} className="flex-1 gap-1.5">
-              <RotateCcw className="w-4 h-4" />
-              +7 Days
-            </Button>
-            <Button onClick={handleReturnToNormal} className="flex-1 gap-1.5">
-              <ArrowRight className="w-4 h-4" />
-              Done
-            </Button>
+          <div className="flex flex-col gap-2">
+            {isMadhavan && (
+              <Button onClick={handleStartReverseDiet} className="w-full gap-1.5">
+                <RefreshCw className="w-4 h-4" />
+                Start 3-Week Reverse Diet
+              </Button>
+            )}
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleExtend} className="flex-1 gap-1.5">
+                <RotateCcw className="w-4 h-4" />
+                +7 Days
+              </Button>
+              <Button variant={isMadhavan ? 'outline' : 'default'} onClick={handleReturnToNormal} className="flex-1 gap-1.5">
+                <ArrowRight className="w-4 h-4" />
+                Done
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

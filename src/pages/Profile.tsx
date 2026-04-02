@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo } from 'react';
 import { ArrowLeft, Edit2, Bell, Activity, Download, HelpCircle, ChevronRight, Package, LogOut, Loader2, Heart, SlidersHorizontal, Crown, Zap, Star, ArrowRight } from 'lucide-react';
 import { getActivePlan, getPlanProgress, getPlanById } from '@/lib/event-plan-service';
+import { isReverseDietActive, getReverseDietWeek } from '@/lib/reverse-diet-service';
 import { useNavigate } from 'react-router-dom';
 import { getBMICategory } from '@/lib/nutrition';
 import { useUserProfile } from '@/contexts/UserProfileContext';
@@ -111,7 +112,7 @@ export default function Profile() {
     { icon: Brain, label: 'AI Learning', sub: `${correctionCount} corrections stored`, action: () => setShowAILearning(true) },
     { icon: Package, label: 'My Pantry', sub: 'Track grocery inventory', action: () => navigate('/pantry') },
     { icon: Flower2, label: 'Skin Health', sub: skinSub(), action: () => setShowSkinConcerns(true) },
-    { icon: Crown, label: 'Special Plans', sub: (() => { const ap = getActivePlan(); if (ap) { const p = getPlanProgress(); const m = getPlanById(ap.planId); return `${m?.name || 'Active'} — Day ${p?.dayNumber}/${p?.totalDays}`; } return 'Browse transformation plans'; })(), action: () => { const ap = getActivePlan(); if (ap) { toast('Manage your active plan from Dashboard banner', { icon: '🎯' }); } else { navigate('/planner?tab=Plans'); } } },
+    { icon: Crown, label: 'Special Plans', sub: (() => { const ap = getActivePlan(); if (ap) { const p = getPlanProgress(); const m = getPlanById(ap.planId); return `${m?.name || 'Active'} — Day ${p?.dayNumber}/${p?.totalDays}`; } if (isReverseDietActive()) { return `Reverse Diet — Week ${getReverseDietWeek()}/3`; } return 'Browse transformation plans'; })(), action: () => { const ap = getActivePlan(); if (ap) { toast('Manage your active plan from Dashboard banner', { icon: '🎯' }); } else { navigate('/planner?tab=Plans'); } } },
     { icon: SlidersHorizontal, label: 'Tracking Mode', sub: trackingModeState === 'flex' ? 'Flex – gentle adjustments' : 'Strict – tighter limits', action: handleTrackingModeToggle },
     { icon: Zap, label: 'Correction Mode', sub: `${correctionModeState.charAt(0).toUpperCase() + correctionModeState.slice(1)} – ${correctionModeState === 'aggressive' ? 'fast recovery' : correctionModeState === 'relaxed' ? 'minimal correction' : 'moderate'}`, action: handleCorrectionModeChange },
     { icon: SlidersHorizontal, label: 'Calorie Carry-Forward', sub: autoAdjustState ? 'On – spread surplus/deficit across future days' : 'Off – no carry-forward adjustments', action: handleAutoAdjustToggle },

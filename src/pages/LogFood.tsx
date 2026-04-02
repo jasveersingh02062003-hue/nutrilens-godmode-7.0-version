@@ -28,6 +28,8 @@ import { checkAllergens, getAllergenLabel, getAllergenEmoji, hasSevereAllergen }
 import { checkFoodForConditions, getUserConditions, type FoodConditionWarning } from '@/lib/condition-coach';
 import AnimatedWarningBanner, { type WarningMessage } from '@/components/AnimatedWarningBanner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getActivePlan } from '@/lib/event-plan-service';
+import ChewingTimerModal from '@/components/ChewingTimerModal';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -73,6 +75,7 @@ export default function LogFood() {
   const [severeButtonEnabled, setSevereButtonEnabled] = useState(false);
   const [compareSelection, setCompareSelection] = useState<FoodItem[]>([]);
   const [compareSheetOpen, setCompareSheetOpen] = useState(false);
+  const [showChewingTimer, setShowChewingTimer] = useState(false);
 
   // userAllergens moved after profile declaration below
 
@@ -256,6 +259,15 @@ export default function LogFood() {
     // Show contextual correction toast if needed
     const mealToast = getContextualMealToast();
     if (mealToast) toast(mealToast.message, { duration: 4000 });
+
+    // Madhavan plan: show chewing timer after meal log
+    const activePlan = getActivePlan();
+    if (activePlan?.planId === 'madhavan_21_day') {
+      setContextPickerOpen(false);
+      setShowPES(false);
+      setShowChewingTimer(true);
+      return;
+    }
 
     // After-dinner: show LastMealConfirmSheet
     if (mealType === 'dinner') {
@@ -907,6 +919,15 @@ export default function LogFood() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Madhavan Chewing Timer */}
+      <ChewingTimerModal
+        open={showChewingTimer}
+        onClose={() => {
+          setShowChewingTimer(false);
+          navigate(targetDate ? '/progress' : '/dashboard');
+        }}
+      />
     </div>
   );
 }
