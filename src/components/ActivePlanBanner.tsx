@@ -93,6 +93,12 @@ export default function ActivePlanBanner() {
               {/* Actions */}
               <div className="flex gap-2">
                 <button
+                  onClick={() => { exportPlanPDF(); toast.success('Opening plan PDF...'); }}
+                  className="flex-1 py-2 rounded-xl border border-primary/30 text-primary text-[11px] font-semibold hover:bg-primary/5 transition-colors flex items-center justify-center gap-1"
+                >
+                  <Download className="w-3.5 h-3.5" /> Download PDF
+                </button>
+                <button
                   onClick={handleCancel}
                   className="flex-1 py-2 rounded-xl border border-destructive/30 text-destructive text-[11px] font-semibold hover:bg-destructive/5 transition-colors"
                 >
