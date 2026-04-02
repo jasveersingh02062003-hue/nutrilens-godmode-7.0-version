@@ -80,6 +80,42 @@ export type Database = {
         }
         Relationships: []
       }
+      event_plans: {
+        Row: {
+          config: Json
+          created_at: string | null
+          end_date: string
+          id: string
+          plan_type: string
+          start_date: string
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string | null
+          end_date: string
+          id?: string
+          plan_type: string
+          start_date: string
+          status?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string | null
+          end_date?: string
+          id?: string
+          plan_type?: string
+          start_date?: string
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       price_reports: {
         Row: {
           city: string
