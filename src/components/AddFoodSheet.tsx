@@ -133,7 +133,8 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
                 const cost = estimateCost([{ name: food.name, quantity: 1, unit: food.servingUnit }]);
                 const allergenCheck = checkAllergens(food.name, userAllergens, food.allergens);
                 const conditionWarnings = checkFoodForConditions(food.name, userConditions);
-                const hasAnyWarning = allergenCheck.hasConflict || conditionWarnings.length > 0;
+                const sugarCheck = isSugarDetectionActive() ? detectSugar(food.name) : null;
+                const hasAnyWarning = allergenCheck.hasConflict || conditionWarnings.length > 0 || (sugarCheck?.hasSugar && sugarCheck.severity !== 'low');
 
                 return (
                   <motion.div
