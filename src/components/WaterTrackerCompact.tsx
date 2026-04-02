@@ -52,8 +52,11 @@ export default function WaterTrackerCompact({ cups, goal, onAdd }: Props) {
         </div>
         <span className="text-[10px] font-semibold text-muted-foreground">{cups}/{goalCups}</span>
       </div>
-      {weatherBonus.extraCups > 0 && (
+      {weatherBonus.extraCups > 0 && !madhavanLabel && (
         <p className="text-[9px] text-secondary font-medium mt-1">{weatherBonus.nudge}</p>
+      )}
+      {madhavanLabel && (
+        <p className="text-[9px] text-primary font-medium mt-1">🧘 {madhavanLabel}</p>
       )}
     </div>
   );

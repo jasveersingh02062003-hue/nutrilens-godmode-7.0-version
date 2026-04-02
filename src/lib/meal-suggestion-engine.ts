@@ -165,6 +165,18 @@ export function getRecipesForMeal(
       if (activePlan.planId === 'celebrity_transformation' && mealType === 'dinner' && r.carbs <= 25) {
         planBonus += 8;
       }
+      // Madhavan plan boosts
+      if (activePlan.planId === 'madhavan_21_day') {
+        const madhavanBoostTags = ['leafy_greens', 'home_cooked', 'millet', 'fermented'];
+        const hasBoostTag = r.tags.some(t => madhavanBoostTags.includes(t.toLowerCase()));
+        if (hasBoostTag) planBonus += 15;
+        // Boost healthy oils
+        const healthyOils = ['coconut oil', 'sesame oil', 'til oil', 'nariyal tel'];
+        const hasHealthyOil = r.ingredients.some(i => healthyOils.some(o => i.name.toLowerCase().includes(o)));
+        if (hasHealthyOil) planBonus += 8;
+        // Protein targets for Madhavan
+        if (r.protein >= 15) planBonus += 10;
+      }
       if (sugarActive) {
         const sugarCheck = detectSugar(r.name);
         if (sugarCheck.hasSugar) {

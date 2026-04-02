@@ -804,6 +804,12 @@ export function getAdjustedDailyTarget(profile: UserProfile | null): number {
     return activePlan.dailyCalories;
   }
 
+  // Reverse diet override — graduated return to TDEE after plan completion
+  const reverseDietTarget = getReverseDietTarget();
+  if (reverseDietTarget !== null) {
+    return Math.max(1200, reverseDietTarget);
+  }
+
   const baseTarget = p.dailyCalories || 1600;
   const tdee = p.tdee || baseTarget;
   const prefs = loadPrefs();

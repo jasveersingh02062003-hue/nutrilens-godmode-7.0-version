@@ -497,10 +497,23 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Active Plan Banner or Promo Card */}
-        <ActivePlanBanner />
+        {/* Active Plan Banner — Madhavan gets custom banner */}
+        {getActivePlan()?.planId === 'madhavan_21_day' ? <MadhavanPlanBanner /> : <ActivePlanBanner />}
         <PlanPromoCard />
         <PlanCompletionModal open={showPlanComplete} onClose={() => setShowPlanComplete(false)} />
+
+        {/* Reverse Diet Banner */}
+        {isReverseDietActive() && !getActivePlan() && (
+          <div className="animate-fade-in">
+            <div className="flex items-center gap-3 rounded-2xl px-4 py-3 border bg-accent/10 border-accent/20">
+              <span className="text-sm">🔄</span>
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-foreground">Reverse Diet — Week {getReverseDietWeek()}/3</p>
+                <p className="text-[10px] text-muted-foreground">Gradually returning to maintenance calories</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 2. Calorie Ring */}
         <div className="animate-scale-in">
