@@ -178,6 +178,11 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
                             {w.condition}
                           </span>
                         ))}
+                        {sugarCheck?.hasSugar && sugarCheck.severity !== 'low' && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-destructive/10 border border-destructive/20 text-[9px] font-bold text-destructive animate-pulse">
+                            🚫 Sugar
+                          </span>
+                        )}
                       </div>
                       <p className="text-[11px] text-muted-foreground">
                         {food.hindi} · {food.defaultServing}{food.servingUnit} · {item.calories} kcal
