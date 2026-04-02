@@ -1,97 +1,143 @@
 
 
-# Redesign CompareTab: Side-by-Side Layout with Camera, Mic & Enhanced Nutrition
+# Implementation Plan: Kitchen Tab Merge + Plans Tab
 
-## What Changes
+## Overview
 
-Completely redesign `CompareTab.tsx` from a vertical (stacked) layout to a true **side-by-side** layout where:
-- Two item cards sit **left and right** with a "VS" divider in the middle
-- Each card has its own **search input + camera + mic** input methods
-- Comparison metrics display as **horizontal rows** spanning both columns with winner highlighting
-- Extended nutrition data: add **Iron, Calcium, Vitamin C** (available on IndianFood) alongside existing macros
-- Smooth staggered animations on every element
+Two changes to the Planner's tab bar:
+1. Merge "Groceries" and "Recipes" into a single **"Kitchen"** tab with a pill toggle
+2. Add a new **"Plans"** tab for paid event plans
 
-## Layout Structure
+Final tab bar: **Budget | Meal Plan | Plans | Compare | Kitchen**
+
+---
+
+## Part 1: Kitchen Tab Merge
+
+### What Changes
+
+**`src/components/MealPlannerTabs.tsx`**
+
+1. Change `TAB_ITEMS` from `['Budget', 'Meal Plan', 'Groceries', 'Compare', 'Recipes']` to `['Budget', 'Meal Plan', 'Plans', 'Compare', 'Kitchen']`
+
+2. Create a new `KitchenTab` component inside the same file (or as a separate file `src/components/KitchenTab.tsx`) that contains:
+   - A pill toggle at the top: `[🛒 Groceries]` and `[👩‍🍳 Recipes]`
+   - Uses local state `kitchenSubTab: 'groceries' | 'recipes'`
+   - Renders the existing `GroceriesTab` or `RecipesTab` based on selection
+   - Pill toggle uses the same `motion.div layoutId` pattern as the main tabs for smooth animation
+
+3. Update the render section:
+   - Remove `{activeTab === 'Groceries' && ...}` and `{activeTab === 'Recipes' && ...}`
+   - Add `{activeTab === 'Kitchen' && <KitchenTab plan={plan} />}`
+
+4. The existing `GroceriesTab` and `RecipesTab` functions stay exactly as they are — just called from inside `KitchenTab` instead of directly from the main render
+
+### Pill Toggle Design
 
 ```text
-┌─────────────────────────────────────────┐
-│         ⚖️ SIDE-BY-SIDE COMPARE         │
-├──────────────┬──┬───────────────────────┤
-│  [📷][🎤][🔍] │VS│ [🔍][🎤][📷]          │
-│  Search...    │  │  Search...           │
-├──────────────┤  ├───────────────────────┤
-│  Item 1 Card │  │  Item 2 Card         │
-│  (image+name)│  │  (image+name)        │
-├──────────────┴──┴───────────────────────┤
-│  Comparison Rows (side by side)         │
-│  Price:    ₹45  ✅ │ ₹82               │
-│  Calories: 280     │ 350               │
-│  Protein:  18g  ✅ │ 12g               │
-│  Carbs:    32g     │ 28g  ✅           │
-│  Fat:      8g   ✅ │ 14g               │
-│  Fiber:    4g      │ 6g   ✅           │
-│  Iron:     2mg  ✅ │ 1mg               │
-│  Calcium:  45mg    │ 80mg ✅           │
-│  Vit C:    5mg     │ 12mg ✅           │
-│  ─── PES Score ───                      │
-│  7.2  ⭐           │ 5.8               │
-│  ─── Verdict ───                        │
-│  "Item 1 wins on value"                 │
-└─────────────────────────────────────────┘
+┌────────────────────────────────┐
+│  [🛒 Groceries] [👩‍🍳 Recipes]  │  ← rounded-full bg-muted p-1
+├────────────────────────────────┤
+│  (selected sub-tab content)    │
+└────────────────────────────────┘
 ```
 
-## File Changes
+- Active pill: `bg-card shadow-sm text-foreground font-bold`
+- Inactive pill: `text-muted-foreground`
+- Same spring animation as main tabs
 
-### 1. `src/lib/compare-helpers.ts`
-- Add `iron`, `calcium`, `vitC` to the `CompareItem` interface
-- Update `buildFromFood()` to include iron/calcium/vitC (scaled by serving factor)
-- Update `buildFromRecipe()` to include iron/calcium/vitC from recipe data (or 0 defaults)
-- Add Iron, Calcium, Vitamin C to `COMPARE_METRICS` array
+---
 
-### 2. `src/components/CompareTab.tsx` — Full Rewrite
-**Search Slot redesign:**
-- Each slot becomes a compact card with 3 input method buttons: Camera (📷), Mic (🎤), Search (🔍)
-- Search: existing text input with dropdown (same fuzzy search)
-- Camera: opens device camera, captures photo, calls `analyze-food` edge function, converts response to `CompareItem`
-- Mic: uses Web Speech API (`webkitSpeechRecognition`) to transcribe voice → feeds into search → auto-selects top result
-- Side-by-side grid layout: `grid grid-cols-[1fr_auto_1fr]` with VS divider
+## Part 2: Plans Tab (Placeholder + Structure)
 
-**Selected item display:**
-- Each side shows item image, name, type badge, quick stats in a bordered card
+### New Files
 
-**Comparison table:**
-- Horizontal rows with label in center, values on left and right
-- Winner gets green background + checkmark animation
-- Extended rows for Iron, Calcium, Vitamin C
-- PES score row with star animation for winner
-- Pantry match row (if recipes)
-- Verdict banner at bottom
+**`src/components/SpecialPlansTab.tsx`**
+- Filter chips row: `[All] [Weight Loss] [Sugar Free] [Muscle]`
+- Plan cards grid, each card showing:
+  - Plan icon/emoji + name
+  - Short description
+  - Duration + price badge
+  - Star rating (static for now)
+  - "View Details →" tap target
+- UGC/testimonial section at bottom (static mock data for now)
+- Tapping a card opens `PlanDetailSheet`
 
-**Animations:**
-- Cards slide in from left/right (`translateX`) when items are selected
-- Comparison rows stagger in with `framer-motion` (delay per row)
-- Winner badges scale-in with spring animation
-- VS divider pulses when both items are selected
-- Verdict banner scales up with bounce
+**`src/components/PlanDetailSheet.tsx`**
+- Bottom sheet (using existing Sheet component) with:
+  - Plan name + description
+  - "What's Included" checklist
+  - Duration picker: pill buttons `[7] [14] [21] [30]` days
+  - Target weight input (pre-filled from profile, editable)
+  - Start date picker
+  - Live preview section showing computed daily calories/protein/deficit based on user's profile data
+  - Reviews section (static mock)
+  - "Unlock Plan — ₹499" CTA button (non-functional for now, will wire to Stripe later)
 
-### 3. No other files need changes
-- `analyze-food` edge function already exists and returns nutrition data
-- `VoiceWaveform` component already exists for mic visualization
-- `buildFromFood` / `buildFromRecipe` already in compare-helpers
+**`src/lib/event-plan-service.ts`**
+- Plan type definitions: `celebrity`, `sugar_cut`, `gym_fat_loss`, `gym_muscle_gain`
+- Plan catalog with metadata (name, description, price, duration options, rules)
+- `calculatePlanTargets(profile, targetWeight, duration)` — computes daily deficit using 7700 kcal/kg rule, clamps to min 1200 kcal
+- `getActivePlan()` / `setActivePlan()` — localStorage CRUD for `nutrilens_active_plan`
+- `isPlanActive()` — quick check used by other modules
+- Safety validation: rejects targets requiring <1200 kcal/day or >1 kg/week loss
 
-## Camera Flow (per slot)
-1. User taps 📷 → open camera via `navigator.mediaDevices.getUserMedia`
-2. Show live preview in a small overlay within the card
-3. User taps capture → send to `analyze-food` edge function
-4. Response parsed → first food item converted to `CompareItem` via new `buildFromAnalyzed()` helper
-5. Camera closes, item populates the slot
+### Render Integration
 
-## Mic Flow (per slot)
-1. User taps 🎤 → start `webkitSpeechRecognition`
-2. Show `VoiceWaveform` animation in the card
-3. On result → feed transcript into `searchIndianFoods()` → auto-select top match
-4. Convert to `CompareItem` and populate slot
+In `MealPlannerTabs.tsx`:
+```
+{activeTab === 'Plans' && <SpecialPlansTab />}
+```
 
-## Effort
-~250 lines rewrite of CompareTab + ~15 lines additions to compare-helpers.
+---
+
+## Part 3: Profile "Special Plans" Row
+
+**`src/pages/Profile.tsx`**
+- Add a new row in the settings list (after Subscription badge area):
+  - Icon: `Zap` or `Crown`
+  - Label: "Special Plans"
+  - Sublabel: shows active plan status ("Sugar Cut — Day 5/21") or "Browse transformation plans"
+  - Tap action: `navigate('/planner')` with Plans tab pre-selected (via URL param or state)
+
+**`src/pages/MealPlanner.tsx`**
+- Read a query param (e.g., `?tab=Plans`) to allow Profile to deep-link into the Plans tab
+
+---
+
+## Part 4: Active Plan Banner (Dashboard)
+
+**`src/components/ActivePlanBanner.tsx`**
+- Thin banner: shows plan name + day count + countdown
+- Only renders when `isPlanActive()` returns true
+- Placed above `CalorieRing` in Dashboard
+
+**`src/pages/Dashboard.tsx`**
+- Import and conditionally render `ActivePlanBanner` at the top of the dashboard content
+
+---
+
+## Files Summary
+
+| File | Action |
+|------|--------|
+| `src/components/MealPlannerTabs.tsx` | Modify — change TAB_ITEMS, add KitchenTab with pill toggle, add Plans tab render |
+| `src/components/KitchenTab.tsx` | Create (optional — could be inline) — pill toggle wrapping GroceriesTab + RecipesTab |
+| `src/components/SpecialPlansTab.tsx` | Create — plan cards grid with filters |
+| `src/components/PlanDetailSheet.tsx` | Create — bottom sheet with plan config + purchase |
+| `src/lib/event-plan-service.ts` | Create — plan catalog, target calculation, active plan state |
+| `src/pages/Profile.tsx` | Modify — add "Special Plans" settings row |
+| `src/pages/MealPlanner.tsx` | Modify — read tab query param for deep-linking |
+| `src/pages/Dashboard.tsx` | Modify — add ActivePlanBanner |
+| `src/components/ActivePlanBanner.tsx` | Create — countdown banner |
+| Database migration | Create `event_plans` table (user_id, plan_type, config JSONB, status, dates) with RLS |
+
+## Implementation Order
+
+1. Kitchen tab merge (MealPlannerTabs restructure + pill toggle)
+2. event-plan-service.ts (plan catalog + target calculation logic)
+3. SpecialPlansTab + PlanDetailSheet UI
+4. Profile row + deep-link wiring
+5. ActivePlanBanner on Dashboard
+6. Database migration for event_plans table
 
