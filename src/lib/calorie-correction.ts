@@ -809,7 +809,6 @@ export function getAdjustedDailyTarget(profile: UserProfile | null): number {
  */
 export function getProteinTarget(profile: UserProfile | null): number {
   // Active plan override
-  const { getActivePlan } = require('@/lib/event-plan-service');
   const activePlan = getActivePlan();
   if (activePlan) {
     return activePlan.dailyProtein;
