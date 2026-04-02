@@ -96,6 +96,16 @@ export function getRecipesForMeal(
       if (r.carbs > 25) return false;
     }
 
+    // Madhavan plan filters
+    if (activePlan?.planId === 'madhavan_21_day') {
+      // Home-cooked only — exclude restaurant/junk/fast_food/processed
+      const junkTags = ['restaurant', 'junk', 'processed', 'fast_food'];
+      if (r.tags.some(t => junkTags.includes(t.toLowerCase()))) return false;
+      // No raw food after 3 PM for dinner/snack slots
+      const isAfternoonSlot = mealType === 'dinner' || mealType === 'snack';
+      if (isAfternoonSlot && r.tags.some(t => t.toLowerCase() === 'raw')) return false;
+    }
+
     if (dietPrefs.includes('vegetarian') || dietPrefs.includes('veg')) {
       if (!r.tags.some(t => ['vegetarian', 'veg'].includes(t.toLowerCase()))) return false;
     }
