@@ -5,6 +5,7 @@ import { getAdjustedDailyTarget, getProteinTarget, getCarbTarget, getFatTarget }
 import { getProfile } from '@/lib/store';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { exportPlanPDF } from '@/lib/plan-pdf-export';
 
 export default function ActivePlanBanner() {
   const [dismissed, setDismissed] = useState(false);
