@@ -1,4 +1,4 @@
-// ─── Budget + Health-Aware Meal Suggestion Engine ───
+// ─── Budget + Health + Plan + Weather-Aware Meal Suggestion Engine ───
 
 import { recipes, getEnrichedRecipe, type Recipe, type EnrichedRecipe } from './recipes';
 import { getEffectiveRestrictions } from './logic-engine';
@@ -6,6 +6,10 @@ import { getDailyLog, getTodayKey, type UserProfile } from './store';
 import { computePES } from './pes-engine';
 import { getUnifiedBudget, getUnifiedRemainingMealBudget } from './budget-engine';
 import { getPantryItems, type PantryItem } from './pantry-store';
+import { getActivePlan } from './event-plan-service';
+import { detectSugar, isSugarDetectionActive } from './sugar-detector';
+import { getWeather } from './weather-service';
+import { getTagsForFood } from './food-tags';
 
 export interface SuggestedRecipe extends EnrichedRecipe {
   matchReason?: string;
@@ -13,6 +17,8 @@ export interface SuggestedRecipe extends EnrichedRecipe {
   pantryMatchRatio?: number;
   pantryMatchCount?: number;
   totalIngredientCount?: number;
+  planCompliant?: boolean;
+  weatherBoost?: boolean;
 }
 
 /**
@@ -62,6 +68,9 @@ export function getRecipesForMeal(
   const restrictions = getEffectiveRestrictions(profile);
   const dietPrefs = profile?.dietaryPrefs || [];
   const pantryItems = getPantryItems();
+  const activePlan = getActivePlan();
+  const sugarActive = isSugarDetectionActive();
+  const weather = getWeather();
 
   const enriched = recipes
     .filter(r => r.mealType.includes(mealType as any))
@@ -72,6 +81,16 @@ export function getRecipesForMeal(
 
     const allText = [r.name.toLowerCase(), ...r.tags.map(t => t.toLowerCase()), ...r.ingredients.map(i => i.name.toLowerCase())].join(' ');
     if (restrictions.avoid.some(kw => allText.includes(kw.toLowerCase()))) return false;
+
+    // Plan-specific filters
+    if (sugarActive) {
+      const sugarCheck = detectSugar(r.name);
+      if (sugarCheck.hasSugar && sugarCheck.severity === 'high') return false;
+    }
+    if (activePlan?.planId === 'gym_fat_loss') {
+      // Exclude high-carb recipes (>40g carbs)
+      if (r.carbs > 40) return false;
+    }
 
     if (dietPrefs.includes('vegetarian') || dietPrefs.includes('veg')) {
       if (!r.tags.some(t => ['vegetarian', 'veg'].includes(t.toLowerCase()))) return false;
@@ -90,7 +109,7 @@ export function getRecipesForMeal(
     return true;
   });
 
-  // Compute rank score using unified PES engine + pantry bonus
+  // Compute rank score using unified PES engine + pantry + plan + weather bonuses
   const scored: SuggestedRecipe[] = filtered.map(r => {
     const allText = [r.name.toLowerCase(), ...r.tags, ...r.ingredients.map(i => i.name.toLowerCase())].join(' ');
     const prefMatches = restrictions.prefer.filter(kw => allText.includes(kw.toLowerCase()));
@@ -102,22 +121,78 @@ export function getRecipesForMeal(
     
     // Pantry match bonus
     const pantryMatch = computePantryMatch(r, pantryItems);
-    const pantryBonus = pantryMatch.ratio * 30; // Up to 30 bonus points
-    
-    const rankScore = baseScore + (prefMatches.length * 0.05) + pantryBonus;
+    const pantryBonus = pantryMatch.ratio * 30;
+
+    // Plan-specific bonus
+    let planBonus = 0;
+    let planCompliant = true;
+    if (activePlan) {
+      if (activePlan.planId === 'gym_fat_loss' || activePlan.planId === 'celebrity_transformation') {
+        // Boost high-protein recipes
+        if (r.protein >= 20) planBonus += 15;
+        if (r.protein >= 30) planBonus += 10;
+      }
+      if (activePlan.planId === 'gym_muscle_gain') {
+        // Boost high-calorie high-protein
+        if (r.calories >= 300 && r.protein >= 20) planBonus += 15;
+      }
+      if (sugarActive) {
+        const sugarCheck = detectSugar(r.name);
+        if (sugarCheck.hasSugar) {
+          planCompliant = false;
+          planBonus -= 20;
+        }
+      }
+    }
+
+    // Weather-based scoring
+    let weatherBonus = 0;
+    let weatherBoost = false;
+    const foodTags = getTagsForFood(r.name);
+    const temp = weather.temperature;
+    const season = weather.season;
+
+    if (temp > 34 || season === 'summer') {
+      if (foodTags.isHydrating || foodTags.isLight) { weatherBonus += 15; weatherBoost = true; }
+      if (foodTags.isHeavy) weatherBonus -= 10;
+    } else if (temp < 18 || season === 'winter') {
+      if (foodTags.isHeavy || !foodTags.isLight) weatherBonus += 10;
+      if (foodTags.isHydrating && foodTags.isLight) weatherBonus -= 5;
+      weatherBoost = weatherBonus > 0;
+    } else if (season === 'monsoon') {
+      // Boost immunity foods, warn raw salads
+      const immunityKeywords = ['turmeric', 'ginger', 'adrak', 'haldi', 'soup', 'dal'];
+      const hasImmunity = immunityKeywords.some(k => r.name.toLowerCase().includes(k));
+      if (hasImmunity) { weatherBonus += 12; weatherBoost = true; }
+      if (r.name.toLowerCase().includes('salad') && r.tags.some(t => t.toLowerCase() === 'raw')) {
+        weatherBonus -= 15;
+      }
+    }
+
+    const rankScore = baseScore + (prefMatches.length * 0.05) + pantryBonus + planBonus + weatherBonus;
+
+    // Build match reason
+    let matchReason: string | undefined;
+    if (pantryMatch.ratio > 0.5) {
+      matchReason = `🏠 ${pantryMatch.matched}/${pantryMatch.total} ingredients at home`;
+    } else if (weatherBoost) {
+      matchReason = `${weather.icon} Great for ${weather.season} weather`;
+    } else if (planCompliant && activePlan) {
+      matchReason = `✅ Plan-compliant`;
+    } else if (prefMatches.length > 0) {
+      matchReason = `Has ${prefMatches.slice(0, 2).join(', ')}`;
+    }
 
     return {
       ...r,
       nutritionScore: Math.min(10, r.nutritionScore + prefMatches.length),
-      matchReason: pantryMatch.ratio > 0.5 
-        ? `🏠 ${pantryMatch.matched}/${pantryMatch.total} ingredients at home`
-        : prefMatches.length > 0 
-          ? `Has ${prefMatches.slice(0, 2).join(', ')}` 
-          : undefined,
+      matchReason,
       rankScore,
       pantryMatchRatio: pantryMatch.ratio,
       pantryMatchCount: pantryMatch.matched,
       totalIngredientCount: pantryMatch.total,
+      planCompliant,
+      weatherBoost,
     };
   });
 

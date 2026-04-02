@@ -6,6 +6,7 @@ import { searchIndianFoods, indianFoodToFoodItem } from '@/lib/indian-foods';
 import { estimateCost } from '@/lib/price-database';
 import { checkAllergens, getAllergenLabel, getAllergenEmoji, hasSevereAllergen } from '@/lib/allergen-engine';
 import { checkFoodForConditions, getUserConditions } from '@/lib/condition-coach';
+import { detectSugar, isSugarDetectionActive } from '@/lib/sugar-detector';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import ComparisonSheet from '@/components/ComparisonSheet';
@@ -63,6 +64,15 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
     if (allergenCheck.hasConflict) {
       setPendingItem({ food, item: finalItem, matched: allergenCheck.matched });
       return;
+    }
+
+    // Sugar Cut plan warning
+    if (isSugarDetectionActive()) {
+      const sugarCheck = detectSugar(food.name);
+      if (sugarCheck.hasSugar && sugarCheck.severity !== 'low') {
+        setPendingItem({ food, item: finalItem, matched: [`sugar: ${sugarCheck.keywords[0] || 'detected'}`] });
+        return;
+      }
     }
 
     onAdd(finalItem);
@@ -123,7 +133,8 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
                 const cost = estimateCost([{ name: food.name, quantity: 1, unit: food.servingUnit }]);
                 const allergenCheck = checkAllergens(food.name, userAllergens, food.allergens);
                 const conditionWarnings = checkFoodForConditions(food.name, userConditions);
-                const hasAnyWarning = allergenCheck.hasConflict || conditionWarnings.length > 0;
+                const sugarCheck = isSugarDetectionActive() ? detectSugar(food.name) : null;
+                const hasAnyWarning = allergenCheck.hasConflict || conditionWarnings.length > 0 || (sugarCheck?.hasSugar && sugarCheck.severity !== 'low');
 
                 return (
                   <motion.div
@@ -167,6 +178,11 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
                             {w.condition}
                           </span>
                         ))}
+                        {sugarCheck?.hasSugar && sugarCheck.severity !== 'low' && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-destructive/10 border border-destructive/20 text-[9px] font-bold text-destructive animate-pulse">
+                            🚫 Sugar
+                          </span>
+                        )}
                       </div>
                       <p className="text-[11px] text-muted-foreground">
                         {food.hindi} · {food.defaultServing}{food.servingUnit} · {item.calories} kcal

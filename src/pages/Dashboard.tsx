@@ -49,6 +49,8 @@ import { getWeather, fetchLiveWeather, type WeatherData } from '@/lib/weather-se
 import SubscriptionBadge from '@/components/SubscriptionBadge';
 import NextMealCard from '@/components/NextMealCard';
 import ActivePlanBanner from '@/components/ActivePlanBanner';
+import PlanCompletionModal from '@/components/PlanCompletionModal';
+import { getPlanProgress } from '@/lib/event-plan-service';
 import { getDualSyncInsight, isSurvivalModeManual, getLatestBudgetAlert, clearLatestBudgetAlert, type BudgetAlertResult } from '@/lib/budget-service';
 import UpgradeBanner from '@/components/UpgradeBanner';
 import { getMealPlannerProfile } from '@/lib/meal-planner-store';
@@ -90,7 +92,10 @@ export default function Dashboard() {
   const [dropOffModal, setDropOffModal] = useState<{ detected: boolean; daysMissed: number; message: string } | null>(null);
   const [hardBoundaryModal, setHardBoundaryModal] = useState<{ weeklySurplus: number; message: string; suggestion: string } | null>(null);
   const [showDailyPlan, setShowDailyPlan] = useState(() => !isDailyHidden('daily_plan'));
-
+  const [showPlanComplete, setShowPlanComplete] = useState(() => {
+    const progress = getPlanProgress();
+    return progress !== null && progress.daysLeft === 0;
+  });
 
   const plannerProfile = getMealPlannerProfile();
   const plannerIncomplete = !plannerProfile || !plannerProfile.onboardingComplete;
@@ -491,6 +496,7 @@ export default function Dashboard() {
 
         {/* Active Plan Banner */}
         <ActivePlanBanner />
+        <PlanCompletionModal open={showPlanComplete} onClose={() => setShowPlanComplete(false)} />
 
         {/* 2. Calorie Ring */}
         <div className="animate-scale-in">
