@@ -7,6 +7,8 @@ import { syncDailyBalance } from '@/lib/calorie-correction';
 import { reportPrice } from '@/lib/live-price-service';
 import { checkAllergens, getAllergenLabel, getAllergenEmoji } from '@/lib/allergen-engine';
 import { checkFoodForConditions, getUserConditions } from '@/lib/condition-coach';
+import { getSugarWarnings, isSugarDetectionActive } from '@/lib/sugar-detector';
+import AnimatedWarningBanner from '@/components/AnimatedWarningBanner';
 import { toast } from 'sonner';
 
 interface Props {
