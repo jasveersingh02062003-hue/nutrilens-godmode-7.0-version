@@ -513,8 +513,8 @@ export default function Dashboard() {
         {/* 3. Macros */}
         <div className="flex gap-2 animate-slide-up">
           <MacroCard label="Protein" current={totals.protein} goal={getProteinTarget(profile)} variant="coral" icon="protein" />
-          <MacroCard label="Carbs" current={totals.carbs} goal={profile.dailyCarbs} variant="primary" icon="carbs" />
-          <MacroCard label="Fats" current={totals.fat} goal={profile.dailyFat} variant="gold" icon="fat" />
+          <MacroCard label="Carbs" current={totals.carbs} goal={getCarbTarget(profile)} variant="primary" icon="carbs" />
+          <MacroCard label="Fats" current={totals.fat} goal={getFatTarget(profile)} variant="gold" icon="fat" />
         </div>
 
         {/* 3a. Budget Summary */}
