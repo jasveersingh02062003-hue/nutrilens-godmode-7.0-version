@@ -98,6 +98,17 @@ export default function QuickLogSheet({ open, onClose, onSaved }: Props) {
       return;
     }
 
+    // Check for sugar plan warnings
+    if (isSugarDetectionActive()) {
+      const sugarCheck = getSugarWarnings(items);
+      if (sugarCheck.hasWarnings) {
+        setSugarWarningItems(items);
+        setShowSugarWarning(true);
+        setSaving(false);
+        return;
+      }
+    }
+
     // Check for allergens
     const profile = getProfile();
     const userAllergens = profile?.allergens || [];
