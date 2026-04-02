@@ -833,7 +833,6 @@ export function getCarbTarget(profile: UserProfile | null): number {
   const activePlan = getActivePlan();
   if (activePlan) {
     // Refeed day: +50% carbs on Day 10 of celebrity plan
-    const { getPlanProgress } = require('./event-plan-service');
     const progress = getPlanProgress();
     if (progress && progress.dayNumber === 10 && activePlan.planId === 'celebrity_transformation') {
       return Math.round(activePlan.dailyCarbs * 1.5);
