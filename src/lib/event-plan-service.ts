@@ -19,6 +19,16 @@ export interface PlanMeta {
   includes: string[];
 }
 
+export interface MadhavanSettings {
+  eatingWindowStart: string; // HH:MM
+  eatingWindowEnd: string;
+  stepsTarget: number;
+  waterMultiplier: number; // ml per kg
+  chewCount: number;
+  sleepTime: string;
+  noRawFoodAfter: string; // HH:MM (15:00)
+}
+
 export interface ActivePlan {
   planId: PlanType;
   startDate: string; // YYYY-MM-DD
@@ -30,6 +40,7 @@ export interface ActivePlan {
   dailyFat: number;
   dailyDeficit: number;
   activatedAt: string;
+  customSettings?: MadhavanSettings;
 }
 
 export interface PlanTargets {
