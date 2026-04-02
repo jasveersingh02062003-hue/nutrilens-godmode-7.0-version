@@ -27,6 +27,7 @@ import { getUnitOptionsForFood, calculateNutrition, type UnitOption } from '@/li
 import PESBreakdownModal from '@/components/PESBreakdownModal';
 import { checkAllergens, getAllergenLabel, getAllergenEmoji, hasSevereAllergen } from '@/lib/allergen-engine';
 import { checkFoodForConditions, getUserConditions, type FoodConditionWarning } from '@/lib/condition-coach';
+import { getSugarWarnings, isSugarDetectionActive } from '@/lib/sugar-detector';
 import AnimatedWarningBanner, { type WarningMessage } from '@/components/AnimatedWarningBanner';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
