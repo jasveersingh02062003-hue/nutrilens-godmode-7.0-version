@@ -489,6 +489,9 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Active Plan Banner */}
+        <ActivePlanBanner />
+
         {/* 2. Calorie Ring */}
         <div className="animate-scale-in">
           <CalorieRing dayState={dayState} proteinRemaining={Math.max(0, getProteinTarget(profile) - totals.protein)} />
