@@ -783,6 +783,13 @@ export function getAdjustedDailyTarget(profile: UserProfile | null): number {
   const p = profile || getProfile();
   if (!p) return 1600;
 
+  // Active plan override — plan targets take priority
+  const { getActivePlan } = require('@/lib/event-plan-service');
+  const activePlan = getActivePlan();
+  if (activePlan) {
+    return activePlan.dailyCalories;
+  }
+
   const baseTarget = p.dailyCalories || 1600;
   const tdee = p.tdee || baseTarget;
   const prefs = loadPrefs();
