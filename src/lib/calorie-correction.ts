@@ -6,7 +6,7 @@
 // ============================================
 
 import { getDailyLog, getDailyTotals, getProfile, getRecentLogs, getAllLogDates, type UserProfile, type DailyLog } from '@/lib/store';
-import { getActivePlan } from '@/lib/event-plan-service';
+import { getActivePlan, getPlanProgress } from '@/lib/event-plan-service';
 
 // ── Types ──
 
