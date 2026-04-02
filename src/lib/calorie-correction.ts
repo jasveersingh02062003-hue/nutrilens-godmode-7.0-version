@@ -6,6 +6,7 @@
 // ============================================
 
 import { getDailyLog, getDailyTotals, getProfile, getRecentLogs, getAllLogDates, type UserProfile, type DailyLog } from '@/lib/store';
+import { getActivePlan } from '@/lib/event-plan-service';
 
 // ── Types ──
 
@@ -784,7 +785,6 @@ export function getAdjustedDailyTarget(profile: UserProfile | null): number {
   if (!p) return 1600;
 
   // Active plan override — plan targets take priority
-  const { getActivePlan } = require('@/lib/event-plan-service');
   const activePlan = getActivePlan();
   if (activePlan) {
     return activePlan.dailyCalories;
@@ -809,7 +809,6 @@ export function getAdjustedDailyTarget(profile: UserProfile | null): number {
  */
 export function getProteinTarget(profile: UserProfile | null): number {
   // Active plan override
-  const { getActivePlan } = require('@/lib/event-plan-service');
   const activePlan = getActivePlan();
   if (activePlan) {
     return activePlan.dailyProtein;
