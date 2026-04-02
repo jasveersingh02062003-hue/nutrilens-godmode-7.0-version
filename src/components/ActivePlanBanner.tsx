@@ -41,6 +41,7 @@ export default function ActivePlanBanner() {
           <p className="text-xs font-bold text-foreground truncate">{meta?.name}</p>
           <p className="text-[10px] text-muted-foreground">
             Day {progress.dayNumber}/{progress.totalDays} · {progress.daysLeft} days left
+            {progress.dayNumber === 10 && plan.planId === 'celebrity_transformation' && ' · 🔄 Refeed Day'}
           </p>
         </div>
         <div className="flex items-center gap-1.5">
