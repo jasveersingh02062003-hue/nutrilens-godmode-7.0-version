@@ -194,6 +194,12 @@ export function getRecipesForMeal(
     let matchReason: string | undefined;
     if (pantryMatch.ratio > 0.5) {
       matchReason = `🏠 ${pantryMatch.matched}/${pantryMatch.total} ingredients at home`;
+    } else if (workoutTiming === 'pre') {
+      matchReason = `💪 Great pre-workout meal`;
+    } else if (workoutTiming === 'post') {
+      matchReason = `🏋️ Ideal post-workout recovery`;
+    } else if (activePlan?.planId === 'celebrity_transformation' && mealType === 'dinner' && r.carbs <= 25) {
+      matchReason = `🌙 Low-carb evening compliant`;
     } else if (weatherBoost) {
       matchReason = `${weather.icon} Great for ${weather.season} weather`;
     } else if (planCompliant && activePlan) {
