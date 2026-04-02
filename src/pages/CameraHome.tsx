@@ -828,7 +828,23 @@ export default function CameraHome() {
               }
             }
 
-            const allMessages = [...allergenMessages, ...condMessages];
+            // Sugar Cut plan warnings
+            const sugarWarnings: WarningMessage[] = [];
+            if (isSugarDetectionActive()) {
+              const sugarCheck = getSugarWarnings(activeItems);
+              if (sugarCheck.hasWarnings) {
+                for (const sw of sugarCheck.messages) {
+                  sugarWarnings.push({
+                    icon: sw.icon,
+                    text: sw.text,
+                    itemId: sw.itemId,
+                    itemName: sw.itemName,
+                  });
+                }
+              }
+            }
+
+            const allMessages = [...allergenMessages, ...condMessages, ...sugarWarnings];
             if (allMessages.length === 0) return null;
 
             const allMatched = [...new Set(allergenItems.flatMap(item => checkAllergens(item.name, userAllergens).matched))];
