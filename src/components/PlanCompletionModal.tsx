@@ -40,7 +40,7 @@ export default function PlanCompletionModal({ open, onClose }: Props) {
 
   return (
     <>
-      {showConfetti && <ConfettiCelebration onComplete={() => setShowConfetti(false)} />}
+      <ConfettiCelebration show={showConfetti} />
       <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
         <DialogContent className="rounded-2xl max-w-sm mx-auto">
           <DialogHeader className="text-center">
