@@ -1,92 +1,89 @@
 
 
-# Implementation Plan: Fill Remaining Gaps in Paid Plans + Weather Intelligence
+# Implementation Plan: Remaining Gaps from the Comprehensive Document
 
-Most of the system is already built. This plan addresses the **remaining gaps** between what exists and what the user's document describes.
-
-## What's Already Done (No Changes Needed)
-- Plan service, catalog, target calculation, localStorage CRUD
-- Calorie/protein override in `getAdjustedDailyTarget` / `getProteinTarget`
-- Sugar detector with 100+ keywords
-- Sugar warnings in AddFoodSheet, QuickLogSheet, CameraHome
-- Meal suggestion filtering by plan rules + weather scoring
-- ActivePlanBanner on Dashboard
+## Already Built (No Changes Needed)
+- Plan catalog, CRUD, target calculation, safety clamps (1200 kcal floor, 1 kg/week max)
+- Calorie/protein/carb/fat target overrides via active plan
+- Sugar detector (100+ keywords) + warnings in AddFoodSheet, QuickLogSheet, CameraHome
+- Meal suggestion engine with plan filters + weather scoring multipliers
+- ActivePlanBanner (expandable with cancel) on Dashboard
+- PlanPromoCard on Dashboard (discovery)
 - PlanCompletionModal with confetti
-- SpecialPlansTab + PlanDetailSheet
-- KitchenTab pill toggle (Groceries/Recipes)
-- Profile "Special Plans" row
+- WaterTrackerCompact with weather-adjusted goals
+- Weather service + seasonal food tags + Ritucharya data
+- Profile "Special Plans" row with active plan status
 - `event_plans` database table with RLS
-- Seasonal picks + `getWeatherWaterBonus` in food-tags.ts
+- KitchenTab pill toggle
 
 ## What Still Needs Building
 
-### 1. Dashboard Promo Card (Plan Discovery)
-**File:** `src/components/PlanPromoCard.tsx` (new)
-- Shown on Dashboard only when **no active plan** exists
-- Card: "Transform in 21 days — explore plans →"
-- Tapping opens `SpecialPlansTab` as a full-screen sheet (reuse existing component)
-- Placed below `TodayMealPlan` in Dashboard
+### 1. Gym Lover Nutrient Timing Nudges
+**File:** `src/lib/meal-suggestion-engine.ts` (modify)
+- When `gym_fat_loss` or `gym_muscle_gain` is active, tag meal suggestions with workout timing context:
+  - Pre-workout meals (complex carbs + lean protein) tagged for breakfast/lunch slots
+  - Post-workout meals (high protein + carbs 3:1 ratio) tagged for snack/dinner slots
+- Add `workoutTiming?: 'pre' | 'post' | 'rest'` to `SuggestedRecipe` interface
+- Show timing badge in match reason: "💪 Great pre-workout meal"
 
-**File:** `src/pages/Dashboard.tsx` (modify)
-- Import and render `PlanPromoCard` conditionally when `!isPlanActive()`
+### 2. Low-Carb Evening Enforcement (Celebrity Plan)
+**File:** `src/lib/meal-suggestion-engine.ts` (modify)
+- When `celebrity_transformation` is active and meal slot is `dinner`:
+  - Filter out recipes with carbs > 25g
+  - Add match reason: "🌙 Low-carb evening compliant"
 
-### 2. Water Tracker Weather Integration
-**File:** `src/components/WaterTrackerCompact.tsx` (modify)
-- Import `getWeatherWaterBonus` from food-tags and `getWeather` from weather-service
-- Adjust the displayed goal: `goal + (extraCups * 250)` ml
-- Show a small weather nudge chip below the progress bar when bonus > 0
+### 3. Refeed Day Logic (Day 10 of 21-day sprint)
+**File:** `src/lib/calorie-correction.ts` (modify)
+- In `getAdjustedDailyTarget()`, when active plan day number is 10:
+  - Increase carb target by 50% for that day
+  - Set calorie target to TDEE (no deficit) for one day
+- Show a nudge on Dashboard: "Refeed day — enjoy higher carbs to reset metabolism"
 
-### 3. Camera Flow Weather Nudge Post-Scan
-**File:** `src/pages/CameraHome.tsx` (modify)
-- After food detection result, check weather conditions
-- If heavy/fried food detected in summer (temp > 34°C), show compact WeatherNudgeCard: "Try a lighter option"
-- Use existing `WeatherNudgeCard` component in inline mode
-
-### 4. Sugar Warning Badge in Search Results
-**File:** `src/components/AddFoodSheet.tsx` (modify)
-- In the search results list, next to each food item, show a small red "🚫 Sugar" badge if `isSugarDetectionActive()` and `detectSugar(food.name).hasSugar`
-- Visual indicator before the user taps to add
-
-### 5. Profile Active Plan Enhanced View
-**File:** `src/pages/Profile.tsx` (modify)
-- Enhance the existing "Special Plans" row:
-  - If active plan: show mini progress bar + day count inline
-  - Add "Cancel Plan" option (with confirmation dialog) that calls `clearActivePlan()`
-  - Tapping opens expanded plan details (reuse PlanDetailSheet in read-only mode or a new small sheet)
-
-### 6. PDF Export for Active Plan
+### 4. PDF Export for Active Plan
 **File:** `src/lib/plan-pdf-export.ts` (new)
-- Generate PDF using `jsPDF` with:
-  - Plan summary (name, duration, targets)
-  - Daily calorie/macro targets
-  - Sample meal suggestions (pull from meal-suggestion-engine)
-  - Grocery list (pull from meal-plan-generator)
-- Triggered from the expanded ActivePlanBanner tap view
+- Use `reportlab`-style approach via a Supabase edge function, or generate a simple client-side text/HTML-to-PDF
+- Content: plan summary, 21-day daily targets, sample meals per slot, grocery checklist
+- Triggered from ActivePlanBanner expanded view "Download PDF" button
 
 **File:** `src/components/ActivePlanBanner.tsx` (modify)
-- Add tap-to-expand behavior showing plan details + "Download PDF" button
+- Add "Download PDF" button in the expanded section (already has Download icon imported but not wired)
 
-### 7. Carb/Fat Target Override
+### 5. Sugar Warning Badge in Search Results (Visual)
+**File:** `src/components/AddFoodSheet.tsx` (modify)
+- In the search results list rendering, show a small inline red "🚫 Sugar" badge next to food names when Sugar Cut is active and `detectSugar(food.name).hasSugar`
+- Currently sugar check only triggers on `handleAdd` — need visual indicator before tap
+
+### 6. Calorie Cycling for Muscle Gain (Training vs Rest Days)
 **File:** `src/lib/calorie-correction.ts` (modify)
-- Add `getCarbTarget()` and `getFatTarget()` functions that check active plan first (similar to existing `getProteinTarget`)
+- When `gym_muscle_gain` is active, check if today is a "training day" (user marks via a toggle or default weekdays)
+- Training days: full surplus (plan target)
+- Rest days: reduce surplus by 200 kcal, shift carbs down / fat up
+
+### 7. Camera Post-Scan Weather Nudge (Missing Integration)
+**File:** `src/pages/CameraHome.tsx` (modify)
+- After food detection result, check if temperature > 34°C and detected food is heavy/fried
+- Show compact inline `WeatherNudgeCard`: "Try a lighter option — it's hot today"
+- Currently weather nudge exists on Dashboard but not integrated post-scan
 
 ## Implementation Order
-1. Dashboard promo card + water tracker weather integration (quick wins)
-2. Sugar badge in search results + camera weather nudge
-3. Profile active plan enhancement + cancel flow
-4. Carb/fat target overrides
-5. PDF export service + banner integration
+1. Sugar badge in search results + camera weather nudge (quick visual wins)
+2. Gym nutrient timing nudges + low-carb evening filter
+3. Refeed day logic
+4. Calorie cycling for muscle gain
+5. PDF export (requires edge function or client-side library)
 
 ## Files Summary
 | File | Action |
 |------|--------|
-| `src/components/PlanPromoCard.tsx` | Create — promo card for plan discovery |
-| `src/pages/Dashboard.tsx` | Modify — add PlanPromoCard |
-| `src/components/WaterTrackerCompact.tsx` | Modify — weather-adjusted goal |
+| `src/components/AddFoodSheet.tsx` | Modify — add inline sugar badge in search results |
 | `src/pages/CameraHome.tsx` | Modify — post-scan weather nudge |
-| `src/components/AddFoodSheet.tsx` | Modify — sugar badge in results |
-| `src/pages/Profile.tsx` | Modify — enhanced active plan view |
-| `src/lib/plan-pdf-export.ts` | Create — PDF generation |
-| `src/components/ActivePlanBanner.tsx` | Modify — expandable + PDF button |
-| `src/lib/calorie-correction.ts` | Modify — add getCarbTarget/getFatTarget |
+| `src/lib/meal-suggestion-engine.ts` | Modify — nutrient timing tags + dinner carb cap |
+| `src/lib/calorie-correction.ts` | Modify — refeed day + calorie cycling |
+| `src/lib/plan-pdf-export.ts` | Create — PDF generation service |
+| `src/components/ActivePlanBanner.tsx` | Modify — wire PDF download button |
 
+## Technical Details
+- Refeed day uses `getPlanProgress().dayNumber === 10` check
+- Calorie cycling stores training days in localStorage (`nutrilens_training_days`)
+- PDF export generates HTML and uses `window.print()` or a lightweight client-side library (no jsPDF dependency needed — use browser print-to-PDF)
+- Weather nudge post-scan reuses existing `WeatherNudgeCard` component in compact/inline mode
