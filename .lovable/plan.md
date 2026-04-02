@@ -1,143 +1,144 @@
 
 
-# Implementation Plan: Kitchen Tab Merge + Plans Tab
+# Phase 1 + Phase 2 Implementation Plan
 
-## Overview
+## What Already Exists
+- **Plans tab** in Planner with `SpecialPlansTab` (plan cards + filters)
+- **PlanDetailSheet** with duration/target config and "Unlock" button
+- **event-plan-service.ts** with plan catalog, target calculation, localStorage CRUD
+- **ActivePlanBanner** on Dashboard
+- **KitchenTab** with pill toggle (Groceries/Recipes merged)
+- **Weather service** (OpenWeatherMap + simulation)
+- **SeasonalPicksRow** + **WeatherNudgeCard** on Dashboard
+- **Seasonal food data** in `food-tags.ts`
+- **AnimatedWarningBanner** (allergen system) — reusable for sugar warnings
 
-Two changes to the Planner's tab bar:
-1. Merge "Groceries" and "Recipes" into a single **"Kitchen"** tab with a pill toggle
-2. Add a new **"Plans"** tab for paid event plans
+## What Needs to Be Built
 
-Final tab bar: **Budget | Meal Plan | Plans | Compare | Kitchen**
+### PHASE 1: Active Plan System Override
 
----
+**1. Calorie target override** (`src/lib/calorie-correction.ts`)
+- Modify `getAdjustedDailyTarget()` to check `getActivePlan()` first
+- If active plan exists, use `plan.dailyCalories` as base target instead of profile target
+- Same for `getProteinTarget()` — use plan's protein target
 
-## Part 1: Kitchen Tab Merge
+**2. Meal suggestion filter** (`src/lib/meal-suggestion-engine.ts`)
+- When active plan is `sugar_cut`, filter out recipes with sugar keywords
+- When `gym_fat_loss`, boost high-protein recipes; exclude high-carb
+- When `gym_muscle_gain`, prioritize caloric surplus meals
+- Add plan-compliant badge to matching recipes
 
-### What Changes
+**3. Sugar detector service** (`src/lib/sugar-detector.ts` — NEW)
+- Keyword list: sugar, sucrose, jaggery, honey, mithai, gulab jamun, jalebi, ladoo, chocolate, candy, etc.
+- `detectSugar(foodName: string, sugarGrams?: number): { hasSugar: boolean; severity: 'high' | 'moderate' | 'low'; keywords: string[] }`
+- Sugar grams threshold: >5g per serving = warning
 
-**`src/components/MealPlannerTabs.tsx`**
+**4. Sugar warning integration** — inject into ALL logging flows:
+- `src/components/AddFoodSheet.tsx` — after food selection, check sugar
+- `src/components/QuickLogSheet.tsx` — same
+- `src/pages/CameraHome.tsx` — after AI scan result
+- `src/components/FoodEditModal.tsx` — when editing
+- Reuse `AnimatedWarningBanner` with red severity
+- "Log Anyway" button with 3-second delay + "Find Alternative" button (opens swap filtered to sugar-free)
 
-1. Change `TAB_ITEMS` from `['Budget', 'Meal Plan', 'Groceries', 'Compare', 'Recipes']` to `['Budget', 'Meal Plan', 'Plans', 'Compare', 'Kitchen']`
+**5. Plan completion flow** (`src/components/PlanCompletionModal.tsx` — NEW)
+- Triggered when `getPlanProgress().daysLeft === 0`
+- Shows celebration animation (reuse ConfettiCelebration)
+- Before/after weight summary (if weight logs exist)
+- Buttons: "Extend Plan" / "Return to Normal"
 
-2. Create a new `KitchenTab` component inside the same file (or as a separate file `src/components/KitchenTab.tsx`) that contains:
-   - A pill toggle at the top: `[🛒 Groceries]` and `[👩‍🍳 Recipes]`
-   - Uses local state `kitchenSubTab: 'groceries' | 'recipes'`
-   - Renders the existing `GroceriesTab` or `RecipesTab` based on selection
-   - Pill toggle uses the same `motion.div layoutId` pattern as the main tabs for smooth animation
+**6. Profile "My Active Plan" section** (`src/pages/Profile.tsx`)
+- Already has the "Special Plans" row — enhance it to show:
+  - Active plan progress bar
+  - "Cancel Plan" option with confirmation
+  - Deep-link to Plans tab
 
-3. Update the render section:
-   - Remove `{activeTab === 'Groceries' && ...}` and `{activeTab === 'Recipes' && ...}`
-   - Add `{activeTab === 'Kitchen' && <KitchenTab plan={plan} />}`
-
-4. The existing `GroceriesTab` and `RecipesTab` functions stay exactly as they are — just called from inside `KitchenTab` instead of directly from the main render
-
-### Pill Toggle Design
-
-```text
-┌────────────────────────────────┐
-│  [🛒 Groceries] [👩‍🍳 Recipes]  │  ← rounded-full bg-muted p-1
-├────────────────────────────────┤
-│  (selected sub-tab content)    │
-└────────────────────────────────┘
+**7. Database migration** — `event_plans` table
+```sql
+CREATE TABLE event_plans (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  plan_type text NOT NULL,
+  config jsonb NOT NULL DEFAULT '{}',
+  status text NOT NULL DEFAULT 'active',
+  start_date text NOT NULL,
+  end_date text NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+ALTER TABLE event_plans ENABLE ROW LEVEL SECURITY;
+-- RLS: users can CRUD own plans
 ```
 
-- Active pill: `bg-card shadow-sm text-foreground font-bold`
-- Inactive pill: `text-muted-foreground`
-- Same spring animation as main tabs
+### PHASE 1.1: Plan-Specific Logic
 
----
+**Gym Fat Loss rules:**
+- 2g protein/kg bodyweight enforced in targets
+- Filter recipes to high-protein, moderate-carb
+- Pre/post workout meal suggestions in meal plan
 
-## Part 2: Plans Tab (Placeholder + Structure)
+**Gym Muscle Gain rules:**
+- Caloric surplus 300-500 kcal
+- High carb on training days
+- Calorie cycling logic (higher on training days, lower on rest)
 
-### New Files
+**Celebrity Transformation rules:**
+- No processed sugar (reuse sugar detector)
+- Low carb evenings (dinner carb cap)
+- High protein throughout
 
-**`src/components/SpecialPlansTab.tsx`**
-- Filter chips row: `[All] [Weight Loss] [Sugar Free] [Muscle]`
-- Plan cards grid, each card showing:
-  - Plan icon/emoji + name
-  - Short description
-  - Duration + price badge
-  - Star rating (static for now)
-  - "View Details →" tap target
-- UGC/testimonial section at bottom (static mock data for now)
-- Tapping a card opens `PlanDetailSheet`
+### PHASE 2: Weather Intelligence Upgrade
 
-**`src/components/PlanDetailSheet.tsx`**
-- Bottom sheet (using existing Sheet component) with:
-  - Plan name + description
-  - "What's Included" checklist
-  - Duration picker: pill buttons `[7] [14] [21] [30]` days
-  - Target weight input (pre-filled from profile, editable)
-  - Start date picker
-  - Live preview section showing computed daily calories/protein/deficit based on user's profile data
-  - Reviews section (static mock)
-  - "Unlock Plan — ₹499" CTA button (non-functional for now, will wire to Stripe later)
+**8. Enhanced weather-based meal scoring** (`src/lib/meal-suggestion-engine.ts`)
+- Add weather multiplier to `getRecipesForMeal()`:
+  - Summer (>34°C): +20% score for hydrating/light foods, -15% for heavy/fried
+  - Winter (<18°C): +20% for warm/hearty, -10% for cold foods
+  - Monsoon: +15% for immunity foods, -20% for raw salads
+- Use existing `getTagsForFood()` from food-tags.ts
 
-**`src/lib/event-plan-service.ts`**
-- Plan type definitions: `celebrity`, `sugar_cut`, `gym_fat_loss`, `gym_muscle_gain`
-- Plan catalog with metadata (name, description, price, duration options, rules)
-- `calculatePlanTargets(profile, targetWeight, duration)` — computes daily deficit using 7700 kcal/kg rule, clamps to min 1200 kcal
-- `getActivePlan()` / `setActivePlan()` — localStorage CRUD for `nutrilens_active_plan`
-- `isPlanActive()` — quick check used by other modules
-- Safety validation: rejects targets requiring <1200 kcal/day or >1 kg/week loss
+**9. Water goal auto-adjustment** (`src/lib/store.ts` or water tracker)
+- If temp > 34°C, add +2 cups to water goal
+- Show nudge: "Hot day — aim for 2 extra cups"
+- If monsoon/humid, add +1 cup
 
-### Render Integration
+**10. Seasonal drink suggestions** (`src/lib/food-tags.ts`)
+- Expand `getSeasonalPicks()` to include drinks per season:
+  - Summer: nimbu pani, coconut water, aam panna, buttermilk
+  - Winter: adrak chai, turmeric milk, hot soup
+  - Monsoon: ginger tea, masala chai, warm lemon water
+- Already partially exists — enhance with Ritucharya data
 
-In `MealPlannerTabs.tsx`:
-```
-{activeTab === 'Plans' && <SpecialPlansTab />}
-```
+**11. Plan + Weather conflict resolution**
+- In `meal-suggestion-engine.ts`, if Sugar Cut active + weather suggests honey tea → override to sugar-free ginger tea
+- Constraint layer: active plan rules take priority over weather suggestions
 
----
+**12. Camera flow weather nudge** (`src/pages/CameraHome.tsx`)
+- After scan, if heavy food detected in summer → show compact WeatherNudgeCard: "Try a lighter option"
+- Already has WeatherNudgeCard component — integrate it post-scan
 
-## Part 3: Profile "Special Plans" Row
-
-**`src/pages/Profile.tsx`**
-- Add a new row in the settings list (after Subscription badge area):
-  - Icon: `Zap` or `Crown`
-  - Label: "Special Plans"
-  - Sublabel: shows active plan status ("Sugar Cut — Day 5/21") or "Browse transformation plans"
-  - Tap action: `navigate('/planner')` with Plans tab pre-selected (via URL param or state)
-
-**`src/pages/MealPlanner.tsx`**
-- Read a query param (e.g., `?tab=Plans`) to allow Profile to deep-link into the Plans tab
-
----
-
-## Part 4: Active Plan Banner (Dashboard)
-
-**`src/components/ActivePlanBanner.tsx`**
-- Thin banner: shows plan name + day count + countdown
-- Only renders when `isPlanActive()` returns true
-- Placed above `CalorieRing` in Dashboard
-
-**`src/pages/Dashboard.tsx`**
-- Import and conditionally render `ActivePlanBanner` at the top of the dashboard content
-
----
-
-## Files Summary
+## Files Changed (Summary)
 
 | File | Action |
 |------|--------|
-| `src/components/MealPlannerTabs.tsx` | Modify — change TAB_ITEMS, add KitchenTab with pill toggle, add Plans tab render |
-| `src/components/KitchenTab.tsx` | Create (optional — could be inline) — pill toggle wrapping GroceriesTab + RecipesTab |
-| `src/components/SpecialPlansTab.tsx` | Create — plan cards grid with filters |
-| `src/components/PlanDetailSheet.tsx` | Create — bottom sheet with plan config + purchase |
-| `src/lib/event-plan-service.ts` | Create — plan catalog, target calculation, active plan state |
-| `src/pages/Profile.tsx` | Modify — add "Special Plans" settings row |
-| `src/pages/MealPlanner.tsx` | Modify — read tab query param for deep-linking |
-| `src/pages/Dashboard.tsx` | Modify — add ActivePlanBanner |
-| `src/components/ActivePlanBanner.tsx` | Create — countdown banner |
-| Database migration | Create `event_plans` table (user_id, plan_type, config JSONB, status, dates) with RLS |
+| `src/lib/calorie-correction.ts` | Modify — active plan override in `getAdjustedDailyTarget` |
+| `src/lib/meal-suggestion-engine.ts` | Modify — plan filter + weather multiplier |
+| `src/lib/sugar-detector.ts` | Create — sugar detection keywords + severity |
+| `src/lib/food-tags.ts` | Modify — expand seasonal picks + drinks |
+| `src/components/AddFoodSheet.tsx` | Modify — sugar warning injection |
+| `src/components/QuickLogSheet.tsx` | Modify — sugar warning injection |
+| `src/pages/CameraHome.tsx` | Modify — sugar warning + weather nudge post-scan |
+| `src/components/PlanCompletionModal.tsx` | Create — celebration + next steps |
+| `src/pages/Profile.tsx` | Modify — enhance active plan section |
+| `src/lib/store.ts` | Modify — water goal weather adjustment |
+| Database migration | Create `event_plans` table |
 
 ## Implementation Order
 
-1. Kitchen tab merge (MealPlannerTabs restructure + pill toggle)
-2. event-plan-service.ts (plan catalog + target calculation logic)
-3. SpecialPlansTab + PlanDetailSheet UI
-4. Profile row + deep-link wiring
-5. ActivePlanBanner on Dashboard
-6. Database migration for event_plans table
+1. Sugar detector service + calorie override (core logic)
+2. Sugar warning integration across logging flows
+3. Plan-specific meal filtering
+4. Weather multiplier in meal scoring + water goal adjustment
+5. Plan completion modal
+6. Database migration for cloud sync
+7. Enhanced seasonal picks + Ritucharya data
 
