@@ -356,9 +356,14 @@ export default function MealPlannerTabs({ plan, activeTab, onTabChange, mealPlan
           >
             {activeTab === 'Budget' && <BudgetPlannerTab onOnboardingComplete={onBudgetComplete} />}
             {activeTab === 'Meal Plan' && mealPlanContent}
-            {activeTab === 'Groceries' && <GroceriesTab plan={plan} />}
+            {activeTab === 'Plans' && <SpecialPlansTab />}
             {activeTab === 'Compare' && <CompareTab />}
-            {activeTab === 'Recipes' && <RecipesTab />}
+            {activeTab === 'Kitchen' && (
+              <KitchenTab
+                groceriesContent={<GroceriesTab plan={plan} />}
+                recipesContent={<RecipesTab />}
+              />
+            )}
           </motion.div>
         </AnimatePresence>
       </div>
