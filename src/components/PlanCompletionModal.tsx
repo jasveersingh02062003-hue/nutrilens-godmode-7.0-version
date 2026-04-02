@@ -18,6 +18,7 @@ export default function PlanCompletionModal({ open, onClose }: Props) {
 
   useEffect(() => {
     if (open) setShowConfetti(true);
+    else setShowConfetti(false);
   }, [open]);
 
   const handleReturnToNormal = () => {
