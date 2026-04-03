@@ -1,7 +1,7 @@
 import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Camera, User, Ruler, Scale, Target, Activity, Heart, Apple, ChefHat, Save, Shield, Briefcase, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Camera, User, Ruler, Scale, Target, Activity, Heart, Apple, ChefHat, Save, Shield, Briefcase, ChevronDown, ChevronUp, Dumbbell } from 'lucide-react';
 import type { UserProfile } from '@/lib/store';
 import { COMMON_ALLERGENS } from '@/lib/allergen-tags';
 import { useUserProfile } from '@/contexts/UserProfileContext';
@@ -67,6 +67,12 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
   const [carriesFood, setCarriesFood] = useState<UserProfile['carriesFood']>(undefined);
   const [livingSituation, setLivingSituation] = useState<UserProfile['livingSituation']>(undefined);
   const [lifestyleOpen, setLifestyleOpen] = useState(false);
+  const [gymOpen, setGymOpen] = useState(false);
+  const [gymGoer, setGymGoer] = useState(false);
+  const [gymDays, setGymDays] = useState(3);
+  const [gymDuration, setGymDuration] = useState(45);
+  const [gymIntensity, setGymIntensity] = useState<'light' | 'moderate' | 'intense'>('moderate');
+  const [gymGoal, setGymGoal] = useState<'fat_loss' | 'muscle_gain' | 'general'>('general');
 
   useEffect(() => {
     if (profile && open) {
@@ -90,6 +96,11 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
       setCarriesFood(profile.carriesFood || undefined);
       setLivingSituation(profile.livingSituation || undefined);
       setPhoto(getProfilePhoto());
+      setGymGoer(profile.gym?.goer || false);
+      setGymDays(profile.gym?.daysPerWeek || 3);
+      setGymDuration(profile.gym?.durationMinutes || 45);
+      setGymIntensity(profile.gym?.intensity || 'moderate');
+      setGymGoal(profile.gym?.goal || 'general');
     }
   }, [profile, open]);
 
@@ -126,6 +137,8 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
       weightKg, heightCm, age, gender, activityLevel, goal, healthConditions
     );
 
+    const { inferSchedule } = await import('@/lib/gym-service');
+
     updateProfile({
       name: name.trim(),
       gender,
@@ -154,6 +167,15 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
       dailyProtein: decision.targetProtein,
       dailyCarbs: decision.targetCarbs,
       dailyFat: decision.targetFat,
+      gym: gymGoer ? {
+        goer: true,
+        daysPerWeek: gymDays,
+        durationMinutes: gymDuration,
+        intensity: gymIntensity,
+        goal: gymGoal,
+        schedule: inferSchedule(gymDays),
+        stats: profile?.gym?.stats || { totalWorkouts: 0, totalCaloriesBurned: 0, currentStreak: 0, bestStreak: 0, consistencyPercent: 0 },
+      } : { goer: false, daysPerWeek: 0, durationMinutes: 0, intensity: 'moderate' as const, goal: 'general' as const, schedule: [], stats: { totalWorkouts: 0, totalCaloriesBurned: 0, currentStreak: 0, bestStreak: 0, consistencyPercent: 0 } },
     });
 
     // Validate budget against new goals
@@ -420,6 +442,70 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
                         ))}
                       </div>
                     </Field>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Gym Settings (Collapsible) */}
+            <div className="space-y-3">
+              <button onClick={() => setGymOpen(!gymOpen)} className="flex items-center gap-2 w-full">
+                <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Dumbbell className="w-3.5 h-3.5 text-primary" />
+                </div>
+                <h3 className="text-sm font-bold text-foreground flex-1 text-left">Gym Settings</h3>
+                {gymOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              </button>
+              <AnimatePresence>
+                {gymOpen && (
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden pl-9 space-y-3">
+                    <Field label="I go to the gym">
+                      <div className="flex gap-2">
+                        {[true, false].map(v => (
+                          <button key={String(v)} onClick={() => setGymGoer(v)}
+                            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${gymGoer === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                            {v ? '🏋️ Yes' : '❌ No'}
+                          </button>
+                        ))}
+                      </div>
+                    </Field>
+                    {gymGoer && (
+                      <>
+                        <Field label={`Days per week: ${gymDays}`}>
+                          <Slider value={[gymDays]} onValueChange={v => setGymDays(v[0])} min={1} max={7} step={1} />
+                        </Field>
+                        <Field label="Duration">
+                          <div className="flex gap-2">
+                            {[30, 45, 60].map(d => (
+                              <button key={d} onClick={() => setGymDuration(d)}
+                                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${gymDuration === d ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                                {d === 60 ? '60+ min' : `${d} min`}
+                              </button>
+                            ))}
+                          </div>
+                        </Field>
+                        <Field label="Intensity">
+                          <div className="flex gap-2">
+                            {(['light', 'moderate', 'intense'] as const).map(i => (
+                              <button key={i} onClick={() => setGymIntensity(i)}
+                                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${gymIntensity === i ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                                {i.charAt(0).toUpperCase() + i.slice(1)}
+                              </button>
+                            ))}
+                          </div>
+                        </Field>
+                        <Field label="Goal">
+                          <div className="flex gap-2">
+                            {([['fat_loss', '🔥 Fat Loss'], ['muscle_gain', '💪 Muscle'], ['general', '🏃 General']] as const).map(([v, l]) => (
+                              <button key={v} onClick={() => setGymGoal(v as any)}
+                                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${gymGoal === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                                {l}
+                              </button>
+                            ))}
+                          </div>
+                        </Field>
+                      </>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>

@@ -35,6 +35,9 @@ import { getProteinTarget, getCarbTarget, getFatTarget } from '@/lib/calorie-cor
 import { clearLatestBudgetAlert } from '@/lib/budget-service';
 import ProfileCompletionNudge from '@/components/ProfileCompletionNudge';
 import ContextualTipsCard from '@/components/ContextualTipsCard';
+import GymCheckInCard from '@/components/GymCheckInCard';
+import GymConsistencyCard from '@/components/GymConsistencyCard';
+import GymUpsellCard from '@/components/GymUpsellCard';
 
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import DashboardModals from '@/components/dashboard/DashboardModals';
@@ -181,6 +184,15 @@ export default function Dashboard() {
         <div className="animate-scale-in">
           <CalorieRing dayState={d.dayState} proteinRemaining={Math.round(Math.max(0, getProteinTarget(d.profile) - d.totals.protein))} />
         </div>
+
+        {/* Gym Cards */}
+        {d.profile?.gym?.goer && (
+          <>
+            <div className="animate-fade-in"><GymCheckInCard /></div>
+            <div className="animate-fade-in"><GymConsistencyCard /></div>
+            <div className="animate-fade-in"><GymUpsellCard /></div>
+          </>
+        )}
 
         <div className="animate-slide-up" style={{ animationDelay: '0.03s' }}>
           <NextMealCard profile={d.profile} onRefresh={d.refreshLog} />

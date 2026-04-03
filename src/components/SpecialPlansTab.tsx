@@ -12,6 +12,7 @@ const FILTERS: { key: PlanCategory; label: string }[] = [
   { key: 'sugar_free', label: 'Sugar Free' },
   { key: 'muscle', label: 'Muscle' },
   { key: 'event', label: 'Event' },
+  { key: 'gym' as PlanCategory, label: 'Gym' },
 ];
 
 export default function SpecialPlansTab() {

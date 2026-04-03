@@ -137,10 +137,17 @@ export function getRecipesForMeal(
     return true;
   });
 
+  // Check if today is a gym workout day (for protein boost)
+  const todayLog = getDailyLog(getTodayKey());
+  const isWorkoutDay = todayLog?.gym?.attended === true;
+
   // Compute rank score using unified PES engine + pantry + plan + weather bonuses
   const scored: SuggestedRecipe[] = filtered.map(r => {
     const allText = [r.name.toLowerCase(), ...r.tags, ...r.ingredients.map(i => i.name.toLowerCase())].join(' ');
     const prefMatches = restrictions.prefer.filter(kw => allText.includes(kw.toLowerCase()));
+
+    // Boost protein target by 10% on workout days
+    const effectiveProtein = isWorkoutDay && remainingProtein ? Math.round(remainingProtein * 1.1) : remainingProtein;
 
     const baseScore = computePES(r, {
       targetCalories: remainingCalories,
@@ -208,6 +215,13 @@ export function getRecipesForMeal(
           planBonus -= 20;
         }
       }
+    }
+
+    // Gym workout day: boost high-protein recipes
+    let gymBonus = 0;
+    if (isWorkoutDay) {
+      if (r.protein >= 20) { gymBonus += 15; }
+      if (r.protein >= 30) { gymBonus += 5; }
     }
 
     // Weather-based scoring
@@ -283,7 +297,7 @@ export function getRecipesForMeal(
       }
     }
 
-    const rankScore = baseScore + (prefMatches.length * 0.05) + pantryBonus + planBonus + weatherBonus + contextBonus;
+    const rankScore = baseScore + (prefMatches.length * 0.05) + pantryBonus + planBonus + weatherBonus + contextBonus + gymBonus;
 
     // Build match reason
     let matchReason: string | undefined;

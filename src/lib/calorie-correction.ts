@@ -9,6 +9,7 @@ import { getDailyLog, getDailyTotals, getProfile, getRecentLogs, getAllLogDates,
 import { getActivePlan, getPlanProgress } from '@/lib/event-plan-service';
 import { getReverseDietTarget } from '@/lib/reverse-diet-service';
 import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON } from '@/lib/scoped-storage';
+import { isGymDay, getWeeklyConsistency, getGymBonus } from '@/lib/gym-service';
 
 // ── Types ──
 
@@ -530,7 +531,24 @@ export function computeAdjustedTarget(
   const pastLogs = allBalances.filter(b => b.date < date && b.actual >= 300);
   const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee, mode);
   const adjustment = adjMap[date] || 0;
-  return Math.round(clamp(baseTarget + adjustment, 1200, baseTarget * 1.15));
+  let target = Math.round(clamp(baseTarget + adjustment, 1200, baseTarget * 1.15));
+
+  // Gym bonus integration
+  try {
+    const profile = getProfile();
+    if (profile?.gym?.goer) {
+      if (isGymDay(profile, date)) {
+        const consistency = getWeeklyConsistency(profile, date);
+        const { bonus, reduceBase } = getGymBonus(profile, consistency, true);
+        if (reduceBase) {
+          target = Math.round(target * 0.95);
+        }
+        target += bonus;
+      }
+    }
+  } catch {}
+  
+  return Math.round(Math.max(1200, target));
 }
 
 /**
