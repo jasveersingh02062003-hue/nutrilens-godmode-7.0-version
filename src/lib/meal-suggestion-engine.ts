@@ -217,6 +217,13 @@ export function getRecipesForMeal(
       }
     }
 
+    // Gym workout day: boost high-protein recipes
+    let gymBonus = 0;
+    if (isWorkoutDay) {
+      if (r.protein >= 20) { gymBonus += 15; }
+      if (r.protein >= 30) { gymBonus += 5; }
+    }
+
     // Weather-based scoring
     let weatherBonus = 0;
     let weatherBoost = false;
