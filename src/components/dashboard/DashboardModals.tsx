@@ -145,7 +145,7 @@ export default function DashboardModals({
       {/* One-time planner setup modal */}
       <Dialog open={showPlannerModal} onOpenChange={(open) => {
         if (!open) {
-          localStorage.setItem(plannerDismissKey, 'true');
+          scopedSet(plannerDismissKey, 'true');
           setShowPlannerModal(false);
         }
       }}>
@@ -161,7 +161,7 @@ export default function DashboardModals({
               Set My Plan
             </Button>
             <Button variant="ghost" onClick={() => {
-              localStorage.setItem(plannerDismissKey, 'true');
+              scopedSet(plannerDismissKey, 'true');
               setShowPlannerModal(false);
             }}>
               Do it later

@@ -37,13 +37,13 @@ const saveChatHistory = (messages: ChatMessage[]) => {
   try {
     // Keep last 100 messages to avoid localStorage bloat
     const toSave = messages.slice(-100).map(({ imagePreview, reportUrl, ...rest }) => rest);
-    localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(toSave));
+    scopedSet(CHAT_HISTORY_KEY, JSON.stringify(toSave));
   } catch {}
 };
 
 const loadChatHistory = (): ChatMessage[] => {
   try {
-    const saved = localStorage.getItem(CHAT_HISTORY_KEY);
+    const saved = scopedGet(CHAT_HISTORY_KEY);
     return saved ? JSON.parse(saved) : [];
   } catch { return []; }
 };
@@ -78,7 +78,7 @@ export default function MonikaChatScreen({ open, onClose, onDashboardRefresh }: 
 
   const clearHistory = useCallback(() => {
     setMessages([]);
-    localStorage.removeItem(CHAT_HISTORY_KEY);
+    scopedRemove(CHAT_HISTORY_KEY);
     toast.success('Chat history cleared');
   }, []);
 

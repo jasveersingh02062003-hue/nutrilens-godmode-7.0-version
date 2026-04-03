@@ -23,7 +23,7 @@ export default function LastMealConfirmSheet({ open, onClose, todayKey }: Props)
 
   const handleConfirmLastMeal = () => {
     // Mark day as finalized
-    localStorage.setItem(`nutrilens_day_finalized_${todayKey}`, '1');
+    scopedSet(`nutrilens_day_finalized_${todayKey}`, '1');
     // Actually freeze the day and recompute future targets
     finalizeDay(todayKey);
     setConfirmed(true);

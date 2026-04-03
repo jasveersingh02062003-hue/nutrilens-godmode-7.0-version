@@ -24,7 +24,7 @@ export default function PESExplanationCard({ onDismiss }: Props) {
   const item = CAROUSEL[carouselIdx];
 
   const handleDismiss = () => {
-    localStorage.setItem('pes_explanation_seen', 'true');
+    scopedSet('pes_explanation_seen', 'true');
     onDismiss();
   };
 

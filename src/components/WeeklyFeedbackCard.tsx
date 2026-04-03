@@ -50,7 +50,7 @@ export default function WeeklyFeedbackCard() {
   useEffect(() => {
     const s = getLatestSummary();
     if (!s) return;
-    const dismissedWeek = localStorage.getItem(DISMISSED_KEY);
+    const dismissedWeek = scopedGet(DISMISSED_KEY);
     if (dismissedWeek === s.weekStart) {
       setDismissed(true);
     }
@@ -89,7 +89,7 @@ export default function WeeklyFeedbackCard() {
   };
 
   const handleDismiss = () => {
-    localStorage.setItem(DISMISSED_KEY, summary.weekStart);
+    scopedSet(DISMISSED_KEY, summary.weekStart);
     setDismissed(true);
   };
 

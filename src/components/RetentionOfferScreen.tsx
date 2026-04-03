@@ -11,13 +11,13 @@ interface Props {
 export default function RetentionOfferScreen({ onAccept, onDismiss }: Props) {
   const handleAccept = () => {
     setPlan('premium');
-    localStorage.setItem('retention_offer_shown', 'true');
+    scopedSet('retention_offer_shown', 'true');
     toast.success('Welcome to NutriLens Pro! 🎉 Special offer activated');
     onAccept();
   };
 
   const handleDismiss = () => {
-    localStorage.setItem('retention_offer_shown', 'true');
+    scopedSet('retention_offer_shown', 'true');
     onDismiss();
   };
 

@@ -191,13 +191,13 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
     // Dinner notification on delete
     if (mealType === 'dinner') {
       const dinnerKey = `nutrilens_dinner_notif_${date}`;
-      localStorage.removeItem(dinnerKey);
+      scopedRemove(dinnerKey);
       const updatedTotals2 = { eaten: updatedLog.meals.reduce((s, m) => s + m.totalCalories, 0) };
       const origTarget = profile?.dailyCalories || 1600;
       const summary = getDinnerNotificationSummary(date, updatedTotals2.eaten, origTarget);
       if (summary) {
         toast('Plan updated ⚖️', { description: summary.message, duration: 8000, action: { label: 'Details', onClick: () => setAdjModalOpen(true) } });
-        localStorage.setItem(dinnerKey, '1');
+        scopedSet(dinnerKey, '1');
       }
     }
     setDeleteId(null);
@@ -316,13 +316,13 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
     // Dinner notification on add
     if (mealType === 'dinner') {
       const dinnerKey = `nutrilens_dinner_notif_${date}`;
-      localStorage.removeItem(dinnerKey);
+      scopedRemove(dinnerKey);
       const addTotals = { eaten: updatedLog.meals.reduce((s, m) => s + m.totalCalories, 0) };
       const origTarget = profile?.dailyCalories || 1600;
       const summary = getDinnerNotificationSummary(date, addTotals.eaten, origTarget);
       if (summary) {
         toast('Plan updated ⚖️', { description: summary.message, duration: 8000, action: { label: 'Details', onClick: () => setAdjModalOpen(true) } });
-        localStorage.setItem(dinnerKey, '1');
+        scopedSet(dinnerKey, '1');
       }
     }
     setAddSheetOpen(false);

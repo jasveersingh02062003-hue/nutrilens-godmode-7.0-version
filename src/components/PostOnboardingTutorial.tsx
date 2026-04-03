@@ -42,7 +42,7 @@ export default function PostOnboardingTutorial({ onDismiss }: PostOnboardingTuto
 
   const handleNext = () => {
     if (isLast) {
-      localStorage.setItem('tutorial_seen', 'true');
+      scopedSet('tutorial_seen', 'true');
       onDismiss();
     } else {
       setCurrentStep(prev => prev + 1);
@@ -76,7 +76,7 @@ export default function PostOnboardingTutorial({ onDismiss }: PostOnboardingTuto
             ))}
           </div>
           <button
-            onClick={() => { localStorage.setItem('tutorial_seen', 'true'); onDismiss(); }}
+            onClick={() => { scopedSet('tutorial_seen', 'true'); onDismiss(); }}
             className="p-1.5 rounded-full hover:bg-muted transition-colors"
           >
             <X className="w-4 h-4 text-muted-foreground" />

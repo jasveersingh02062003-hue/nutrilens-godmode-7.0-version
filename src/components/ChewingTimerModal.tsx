@@ -31,7 +31,7 @@ export default function ChewingTimerModal({ open, onClose }: Props) {
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
         // Store completion
         const key = `nutrilens_chew_${new Date().toISOString().split('T')[0]}_${Date.now()}`;
-        localStorage.setItem(key, 'done');
+        scopedSet(key, 'done');
       }
       return next;
     });

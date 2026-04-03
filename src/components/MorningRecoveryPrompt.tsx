@@ -30,7 +30,7 @@ export default function MorningRecoveryPrompt({ open, onClose, missedDate }: Pro
 
   const handleSkippedMeals = () => {
     // Mark as acknowledged — deficit will be auto-adjusted by the correction engine
-    localStorage.setItem(`nutrilens_missed_ack_${missedDate}`, 'skipped');
+    scopedSet(`nutrilens_missed_ack_${missedDate}`, 'skipped');
     syncDailyBalance();
     toast.info('Got it — today\'s target adjusted to recover the deficit 💪');
     onClose();

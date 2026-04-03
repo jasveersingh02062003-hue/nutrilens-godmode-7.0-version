@@ -13,11 +13,11 @@ import { fileToDataUrl } from '@/lib/photo-store';
 const PHOTO_KEY = 'nutrilens_profile_photo';
 
 export function getProfilePhoto(): string | null {
-  return localStorage.getItem(PHOTO_KEY);
+  return scopedGet(PHOTO_KEY);
 }
 
 export function saveProfilePhoto(dataUrl: string) {
-  localStorage.setItem(PHOTO_KEY, dataUrl);
+  scopedSet(PHOTO_KEY, dataUrl);
 }
 
 const ACTIVITY_LEVELS = [

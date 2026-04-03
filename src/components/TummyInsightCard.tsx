@@ -15,7 +15,7 @@ const TIPS = [
 
 export default function TummyInsightCard() {
   const dismissKey = `nutrilens_tummy_dismiss_${getTodayKey()}`;
-  const [dismissed, setDismissed] = useState(() => !!localStorage.getItem(dismissKey));
+  const [dismissed, setDismissed] = useState(() => !!scopedGet(dismissKey));
 
   if (dismissed) return null;
 
@@ -24,7 +24,7 @@ export default function TummyInsightCard() {
   const tip = TIPS[dayOfYear % TIPS.length];
 
   const handleDismiss = () => {
-    localStorage.setItem(dismissKey, '1');
+    scopedSet(dismissKey, '1');
     setDismissed(true);
   };
 

@@ -34,8 +34,8 @@ export function useDashboardInit() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedSupplement, setSelectedSupplement] = useState<SupplementEntry | null>(null);
   const [editingSupplement, setEditingSupplement] = useState<SupplementEntry | null>(null);
-  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('tutorial_seen'));
-  const [showPESExplanation, setShowPESExplanation] = useState(() => !localStorage.getItem('pes_explanation_seen'));
+  const [showTutorial, setShowTutorial] = useState(() => !scopedGet('tutorial_seen'));
+  const [showPESExplanation, setShowPESExplanation] = useState(() => !scopedGet('pes_explanation_seen'));
   const [budgetAlert, setBudgetAlert] = useState<(BudgetAlertResult & { timestamp: number; date: string }) | null>(getLatestBudgetAlert());
   const [showCorrectionBadge, setShowCorrectionBadge] = useState(false);
   const [adherenceScore, setAdherenceScore] = useState(0);
@@ -59,7 +59,7 @@ export function useDashboardInit() {
   const plannerIncomplete = !plannerProfile || !plannerProfile.onboardingComplete;
   const plannerDismissKey = `planner_modal_dismissed_${loadedUserId || 'anon'}`;
   const [showPlannerModal, setShowPlannerModal] = useState(() =>
-    plannerIncomplete && !localStorage.getItem(plannerDismissKey)
+    plannerIncomplete && !scopedGet(plannerDismissKey)
   );
   const showPlannerBanner = plannerIncomplete && !showPlannerModal;
 
@@ -71,8 +71,8 @@ export function useDashboardInit() {
   useEffect(() => {
     if (!profile?.onboardingComplete) navigate('/onboarding');
     const carryGuardKey = `carry_applied_${getTodayKey()}`;
-    if (!localStorage.getItem(carryGuardKey)) {
-      localStorage.setItem(carryGuardKey, '1');
+    if (!scopedGet(carryGuardKey)) {
+      scopedSet(carryGuardKey, '1');
       const co = getPendingCarryOver();
       if (co) {
         applyCarryOver(getTodayKey());
@@ -112,7 +112,7 @@ export function useDashboardInit() {
       setBalanceStreak(getBalanceStreak());
       setCurrentDayType(getDayType());
       const toastKey = `calorie_toast_${getTodayKey()}`;
-      if (!localStorage.getItem(toastKey)) {
+      if (!scopedGet(toastKey)) {
         const explanation = getAdjustmentExplanation();
         if (explanation) {
           toast('⚖️ Calories adjusted', {
@@ -120,7 +120,7 @@ export function useDashboardInit() {
             action: { label: 'Details', onClick: () => setWhyModalOpen(true) },
             duration: 6000,
           });
-          localStorage.setItem(toastKey, '1');
+          scopedSet(toastKey, '1');
         }
       }
     }
@@ -135,7 +135,7 @@ export function useDashboardInit() {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
-    const recoveryDismissed = localStorage.getItem(`nutrilens_missed_ack_${yesterdayKey}`);
+    const recoveryDismissed = scopedGet(`nutrilens_missed_ack_${yesterdayKey}`);
     if (!recoveryDismissed) {
       const yLog = getDailyLog(yesterdayKey);
       const yTotals = getDailyTotals(yLog);
