@@ -35,6 +35,9 @@ import { getProteinTarget, getCarbTarget, getFatTarget } from '@/lib/calorie-cor
 import { clearLatestBudgetAlert } from '@/lib/budget-service';
 import ProfileCompletionNudge from '@/components/ProfileCompletionNudge';
 import ContextualTipsCard from '@/components/ContextualTipsCard';
+import GymCheckInCard from '@/components/GymCheckInCard';
+import GymConsistencyCard from '@/components/GymConsistencyCard';
+import GymUpsellCard from '@/components/GymUpsellCard';
 
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import DashboardModals from '@/components/dashboard/DashboardModals';
