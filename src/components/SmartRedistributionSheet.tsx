@@ -106,7 +106,17 @@ export default function SmartRedistributionSheet({
   }
 
   function handleApply() {
-    // Double-check at execution time to prevent double redistribution
+    // Block if engine already auto-redistributed
+    const log = getDailyLog(date);
+    const dayState = recalculateDay(profile, log);
+    const slotName = missedMealType === 'snack' ? 'snacks' : missedMealType;
+    const engineSlot = dayState.slots.find(s => s.name === slotName);
+    if (engineSlot?.autoRedistributed) {
+      toast.info('This meal is already automatically redistributed by the engine.');
+      onClose();
+      return;
+    }
+    // Double-check manual flag
     if (isRedistributed(date, missedMealType)) {
       toast.error('This meal has already been redistributed.');
       onClose();
