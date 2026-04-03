@@ -882,14 +882,14 @@ const TRAINING_DAYS_KEY = 'nutrilens_training_days';
 
 function _getTrainingDays(): number[] {
   try {
-    const raw = localStorage.getItem(TRAINING_DAYS_KEY);
+    const raw = scopedGet(TRAINING_DAYS_KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
-  return [1, 2, 3, 4, 5]; // Mon-Fri default
+  return [1, 2, 3, 4, 5];
 }
 
 export function setTrainingDays(days: number[]): void {
-  localStorage.setItem(TRAINING_DAYS_KEY, JSON.stringify(days));
+  scopedSetJSON(TRAINING_DAYS_KEY, days);
 }
 
 export function getTrainingDays(): number[] {
