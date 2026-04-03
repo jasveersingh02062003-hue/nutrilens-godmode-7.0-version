@@ -524,11 +524,23 @@ export function saveJournalNote(date: string, note: string) {
 
 export function getAllLogDates(): string[] {
   const dates: string[] = [];
+  // Scan for both scoped and legacy un-scoped log keys
+  const scopedPrefix = (() => {
+    const { getScopedUserId } = require('@/lib/scoped-storage');
+    const uid = getScopedUserId();
+    return uid ? `u_${uid.slice(0, 8)}_${LOG_KEY_PREFIX}` : null;
+  })();
+
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key?.startsWith(LOG_KEY_PREFIX)) {
+    if (!key) continue;
+    // Check scoped keys first
+    if (scopedPrefix && key.startsWith(scopedPrefix)) {
+      dates.push(key.replace(scopedPrefix, ''));
+    } else if (key.startsWith(LOG_KEY_PREFIX) && !key.startsWith('u_')) {
+      // Legacy un-scoped keys (for migration period)
       dates.push(key.replace(LOG_KEY_PREFIX, ''));
     }
   }
-  return dates;
+  return [...new Set(dates)]; // deduplicate
 }
