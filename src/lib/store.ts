@@ -289,16 +289,7 @@ export function addWater() {
   log.waterCups += 1;
   saveDailyLog(log);
   // Fire-and-forget cloud sync
-  import('@/integrations/supabase/client').then(({ supabase }) => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session?.user) return;
-      supabase.from('water_logs').upsert({
-        user_id: session.user.id, log_date: log.date, cups: log.waterCups,
-      } as any, { onConflict: 'user_id,log_date' } as any).then(({ error }: any) => {
-        if (error) console.error('[store] water_logs sync failed:', error.message);
-      });
-    });
-  }).catch(() => {});
+  syncWater(log.date, log.waterCups);
   return log;
 }
 
