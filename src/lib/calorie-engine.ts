@@ -176,6 +176,7 @@ export function recalculateDay(profile: UserProfile | null, log: DailyLog): DayS
 
   // Redistribute remaining among pending slots
   const pendingSlots = slots.filter(s => s.status === 'pending');
+  const missedSlots = slots.filter(s => s.status === 'missed');
 
   if (remaining <= 0 || pendingSlots.length === 0) {
     // All pending get 0
@@ -193,15 +194,38 @@ export function recalculateDay(profile: UserProfile | null, log: DailyLog): DayS
     });
   }
 
-  // Apply explicit redistribution adjustments (from user-triggered redistribution)
-  const adjustments = getDailyAdjustments(date);
-  for (const slot of slots) {
-    const storeType = toStoreMealType(slot.name);
-    const adj = adjustments[storeType] || adjustments[slot.name];
-    if (adj && adj.calories > 0) {
-      slot.targetKcal += adj.calories;
+  // Track auto-redistribution: mark missed meals and receiving meals
+  // Only when there are both missed and pending slots (engine actually redistributed)
+  if (missedSlots.length > 0 && pendingSlots.length > 0) {
+    // Calculate what each missed meal's base target would have been
+    const baseDailyTarget = adjustedTarget;
+    const baseWeights: Record<string, number> = { breakfast: 0.25, lunch: 0.30, snacks: 0.15, dinner: 0.30 };
+
+    for (const missed of missedSlots) {
+      if (missed.consumedKcal > 0) continue; // has food logged, not truly missed
+      const missedBaseKcal = Math.round(baseDailyTarget * (baseWeights[missed.name] || 0.25));
+      missed.autoRedistributed = true;
+
+      // Tag receiving slots with source info
+      for (const pending of pendingSlots) {
+        if (!pending.receivedFrom) pending.receivedFrom = [];
+        // Calculate proportional share this pending slot got from the missed meal
+        const pendingNames = pendingSlots.map(s => s.name);
+        const weight = getWeightForMeal(pending.name, pendingSlots.length, pendingNames);
+        const totalWeight = pendingSlots.reduce((s, ps) =>
+          s + getWeightForMeal(ps.name, pendingSlots.length, pendingNames), 0);
+        const share = totalWeight > 0 ? Math.round(missedBaseKcal * (weight / totalWeight)) : 0;
+        if (share > 0) {
+          pending.receivedFrom.push({ fromMeal: missed.name, addedKcal: share });
+        }
+      }
     }
   }
+
+  // NOTE: We no longer apply explicit redistribution adjustments from getDailyAdjustments()
+  // for missed meals because the engine already handles redistribution automatically.
+  // Only apply adjustments that are NOT from missed-meal redistribution (e.g., exercise adjustments).
+  // Legacy adjustment data is ignored to prevent double-counting.
 
   return {
     originalTarget,
