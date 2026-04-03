@@ -1,7 +1,7 @@
 import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Camera, User, Ruler, Scale, Target, Activity, Heart, Apple, ChefHat, Save, Shield, Briefcase, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Camera, User, Ruler, Scale, Target, Activity, Heart, Apple, ChefHat, Save, Shield, Briefcase, ChevronDown, ChevronUp, Dumbbell } from 'lucide-react';
 import type { UserProfile } from '@/lib/store';
 import { COMMON_ALLERGENS } from '@/lib/allergen-tags';
 import { useUserProfile } from '@/contexts/UserProfileContext';
