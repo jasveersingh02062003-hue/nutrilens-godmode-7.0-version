@@ -24,7 +24,21 @@ export default class ErrorBoundary extends Component<Props, State> {
     console.error('[ErrorBoundary] Uncaught error:', error, info.componentStack);
   }
 
-  handleReload = () => {
+  handleReload = async () => {
+    try {
+      // Unregister service workers to clear stale cached bundles
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(r => r.unregister()));
+      }
+      // Clear all caches
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+    } catch (e) {
+      console.warn('[ErrorBoundary] Cache cleanup failed:', e);
+    }
     window.location.reload();
   };
 
