@@ -189,6 +189,9 @@ export default function SpecialPlansTab() {
           onOpenChange={(open) => !open && setSelectedPlan(null)}
         />
       )}
+
+      {/* Event Plan Config Sheet */}
+      <EventPlanConfigSheet open={eventSheetOpen} onOpenChange={setEventSheetOpen} />
     </div>
   );
 }
