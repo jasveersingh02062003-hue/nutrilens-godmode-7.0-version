@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Phone, ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Phone, ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import heroImg from '@/assets/hero-nutrition.jpg';
