@@ -222,6 +222,6 @@ const Auth = function Auth() {
       </AnimatePresence>
     </div>
   );
-});
+};
 
 export default Auth;
