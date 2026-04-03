@@ -238,13 +238,13 @@ function sanitizeMode(raw: string | null): CorrectionMode {
 
 export function getCorrectionMode(): CorrectionMode {
   if (_cachedMode) return _cachedMode;
-  _cachedMode = sanitizeMode(localStorage.getItem(CORRECTION_MODE_KEY));
+  _cachedMode = sanitizeMode(scopedGet(CORRECTION_MODE_KEY));
   return _cachedMode;
 }
 
 export function setCorrectionMode(mode: CorrectionMode) {
   _cachedMode = sanitizeMode(mode);
-  localStorage.setItem(CORRECTION_MODE_KEY, _cachedMode);
+  scopedSet(CORRECTION_MODE_KEY, _cachedMode);
   recomputeCalorieEngine(); // centralized recompute + UI refresh
 }
 

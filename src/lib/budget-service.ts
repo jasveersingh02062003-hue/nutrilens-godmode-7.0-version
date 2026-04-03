@@ -1,4 +1,4 @@
-import { scopedGet, scopedSet } from "./scoped-storage";
+import { scopedGet, scopedSet, scopedRemove } from "./scoped-storage";
 import { safeJsonParse } from "./safe-json";
 import {
   getBudgetSettings,
