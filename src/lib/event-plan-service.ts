@@ -138,7 +138,7 @@ export const PLAN_CATALOG: PlanMeta[] = [
     price: 699,
     durationOptions: [21, 30, 60],
     defaultDuration: 30,
-    category: 'muscle',
+    category: 'gym',
     rating: 4.5,
     reviewCount: 678,
     rules: ['Caloric surplus 300-500 kcal', '2g protein/kg', 'High carb on training days', 'Moderate fat'],
