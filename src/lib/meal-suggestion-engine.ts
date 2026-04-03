@@ -20,6 +20,7 @@ export interface SuggestedRecipe extends EnrichedRecipe {
   planCompliant?: boolean;
   weatherBoost?: boolean;
   workoutTiming?: 'pre' | 'post' | 'rest';
+  contextBadge?: string;
 }
 
 /**
