@@ -1,101 +1,108 @@
 
+Problem understood: the breakfast calories are already being auto-shifted by the engine into lunch/dinner/snacks, but the breakfast detail sheet still offers redistribution actions and the manual apply flow adds another redistribution on top. That is why targets jump again and totals become inflated.
 
-# Performance Optimization Plan for NutriLens AI
+What is happening now
+- The daily engine already auto-redistributes missed meal calories by recalculating pending slot targets in `src/lib/calorie-engine.ts`.
+- The meal detail UI separately exposes:
+  - “Smart Redistribute”
+  - “Quick → Lunch”
+  - “Apply Redistribution”
+- Those UI actions use `src/lib/redistribution-service.ts` and `src/lib/meal-targets.ts` to add explicit per-meal adjustments.
+- Result: one missed breakfast gets counted twice:
+  1. once by the engine’s automatic pending-slot redistribution
+  2. again by explicit redistribution adjustments
+- The breakfast detail screen correctly hides the action buttons only if `isRedistributed(date, mealType)` is true, but that flag is only set after the manual redistribution flow. So an auto-redistributed missed meal still looks “missed and actionable,” which is the core UX bug.
 
-## Problem Summary
-The app is slow due to: (1) synchronous full-scan of localStorage on every render cycle, (2) O(n²) calorie engine recomputation without adequate memoization, (3) zero usage of `React.memo` across ~120 components, (4) a "mega-hook" (`useDashboardInit`) running 15+ heavy computations on mount, and (5) a 10-second polling interval that re-reads all data unconditionally.
+What to build
+1. Make engine auto-redistribution the single source of truth for missed meals
+- Keep the calorie engine’s automatic redistribution behavior.
+- Stop offering manual redistribute actions for a meal that is already auto-redistributed by the engine.
+- Treat “missed + no logged items” as already redistributed for UI purposes when remaining meals exist and the engine has reweighted targets.
 
----
+2. Split “auto redistribution state” from “manual override state”
+- Add a clear state model in the redistribution layer:
+  - auto redistributed
+  - manual override applied
+  - not redistributed
+- Use this to drive banners, CTA visibility, and undo behavior.
+- This prevents the UI from assuming “not manually flagged” means “not redistributed.”
 
-## Plan
+3. Replace the breakfast detail CTA with a read-only summary
+- In `MealDetailSheet`, when breakfast is missed and auto-redistributed:
+  - remove “Smart Redistribute”
+  - remove “Quick → Lunch”
+  - remove the apply flow
+  - show summary only:
+    - “Breakfast was automatically redistributed”
+    - lunch + dinner + snacks breakdown
+- This matches the behavior you want in the screenshots.
 
-### Step 1: Cache `getAllLogDates()` — the #1 hotspot
-`getAllLogDates()` iterates every `localStorage` key on every call. It's called from `getDailyBalances()` → `computeAdjustmentMap()` → multiple UI paths, creating O(n) scans dozens of times per render.
+4. Derive the summary from actual engine targets, not a second redistribution pass
+- Build the displayed breakdown from the auto-redistributed result already reflected in current meal targets/day state.
+- Do not recompute and reapply a new redistribution plan in the sheet.
+- This ensures the displayed numbers exactly match lunch/dinner/snacks targets on the dashboard.
 
-**Fix:** Add an in-memory `Set<string>` cache for log dates, invalidated only when `saveDailyLog` adds/removes a date. This eliminates repeated full `localStorage` scans.
+5. Add a true “Undo auto redistribution” flow
+- If user chooses to remove redistribution:
+  - restore the missed meal target to breakfast
+  - remove the extra amounts from lunch/dinner/snacks
+  - keep totals conserved
+- This should be a dedicated reversal of the auto-redistribution state, not the current manual-adjustment subtraction logic only.
 
-- File: `src/lib/store.ts`
-- Add: `let _logDatesCache: string[] | null = null;`
-- Invalidate in `saveDailyLog()` and `deleteMealFromLog()`
-- Return cached value in `getAllLogDates()`
+6. Auto-undo when user logs food into a previously redistributed meal
+- Project memory says redistributed slots must auto-undo when the user actually logs that meal.
+- Add this in `MealDetailSheet` item-save flow:
+  - before saving food for a redistributed breakfast, reverse redistribution first
+  - then log the food
+- This avoids stale redistributed state and prevents target corruption.
 
-### Step 2: Limit historical data window to 90 days
-The calorie engine currently loads ALL historical logs (unbounded). After months of use, this means loading hundreds of JSON objects from localStorage.
+7. Remove the old double-application paths
+- Deprecate or guard these paths so they cannot stack on top of auto redistribution:
+  - `redistributeMissedMeal(...)` quick flow in `meal-targets.ts`
+  - `applyRedistribution(...)` from `SmartRedistributionSheet` when meal is already auto-redistributed
+- Keep manual customization only if you still want an advanced override mode; if so, it must first clear the auto state before applying custom allocations.
 
-**Fix:** In `getDailyBalances()`, only scan the last 90 days instead of all dates. Older data has negligible correction impact (spread days max out at 30).
+8. Fix the dashboard meal copy
+- In `TodayMeals`, keep:
+  - missed meal shows “Redistributed”
+  - receiving meals show “+331 from breakfast”
+- Ensure the breakfast card opens a summary/details screen only, not a redistribution action screen.
+- Update wording to explicitly say “Automatically redistributed” to reduce confusion.
 
-- File: `src/lib/calorie-correction.ts` — `getDailyBalances()` function
-- Filter dates to last 90 days before loading logs
+Files to update
+- `src/lib/calorie-engine.ts`
+  - expose enough information to know when a missed meal has already been auto-redistributed
+  - possibly include source breakdown data
+- `src/lib/redistribution-service.ts`
+  - add explicit auto/manual redistribution state
+  - add reversal helpers
+  - align undo behavior with auto redistribution
+- `src/components/MealDetailSheet.tsx`
+  - remove redistribution CTAs for already auto-redistributed meals
+  - show read-only summary banner
+  - auto-undo on meal logging
+- `src/components/SmartRedistributionSheet.tsx`
+  - block apply when auto redistribution already exists, or convert it into an override flow
+- `src/components/TodayMeals.tsx`
+  - align status/copy with the new single-source redistribution logic
+- `src/lib/meal-targets.ts`
+  - either retire `redistributeMissedMeal` for missed-meal auto flows or restrict it to explicit override scenarios only
 
-### Step 3: Debounce the Dashboard polling interval
-The 10-second `setInterval` in `useDashboardInit` calls `getDailyLog()` + `getLatestBudgetAlert()` + `checkAndUpdateStreaks()` unconditionally, even when nothing changed.
+Expected result after fix
+- Breakfast missed once
+- Lunch/dinner/snacks already receive the redistributed calories once
+- Opening breakfast does not show redistribute/apply again
+- No calorie inflation
+- User can still view where calories went
+- If they log breakfast later, redistribution is reversed first, then breakfast becomes normal again
 
-**Fix:**
-- Increase interval to 30 seconds
-- Add a lightweight change-detection check (compare localStorage modification timestamp or log hash) before doing full recompute
-- File: `src/hooks/useDashboardInit.ts`
+Technical note
+Right now the architecture has two competing systems:
+- engine-level implicit redistribution (`recalculateDay`)
+- adjustment-level explicit redistribution (`applyRedistribution` / `redistributeMissedMeal`)
+The safest fix is to make one canonical path for missed-meal redistribution and convert the other path into either:
+- display-only summary
+or
+- explicit override after clearing the first state
 
-### Step 4: Wrap heavy components in `React.memo`
-Zero components use `React.memo`. Cards like `CalorieRing`, `MacroCard`, `NextMealCard`, `WaterTracker`, `HealthScoreCard`, `WeeklyReportCard` re-render on every parent state change.
-
-**Fix:** Wrap the following high-frequency components:
-- `src/components/CalorieRing.tsx`
-- `src/components/MacroCard.tsx`
-- `src/components/NextMealCard.tsx`
-- `src/components/WaterTracker.tsx`
-- `src/components/WaterTrackerCompact.tsx`
-- `src/components/HealthScoreCard.tsx`
-- `src/components/ConsistencyCard.tsx`
-- `src/components/WeeklyReportCard.tsx`
-- `src/components/SupplementsCompact.tsx`
-- `src/components/DailyPlanCard.tsx`
-- `src/components/NudgeBanner.tsx`
-
-### Step 5: Memoize expensive Dashboard computations
-`useDashboardInit` calls `recalculateDay()`, `getDailyTotals()`, `getDualSyncInsight()`, `isSurvivalModeActive()`, `isRecoveryModeActive()`, `getMealPlannerProfile()`, and `getPlanProgress()` on every render — outside `useEffect` or `useMemo`.
-
-**Fix:**
-- Wrap `totals`, `dayState`, `survivalMode`, `recoveryMode`, `dualSyncInsight`, `plannerIncomplete` in `useMemo` with `[log, profile]` dependencies
-- File: `src/hooks/useDashboardInit.ts`
-
-### Step 6: Lazy-load heavy init-only computations
-On Dashboard mount, the init effect runs 12+ sequential operations (weather fetch, behavior stats, goal adaptation, end-of-day processing, weekly summary, drop-off check, hard boundary check, streak check, etc.). Many are independent and non-blocking.
-
-**Fix:**
-- Move weather fetch to a separate `useEffect` (already async, just decouple)
-- Wrap non-critical checks (weekly summary, drop-off, hard boundary, streaks) in `requestIdleCallback` or `setTimeout(fn, 0)` so they don't block the first paint
-- File: `src/hooks/useDashboardInit.ts`
-
-### Step 7: Cache weather with proper TTL check
-Weather service already has a 3-hour TTL cache, but `fetchLiveWeather()` is called on every Dashboard mount regardless. If cache is fresh, skip the API call entirely.
-
-**Fix:** In `useDashboardInit`, check `getWeather()` first and only call `fetchLiveWeather()` if stale.
-- File: `src/hooks/useDashboardInit.ts`
-
----
-
-## Technical Details
-
-### Performance impact estimates
-| Fix | Impact | Effort |
-|-----|--------|--------|
-| Cache `getAllLogDates()` | Eliminates ~50 full localStorage scans per render cycle | 15 min |
-| 90-day window limit | Reduces log parsing from unbounded to ~90 JSON.parse calls max | 10 min |
-| Increase poll to 30s | 3x fewer background recomputations | 5 min |
-| `React.memo` on 11 components | Prevents ~100+ unnecessary re-renders per interaction | 30 min |
-| `useMemo` for derived state | Prevents 6+ heavy function calls on every state change | 15 min |
-| `requestIdleCallback` for init | First paint ~200-400ms faster | 15 min |
-| Weather cache check | Eliminates unnecessary geolocation + API call | 5 min |
-
-### Files modified
-- `src/lib/store.ts` — log dates cache
-- `src/lib/calorie-correction.ts` — 90-day window
-- `src/hooks/useDashboardInit.ts` — polling, memoization, idle scheduling, weather
-- 11 component files — `React.memo` wrappers
-
-### What this does NOT change
-- No database migrations
-- No new dependencies
-- No API changes
-- No feature removals — all existing features continue working identically, just faster
-
+This is the root cause of the problem you described.
