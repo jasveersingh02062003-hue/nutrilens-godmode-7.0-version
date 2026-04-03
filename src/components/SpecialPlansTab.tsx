@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Star, ArrowRight, Crown, Zap, Target } from 'lucide-react';
-import { PLAN_CATALOG, type PlanMeta, type PlanCategory, getActivePlan, getPlanProgress, getPlanById } from '@/lib/event-plan-service';
+import { PLAN_CATALOG, type PlanMeta, type PlanCategory, getActivePlan, getActivePlanRaw, getPlanProgress, getPlanById } from '@/lib/event-plan-service';
 import PlanDetailSheet from './PlanDetailSheet';
 import EventPlanConfigSheet from './EventPlanConfigSheet';
+import CurrentPlansTab from './CurrentPlansTab';
 
 const FILTERS: { key: PlanCategory; label: string }[] = [
   { key: 'all', label: 'All' },
