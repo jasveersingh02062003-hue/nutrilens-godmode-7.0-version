@@ -7,6 +7,7 @@
 import { DailyLog, UserProfile, getDailyTotals, getRecentLogs, getTodayKey } from './store';
 import { getStreaks } from './streaks';
 import { getUserConditions as getUserConditionsImported } from './condition-coach';
+import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON } from '@/lib/scoped-storage';
 
 // ── Types ──
 
