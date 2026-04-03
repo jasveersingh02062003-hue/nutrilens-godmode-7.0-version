@@ -157,8 +157,8 @@ export function getUnifiedBudget(): UnifiedBudget {
  */
 export function getUnifiedRemainingMealBudget(mealType: string): number {
   const budget = getUnifiedBudget();
-  const slotKey = mealType === 'snack' ? 'snacks' : mealType;
-  const mealBudget = (budget.perMeal as any)[slotKey] || 0;
+  const slotKey = (mealType === 'snack' ? 'snacks' : mealType) as keyof typeof budget.perMeal;
+  const mealBudget = budget.perMeal[slotKey] || 0;
 
   const today = getTodayKey();
   const log = getDailyLog(today);
