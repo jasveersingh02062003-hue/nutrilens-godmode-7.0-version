@@ -129,10 +129,7 @@ export function saveOnboardingData(data: OnboardingData) {
       durationMinutes: data.activity.gym.durationMinutes,
       intensity: (data.activity.gym.intensity as 'light' | 'moderate' | 'intense') || 'moderate',
       goal: (data.activity.gym.goal as 'fat_loss' | 'muscle_gain' | 'general') || 'general',
-      schedule: (() => {
-        const { inferSchedule } = require('./gym-service');
-        return inferSchedule(data.activity.gym.daysPerWeek);
-      })(),
+      schedule: inferSchedule(data.activity.gym.daysPerWeek),
       stats: { totalWorkouts: 0, totalCaloriesBurned: 0, currentStreak: 0, bestStreak: 0, consistencyPercent: 0 },
     } : undefined,
   };
