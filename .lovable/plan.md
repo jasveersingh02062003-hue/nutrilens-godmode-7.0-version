@@ -1,115 +1,101 @@
 
 
-# Plan: User Intelligence Engine — Deep Context-Aware Suggestions
+# Performance Optimization Plan for NutriLens AI
 
-## Summary
-Build a proactive context engine that synthesizes the user's occupation, work style, kitchen setup, weather, last meal, stress, and sleep into actionable food suggestions surfaced across Dashboard, Meal Planner, and Camera.
+## Problem Summary
+The app is slow due to: (1) synchronous full-scan of localStorage on every render cycle, (2) O(n²) calorie engine recomputation without adequate memoization, (3) zero usage of `React.memo` across ~120 components, (4) a "mega-hook" (`useDashboardInit`) running 15+ heavy computations on mount, and (5) a 10-second polling interval that re-reads all data unconditionally.
 
-## What Already Exists
-- `UserProfile` has: `occupation`, `jobType`, `workActivity`, `sleepHours`, `stressLevel`, `cookingHabits`, `eatingOut`, `caffeine`, `alcohol`
-- Weather service with live/simulated temp, season, humidity
-- Weather nudge service (protein gap, calorie gap, hot/cold/monsoon tips, skin tips)
-- Coach engine with pattern detection
-- Meal suggestion engine with plan/weather/pantry/budget scoring
-- Onboarding collects occupation, work activity, exercise, cooking habits
+---
 
-## New Data to Collect
+## Plan
 
-### Extended Profile Fields (added to UserProfile)
-- `travelFrequency`: 'never' | 'sometimes' | 'often'
-- `kitchenAppliances`: string[] (stove, microwave, airFryer, oven, fridge, none)
-- `workplaceFacilities`: string[] (fridge, microwave, none)
-- `carriesFood`: 'always' | 'sometimes' | 'never'
-- `livingSituation`: 'alone' | 'family' | 'shared'
+### Step 1: Cache `getAllLogDates()` — the #1 hotspot
+`getAllLogDates()` iterates every `localStorage` key on every call. It's called from `getDailyBalances()` → `computeAdjustmentMap()` → multiple UI paths, creating O(n) scans dozens of times per render.
 
-### Collection Point
-Add a "Lifestyle & Work Details" section in **Profile** (EditProfileSheet) — collapsible, optional. Not in onboarding (too long already).
+**Fix:** Add an in-memory `Set<string>` cache for log dates, invalidated only when `saveDailyLog` adds/removes a date. This eliminates repeated full `localStorage` scans.
 
-## Changes to Build
+- File: `src/lib/store.ts`
+- Add: `let _logDatesCache: string[] | null = null;`
+- Invalidate in `saveDailyLog()` and `deleteMealFromLog()`
+- Return cached value in `getAllLogDates()`
 
-### 1. Extend UserProfile + Cloud Sync
-**Files:** `src/lib/store.ts`, `src/contexts/UserProfileContext.tsx`
-- Add 5 new optional fields to `UserProfile`
-- Map to cloud `profiles` table via `conditions` JSON field (already used for extensible data)
+### Step 2: Limit historical data window to 90 days
+The calorie engine currently loads ALL historical logs (unbounded). After months of use, this means loading hundreds of JSON objects from localStorage.
 
-### 2. Lifestyle Section in EditProfileSheet
-**File:** `src/components/EditProfileSheet.tsx`
-- Add collapsible "Work & Lifestyle" section with:
-  - Travel frequency (radio: Never / Sometimes / Often)
-  - Kitchen appliances (multi-select chips)
-  - Workplace facilities (multi-select chips)
-  - Carries food (radio)
-  - Living situation (radio)
+**Fix:** In `getDailyBalances()`, only scan the last 90 days instead of all dates. Older data has negligible correction impact (spread days max out at 30).
 
-### 3. Context Intelligence Engine (NEW)
-**File:** `src/lib/context-engine.ts`
-- Main function: `getContextualSuggestions(profile, weather, log): ContextSuggestion[]`
-- Returns prioritized suggestions based on rules:
+- File: `src/lib/calorie-correction.ts` — `getDailyBalances()` function
+- Filter dates to last 90 days before loading logs
 
-| Context | Rule | Suggestion |
-|---------|------|------------|
-| jobType = 'physical' or 'field' | High exertion | "Pack high-protein portable meals — soya wrap, eggs, fruit" |
-| travelFrequency = 'often' | On the go | "No-fridge meals: wraps, boiled eggs, makhana, sprouts" |
-| workplaceFacilities has no microwave | No reheat | "No-reheat lunch ideas: cold salads, wraps, curd rice" |
-| weather.temp > 34 | Hot day | "Stay cool — buttermilk, coconut water, cucumber" |
-| weather.temp < 18 | Cold day | "Warm up with ginger tea, soup, dal" |
-| season = 'monsoon' | Immunity | "Boost immunity — turmeric milk, ginger, light cooked meals" |
-| lastMeal > 800 kcal | Heavy meal | "Last meal was heavy — try a light dinner (soup, salad)" |
-| lastMeal < 300 kcal | Under-ate | "You ate very little — add a protein snack" |
-| stressLevel = 'high' | Stress eating | "Calming foods: bananas, oats, dark chocolate, magnesium" |
-| sleepHours < 6 | Poor sleep | "Low sleep increases hunger — prioritize protein to stay full" |
-| nightShift (jobType) | Irregular hours | "Main meal before your shift. Avoid heavy food after midnight" |
-| carriesFood = 'never' + travels | No packed food | "Quick grab options: sprouts box, roasted chana, fruit" |
-| cookingHabits = 'none' | No cooking | "Zero-cook meals: curd + muesli, fruit bowl, sprout chaat" |
+### Step 3: Debounce the Dashboard polling interval
+The 10-second `setInterval` in `useDashboardInit` calls `getDailyLog()` + `getLatestBudgetAlert()` + `checkAndUpdateStreaks()` unconditionally, even when nothing changed.
 
-- Each suggestion has: `type`, `icon`, `text`, `priority`, `recipes?[]`, `dismissKey`
-- Max 2-3 suggestions returned, deduplicated by type
-- Dismissed suggestions stored in localStorage for 24h
+**Fix:**
+- Increase interval to 30 seconds
+- Add a lightweight change-detection check (compare localStorage modification timestamp or log hash) before doing full recompute
+- File: `src/hooks/useDashboardInit.ts`
 
-### 4. Contextual Tips Card on Dashboard (NEW)
-**File:** `src/components/ContextualTipsCard.tsx`
-- Compact card below WeatherNudgeCard showing 1-2 tips from context engine
-- Animated slide-in, dismissible per tip (24h cooldown)
-- "Why this tip?" expandable explanation
-- Optional recipe links that navigate to planner
+### Step 4: Wrap heavy components in `React.memo`
+Zero components use `React.memo`. Cards like `CalorieRing`, `MacroCard`, `NextMealCard`, `WaterTracker`, `HealthScoreCard`, `WeeklyReportCard` re-render on every parent state change.
 
-**File:** `src/pages/Dashboard.tsx`
-- Import and render `ContextualTipsCard` after weather nudge section
+**Fix:** Wrap the following high-frequency components:
+- `src/components/CalorieRing.tsx`
+- `src/components/MacroCard.tsx`
+- `src/components/NextMealCard.tsx`
+- `src/components/WaterTracker.tsx`
+- `src/components/WaterTrackerCompact.tsx`
+- `src/components/HealthScoreCard.tsx`
+- `src/components/ConsistencyCard.tsx`
+- `src/components/WeeklyReportCard.tsx`
+- `src/components/SupplementsCompact.tsx`
+- `src/components/DailyPlanCard.tsx`
+- `src/components/NudgeBanner.tsx`
 
-### 5. Context-Aware Recipe Badges in Meal Suggestion Engine
-**File:** `src/lib/meal-suggestion-engine.ts`
-- Add context scoring in `getRecipesForMeal()`:
-  - If user travels often → boost recipes tagged `portable` (+15 score)
-  - If no microwave → filter out `needs_reheat` tagged recipes
-  - If cookingHabits = 'none' → boost `no_cook` recipes (+20)
-  - If hot weather → boost `cooling` tagged recipes (+10)
-  - If cold weather → boost `warming` tagged recipes (+10)
-- Add `contextBadge?: string` to `SuggestedRecipe` (e.g., "🚗 Travel-friendly", "❄️ No reheat needed", "🌡️ Cooling")
+### Step 5: Memoize expensive Dashboard computations
+`useDashboardInit` calls `recalculateDay()`, `getDailyTotals()`, `getDualSyncInsight()`, `isSurvivalModeActive()`, `isRecoveryModeActive()`, `getMealPlannerProfile()`, and `getPlanProgress()` on every render — outside `useEffect` or `useMemo`.
 
-### 6. Coach Engine Integration
-**File:** `src/lib/coach.ts`
-- Add occupation-aware coaching messages:
-  - Physical workers: hydration reminders, energy-dense breakfast nudge
-  - Desk workers: movement break + light meal reminders
-  - Travelers: portable meal prep suggestions on Sunday evenings
+**Fix:**
+- Wrap `totals`, `dayState`, `survivalMode`, `recoveryMode`, `dualSyncInsight`, `plannerIncomplete` in `useMemo` with `[log, profile]` dependencies
+- File: `src/hooks/useDashboardInit.ts`
 
-## Implementation Order
-1. Extend UserProfile + cloud sync mapping
-2. EditProfileSheet — lifestyle section
-3. Context engine (`context-engine.ts`)
-4. ContextualTipsCard component + Dashboard integration
-5. Meal suggestion engine — context scoring + badges
-6. Coach engine — occupation-aware messages
+### Step 6: Lazy-load heavy init-only computations
+On Dashboard mount, the init effect runs 12+ sequential operations (weather fetch, behavior stats, goal adaptation, end-of-day processing, weekly summary, drop-off check, hard boundary check, streak check, etc.). Many are independent and non-blocking.
 
-## Files Summary
-| File | Action |
-|------|--------|
-| `src/lib/store.ts` | Modify — add 5 fields to UserProfile |
-| `src/contexts/UserProfileContext.tsx` | Modify — map new fields to cloud |
-| `src/components/EditProfileSheet.tsx` | Modify — add lifestyle section |
-| `src/lib/context-engine.ts` | Create — intelligence engine |
-| `src/components/ContextualTipsCard.tsx` | Create — dashboard tips card |
-| `src/pages/Dashboard.tsx` | Modify — render ContextualTipsCard |
-| `src/lib/meal-suggestion-engine.ts` | Modify — context scoring + badges |
-| `src/lib/coach.ts` | Modify — occupation-aware messages |
+**Fix:**
+- Move weather fetch to a separate `useEffect` (already async, just decouple)
+- Wrap non-critical checks (weekly summary, drop-off, hard boundary, streaks) in `requestIdleCallback` or `setTimeout(fn, 0)` so they don't block the first paint
+- File: `src/hooks/useDashboardInit.ts`
+
+### Step 7: Cache weather with proper TTL check
+Weather service already has a 3-hour TTL cache, but `fetchLiveWeather()` is called on every Dashboard mount regardless. If cache is fresh, skip the API call entirely.
+
+**Fix:** In `useDashboardInit`, check `getWeather()` first and only call `fetchLiveWeather()` if stale.
+- File: `src/hooks/useDashboardInit.ts`
+
+---
+
+## Technical Details
+
+### Performance impact estimates
+| Fix | Impact | Effort |
+|-----|--------|--------|
+| Cache `getAllLogDates()` | Eliminates ~50 full localStorage scans per render cycle | 15 min |
+| 90-day window limit | Reduces log parsing from unbounded to ~90 JSON.parse calls max | 10 min |
+| Increase poll to 30s | 3x fewer background recomputations | 5 min |
+| `React.memo` on 11 components | Prevents ~100+ unnecessary re-renders per interaction | 30 min |
+| `useMemo` for derived state | Prevents 6+ heavy function calls on every state change | 15 min |
+| `requestIdleCallback` for init | First paint ~200-400ms faster | 15 min |
+| Weather cache check | Eliminates unnecessary geolocation + API call | 5 min |
+
+### Files modified
+- `src/lib/store.ts` — log dates cache
+- `src/lib/calorie-correction.ts` — 90-day window
+- `src/hooks/useDashboardInit.ts` — polling, memoization, idle scheduling, weather
+- 11 component files — `React.memo` wrappers
+
+### What this does NOT change
+- No database migrations
+- No new dependencies
+- No API changes
+- No feature removals — all existing features continue working identically, just faster
 
