@@ -66,6 +66,8 @@ export default function MealPlanner() {
   });
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const premium = isPremium();
+  const activePlanData = useMemo(() => getActivePlan(), []);
+  const planMeta = activePlanData ? getPlanById(activePlanData.planId) : null;
 
   // Sync planner profile targets with main UserProfile to prevent mismatches
   useEffect(() => {
