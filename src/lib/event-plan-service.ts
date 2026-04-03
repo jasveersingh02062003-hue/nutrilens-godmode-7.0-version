@@ -18,6 +18,7 @@ export interface EventPlanSettings {
   budgetTier: BudgetTier;
   fastingWindow: 0 | 12 | 14 | 16;
   boosters: string[];
+  motivation?: string;
 }
 
 export interface PlanMeta {

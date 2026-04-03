@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, X, ChevronDown, ChevronUp, Download } from 'lucide-react';
+import { Zap, X, ChevronDown, ChevronUp, Download, Lock } from 'lucide-react';
 import { getActivePlan, getPlanProgress, getPlanById, clearActivePlan } from '@/lib/event-plan-service';
 import { getAdjustedDailyTarget, getProteinTarget, getCarbTarget, getFatTarget } from '@/lib/calorie-correction';
 import { getProfile } from '@/lib/store';
@@ -17,6 +17,8 @@ export default function ActivePlanBanner() {
 
   const meta = getPlanById(plan.planId);
   const profile = getProfile();
+  const isEventPlan = plan.planId === 'event_based' && plan.eventSettings;
+  const eventMotivation = plan.eventSettings?.motivation;
 
   const handleCancel = () => {
     if (!confirm('Are you sure you want to cancel this plan? Your targets will return to normal.')) return;
@@ -38,11 +40,23 @@ export default function ActivePlanBanner() {
       >
         <div className="text-lg">{meta?.emoji || '🎯'}</div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold text-foreground truncate">{meta?.name}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-xs font-bold text-foreground truncate">{meta?.name}</p>
+            {isEventPlan && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-primary/15 text-[8px] font-bold text-primary">
+                <Lock className="w-2.5 h-2.5" /> Locked
+              </span>
+            )}
+          </div>
           <p className="text-[10px] text-muted-foreground">
-            Day {progress.dayNumber}/{progress.totalDays} · {progress.daysLeft} days left
+            {isEventPlan
+              ? `${progress.daysLeft} days until your ${plan.eventSettings!.eventType}!`
+              : `Day ${progress.dayNumber}/${progress.totalDays} · ${progress.daysLeft} days left`}
             {progress.dayNumber === 10 && plan.planId === 'celebrity_transformation' && ' · 🔄 Refeed Day'}
           </p>
+          {eventMotivation && (
+            <p className="text-[9px] text-primary/80 italic mt-0.5">"{eventMotivation}"</p>
+          )}
         </div>
         <div className="flex items-center gap-1.5">
           <span className="text-xs font-bold text-primary">{progress.percentComplete}%</span>

@@ -935,7 +935,7 @@ export function processEndOfDay(profile: UserProfile | null): void {
 /**
  * Get contextual toast after a meal is logged.
  */
-export function getContextualMealToast(): { type: 'surplus' | 'deficit'; message: string } | null {
+export function getContextualMealToast(): { type: 'surplus' | 'deficit' | 'walk_nudge'; message: string } | null {
   const p = getProfile();
   if (!p) return null;
 
@@ -944,6 +944,22 @@ export function getContextualMealToast(): { type: 'surplus' | 'deficit'; message
   const totals = getDailyTotals(log);
   const target = p.dailyCalories || 1600;
   const diff = totals.eaten - target;
+
+  // Post-meal walking nudge for active event plans (lunch/dinner time)
+  const hour = new Date().getHours();
+  if (hour >= 12 && hour <= 21) {
+    try {
+      const { getActivePlan } = require('@/lib/event-plan-service');
+      const ap = getActivePlan();
+      if (ap?.planId === 'event_based' && totals.eaten > 200) {
+        const nudgeKey = `walk_nudge_${today}_${hour >= 18 ? 'dinner' : 'lunch'}`;
+        if (!localStorage.getItem(nudgeKey)) {
+          localStorage.setItem(nudgeKey, '1');
+          return { type: 'walk_nudge', message: 'Great meal! A 10-min walk now will stabilize blood sugar 🚶' };
+        }
+      }
+    } catch {}
+  }
 
   if (diff > 100) {
     return { type: 'surplus', message: "Big meal today 😄 We've got you covered — your plan will adjust gently." };

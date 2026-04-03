@@ -68,27 +68,38 @@ const FASTING_OPTIONS = [
   { value: 16, label: '16h Fast' },
 ];
 
+const MOTIVATION_OPTIONS = [
+  { id: 'look_best', emoji: '✨', label: 'Look my best' },
+  { id: 'feel_confident', emoji: '💪', label: 'Feel confident' },
+  { id: 'health_milestone', emoji: '🏆', label: 'Health milestone' },
+  { id: 'impress_someone', emoji: '💫', label: 'Impress someone' },
+];
+
 const BOOSTER_OPTIONS = [
   { id: 'morning_routine', emoji: '🌅', label: 'Morning Routine', desc: 'Warm water + lemon + jeera, walk, stretching' },
   { id: 'metabolism_drinks', emoji: '☕', label: 'Metabolism Drinks', desc: 'Jeera water, ginger tea, green tea, black coffee' },
   { id: 'superfoods', emoji: '🥜', label: 'Superfoods', desc: 'Makhana, sattu, chia seeds, sprouted moong' },
   { id: 'evening_routine', emoji: '🌙', label: 'Evening Routine', desc: 'Herbal tea, finish dinner by 7 PM' },
+  { id: 'supplements', emoji: '💊', label: 'Supplements', desc: 'Spirulina, Shilajit (purified)' },
+  { id: 'post_meal', emoji: '🚶', label: 'Post-Meal Activity', desc: '10-min walk + deep breathing after meals' },
 ];
 
 export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
   const { profile } = useUserProfile();
   const [step, setStep] = useState(0);
 
-  // Step 1
+  // Step 0 - Event
   const [eventType, setEventType] = useState('wedding');
   const [eventDate, setEventDate] = useState<Date | undefined>(addDays(new Date(), 30));
   const [dateOpen, setDateOpen] = useState(false);
+  const [motivation, setMotivation] = useState('');
+  const [customMotivation, setCustomMotivation] = useState('');
 
-  // Step 2
+  // Step 1 - Goal
   const [goalType, setGoalType] = useState<EventGoalType>('lose');
   const [targetWeight, setTargetWeight] = useState(profile?.weightKg ? profile.weightKg - 3 : 70);
 
-  // Step 3
+  // Step 2 - Constraints
   const [exerciseTime, setExerciseTime] = useState<ExerciseTime>('none');
   const [cookingTime, setCookingTime] = useState<CookingTime>(() => {
     if (profile?.cookingHabits === 'none' || profile?.cookingHabits === 'minimal') return 'none';
@@ -97,7 +108,7 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
   });
   const [budgetTier, setBudgetTier] = useState<BudgetTier>('moderate');
 
-  // Step 4
+  // Step 3 - Extras
   const [fastingWindow, setFastingWindow] = useState<0 | 12 | 14 | 16>(0);
   const [boosters, setBoosters] = useState<string[]>(['morning_routine', 'metabolism_drinks']);
 
@@ -112,6 +123,7 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
   };
 
   const handleActivate = () => {
+    const finalMotivation = motivation === 'custom' ? customMotivation : MOTIVATION_OPTIONS.find(m => m.id === motivation)?.label || '';
     const settings: EventPlanSettings = {
       eventType,
       eventDate: eventDate ? format(eventDate, 'yyyy-MM-dd') : format(addDays(new Date(), 30), 'yyyy-MM-dd'),
@@ -122,6 +134,7 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
       budgetTier,
       fastingWindow,
       boosters,
+      motivation: finalMotivation,
     };
 
     setActivePlan({
@@ -144,7 +157,7 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
     window.dispatchEvent(new Event('nutrilens:update'));
   };
 
-  const STEPS = ['Event', 'Goal', 'Constraints', 'Extras', 'Summary'];
+  const STEPS = ['Event', 'Why', 'Goal', 'Constraints', 'Extras', 'Summary'];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -172,6 +185,7 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
           </SheetHeader>
 
           <AnimatePresence mode="wait">
+            {/* Step 0: Event */}
             {/* Step 0: Event */}
             {step === 0 && (
               <motion.div key="step0" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
@@ -226,8 +240,54 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
               </motion.div>
             )}
 
-            {/* Step 1: Goal */}
+            {/* Step 1: Motivation */}
             {step === 1 && (
+              <motion.div key="step1-motivation" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
+                <div className="text-center space-y-2">
+                  <span className="text-3xl">💭</span>
+                  <p className="text-sm font-semibold text-foreground">Why does this matter to you?</p>
+                  <p className="text-[10px] text-muted-foreground">This helps us personalize your experience</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {MOTIVATION_OPTIONS.map(m => (
+                    <button
+                      key={m.id}
+                      onClick={() => { setMotivation(m.id); setCustomMotivation(''); }}
+                      className={`flex items-center gap-2 p-3 rounded-2xl border transition-all ${
+                        motivation === m.id ? 'border-primary bg-primary/10' : 'border-border bg-card'
+                      }`}
+                    >
+                      <span className="text-lg">{m.emoji}</span>
+                      <span className="text-xs font-semibold text-foreground">{m.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setMotivation('custom')}
+                  className={`w-full p-3 rounded-2xl border transition-all text-left ${
+                    motivation === 'custom' ? 'border-primary bg-primary/10' : 'border-border bg-card'
+                  }`}
+                >
+                  <span className="text-xs font-semibold text-foreground">✏️ Write your own reason</span>
+                </button>
+                {motivation === 'custom' && (
+                  <input
+                    type="text"
+                    value={customMotivation}
+                    onChange={(e) => setCustomMotivation(e.target.value)}
+                    placeholder="e.g., I want to feel amazing at the party"
+                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    maxLength={100}
+                  />
+                )}
+                <Button className="w-full" onClick={() => setStep(2)} disabled={!motivation || (motivation === 'custom' && !customMotivation.trim())}>
+                  Next <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
+              </motion.div>
+            )}
+
+            {/* Step 2: Goal */}
+            {step === 2 && (
               <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
                 <div>
                   <p className="text-sm font-semibold text-foreground mb-3">What do you want to achieve?</p>
@@ -272,14 +332,14 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
                   )}
                 </div>
 
-                <Button className="w-full" onClick={() => setStep(2)}>
+                <Button className="w-full" onClick={() => setStep(3)}>
                   Next <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
               </motion.div>
             )}
 
-            {/* Step 2: Constraints */}
-            {step === 2 && (
+            {/* Step 3: Constraints */}
+            {step === 3 && (
               <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
                 <div>
                   <p className="text-sm font-semibold text-foreground mb-3">Daily exercise time?</p>
@@ -339,14 +399,14 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
                   </div>
                 </div>
 
-                <Button className="w-full" onClick={() => setStep(3)}>
+                <Button className="w-full" onClick={() => setStep(4)}>
                   Next <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
               </motion.div>
             )}
 
-            {/* Step 3: Extras */}
-            {step === 3 && (
+            {/* Step 4: Extras */}
+            {step === 4 && (
               <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
                 <div>
                   <p className="text-sm font-semibold text-foreground mb-3">Intermittent fasting?</p>
@@ -387,14 +447,14 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
                   </div>
                 </div>
 
-                <Button className="w-full" onClick={() => setStep(4)}>
+                <Button className="w-full" onClick={() => setStep(5)}>
                   Review Plan <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
               </motion.div>
             )}
 
-            {/* Step 4: Summary */}
-            {step === 4 && (
+            {/* Step 5: Summary */}
+            {step === 5 && (
               <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
                 <div className="text-center space-y-1">
                   <span className="text-4xl">{EVENT_TYPES.find(e => e.id === eventType)?.emoji}</span>

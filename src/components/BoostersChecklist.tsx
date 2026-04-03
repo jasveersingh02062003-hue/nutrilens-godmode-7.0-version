@@ -40,6 +40,22 @@ const ALL_BOOSTERS: Record<string, { emoji: string; label: string; items: { id: 
       { id: 'no_screens', label: '30 min screen-free before bed' },
     ],
   },
+  supplements: {
+    emoji: '💊',
+    label: 'Supplements',
+    items: [
+      { id: 'spirulina', label: 'Spirulina (1 tsp in smoothie)' },
+      { id: 'shilajit', label: 'Shilajit (purified, warm water)' },
+    ],
+  },
+  post_meal: {
+    emoji: '🚶',
+    label: 'Post-Meal',
+    items: [
+      { id: 'post_meal_walk', label: '10-min post-meal walk' },
+      { id: 'deep_breathing', label: '5-min deep breathing' },
+    ],
+  },
 };
 
 interface Props {
