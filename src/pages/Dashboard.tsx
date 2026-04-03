@@ -742,6 +742,17 @@ export default function Dashboard() {
       />
     </div>
 
+    {/* Post-Event Feedback Modal */}
+    {expiredEventPlan && (
+      <PostEventFeedbackModal
+        open={showEventFeedback}
+        onClose={() => setShowEventFeedback(false)}
+        expiredPlan={expiredEventPlan}
+        onExtend={() => setEventExtendSheet(true)}
+      />
+    )}
+    <EventPlanConfigSheet open={eventExtendSheet} onOpenChange={setEventExtendSheet} />
+
     {/* One-time planner setup modal */}
     <Dialog open={showPlannerModal} onOpenChange={(open) => {
       if (!open) {
