@@ -405,8 +405,8 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
               </motion.div>
             )}
 
-            {/* Step 3: Extras */}
-            {step === 3 && (
+            {/* Step 4: Extras */}
+            {step === 4 && (
               <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
                 <div>
                   <p className="text-sm font-semibold text-foreground mb-3">Intermittent fasting?</p>
