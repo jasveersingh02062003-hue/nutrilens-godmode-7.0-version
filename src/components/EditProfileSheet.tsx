@@ -362,7 +362,7 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
                     <Field label="How often do you travel for work?">
                       <div className="flex gap-2">
                         {['never', 'sometimes', 'often'].map(v => (
-                          <button key={v} onClick={() => setTravelFrequency(v)}
+                          <button key={v} onClick={() => setTravelFrequency(v as UserProfile['travelFrequency'])}
                             className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${travelFrequency === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
                             {v.charAt(0).toUpperCase() + v.slice(1)}
                           </button>
