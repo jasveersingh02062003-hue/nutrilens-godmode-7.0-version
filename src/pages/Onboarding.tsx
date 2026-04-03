@@ -559,7 +559,7 @@ export default function Onboarding() {
           testosterone: f.testosteroneConcerns,
         },
       },
-      activity: { work: f.work, exercise: f.exercise },
+      activity: { work: f.work, exercise: f.exercise, gym: f.gymGoer ? { goer: true, daysPerWeek: f.gymDays, durationMinutes: f.gymDuration, intensity: f.gymIntensity || 'moderate', goal: f.gymGoal || 'general' } : undefined },
       goals: {
         type: goals.goalType, speed: f.goalSpeed,
         targetWeight: f.goalType !== 'maintain' ? f.targetWeight : null,
