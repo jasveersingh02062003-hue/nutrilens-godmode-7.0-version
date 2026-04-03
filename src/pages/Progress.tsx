@@ -289,6 +289,9 @@ export default function ProgressPage() {
         {/* Flashback */}
         <FlashbackCard onOpenDate={(d) => setSelectedDate(d)} />
 
+        {/* Gym Progress */}
+        {profile?.gym?.goer && <GymProgressSection />}
+
         {/* Calendar */}
         <div className="card-elevated p-4">
           <div className="flex items-center justify-between mb-4">

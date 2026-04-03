@@ -297,7 +297,7 @@ export function getRecipesForMeal(
       }
     }
 
-    const rankScore = baseScore + (prefMatches.length * 0.05) + pantryBonus + planBonus + weatherBonus + contextBonus;
+    const rankScore = baseScore + (prefMatches.length * 0.05) + pantryBonus + planBonus + weatherBonus + contextBonus + gymBonus;
 
     // Build match reason
     let matchReason: string | undefined;

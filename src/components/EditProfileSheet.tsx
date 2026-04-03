@@ -447,6 +447,70 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
               </AnimatePresence>
             </div>
 
+            {/* Gym Settings (Collapsible) */}
+            <div className="space-y-3">
+              <button onClick={() => setGymOpen(!gymOpen)} className="flex items-center gap-2 w-full">
+                <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Dumbbell className="w-3.5 h-3.5 text-primary" />
+                </div>
+                <h3 className="text-sm font-bold text-foreground flex-1 text-left">Gym Settings</h3>
+                {gymOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              </button>
+              <AnimatePresence>
+                {gymOpen && (
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden pl-9 space-y-3">
+                    <Field label="I go to the gym">
+                      <div className="flex gap-2">
+                        {[true, false].map(v => (
+                          <button key={String(v)} onClick={() => setGymGoer(v)}
+                            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${gymGoer === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                            {v ? '🏋️ Yes' : '❌ No'}
+                          </button>
+                        ))}
+                      </div>
+                    </Field>
+                    {gymGoer && (
+                      <>
+                        <Field label={`Days per week: ${gymDays}`}>
+                          <Slider value={[gymDays]} onValueChange={v => setGymDays(v[0])} min={1} max={7} step={1} />
+                        </Field>
+                        <Field label="Duration">
+                          <div className="flex gap-2">
+                            {[30, 45, 60].map(d => (
+                              <button key={d} onClick={() => setGymDuration(d)}
+                                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${gymDuration === d ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                                {d === 60 ? '60+ min' : `${d} min`}
+                              </button>
+                            ))}
+                          </div>
+                        </Field>
+                        <Field label="Intensity">
+                          <div className="flex gap-2">
+                            {(['light', 'moderate', 'intense'] as const).map(i => (
+                              <button key={i} onClick={() => setGymIntensity(i)}
+                                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${gymIntensity === i ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                                {i.charAt(0).toUpperCase() + i.slice(1)}
+                              </button>
+                            ))}
+                          </div>
+                        </Field>
+                        <Field label="Goal">
+                          <div className="flex gap-2">
+                            {([['fat_loss', '🔥 Fat Loss'], ['muscle_gain', '💪 Muscle'], ['general', '🏃 General']] as const).map(([v, l]) => (
+                              <button key={v} onClick={() => setGymGoal(v as any)}
+                                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${gymGoal === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                                {l}
+                              </button>
+                            ))}
+                          </div>
+                        </Field>
+                      </>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             {/* Bottom spacer */}
             <div className="h-8" />
           </div>
