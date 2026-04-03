@@ -19,11 +19,11 @@ export function syncDailyLogToCloud(log: DailyLog) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
 
-      const { error } = await supabase.from('daily_logs' as any).upsert({
+      const { error } = await (supabase.from('daily_logs') as any).upsert({
         user_id: session.user.id,
         log_date: log.date,
-        log_data: log as any,
-      }, { onConflict: 'user_id,log_date' } as any);
+        log_data: log,
+      }, { onConflict: 'user_id,log_date' });
 
       if (error) {
         console.error('Daily log sync failed:', error);
