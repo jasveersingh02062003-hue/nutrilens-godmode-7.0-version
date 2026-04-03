@@ -257,7 +257,7 @@ export default function Dashboard() {
         </div>
         {creatineBoost && (
           <div className="px-1 animate-slide-up" style={{ animationDelay: '0.11s' }}>
-            <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 px-3 py-2 text-xs text-blue-400 flex items-center gap-2">
+            <div className="rounded-lg bg-primary/10 border border-primary/20 px-3 py-2 text-xs text-primary flex items-center gap-2">
               💧 {creatineBoost.message}
             </div>
           </div>
