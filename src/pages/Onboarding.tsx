@@ -321,21 +321,22 @@ interface FormState {
  * 8  Gender-specific questions
  * 9  Work type
  * 10 Exercise
- * 11 Goal type
- * 12 Goal speed (conditional: lose/gain)
- * 13 Target weight (conditional: lose/gain)
- * 14 ★ SUMMARY SCREEN (review & edit before plan)
- * 15 Final output (calculating transition before this)
- * 16 ★ PREDICTION SUMMARY (timeline, pace options, calorie intelligence)
- * 17 ★ FOOD INTELLIGENCE (personalized avoid/prefer overview)
- * 18 Want lifestyle?
- * 19 Diet (conditional: wantLifestyle)
- * 20 Water (conditional)
- * 21 Supplements (conditional)
- * 22 Budget (conditional)
- * 23 Cooking (conditional)
- * 24 Intelligence demo
- * 25 Finish
+ * 11 Gym questions (conditional)
+ * 12 Goal type
+ * 13 Goal speed (conditional: lose/gain)
+ * 14 Target weight (conditional: lose/gain)
+ * 15 ★ SUMMARY SCREEN (review & edit before plan)
+ * 16 Final output (calculating transition before this)
+ * 17 ★ PREDICTION SUMMARY (timeline, pace options, calorie intelligence)
+ * 18 ★ FOOD INTELLIGENCE (personalized avoid/prefer overview)
+ * 19 Want lifestyle?
+ * 20 Diet (conditional: wantLifestyle)
+ * 21 Water (conditional)
+ * 22 Supplements (conditional)
+ * 23 Budget (conditional)
+ * 24 Cooking (conditional)
+ * 25 Intelligence demo
+ * 26 Finish
  */
 
 export default function Onboarding() {
