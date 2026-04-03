@@ -508,27 +508,27 @@ export default function Onboarding() {
       case 8: return true;
       case 9: return !!f.work;
       case 10: return !!f.exercise;
-      case 11: return !!f.goalType;
-      case 12: return !!f.goalSpeed;
-      case 13: {
+      case 11: return f.gymGoer !== null; // gym yes/no
+      case 12: return !!f.goalType;
+      case 13: return !!f.goalSpeed;
+      case 14: {
         if (f.targetWeight <= 0 || f.targetWeight > 300) return false;
         if (f.goalType === 'lose' && f.targetWeight >= f.weightKg) return false;
         if (f.goalType === 'gain' && f.targetWeight <= f.weightKg) return false;
-        // Allow amber warnings (user can override), block only direction errors
         return true;
       }
-      case 14: return true; // summary - always can confirm
-      case 15: return true;
-      case 16: return true; // prediction summary
-      case 17: return true; // food intelligence
-      case 18: return f.wantLifestyle !== null;
-      case 19: return !!f.diet;
-      case 20: return f.water >= 0.5 && f.water <= 5.0;
-      case 21: return true;
+      case 15: return true; // summary
+      case 16: return true;
+      case 17: return true;
+      case 18: return true;
+      case 19: return f.wantLifestyle !== null;
+      case 20: return !!f.diet;
+      case 21: return f.water >= 0.5 && f.water <= 5.0;
       case 22: return true;
-      case 23: return !!f.cookingSkill;
-      case 24: return true;
+      case 23: return true;
+      case 24: return !!f.cookingSkill;
       case 25: return true;
+      case 26: return true;
       default: return true;
     }
   };
