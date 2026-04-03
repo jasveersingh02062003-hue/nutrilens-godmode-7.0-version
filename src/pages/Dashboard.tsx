@@ -194,9 +194,9 @@ export default function Dashboard() {
 
         {/* 3. Macros */}
         <div className="flex gap-2 animate-slide-up">
-          <MacroCard label="Protein" current={d.totals.protein} goal={getProteinTarget(d.profile)} variant="coral" icon="protein" />
-          <MacroCard label="Carbs" current={d.totals.carbs} goal={getCarbTarget(d.profile)} variant="primary" icon="carbs" />
-          <MacroCard label="Fats" current={d.totals.fat} goal={getFatTarget(d.profile)} variant="gold" icon="fat" />
+          <MacroCard label="Protein" current={Math.round(d.totals.protein)} goal={Math.round(getProteinTarget(d.profile))} variant="coral" icon="protein" />
+          <MacroCard label="Carbs" current={Math.round(d.totals.carbs)} goal={Math.round(getCarbTarget(d.profile))} variant="primary" icon="carbs" />
+          <MacroCard label="Fats" current={Math.round(d.totals.fat)} goal={Math.round(getFatTarget(d.profile))} variant="gold" icon="fat" />
         </div>
 
         <div className="animate-slide-up" style={{ animationDelay: '0.05s' }}><BudgetSummaryCard /></div>
