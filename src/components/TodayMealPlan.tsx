@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ChefHat, ArrowRight, Check, Clock, Flame, ChevronDown, IndianRupee, Repeat, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
+import { ChefHat, ArrowRight, Check, Clock, Flame, ChevronDown, IndianRupee, Repeat, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getMealPlannerProfile, getWeekPlan, getCurrentWeekStart, markMealCooked } from '@/lib/meal-planner-store';
 import { getRecipeById, getEnrichedRecipe } from '@/lib/recipes';
@@ -48,6 +48,17 @@ export default function TodayMealPlan() {
   }, [plan, today]);
 
   const unified = useMemo(() => getUnifiedBudget(), []);
+
+  // Memoize enriched recipes to avoid re-computing tags on every render
+  const enrichedMap = useMemo(() => {
+    if (!todayPlan) return new Map<string, ReturnType<typeof getEnrichedRecipe>>();
+    const map = new Map<string, ReturnType<typeof getEnrichedRecipe>>();
+    todayPlan.meals.forEach(m => {
+      const recipe = getRecipeById(m.recipeId);
+      if (recipe) map.set(recipe.id, getEnrichedRecipe(recipe));
+    });
+    return map;
+  }, [todayPlan]);
 
   // Calculate total cost for today
   const totalCost = useMemo(() => {
@@ -122,8 +133,8 @@ export default function TodayMealPlan() {
   const cookedCount = todayPlan.meals.filter(m => m.cooked || loggedMeals.has(m.recipeId)).length;
 
   function getMealBudget(mealType: string): number {
-    const slotKey = mealType === 'snack' ? 'snacks' : mealType;
-    return (unified.perMeal as any)[slotKey] || 0;
+    const slotKey = (mealType === 'snack' ? 'snacks' : mealType) as keyof typeof unified.perMeal;
+    return unified.perMeal[slotKey] || 0;
   }
 
   return (
@@ -180,11 +191,12 @@ export default function TodayMealPlan() {
                       <p className="font-semibold text-xs text-foreground truncate">{recipe.name}</p>
                       {overBudget && <AlertCircle className="w-3 h-3 text-destructive flex-shrink-0" />}
                       {(() => {
-                        const enriched = getEnrichedRecipe(recipe);
-                        const hasCooling = enriched.tags.includes('cooling');
-                        const hasPortable = enriched.tags.includes('portable');
-                        const hasNoCook = enriched.tags.includes('no_cook');
-                        const badge = hasNoCook ? '⚡ Zero-cook' : hasPortable ? '🚗 Portable' : hasCooling ? '🌡️ Cooling' : null;
+                        const enriched = enrichedMap.get(recipe.id);
+                        if (!enriched) return null;
+                        const badge = enriched.tags.includes('no_cook') ? '⚡ Zero-cook'
+                          : enriched.tags.includes('portable') ? '🚗 Portable'
+                          : enriched.tags.includes('cooling') ? '🌡️ Cooling'
+                          : null;
                         return badge ? (
                           <span className="text-[9px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full whitespace-nowrap">
                             {badge}

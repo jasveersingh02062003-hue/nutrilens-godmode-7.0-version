@@ -384,7 +384,13 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
                     <Field label="Workplace Facilities">
                       <div className="flex flex-wrap gap-2">
                         {['fridge', 'microwave', 'none'].map(f => (
-                          <button key={f} onClick={() => setWorkplaceFacilities(toggleArrayItem(workplaceFacilities, f))}
+                          <button key={f} onClick={() => {
+                            if (f === 'none') {
+                              setWorkplaceFacilities(['none']);
+                            } else {
+                              setWorkplaceFacilities(toggleArrayItem(workplaceFacilities.filter(x => x !== 'none'), f));
+                            }
+                          }}
                             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${workplaceFacilities.includes(f) ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
                             {f === 'none' ? 'None' : f.charAt(0).toUpperCase() + f.slice(1)}
                           </button>
