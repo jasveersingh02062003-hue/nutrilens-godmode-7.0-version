@@ -73,6 +73,7 @@ export function profileToDbRow(profile: UserProfile, userId: string): Record<str
       carriesFood: profile.carriesFood || undefined,
       livingSituation: profile.livingSituation || undefined,
       gym: profile.gym || undefined,
+      supplementPrefs: profile.supplementPrefs || undefined,
     },
     coach_settings: profileAny.coachSettings ?? null,
     learning: profileAny.learning ?? null,
