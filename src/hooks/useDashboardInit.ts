@@ -64,9 +64,9 @@ export function useDashboardInit() {
   );
   const showPlannerBanner = plannerIncomplete && !showPlannerModal;
 
-  const survivalMode = isSurvivalModeActive() || isSurvivalModeManual();
-  const recoveryMode = isRecoveryModeActive();
-  const dualSyncInsight = profile ? getDualSyncInsight(profile.dailyCalories) : null;
+  const survivalMode = useMemo(() => isSurvivalModeActive() || isSurvivalModeManual(), [log]);
+  const recoveryMode = useMemo(() => isRecoveryModeActive(), [log]);
+  const dualSyncInsight = useMemo(() => profile ? getDualSyncInsight(profile.dailyCalories) : null, [profile, log]);
 
   // ── Init effect ──
   useEffect(() => {
