@@ -327,9 +327,9 @@ export function addSupplement(entry: SupplementEntry) {
   import('@/integrations/supabase/client').then(({ supabase }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session?.user) return;
-      supabase.from('supplement_logs' as any).upsert({
-        user_id: session.user.id, log_date: log.date, supplements: log.supplements,
-      }, { onConflict: 'user_id,log_date' } as any).then(() => {});
+      supabase.from('supplement_logs').upsert({
+        user_id: session.user.id, log_date: log.date, supplements: log.supplements as any,
+      } as any, { onConflict: 'user_id,log_date' } as any).then(() => {});
     });
   }).catch(() => {});
   return log;

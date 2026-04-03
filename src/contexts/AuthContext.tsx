@@ -210,7 +210,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       bmr: Number(row.bmr) || 1500,
       tdee: Number(row.tdee) || 2000,
       joinDate: row.join_date || undefined,
+      // Restore all lifestyle fields from conditions JSON
       skinConcerns: row.conditions?.skinConcerns || undefined,
+      allergens: row.conditions?.allergens || [],
+      travelFrequency: row.conditions?.travelFrequency || undefined,
+      kitchenAppliances: row.conditions?.kitchenAppliances || undefined,
+      workplaceFacilities: row.conditions?.workplaceFacilities || undefined,
+      carriesFood: row.conditions?.carriesFood || undefined,
+      livingSituation: row.conditions?.livingSituation || undefined,
     } as UserProfile;
   };
 
