@@ -27,8 +27,8 @@ export function useDashboardInit() {
   const navigate = useNavigate();
   const { profile, refreshProfile, loadedUserId } = useUserProfile();
   const [log, setLog] = useState<DailyLog>(getDailyLog());
-  const totals = getDailyTotals(log);
-  const dayState = recalculateDay(profile, log);
+  const totals = useMemo(() => getDailyTotals(log), [log]);
+  const dayState = useMemo(() => recalculateDay(profile, log), [profile, log]);
   const [weather, setWeather] = useState<WeatherData | null>(null);
 
   const [sheetOpen, setSheetOpen] = useState(false);
