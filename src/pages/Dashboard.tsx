@@ -79,7 +79,7 @@ import { Flame } from 'lucide-react';
 export default function Dashboard() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { profile, refreshProfile } = useUserProfile();
+  const { profile, refreshProfile, loadedUserId } = useUserProfile();
   const [log, setLog] = useState<DailyLog>(getDailyLog());
   const totals = getDailyTotals(log);
   const dayState = recalculateDay(profile, log);
