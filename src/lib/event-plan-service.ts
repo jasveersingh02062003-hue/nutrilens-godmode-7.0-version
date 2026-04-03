@@ -326,26 +326,22 @@ export function calculateEventTargets(
 // Check if expired plan exists for post-event feedback
 export function getExpiredEventPlan(): ActivePlan | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = scopedGet(STORAGE_KEY);
     if (!raw) return null;
     const plan = JSON.parse(raw) as ActivePlan;
     if (plan.planId !== 'event_based') return null;
     const endDate = new Date(plan.startDate);
     endDate.setDate(endDate.getDate() + plan.duration);
-    if (new Date() > endDate) {
-      // Don't remove yet — let feedback modal handle it
-      return plan;
-    }
+    if (new Date() > endDate) return plan;
     return null;
   } catch {
     return null;
   }
 }
 
-// Returns the raw plan regardless of status (for UI display)
 export function getActivePlanRaw(): ActivePlan | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = scopedGet(STORAGE_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as ActivePlan;
   } catch {
@@ -353,22 +349,20 @@ export function getActivePlanRaw(): ActivePlan | null {
   }
 }
 
-// Active plan CRUD — returns null if paused or expired
 export function getActivePlan(): ActivePlan | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = scopedGet(STORAGE_KEY);
     if (!raw) return null;
     const plan = JSON.parse(raw) as ActivePlan;
-    // Paused plans are not "active" for calorie engine purposes
     if (plan.status === 'paused') return null;
     const endDate = new Date(plan.startDate);
     endDate.setDate(endDate.getDate() + plan.duration);
     if (new Date() > endDate) {
       if (plan.planId === 'event_based') {
         const feedbackKey = `nutrilens_event_feedback_${plan.startDate}`;
-        if (!localStorage.getItem(feedbackKey)) return null;
+        if (!scopedGet(feedbackKey)) return null;
       }
-      localStorage.removeItem(STORAGE_KEY);
+      scopedRemove(STORAGE_KEY);
       return null;
     }
     return plan;
@@ -378,12 +372,12 @@ export function getActivePlan(): ActivePlan | null {
 }
 
 export function setActivePlan(plan: ActivePlan): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(plan));
+  scopedSetJSON(STORAGE_KEY, plan);
   window.dispatchEvent(new Event('nutrilens:plan_changed'));
 }
 
 export function clearActivePlan(): void {
-  localStorage.removeItem(STORAGE_KEY);
+  scopedRemove(STORAGE_KEY);
   window.dispatchEvent(new Event('nutrilens:plan_changed'));
 }
 
@@ -391,7 +385,6 @@ export function isPlanActive(): boolean {
   return getActivePlan() !== null;
 }
 
-// Pause / Resume / Cancel
 export function pauseActivePlan(): void {
   const raw = getActivePlanRaw();
   if (raw && (raw.status || 'active') === 'active') {
@@ -413,19 +406,15 @@ export function resumeActivePlan(): void {
 export function cancelActivePlan(): void {
   const raw = getActivePlanRaw();
   if (raw) {
-    const history: ActivePlan[] = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    const history = scopedGetJSON<ActivePlan[]>(HISTORY_KEY, []);
     history.push({ ...raw, cancelledAt: new Date().toISOString() });
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    scopedSetJSON(HISTORY_KEY, history);
     clearActivePlan();
   }
 }
 
 export function getPlanHistory(): ActivePlan[] {
-  try {
-    return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-  } catch {
-    return [];
-  }
+  return scopedGetJSON<ActivePlan[]>(HISTORY_KEY, []);
 }
 
 export function getPlanProgress(plan?: ActivePlan | null): { dayNumber: number; totalDays: number; daysLeft: number; percentComplete: number } | null {
