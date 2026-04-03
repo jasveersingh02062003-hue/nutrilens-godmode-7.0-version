@@ -8,7 +8,7 @@ import heroImg from '@/assets/hero-nutrition.jpg';
 
 type AuthMode = 'welcome' | 'login' | 'signup' | 'phone-otp';
 
-const Auth = forwardRef<HTMLDivElement>(function Auth(_props, ref) {
+const Auth = function Auth() {
   const [mode, setMode] = useState<AuthMode>('welcome');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
