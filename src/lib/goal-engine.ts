@@ -385,7 +385,7 @@ const ADAPTATION_KEY = 'nutrilens_last_adaptation';
 const ADAPTATION_LOG_KEY = 'nutrilens_adaptation_log';
 
 export function getLastAdaptationDate(): string | null {
-  return localStorage.getItem(ADAPTATION_KEY);
+  return scopedGet(ADAPTATION_KEY);
 }
 
 export function setLastAdaptationDate(date: string) {

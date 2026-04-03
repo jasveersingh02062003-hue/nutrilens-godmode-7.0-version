@@ -13,11 +13,11 @@ const CORRECTIONS_KEY = 'nutrilens_corrections';
 const CONSENT_KEY = 'nutrilens_ai_learning_consent';
 
 export function getAILearningConsent(): boolean {
-  return localStorage.getItem(CONSENT_KEY) === 'true';
+  return scopedGet(CONSENT_KEY) === 'true';
 }
 
 export function setAILearningConsent(consent: boolean) {
-  localStorage.setItem(CONSENT_KEY, consent ? 'true' : 'false');
+  scopedSet(CONSENT_KEY, consent ? 'true' : 'false');
 }
 
 export function hasAskedConsent(): boolean {
