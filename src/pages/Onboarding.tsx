@@ -1192,12 +1192,12 @@ export default function Onboarding() {
         );
       }
 
-      // ── Step 14: SUMMARY SCREEN ──
-      case 14:
+      // ── Step 15: SUMMARY SCREEN ──
+      case 15:
         return renderSummary();
 
-      // ── Step 15: Final Plan Output ──
-      case 15: {
+      // ── Step 16: Final Plan Output ──
+      case 16: {
         const g = goalResult;
         if (!g) return <div className="text-center text-muted-foreground">Calculating...</div>;
         const calorieCueColors = { sustainable: 'text-primary', moderate: 'text-accent', aggressive: 'text-destructive' };
