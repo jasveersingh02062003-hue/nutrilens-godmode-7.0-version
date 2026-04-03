@@ -49,6 +49,17 @@ export default function TodayMealPlan() {
 
   const unified = useMemo(() => getUnifiedBudget(), []);
 
+  // Memoize enriched recipes to avoid re-computing tags on every render
+  const enrichedMap = useMemo(() => {
+    if (!todayPlan) return new Map<string, ReturnType<typeof getEnrichedRecipe>>();
+    const map = new Map<string, ReturnType<typeof getEnrichedRecipe>>();
+    todayPlan.meals.forEach(m => {
+      const recipe = getRecipeById(m.recipeId);
+      if (recipe) map.set(recipe.id, getEnrichedRecipe(recipe));
+    });
+    return map;
+  }, [todayPlan]);
+
   // Calculate total cost for today
   const totalCost = useMemo(() => {
     if (!todayPlan) return 0;
