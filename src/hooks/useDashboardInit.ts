@@ -56,7 +56,7 @@ export function useDashboardInit() {
   const [showEventFeedback, setShowEventFeedback] = useState(() => !!getExpiredEventPlan());
   const [eventExtendSheet, setEventExtendSheet] = useState(false);
 
-  const plannerProfile = getMealPlannerProfile();
+  const plannerProfile = useMemo(() => getMealPlannerProfile(), [log]);
   const plannerIncomplete = !plannerProfile || !plannerProfile.onboardingComplete;
   const plannerDismissKey = `planner_modal_dismissed_${loadedUserId || 'anon'}`;
   const [showPlannerModal, setShowPlannerModal] = useState(() =>
