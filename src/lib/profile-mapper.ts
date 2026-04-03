@@ -143,5 +143,6 @@ export function dbRowToProfile(row: Record<string, unknown>): UserProfile {
     carriesFood: conditions?.carriesFood as UserProfile['carriesFood'],
     livingSituation: conditions?.livingSituation as UserProfile['livingSituation'],
     gym: conditions?.gym as UserProfile['gym'],
+    supplementPrefs: conditions?.supplementPrefs as UserProfile['supplementPrefs'],
   } as UserProfile;
 }
