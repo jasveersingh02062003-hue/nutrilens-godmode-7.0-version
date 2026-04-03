@@ -398,13 +398,13 @@ export default function Onboarding() {
     skin: 7,
     genderSpecific: 8,
     activity: 9,
-    goal: 11,
+    goal: 12,
   };
 
   const handleEditSection = (section: string) => {
     const targetStep = SECTION_STEP_MAP[section];
     if (targetStep !== undefined) {
-      setEditReturnStep(14); // return to summary
+      setEditReturnStep(15); // return to summary
       setDirection(-1);
       setStep(targetStep);
     }
