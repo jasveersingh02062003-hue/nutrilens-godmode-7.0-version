@@ -59,6 +59,7 @@ import ActivityTracker from '@/components/ActivityTracker';
 import PostEventFeedbackModal from '@/components/PostEventFeedbackModal';
 import EventPlanConfigSheet from '@/components/EventPlanConfigSheet';
 import TummyInsightCard from '@/components/TummyInsightCard';
+import ContextualTipsCard from '@/components/ContextualTipsCard';
 import { getDualSyncInsight, isSurvivalModeManual, getLatestBudgetAlert, clearLatestBudgetAlert, type BudgetAlertResult } from '@/lib/budget-service';
 import UpgradeBanner from '@/components/UpgradeBanner';
 import { getMealPlannerProfile } from '@/lib/meal-planner-store';
@@ -615,6 +616,11 @@ export default function Dashboard() {
         {/* Next Meal Suggestion */}
         <div className="animate-slide-up" style={{ animationDelay: '0.03s' }}>
           <NextMealCard profile={profile} onRefresh={refreshLog} />
+        </div>
+
+        {/* Contextual Intelligence Tips */}
+        <div className="animate-slide-up" style={{ animationDelay: '0.035s' }}>
+          <ContextualTipsCard />
         </div>
 
         {/* 3. Macros */}

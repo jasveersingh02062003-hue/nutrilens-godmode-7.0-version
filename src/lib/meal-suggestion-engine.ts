@@ -20,6 +20,7 @@ export interface SuggestedRecipe extends EnrichedRecipe {
   planCompliant?: boolean;
   weatherBoost?: boolean;
   workoutTiming?: 'pre' | 'post' | 'rest';
+  contextBadge?: string;
 }
 
 /**
@@ -232,7 +233,43 @@ export function getRecipesForMeal(
       }
     }
 
-    const rankScore = baseScore + (prefMatches.length * 0.05) + pantryBonus + planBonus + weatherBonus;
+    // ── Context-aware scoring (occupation/lifestyle) ──
+    let contextBonus = 0;
+    let contextBadge: string | undefined;
+
+    if (profile) {
+      const travelFreq = (profile as any).travelFrequency || '';
+      const workFacilities: string[] = (profile as any).workplaceFacilities || [];
+      const cooking = (profile.cookingHabits || '').toLowerCase();
+
+      // Travelers get boost for portable meals
+      if (travelFreq === 'often' && r.tags.some(t => ['portable', 'no_cook', 'wrap', 'roll'].includes(t.toLowerCase()))) {
+        contextBonus += 15;
+        if (!contextBadge) contextBadge = '🚗 Travel-friendly';
+      }
+
+      // No microwave at work — boost no-reheat
+      if (workFacilities.length > 0 && !workFacilities.includes('microwave') && !r.tags.some(t => t.toLowerCase() === 'needs_reheat')) {
+        contextBonus += 8;
+        if (!contextBadge) contextBadge = '❄️ No reheat needed';
+      }
+
+      // No-cook preference
+      if ((cooking === 'none' || cooking === 'minimal') && r.tags.some(t => ['no_cook', 'quick', 'instant'].includes(t.toLowerCase()))) {
+        contextBonus += 20;
+        if (!contextBadge) contextBadge = '⚡ Zero-cook';
+      }
+
+      // Weather badges
+      if ((temp > 34 || season === 'summer') && (foodTags.isHydrating || foodTags.isLight)) {
+        if (!contextBadge) contextBadge = '🌡️ Cooling';
+      }
+      if ((temp < 18 || season === 'winter') && (foodTags.isHeavy || r.tags.some(t => ['soup', 'warm', 'hot'].includes(t.toLowerCase())))) {
+        if (!contextBadge) contextBadge = '🧣 Warming';
+      }
+    }
+
+    const rankScore = baseScore + (prefMatches.length * 0.05) + pantryBonus + planBonus + weatherBonus + contextBonus;
 
     // Build match reason
     let matchReason: string | undefined;
@@ -244,6 +281,8 @@ export function getRecipesForMeal(
       matchReason = `🏋️ Ideal post-workout recovery`;
     } else if (activePlan?.planId === 'celebrity_transformation' && mealType === 'dinner' && r.carbs <= 25) {
       matchReason = `🌙 Low-carb evening compliant`;
+    } else if (contextBadge) {
+      matchReason = contextBadge;
     } else if (weatherBoost) {
       matchReason = `${weather.icon} Great for ${weather.season} weather`;
     } else if (planCompliant && activePlan) {
@@ -263,6 +302,7 @@ export function getRecipesForMeal(
       planCompliant,
       weatherBoost,
       workoutTiming,
+      contextBadge,
     };
   });
 

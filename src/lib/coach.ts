@@ -533,6 +533,63 @@ export function evaluateCoach(profile: UserProfile, log: DailyLog): CoachMessage
     }
   }
 
+  // ─── 2b. Occupation-aware coaching ───
+  const jt = (profile.jobType || '').toLowerCase();
+  const occ = (profile.occupation || '').toLowerCase();
+  const isPhysicalWorker = jt === 'physical' || jt === 'field' || ['driver', 'labourer', 'construction', 'delivery', 'farmer'].some(k => occ.includes(k));
+  const isDeskWorker = jt === 'desk' || jt === 'office' || ['software', 'engineer', 'analyst', 'accountant'].some(k => occ.includes(k));
+  const travelsOften = (profile as any).travelFrequency === 'often' || ['travel', 'sales', 'consultant'].some(k => occ.includes(k));
+
+  if (isPhysicalWorker && hour >= 6 && hour < 9 && log.meals.length === 0) {
+    messages.push({
+      id: 'occupation_physical_breakfast',
+      category: 'meal',
+      icon: '🏗️',
+      title: 'Energy breakfast for your day',
+      body: 'Physical work needs fuel — start with eggs, paratha, or a protein-rich breakfast to avoid mid-morning fatigue.',
+      priority: 65,
+      tone: 'encouraging',
+      actions: [{ label: 'Breakfast Ideas', icon: '🍳', route: '/planner' }],
+    });
+  }
+
+  if (isPhysicalWorker && hour >= 12 && hour < 14) {
+    messages.push({
+      id: 'occupation_physical_hydration',
+      category: 'hydration',
+      icon: '💧',
+      title: 'Stay hydrated on the job',
+      body: 'Physical work increases sweat loss. Drink water every 20 minutes. Add nimbu pani or ORS if it\'s hot.',
+      priority: 50,
+      tone: 'neutral',
+    });
+  }
+
+  if (isDeskWorker && hour >= 15 && hour < 17 && totals.eaten > profile.dailyCalories * 0.7) {
+    messages.push({
+      id: 'occupation_desk_light_evening',
+      category: 'progress',
+      icon: '🧘',
+      title: 'Light evening ahead',
+      body: 'Desk work burns fewer calories — keep dinner light. A walk after dinner helps digestion.',
+      priority: 38,
+      tone: 'neutral',
+    });
+  }
+
+  if (travelsOften && dayOfWeek === 0 && hour >= 10 && hour < 14) {
+    messages.push({
+      id: 'occupation_travel_mealprep',
+      category: 'meal',
+      icon: '🎒',
+      title: 'Prep meals for the week',
+      body: 'You travel often — prep wraps, boiled eggs, or makhana packs today for a healthier week on the go.',
+      priority: 42,
+      tone: 'encouraging',
+      actions: [{ label: 'Meal Prep Ideas', icon: '📋', route: '/planner' }],
+    });
+  }
+
   // ─── 3. After-meal macro feedback (priority 50-69) ───
   if (settings.mealFeedback && log.meals.length > 0) {
     const lastMeal = log.meals[log.meals.length - 1];

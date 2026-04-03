@@ -109,6 +109,11 @@ function syncToCloud(profile: UserProfile) {
         ...((profile as any).conditions || {}),
         allergens: profile.allergens || [],
         skinConcerns: profile.skinConcerns || undefined,
+        travelFrequency: profile.travelFrequency || undefined,
+        kitchenAppliances: profile.kitchenAppliances || undefined,
+        workplaceFacilities: profile.workplaceFacilities || undefined,
+        carriesFood: profile.carriesFood || undefined,
+        livingSituation: profile.livingSituation || undefined,
       },
       coach_settings: (profile as any).coachSettings || null,
       learning: (profile as any).learning || null,
@@ -176,6 +181,11 @@ function dbRowToProfile(row: any): UserProfile {
     skinConcerns: row.conditions?.skinConcerns || undefined,
     allergens: row.conditions?.allergens || [],
     joinDate: row.join_date || undefined,
+    travelFrequency: row.conditions?.travelFrequency || undefined,
+    kitchenAppliances: row.conditions?.kitchenAppliances || undefined,
+    workplaceFacilities: row.conditions?.workplaceFacilities || undefined,
+    carriesFood: row.conditions?.carriesFood || undefined,
+    livingSituation: row.conditions?.livingSituation || undefined,
   } as UserProfile;
 }
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Camera, User, Ruler, Scale, Target, Activity, Heart, Apple, ChefHat, Save, Shield } from 'lucide-react';
+import { X, Camera, User, Ruler, Scale, Target, Activity, Heart, Apple, ChefHat, Save, Shield, Briefcase, ChevronDown, ChevronUp } from 'lucide-react';
 import { COMMON_ALLERGENS } from '@/lib/allergen-tags';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { calculateBMI, calculateBMR, calculateTDEE } from '@/lib/nutrition';
@@ -59,6 +59,12 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
   const [dietaryPrefs, setDietaryPrefs] = useState<string[]>([]);
   const [waterGoal, setWaterGoal] = useState(2000);
   const [occupation, setOccupation] = useState('');
+  const [travelFrequency, setTravelFrequency] = useState<string>('');
+  const [kitchenAppliances, setKitchenAppliances] = useState<string[]>([]);
+  const [workplaceFacilities, setWorkplaceFacilities] = useState<string[]>([]);
+  const [carriesFood, setCarriesFood] = useState<string>('');
+  const [livingSituation, setLivingSituation] = useState<string>('');
+  const [lifestyleOpen, setLifestyleOpen] = useState(false);
 
   useEffect(() => {
     if (profile && open) {
@@ -76,6 +82,11 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
       setDietaryPrefs(profile.dietaryPrefs || []);
       setWaterGoal(profile.waterGoal || 2000);
       setOccupation(profile.occupation || '');
+      setTravelFrequency(profile.travelFrequency || '');
+      setKitchenAppliances(profile.kitchenAppliances || []);
+      setWorkplaceFacilities(profile.workplaceFacilities || []);
+      setCarriesFood(profile.carriesFood || '');
+      setLivingSituation(profile.livingSituation || '');
       setPhoto(getProfilePhoto());
     }
   }, [profile, open]);
@@ -129,6 +140,11 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
       dietaryPrefs,
       waterGoal,
       occupation,
+      travelFrequency: travelFrequency as any,
+      kitchenAppliances,
+      workplaceFacilities,
+      carriesFood: carriesFood as any,
+      livingSituation: livingSituation as any,
       bmi: decision.bmi,
       bmr: calculateBMR(weightKg, heightCm, age, gender),
       tdee: calculateTDEE(calculateBMR(weightKg, heightCm, age, gender), activityLevel),
@@ -319,6 +335,87 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
                 <Slider value={[waterGoal]} onValueChange={v => setWaterGoal(v[0])} min={1000} max={5000} step={250} />
               </Field>
             </Section>
+
+            {/* Work & Lifestyle (Collapsible) */}
+            <div className="space-y-3">
+              <button
+                onClick={() => setLifestyleOpen(!lifestyleOpen)}
+                className="flex items-center gap-2 w-full"
+              >
+                <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Briefcase className="w-3.5 h-3.5 text-primary" />
+                </div>
+                <h3 className="text-sm font-bold text-foreground flex-1 text-left">Work & Lifestyle</h3>
+                {lifestyleOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              </button>
+              <AnimatePresence>
+                {lifestyleOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden pl-9 space-y-3"
+                  >
+                    <p className="text-[10px] text-muted-foreground">Helps us suggest meals that fit your real life</p>
+
+                    <Field label="How often do you travel for work?">
+                      <div className="flex gap-2">
+                        {['never', 'sometimes', 'often'].map(v => (
+                          <button key={v} onClick={() => setTravelFrequency(v)}
+                            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${travelFrequency === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                            {v.charAt(0).toUpperCase() + v.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </Field>
+
+                    <Field label="Kitchen Appliances">
+                      <div className="flex flex-wrap gap-2">
+                        {['stove', 'microwave', 'air_fryer', 'oven', 'fridge'].map(a => (
+                          <button key={a} onClick={() => setKitchenAppliances(toggleArrayItem(kitchenAppliances, a))}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${kitchenAppliances.includes(a) ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                            {a.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </button>
+                        ))}
+                      </div>
+                    </Field>
+
+                    <Field label="Workplace Facilities">
+                      <div className="flex flex-wrap gap-2">
+                        {['fridge', 'microwave', 'none'].map(f => (
+                          <button key={f} onClick={() => setWorkplaceFacilities(toggleArrayItem(workplaceFacilities, f))}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${workplaceFacilities.includes(f) ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                            {f === 'none' ? 'None' : f.charAt(0).toUpperCase() + f.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </Field>
+
+                    <Field label="Do you carry food when traveling?">
+                      <div className="flex gap-2">
+                        {['always', 'sometimes', 'never'].map(v => (
+                          <button key={v} onClick={() => setCarriesFood(v)}
+                            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${carriesFood === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                            {v.charAt(0).toUpperCase() + v.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </Field>
+
+                    <Field label="Living Situation">
+                      <div className="flex gap-2">
+                        {['alone', 'family', 'shared'].map(v => (
+                          <button key={v} onClick={() => setLivingSituation(v)}
+                            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${livingSituation === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                            {v.charAt(0).toUpperCase() + v.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </Field>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
             {/* Bottom spacer */}
             <div className="h-8" />
