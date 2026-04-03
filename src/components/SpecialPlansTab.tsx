@@ -3,12 +3,14 @@ import { motion } from 'framer-motion';
 import { Star, ArrowRight, Crown, Zap, Target } from 'lucide-react';
 import { PLAN_CATALOG, type PlanMeta, type PlanCategory, getActivePlan, getPlanProgress, getPlanById } from '@/lib/event-plan-service';
 import PlanDetailSheet from './PlanDetailSheet';
+import EventPlanConfigSheet from './EventPlanConfigSheet';
 
 const FILTERS: { key: PlanCategory; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'weight_loss', label: 'Weight Loss' },
   { key: 'sugar_free', label: 'Sugar Free' },
   { key: 'muscle', label: 'Muscle' },
+  { key: 'event', label: 'Event' },
 ];
 
 export default function SpecialPlansTab() {
