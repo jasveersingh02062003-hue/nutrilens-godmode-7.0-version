@@ -95,30 +95,32 @@ const DEFAULT_SETTINGS: CoachSettings = {
 // ── Persistence ──
 
 export function getCoachSettings(): CoachSettings {
-  const d = localStorage.getItem(SETTINGS_KEY);
+  const d = scopedGet(SETTINGS_KEY);
   return d ? { ...DEFAULT_SETTINGS, ...JSON.parse(d) } : { ...DEFAULT_SETTINGS };
 }
 
 export function saveCoachSettings(s: CoachSettings) {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+  scopedSet(SETTINGS_KEY, JSON.stringify(s));
 }
 
 function getCoachState(): CoachState {
-  const d = localStorage.getItem(STATE_KEY);
+  const d = scopedGet(STATE_KEY);
   const today = getTodayKey();
   if (d) {
-    const parsed: CoachState = JSON.parse(d);
-    if (parsed.lastDismissDate !== today) {
-      parsed.dismissedToday = [];
-      parsed.lastDismissDate = today;
-    }
-    return { feedback: [], suppressedIds: [], lastWeeklyReport: null, ...parsed };
+    try {
+      const parsed: CoachState = JSON.parse(d);
+      if (parsed.lastDismissDate !== today) {
+        parsed.dismissedToday = [];
+        parsed.lastDismissDate = today;
+      }
+      return { feedback: [], suppressedIds: [], lastWeeklyReport: null, ...parsed };
+    } catch { /* fall through */ }
   }
   return { lastSent: {}, dismissedToday: [], lastDismissDate: today, feedback: [], suppressedIds: [], lastWeeklyReport: null };
 }
 
 function saveCoachState(s: CoachState) {
-  localStorage.setItem(STATE_KEY, JSON.stringify(s));
+  scopedSetJSON(STATE_KEY, s);
 }
 
 export function dismissCoachMessage(messageId: string) {
