@@ -112,7 +112,7 @@ export default function SpecialPlansTab() {
 
       {/* Plan Cards */}
       <div className="space-y-3">
-        {filtered.map((plan, i) => (
+        {filtered.filter(p => p.id !== 'event_based').map((plan, i) => (
           <motion.button
             key={plan.id}
             initial={{ opacity: 0, y: 10 }}
