@@ -1,89 +1,101 @@
 
 
-# Plan: Event-Driven Metabolic Protocol Enhancements
+# Plan: Full Sync — Plan-Aware Transformation Across All Screens
 
 ## Summary
-The core event-based plan system is already fully implemented (4-step onboarding, boosters, activity tracker, post-event feedback, reverse diet, meal filters). This plan adds the **missing enhancements** from the research document that don't exist yet.
+The core plan engines (calorie override, macro override, meal suggestion filters) are already wired. The gaps are in **Progress**, **Calendar**, **Meal Planner**, **Budget**, and **Profile** not visually reflecting the active plan. This plan adds plan-awareness to every screen so activating a 21-Day or Event plan transforms the entire app experience.
 
-## What's Already Built (No Changes Needed)
-- 4-step questionnaire (Event → Goal → Constraints → Extras → Summary)
-- `calculateEventTargets()` with tummy/shape/gain/lose logic
-- BoostersChecklist (morning routine, metabolism drinks, superfoods, evening routine)
-- ActivityTracker (step goals by exercise level)
-- PostEventFeedbackModal (resume/update/extend)
-- Meal suggestion filters (cooking time, budget, tummy anti-bloat)
-- Reverse diet service (3-week graduated return)
-- Dashboard integration (banners, boosters, activity, post-event check)
+## What's Already Wired (No Changes)
+- `getAdjustedDailyTarget()` returns plan calories when active
+- `getProteinTarget/getCarbTarget/getFatTarget()` return plan macros
+- `getRecipesForMeal()` filters by plan rules (home-cooked, no-junk, cooking time, budget tier, tummy anti-bloat)
+- Dashboard shows plan banner, boosters, activity tracker, tummy card, post-event feedback
+- `getActivePlan()` returns null when paused (auto-reverts engines)
 
-## New Enhancements to Build
+## Changes to Build
 
-### 1. Motivation Question in Onboarding (Step 0.5)
-**File:** `src/components/EventPlanConfigSheet.tsx`
-- Add a "Why does this matter to you?" question after Event step (or merge into Step 0)
-- Options: "Look my best" / "Feel confident" / "Health milestone" / "Impress someone" / custom text
-- Store as `motivation` field in `EventPlanSettings`
-- Use in Dashboard banner for personalized messaging (e.g., "15 days to feel confident at your wedding!")
+### 1. Progress Page — Plan Timeline Overlay
+**File:** `src/pages/Progress.tsx`
+- Import `getActivePlan`, `getActivePlanRaw`, `getPlanProgress`, `getPlanById`
+- **Plan Progress Card** (new section, above calendar): When plan active, show a card with plan name, day X of Y, progress bar, daily target vs profile target comparison, weight delta (start weight vs current)
+- **Calendar highlight**: Days within `startDate..endDate` range get a subtle colored border/ring (e.g., `ring-1 ring-primary/30`) to visually distinguish plan days
+- **Weekly Overview**: The goal line in the bar chart should use `getAdjustedDailyTarget(profile)` instead of `profile.dailyCalories` so the reference line reflects plan targets
+- **Plan Adherence Card** (below calendar): When plan active, show rule adherence (computed from daily logs within plan period): meals logged ratio, protein adherence %, days on track
 
-**File:** `src/lib/event-plan-service.ts`
-- Add `motivation?: string` to `EventPlanSettings`
+### 2. Calendar — Plan Day Highlighting
+**File:** `src/pages/Progress.tsx` (calendar is inline here)
+- In the `calendarDays` computation, add a `isPlanDay` boolean for dates within active plan range
+- Render plan days with a distinct visual: small plan emoji indicator or a colored left-border
+- In the legend, add "🎯 Plan Day" entry when a plan is active
+- When tapping a future plan day, show planned targets in `DayDetailsSheet`
 
-### 2. Micro-Workout Checklist in ActivityTracker
-**File:** `src/components/ActivityTracker.tsx`
-- Below the step counter, add a collapsible "Micro-Workouts" section with daily exercises:
-  - Lower Body: Air Squats / Lunges (2-3 min)
-  - Upper Body: Wall Push-ups (3 min)
-  - Core: Plank / Side Plank (3 min)
-  - Posterior Chain: Glute Bridge (1 min)
-- Checkable items stored in `nutrilens_microworkout_YYYY-MM-DD`
-- Only show when `exerciseTime !== 'none'`
-- Show weekly progression tip (e.g., "Week 2: Add 5 reps per set")
+### 3. Meal Planner — Plan-Filtered Banner + Target Override
+**File:** `src/pages/MealPlanner.tsx`
+- Import `getActivePlan`, `getPlanById`
+- When plan is active, show a banner at top of planner: "🎯 Meals optimized for your [Plan Name] — [rules summary]"
+- Pass plan targets to `generateWeekPlan` so it uses plan calories/protein instead of profile defaults
 
-### 3. "Tummy In" Education Card
-**File:** `src/components/TummyInsightCard.tsx` (new)
-- Shown on Dashboard when `goalType === 'tummy'`
-- Explains the dual strategy: bloating reduction vs visceral fat
-- "Hard belly = visceral fat" vs "Fluctuating belly = bloating"
-- Tips rotate daily: fiber intake, sodium management, post-meal walks, FODMAP awareness
-- Dismissible per day
+**File:** `src/lib/meal-plan-generator.ts`
+- In `generateWeekPlan()`, check `getActivePlan()` — if active, use `plan.dailyCalories` and `plan.dailyProtein` as the base targets instead of profile values
+- Apply plan-specific recipe filters (same as meal-suggestion-engine): home-cooked only for Madhavan, cooking time/budget for event plans
+- For event plans with `budgetTier === 'tight'`, cap per-meal cost at ₹80
 
-### 4. Enhanced Boosters: Spirulina & Shilajit
-**File:** `src/components/BoostersChecklist.tsx`
-- Add two new booster categories to `ALL_BOOSTERS`:
-  - `supplements`: Spirulina (1 tsp in smoothie), Shilajit (purified, with warm water)
-  - `post_meal`: 10-min post-meal walk, 5-min deep breathing
-**File:** `src/components/EventPlanConfigSheet.tsx`
-- Add these to `BOOSTER_OPTIONS` so users can opt in during setup
+### 4. Budget Tab — Plan Budget Override
+**File:** `src/components/BudgetPlannerTab.tsx`
+- When event plan is active with a `budgetTier`, show an info banner: "Your event plan budget: ₹XX/day (tight/moderate/flexible)"
+- Compute adjusted daily budget from `budgetTier`: tight = ₹150/day, moderate = ₹250/day, flexible = use profile budget
+- Display plan budget alongside normal budget for comparison
 
-### 5. "Locked Time" Commitment Card
-**File:** `src/components/ActivePlanBanner.tsx`
-- When event plan is active, enhance the banner to show:
-  - Event emoji + countdown: "🎯 15 days until your Wedding"
-  - Motivational line from stored motivation
-  - A "commitment seal" visual (locked icon + "Time Locked" badge)
-  - Tap to expand: daily calorie target, protein target, today's deficit
+### 5. Profile — Enhanced Plan Section
+**File:** `src/pages/Profile.tsx`
+- The plan badge + "My Current Plan" card already exists from previous implementation
+- **Enhance**: Add plan rules display (chips showing active rules like "Home-cooked only", "16:8 Fasting", "No junk")
+- Add weight progress within plan: start weight → current → target with a mini arc
+- Add "Edit Plan" button that opens `EventPlanConfigSheet` with current settings
 
-### 6. Post-Meal Walking Nudge
-**File:** `src/lib/coach.ts` or `src/lib/notifications.ts`
-- After a meal is logged during an active event plan, show a toast: "Great meal! A 10-min walk now will stabilize blood sugar 🚶"
-- Only triggers for lunch and dinner logs
-- Respects notification preferences
+### 6. MealPlanDashboard — Plan Compliance Badges
+**File:** `src/components/MealPlanDashboard.tsx`
+- When plan active, add a "✅ Plan Compliant" or "⚠️ Off-plan" badge on each meal card
+- Check compliance: does the recipe pass the plan's rule filters?
+- Show plan daily target in the day header instead of profile target
+
+### 7. CalorieRing — Plan Target Awareness
+**File:** `src/components/CalorieRing.tsx`
+- Already uses `getAdjustedDailyTarget(profile)` which returns plan calories — verify this is the case
+- If not, ensure the ring's target uses the plan-aware function
+- Add a subtle label "Plan Target" vs "Your Target" when plan is active
+
+### 8. WeightChart — Plan Period Highlight
+**File:** `src/components/WeightChart.tsx`
+- When plan active, add a shaded region on the chart for the plan date range
+- Show target weight line within the plan period
+- Add start/end date markers
+
+## Animation & UX
+- Plan Progress Card: `animate-fade-in` on mount
+- Calendar plan days: subtle pulse animation on current plan day
+- Plan banner in Planner: slide-down with `motion.div`
+- Compliance badges: scale-in animation
+- All transitions use existing framer-motion patterns
 
 ## Implementation Order
-1. Motivation field + onboarding question
-2. Micro-workout checklist in ActivityTracker
-3. TummyInsightCard component
-4. Enhanced booster options (spirulina, shilajit, post-meal walk)
-5. Locked Time commitment card in ActivePlanBanner
-6. Post-meal walking nudge
+1. Meal Plan Generator — plan target override (core engine fix)
+2. Progress page — plan progress card + calendar highlighting + adherence
+3. MealPlanner page — plan banner
+4. MealPlanDashboard — compliance badges + plan target in header
+5. BudgetPlannerTab — plan budget banner
+6. Profile — enhanced plan section with rules + weight arc
+7. CalorieRing + WeightChart — plan-aware visuals
 
 ## Files Summary
 | File | Action |
 |------|--------|
-| `src/lib/event-plan-service.ts` | Modify — add `motivation` to EventPlanSettings |
-| `src/components/EventPlanConfigSheet.tsx` | Modify — add motivation question + new booster options |
-| `src/components/ActivityTracker.tsx` | Modify — add micro-workout checklist section |
-| `src/components/TummyInsightCard.tsx` | Create — education card for tummy goal |
-| `src/components/BoostersChecklist.tsx` | Modify — add supplements and post-meal categories |
-| `src/components/ActivePlanBanner.tsx` | Modify — enhanced countdown + commitment seal |
-| `src/pages/Dashboard.tsx` | Modify — render TummyInsightCard + post-meal nudge |
+| `src/lib/meal-plan-generator.ts` | Modify — use plan targets + filters in generateWeekPlan |
+| `src/pages/Progress.tsx` | Modify — plan progress card, calendar highlight, adherence card |
+| `src/pages/MealPlanner.tsx` | Modify — plan-filtered banner at top |
+| `src/components/MealPlanDashboard.tsx` | Modify — compliance badges, plan target in day header |
+| `src/components/BudgetPlannerTab.tsx` | Modify — plan budget info banner |
+| `src/pages/Profile.tsx` | Modify — plan rules chips, weight arc, edit button |
+| `src/components/CalorieRing.tsx` | Modify — "Plan Target" label when active |
+| `src/components/WeightChart.tsx` | Modify — plan period shading + target line |
 
