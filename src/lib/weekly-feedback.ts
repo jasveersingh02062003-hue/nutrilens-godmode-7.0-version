@@ -272,8 +272,6 @@ export function autoFixNextWeek(summary: WeeklySummary): { changes: string[]; ap
   // Regenerate meal plan with updated targets
   if (changes.length > 0 && plannerProfile) {
     try {
-      const { generateWeekPlan } = require('./meal-plan-generator');
-      const { saveWeekPlan } = require('./meal-planner-store');
       const newPlan = generateWeekPlan(plannerProfile, profile?.healthConditions, profile?.womenHealth);
       saveWeekPlan(newPlan);
       changes.push('Meal plan regenerated for next week');

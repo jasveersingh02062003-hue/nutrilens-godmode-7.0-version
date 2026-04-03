@@ -950,7 +950,6 @@ export function getContextualMealToast(): { type: 'surplus' | 'deficit' | 'walk_
   const hour = new Date().getHours();
   if (hour >= 12 && hour <= 21) {
     try {
-      const { getActivePlan } = require('@/lib/event-plan-service');
       const ap = getActivePlan();
       if (ap?.planId === 'event_based' && totals.eaten > 200) {
         const nudgeKey = `walk_nudge_${today}_${hour >= 18 ? 'dinner' : 'lunch'}`;

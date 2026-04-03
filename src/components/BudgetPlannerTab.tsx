@@ -1486,7 +1486,6 @@ export default function BudgetPlannerTab({ onOnboardingComplete }: { onOnboardin
   // Plan budget banner
   const planBudgetBanner = (() => {
     try {
-      const { getActivePlan } = require('@/lib/event-plan-service');
       const ap = getActivePlan();
       if (!ap || !ap.eventSettings?.budgetTier) return null;
       const tier = ap.eventSettings.budgetTier;
