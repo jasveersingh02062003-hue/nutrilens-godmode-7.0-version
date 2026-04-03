@@ -1431,14 +1431,66 @@ export default function Onboarding() {
           { value: 'iron', label: '🩸 Iron' },
           { value: 'magnesium', label: '🧲 Magnesium' },
         ];
+        const SUPP_NAME_MAP: Record<string, string> = {
+          proteinPowder: 'Whey Protein', vitaminD: 'Vitamin D3', omega3: 'Omega-3',
+          collagen: 'Collagen Peptides', multivitamin: 'Multivitamin', iron: 'Iron', magnesium: 'Magnesium',
+        };
+        const PROTEIN_SUPPS = ['proteinPowder', 'collagen'];
         return (
           <div className="space-y-5">
             <StepHeader title="Any supplements?" subtitle="Select what you currently take or plan to." />
             <ChipSelect options={suppOptions} selected={f.supplements}
               onToggle={v => {
                 const curr = f.supplements;
-                set('supplements', curr.includes(v) ? curr.filter(x => x !== v) : [...curr, v]);
+                const newSupps = curr.includes(v) ? curr.filter(x => x !== v) : [...curr, v];
+                set('supplements', newSupps);
+                // Auto-build supplementPrefs
+                const prefs = newSupps.map(s => {
+                  const existing = f.supplementPrefs.find(p => p.name === (SUPP_NAME_MAP[s] || s));
+                  const proteinPer = PROTEIN_SUPPS.includes(s) ? (s === 'proteinPowder' ? 24 : 9) : undefined;
+                  return existing || {
+                    name: SUPP_NAME_MAP[s] || s,
+                    frequency: 'daily' as const,
+                    costPerServing: s === 'proteinPowder' ? 60 : s === 'collagen' ? 40 : 10,
+                    proteinPerServing: proteinPer,
+                  };
+                });
+                set('supplementPrefs', prefs);
               }} />
+            {f.supplements.length > 0 && (
+              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                className="space-y-3">
+                {f.supplementPrefs.map((pref, i) => (
+                  <div key={i} className="bg-card border border-border rounded-xl p-3 space-y-2">
+                    <p className="text-xs font-semibold text-foreground">{pref.name}</p>
+                    <div className="flex gap-1.5">
+                      {(['daily', 'workout_days', 'occasional'] as const).map(freq => (
+                        <button key={freq} onClick={() => {
+                          const updated = [...f.supplementPrefs];
+                          updated[i] = { ...updated[i], frequency: freq };
+                          set('supplementPrefs', updated);
+                        }}
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-colors ${
+                            pref.frequency === freq ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted border-border text-muted-foreground'
+                          }`}>
+                          {freq === 'daily' ? 'Daily' : freq === 'workout_days' ? 'Gym days' : 'Occasional'}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-muted-foreground">Cost/serving:</span>
+                      <span className="text-xs font-mono font-semibold text-foreground">₹{pref.costPerServing}</span>
+                      {pref.proteinPerServing && (
+                        <>
+                          <span className="text-[10px] text-muted-foreground ml-2">Protein:</span>
+                          <span className="text-xs font-mono font-semibold text-foreground">{pref.proteinPerServing}g</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </motion.div>
+            )}
             {f.supplements.length > 0 && goalResult && (
               <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                 className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-2">
