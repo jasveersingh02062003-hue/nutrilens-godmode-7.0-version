@@ -186,6 +186,7 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
 
           <AnimatePresence mode="wait">
             {/* Step 0: Event */}
+            {/* Step 0: Event */}
             {step === 0 && (
               <motion.div key="step0" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
                 <div>
@@ -234,6 +235,52 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
                 </div>
 
                 <Button className="w-full" onClick={() => setStep(1)}>
+                  Next <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
+              </motion.div>
+            )}
+
+            {/* Step 1: Motivation */}
+            {step === 1 && (
+              <motion.div key="step1-motivation" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
+                <div className="text-center space-y-2">
+                  <span className="text-3xl">💭</span>
+                  <p className="text-sm font-semibold text-foreground">Why does this matter to you?</p>
+                  <p className="text-[10px] text-muted-foreground">This helps us personalize your experience</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {MOTIVATION_OPTIONS.map(m => (
+                    <button
+                      key={m.id}
+                      onClick={() => { setMotivation(m.id); setCustomMotivation(''); }}
+                      className={`flex items-center gap-2 p-3 rounded-2xl border transition-all ${
+                        motivation === m.id ? 'border-primary bg-primary/10' : 'border-border bg-card'
+                      }`}
+                    >
+                      <span className="text-lg">{m.emoji}</span>
+                      <span className="text-xs font-semibold text-foreground">{m.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setMotivation('custom')}
+                  className={`w-full p-3 rounded-2xl border transition-all text-left ${
+                    motivation === 'custom' ? 'border-primary bg-primary/10' : 'border-border bg-card'
+                  }`}
+                >
+                  <span className="text-xs font-semibold text-foreground">✏️ Write your own reason</span>
+                </button>
+                {motivation === 'custom' && (
+                  <input
+                    type="text"
+                    value={customMotivation}
+                    onChange={(e) => setCustomMotivation(e.target.value)}
+                    placeholder="e.g., I want to feel amazing at the party"
+                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    maxLength={100}
+                  />
+                )}
+                <Button className="w-full" onClick={() => setStep(2)} disabled={!motivation || (motivation === 'custom' && !customMotivation.trim())}>
                   Next <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
               </motion.div>
