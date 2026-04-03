@@ -249,7 +249,7 @@ export function runWeeklyAdaptation(): { adapted: boolean; changes: string[] } {
   if (stats.daysTracked < 4) return { adapted: false, changes: [] };
 
   // Check if already run this week
-  const lastAdaptation = localStorage.getItem(WEEKLY_ADAPTATION_KEY);
+  const lastAdaptation = scopedGet(WEEKLY_ADAPTATION_KEY);
   const currentWeek = getWeekKey();
   if (lastAdaptation === currentWeek) return { adapted: false, changes: [] };
 
