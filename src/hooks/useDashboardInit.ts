@@ -174,7 +174,7 @@ export function useDashboardInit() {
       for (const m of milestones) {
         toast.success(`${m.milestone.emoji} ${m.milestone.label}! ${m.type} streak: ${m.milestone.target} days!`);
       }
-    }, 10000);
+    }, 30000);
 
     const handleBankUpdate = () => {
       setLog(getDailyLog());
