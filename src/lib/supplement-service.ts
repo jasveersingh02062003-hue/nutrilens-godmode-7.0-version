@@ -348,3 +348,18 @@ export function getDefaultCostForSupplement(_name: string): number {
   }
   return 10;
 }
+
+// ── Creatine Hydration Nudge ──
+
+export function shouldBoostWater(log?: DailyLog): { boost: boolean; extraCups: number; message: string } | null {
+  const dailyLog = log || getDailyLog(getTodayKey());
+  const creatineLogged = (dailyLog.supplements || []).some(
+    s => s.name.toLowerCase().includes('creatine')
+  );
+  if (!creatineLogged) return null;
+  return {
+    boost: true,
+    extraCups: 2,
+    message: 'You took creatine today — drink 2 extra glasses of water for better absorption.',
+  };
+}
