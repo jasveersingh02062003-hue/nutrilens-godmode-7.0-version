@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, memo } from 'react';
 import { Utensils, Zap, Beef, ChevronRight, Home, RefreshCw } from 'lucide-react';
 import { getPESForMeal } from '@/lib/pes-engine';
 import PESBadge from '@/components/PESBadge';
