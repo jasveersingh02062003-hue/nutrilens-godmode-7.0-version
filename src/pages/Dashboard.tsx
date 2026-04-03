@@ -38,6 +38,8 @@ import ContextualTipsCard from '@/components/ContextualTipsCard';
 import GymCheckInCard from '@/components/GymCheckInCard';
 import GymConsistencyCard from '@/components/GymConsistencyCard';
 import GymUpsellCard from '@/components/GymUpsellCard';
+import ProteinGapNudgeCard from '@/components/ProteinGapNudgeCard';
+import SupplementUpsellCard from '@/components/SupplementUpsellCard';
 
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import DashboardModals from '@/components/dashboard/DashboardModals';
