@@ -47,4 +47,4 @@ export default memo(function SupplementsCompact({ supplements, onAdd, onTap }: P
       )}
     </div>
   );
-}
+});

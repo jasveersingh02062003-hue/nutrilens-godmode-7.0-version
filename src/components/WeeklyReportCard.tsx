@@ -184,4 +184,4 @@ export default memo(function WeeklyReportCard() {
       </motion.div>
     </AnimatePresence>
   );
-}
+});

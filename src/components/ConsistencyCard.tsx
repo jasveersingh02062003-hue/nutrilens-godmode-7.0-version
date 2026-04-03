@@ -84,4 +84,4 @@ export default memo(function ConsistencyCard({ refreshKey }: Props) {
       </div>
     </motion.div>
   );
-}
+});

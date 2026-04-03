@@ -123,4 +123,4 @@ export default memo(function DailyPlanCard({ profile, open, onDismiss }: DailyPl
       </DialogContent>
     </Dialog>
   );
-}
+});
