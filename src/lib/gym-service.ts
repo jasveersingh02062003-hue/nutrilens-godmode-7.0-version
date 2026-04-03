@@ -104,6 +104,10 @@ export function saveGymCheckIn(
     },
   };
   saveDailyLog(updatedLog);
+
+  // Update profile stats
+  if (profile?.gym) {
+    const allLogs = getRecentLogs(90);
     const stats = computeGymStats(profile, allLogs);
     const updatedProfile: UserProfile = {
       ...profile,
