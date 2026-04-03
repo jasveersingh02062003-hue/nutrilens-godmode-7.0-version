@@ -356,6 +356,7 @@ export default function Onboarding() {
     pcosSeverity: 3, pregnant: false, breastfeeding: false, menstrualPhase: '',
     prostateConcerns: false, testosteroneConcerns: false,
     work: '', exercise: '',
+    gymGoer: null, gymDays: 3, gymDuration: 45, gymIntensity: '', gymGoal: '',
     goalType: '', goalSpeed: 'balanced', targetWeight: 65,
     wantLifestyle: null,
     diet: '', water: 2.5, supplements: [], cookingSkill: '', cookingTime: 30, cookingEquipment: [],
