@@ -1,7 +1,10 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Trophy, TrendingUp, Scale, Share2, Camera, IndianRupee, FileText, Crown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trophy, TrendingUp, Scale, Share2, Camera, IndianRupee, FileText, Crown, Target, CheckCircle2 } from 'lucide-react';
 import { getRecentLogs, getDailyTotals, getDailyLog, getAllLogDates, getProfile } from '@/lib/store';
 import { hasExpensesOnDate } from '@/lib/expense-store';
+import { getActivePlan, getActivePlanRaw, getPlanProgress, getPlanById, type ActivePlan } from '@/lib/event-plan-service';
+import { motion } from 'framer-motion';
+import { Progress as ProgressBarUI } from '@/components/ui/progress';
 import { Flame, BarChart3 } from 'lucide-react';
 import { getWeeklySummaries, type WeeklySummary } from '@/lib/weekly-feedback';
 import { Progress as ProgressBar } from '@/components/ui/progress';
