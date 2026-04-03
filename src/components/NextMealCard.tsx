@@ -12,7 +12,7 @@ interface Props {
   onRefresh?: () => void;
 }
 
-export default function NextMealCard({ profile }: Props) {
+export default memo(function NextMealCard({ profile }: Props) {
   const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
 
