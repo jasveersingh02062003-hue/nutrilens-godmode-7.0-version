@@ -38,7 +38,7 @@ export function addCorrection(record: CorrectionRecord) {
 }
 
 export function clearCorrections() {
-  localStorage.removeItem(CORRECTIONS_KEY);
+  scopedRemove(CORRECTIONS_KEY);
 }
 
 export function trackCorrections(

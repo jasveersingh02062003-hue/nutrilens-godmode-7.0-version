@@ -141,7 +141,7 @@ export function learnCookingMethod(foodNames: string[], method: CookingMethod): 
     if (!prefs[key]) prefs[key] = {};
     prefs[key][method] = (prefs[key][method] || 0) + 1;
   }
-  localStorage.setItem(COOKING_PREFS_KEY, JSON.stringify(prefs));
+  scopedSet(COOKING_PREFS_KEY, JSON.stringify(prefs));
 }
 
 export function getDefaultCookingMethod(foodNames: string[]): CookingMethod | null {
