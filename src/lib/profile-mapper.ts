@@ -22,7 +22,7 @@ export function profileToDbRow(profile: UserProfile, userId: string): Record<str
     mealPlannerProfile: getMealPlannerProfile(),
   };
 
-  const profileAny = profile as Record<string, unknown>;
+  const profileAny = profile as unknown as Record<string, unknown>;
 
   return {
     id: userId,
