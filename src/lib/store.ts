@@ -247,6 +247,7 @@ export function getDailyLog(date?: string): DailyLog {
 
 export function saveDailyLog(log: DailyLog) {
   scopedSet(LOG_KEY_PREFIX + log.date, JSON.stringify(log));
+  _logDatesCache = null; // invalidate cache
   // Fire-and-forget cloud sync
   import('@/lib/daily-log-sync').then(m => m.syncDailyLogToCloud(log)).catch(() => {});
   // Centralized recompute + UI refresh after every mutation
@@ -476,7 +477,15 @@ export function saveJournalNote(date: string, note: string) {
   return log;
 }
 
+// In-memory cache for log dates — invalidated on saveDailyLog
+let _logDatesCache: string[] | null = null;
+
+export function invalidateLogDatesCache(): void {
+  _logDatesCache = null;
+}
+
 export function getAllLogDates(): string[] {
+  if (_logDatesCache) return _logDatesCache;
   const dates: string[] = [];
   // Scan for both scoped and legacy un-scoped log keys
   const scopedPrefix = (() => {
@@ -487,13 +496,12 @@ export function getAllLogDates(): string[] {
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (!key) continue;
-    // Check scoped keys first
     if (scopedPrefix && key.startsWith(scopedPrefix)) {
       dates.push(key.replace(scopedPrefix, ''));
     } else if (key.startsWith(LOG_KEY_PREFIX) && !key.startsWith('u_')) {
-      // Legacy un-scoped keys (for migration period)
       dates.push(key.replace(LOG_KEY_PREFIX, ''));
     }
   }
-  return [...new Set(dates)]; // deduplicate
+  _logDatesCache = [...new Set(dates)];
+  return _logDatesCache;
 }

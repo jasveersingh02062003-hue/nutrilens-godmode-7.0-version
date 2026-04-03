@@ -1,5 +1,5 @@
 import { scopedGet, scopedSet } from '@/lib/scoped-storage';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { getDailyLog, getDailyTotals, addWater, DailyLog, SupplementEntry, getTodayKey, getProfile as getStoredProfile, saveProfile as saveStoredProfile } from '@/lib/store';
@@ -27,8 +27,8 @@ export function useDashboardInit() {
   const navigate = useNavigate();
   const { profile, refreshProfile, loadedUserId } = useUserProfile();
   const [log, setLog] = useState<DailyLog>(getDailyLog());
-  const totals = getDailyTotals(log);
-  const dayState = recalculateDay(profile, log);
+  const totals = useMemo(() => getDailyTotals(log), [log]);
+  const dayState = useMemo(() => recalculateDay(profile, log), [profile, log]);
   const [weather, setWeather] = useState<WeatherData | null>(null);
 
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -56,7 +56,7 @@ export function useDashboardInit() {
   const [showEventFeedback, setShowEventFeedback] = useState(() => !!getExpiredEventPlan());
   const [eventExtendSheet, setEventExtendSheet] = useState(false);
 
-  const plannerProfile = getMealPlannerProfile();
+  const plannerProfile = useMemo(() => getMealPlannerProfile(), [log]);
   const plannerIncomplete = !plannerProfile || !plannerProfile.onboardingComplete;
   const plannerDismissKey = `planner_modal_dismissed_${loadedUserId || 'anon'}`;
   const [showPlannerModal, setShowPlannerModal] = useState(() =>
@@ -64,9 +64,9 @@ export function useDashboardInit() {
   );
   const showPlannerBanner = plannerIncomplete && !showPlannerModal;
 
-  const survivalMode = isSurvivalModeActive() || isSurvivalModeManual();
-  const recoveryMode = isRecoveryModeActive();
-  const dualSyncInsight = profile ? getDualSyncInsight(profile.dailyCalories) : null;
+  const survivalMode = useMemo(() => isSurvivalModeActive() || isSurvivalModeManual(), [log]);
+  const recoveryMode = useMemo(() => isRecoveryModeActive(), [log]);
+  const dualSyncInsight = useMemo(() => profile ? getDualSyncInsight(profile.dailyCalories) : null, [profile, log]);
 
   // ── Init effect ──
   useEffect(() => {
@@ -88,7 +88,12 @@ export function useDashboardInit() {
         toast.info(`📅 Exercise carry-forward: +${exerciseCarry.lunch} lunch, +${exerciseCarry.dinner} dinner`);
       }
     }
-    fetchLiveWeather().then(setWeather).catch(() => setWeather(getWeather()));
+    // Weather: check cache first, only fetch if stale
+    const cachedWeather = getWeather();
+    if (cachedWeather) {
+      setWeather(cachedWeather);
+    }
+    fetchLiveWeather().then(w => { if (w) setWeather(w); }).catch(() => {});
     updateDailyBehaviorStats();
     const adaptation = runWeeklyAdaptation();
     if (adaptation.adapted) {
@@ -125,14 +130,18 @@ export function useDashboardInit() {
         }
       }
     }
-    if (shouldGenerateSummary()) {
-      const summary = generateWeeklySummary();
-      if (hasBrowserPermission()) scheduleWeeklyNotification(summary);
-    }
-    const dropOff = checkDropOff();
-    if (dropOff.detected) setDropOffModal(dropOff);
-    const boundary = checkWeeklySurplus();
-    if (boundary) setHardBoundaryModal(boundary);
+    // Defer non-critical checks to avoid blocking first paint
+    const runDeferred = typeof requestIdleCallback === 'function' ? requestIdleCallback : (fn: () => void) => setTimeout(fn, 0);
+    runDeferred(() => {
+      if (shouldGenerateSummary()) {
+        const summary = generateWeeklySummary();
+        if (hasBrowserPermission()) scheduleWeeklyNotification(summary);
+      }
+      const dropOff = checkDropOff();
+      if (dropOff.detected) setDropOffModal(dropOff);
+      const boundary = checkWeeklySurplus();
+      if (boundary) setHardBoundaryModal(boundary);
+    });
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
@@ -165,7 +174,7 @@ export function useDashboardInit() {
       for (const m of milestones) {
         toast.success(`${m.milestone.emoji} ${m.milestone.label}! ${m.type} streak: ${m.milestone.target} days!`);
       }
-    }, 10000);
+    }, 30000);
 
     const handleBankUpdate = () => {
       setLog(getDailyLog());

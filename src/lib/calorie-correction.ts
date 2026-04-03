@@ -650,7 +650,12 @@ export function getDailyBalances(baseTarget?: number): DailyBalanceEntry[] {
   const tdee = p?.tdee || target;
   const frozenTargets = loadFrozenTargets();
   const joinDate = p?.joinDate;
-  const dates = getAllLogDates().sort();
+  // Limit to last 90 days for performance
+  const cutoff90 = new Date();
+  cutoff90.setDate(cutoff90.getDate() - 90);
+  const cutoff90Str = toLocalDateKey(cutoff90);
+  const allDates = getAllLogDates().sort();
+  const dates = allDates.filter(d => d >= cutoff90Str);
 
   // Memoization: return cached result if inputs haven't changed
   const cacheKey = `${target}:${tdee}:${dates.length}:${dates[dates.length - 1] || ''}:${joinDate || ''}`;

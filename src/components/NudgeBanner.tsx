@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getActiveNudges, dismissNudge, type Nudge } from '@/lib/learning-service';
@@ -15,7 +15,7 @@ interface Props {
   onOpenSymptomLog?: () => void;
 }
 
-export default function NudgeBanner({ onOpenSymptomLog }: Props) {
+export default memo(function NudgeBanner({ onOpenSymptomLog }: Props) {
   const { profile } = useUserProfile();
   const navigate = useNavigate();
   const nudges = useMemo(() => getActiveNudges(profile), [profile]);
@@ -68,4 +68,4 @@ export default function NudgeBanner({ onOpenSymptomLog }: Props) {
       </AnimatePresence>
     </div>
   );
-}
+});

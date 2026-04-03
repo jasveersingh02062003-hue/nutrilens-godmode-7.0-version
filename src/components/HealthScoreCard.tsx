@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { Heart, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getRecentLogs } from '@/lib/store';
@@ -21,7 +21,7 @@ interface Props {
   refreshKey?: number;
 }
 
-export default function HealthScoreCard({ refreshKey }: Props) {
+export default memo(function HealthScoreCard({ refreshKey }: Props) {
   const { profile } = useUserProfile();
   const [expanded, setExpanded] = useState(false);
   const hasConditions = userHasHealthConditions(profile);
@@ -185,4 +185,4 @@ export default function HealthScoreCard({ refreshKey }: Props) {
       </AnimatePresence>
     </div>
   );
-}
+});

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -23,7 +23,7 @@ const MEAL_EMOJIS: Record<string, string> = {
   dinner: '🌙',
 };
 
-export default function DailyPlanCard({ profile, open, onDismiss }: DailyPlanCardProps) {
+export default memo(function DailyPlanCard({ profile, open, onDismiss }: DailyPlanCardProps) {
   const navigate = useNavigate();
   const plan = useMemo(() => getDailyPlanData(profile), [profile]);
   const budgetValidation = useMemo(() => {
@@ -123,4 +123,4 @@ export default function DailyPlanCard({ profile, open, onDismiss }: DailyPlanCar
       </DialogContent>
     </Dialog>
   );
-}
+});

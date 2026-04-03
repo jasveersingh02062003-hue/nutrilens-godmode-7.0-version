@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { X, TrendingUp, Droplets, Target, Flame, ChevronDown, ChevronUp, AlertTriangle, Lightbulb, Activity, Utensils } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateWeeklyReport, WeeklyReport } from '@/lib/coach';
@@ -8,7 +8,7 @@ import { getUserConditions } from '@/lib/condition-coach';
 import { getSourceEmoji, getSourceLabel } from '@/lib/context-learning';
 import type { MealSourceCategory } from '@/lib/store';
 
-export default function WeeklyReportCard() {
+export default memo(function WeeklyReportCard() {
   const [dismissed, setDismissed] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const profile = getProfile();
@@ -184,4 +184,4 @@ export default function WeeklyReportCard() {
       </motion.div>
     </AnimatePresence>
   );
-}
+});
