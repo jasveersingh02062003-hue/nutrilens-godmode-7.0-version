@@ -1,3 +1,5 @@
+import { scopedGet, scopedSet } from "./scoped-storage";
+import { safeJsonParse } from "./safe-json";
 // ─── Pantry Management ───
 // Tracks grocery inventory with FIFO costing and low-stock alerts
 
@@ -42,12 +44,12 @@ function genId(): string {
 // ─── Pantry CRUD ───
 
 export function getPantryItems(): PantryItem[] {
-  const data = localStorage.getItem(PANTRY_KEY);
+  const data = scopedGet(PANTRY_KEY);
   return data ? JSON.parse(data) : [];
 }
 
 function savePantryItems(items: PantryItem[]) {
-  localStorage.setItem(PANTRY_KEY, JSON.stringify(items));
+  scopedSet(PANTRY_KEY, JSON.stringify(items));
 }
 
 export function addPantryItem(item: Omit<PantryItem, 'id' | 'pricePerUnit' | 'originalQuantity'>): PantryItem {
@@ -138,7 +140,7 @@ export function getLowStockAlerts(): LowStockAlert[] {
 // ─── Grocery Purchases ───
 
 export function getGroceryPurchases(): GroceryPurchase[] {
-  const data = localStorage.getItem(PURCHASES_KEY);
+  const data = scopedGet(PURCHASES_KEY);
   return data ? JSON.parse(data) : [];
 }
 
@@ -146,7 +148,7 @@ export function saveGroceryPurchase(purchase: Omit<GroceryPurchase, 'id'>): Groc
   const purchases = getGroceryPurchases();
   const saved: GroceryPurchase = { ...purchase, id: genId() };
   purchases.push(saved);
-  localStorage.setItem(PURCHASES_KEY, JSON.stringify(purchases));
+  scopedSet(PURCHASES_KEY, JSON.stringify(purchases));
 
   // Auto-add items to pantry
   for (const item of purchase.items) {

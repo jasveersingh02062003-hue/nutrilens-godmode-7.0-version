@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import LastMealConfirmSheet from '@/components/LastMealConfirmSheet';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -273,8 +274,8 @@ export default function LogFood() {
     if (mealType === 'dinner') {
       const todayKey = targetDate || new Date().toISOString().split('T')[0];
       const dinnerKey = `nutrilens_dinner_notif_${todayKey}`;
-      if (!localStorage.getItem(dinnerKey)) {
-        localStorage.setItem(dinnerKey, '1');
+      if (!scopedGet(dinnerKey)) {
+        scopedSet(dinnerKey, '1');
         setLastMealSheetOpen(true);
         // Don't navigate yet — let sheet handle it
         setContextPickerOpen(false);

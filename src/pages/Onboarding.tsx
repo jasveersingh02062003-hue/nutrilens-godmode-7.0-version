@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, Sparkles, Heart, User, Dumbbell, Ruler, Scale, Target, TrendingDown, Droplets, AlertTriangle, ChevronDown, Clock, Loader2, UtensilsCrossed, Zap, Camera, ShieldAlert, Pencil, CheckCircle, Info, Lightbulb, Shield } from 'lucide-react';
@@ -1599,7 +1600,7 @@ export default function Onboarding() {
   if (phase === 'splash') {
     return (
       <SplashScreen
-        onComplete={() => setPhase(!localStorage.getItem('pes_flex_seen') ? 'featureFlex' : 'welcome')}
+        onComplete={() => setPhase(!scopedGet('pes_flex_seen') ? 'featureFlex' : 'welcome')}
       />
     );
   }

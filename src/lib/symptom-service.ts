@@ -1,3 +1,5 @@
+import { scopedGet, scopedSet } from "./scoped-storage";
+import { safeJsonParse } from "./safe-json";
 // ============================================
 // NutriLens AI – Symptom Tracking Service
 // ============================================
@@ -19,7 +21,7 @@ export interface SymptomLog {
 }
 
 export function getSymptomLogs(): SymptomLog[] {
-  const data = localStorage.getItem(SYMPTOM_KEY);
+  const data = scopedGet(SYMPTOM_KEY);
   return data ? JSON.parse(data) : [];
 }
 
@@ -32,12 +34,12 @@ export function saveSymptomLog(log: SymptomLog) {
   logs.push(log);
   // Keep last 90 days
   logs.sort((a, b) => b.date.localeCompare(a.date));
-  localStorage.setItem(SYMPTOM_KEY, JSON.stringify(logs.slice(0, 90)));
+  scopedSet(SYMPTOM_KEY, JSON.stringify(logs.slice(0, 90)));
 }
 
 export function deleteSymptomLog(date: string) {
   const logs = getSymptomLogs().filter(s => s.date !== date);
-  localStorage.setItem(SYMPTOM_KEY, JSON.stringify(logs));
+  scopedSet(SYMPTOM_KEY, JSON.stringify(logs));
 }
 
 // ── Correlation Analysis ──

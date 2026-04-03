@@ -6,6 +6,8 @@
 import { getRecentLogs, getDailyTotals } from './store';
 import { getSymptomLogs } from './symptom-service';
 import { userHasHealthConditions } from './health-score';
+import { scopedGet, scopedSet } from './scoped-storage';
+import { safeJsonParse } from './safe-json';
 import type { UserProfile } from './store';
 import { toLocalDateStr } from './date-utils';
 
@@ -21,14 +23,14 @@ export interface LearningData {
 }
 
 export function getLearningData(): LearningData {
-  const data = localStorage.getItem(LEARNING_KEY);
-  if (data) return JSON.parse(data);
+  const data = scopedGet(LEARNING_KEY);
+  if (data) return safeJsonParse(data, { ignoredWarnings: [], warningSensitivity: 3, lastUpdated: new Date().toISOString() });
   return { ignoredWarnings: [], warningSensitivity: 3, lastUpdated: new Date().toISOString() };
 }
 
 export function saveLearningData(data: LearningData) {
   data.lastUpdated = new Date().toISOString();
-  localStorage.setItem(LEARNING_KEY, JSON.stringify(data));
+  scopedSet(LEARNING_KEY, JSON.stringify(data));
 }
 
 export function recordIgnoredWarning(warningType: string) {
@@ -56,14 +58,14 @@ export interface Nudge {
 }
 
 function getSeenNudges(): Record<string, string> {
-  const data = localStorage.getItem(NUDGE_SEEN_KEY);
-  return data ? JSON.parse(data) : {};
+  const data = scopedGet(NUDGE_SEEN_KEY);
+  return data ? safeJsonParse(data, {}) : {};
 }
 
 function markNudgeSeen(id: string) {
   const seen = getSeenNudges();
   seen[id] = new Date().toISOString();
-  localStorage.setItem(NUDGE_SEEN_KEY, JSON.stringify(seen));
+  scopedSet(NUDGE_SEEN_KEY, JSON.stringify(seen));
 }
 
 function wasNudgeSeenRecently(id: string, hoursAgo: number = 24): boolean {

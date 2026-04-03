@@ -1,3 +1,5 @@
+import { scopedGet, scopedSet, scopedRemove } from "./scoped-storage";
+import { safeJsonParse } from "./safe-json";
 import {
   getBudgetSettings,
   getExpensesForRange,
@@ -242,17 +244,17 @@ export function getCheapMealSuggestion(maxCost: number): { name: string; cost: n
 
 export function setLatestBudgetAlert(alert: BudgetAlertResult): void {
   const data = { ...alert, timestamp: Date.now(), date: toLocalDateStr() };
-  localStorage.setItem(BUDGET_ALERT_KEY, JSON.stringify(data));
+  scopedSet(BUDGET_ALERT_KEY, JSON.stringify(data));
 }
 
 export function getLatestBudgetAlert(): (BudgetAlertResult & { timestamp: number; date: string }) | null {
-  const raw = localStorage.getItem(BUDGET_ALERT_KEY);
+  const raw = scopedGet(BUDGET_ALERT_KEY);
   if (!raw) return null;
   try {
     const data = JSON.parse(raw);
     // Only show alerts from today
     if (data.date !== toLocalDateStr()) {
-      localStorage.removeItem(BUDGET_ALERT_KEY);
+      scopedRemove(BUDGET_ALERT_KEY);
       return null;
     }
     return data;
@@ -260,7 +262,7 @@ export function getLatestBudgetAlert(): (BudgetAlertResult & { timestamp: number
 }
 
 export function clearLatestBudgetAlert(): void {
-  localStorage.removeItem(BUDGET_ALERT_KEY);
+  scopedRemove(BUDGET_ALERT_KEY);
 }
 
 // ─── Manual ₹100 Survival Mode ───
@@ -268,15 +270,15 @@ export function clearLatestBudgetAlert(): void {
 const SURVIVAL_MODE_KEY = 'nutrilens_survival_manual';
 
 export function activateSurvivalMode(): void {
-  localStorage.setItem(SURVIVAL_MODE_KEY, 'true');
+  scopedSet(SURVIVAL_MODE_KEY, 'true');
 }
 
 export function deactivateSurvivalMode(): void {
-  localStorage.removeItem(SURVIVAL_MODE_KEY);
+  scopedRemove(SURVIVAL_MODE_KEY);
 }
 
 export function isSurvivalModeManual(): boolean {
-  return localStorage.getItem(SURVIVAL_MODE_KEY) === 'true';
+  return scopedGet(SURVIVAL_MODE_KEY) === 'true';
 }
 
 // ─── Per-Meal Budget Cascade ───

@@ -2,6 +2,7 @@
 // NutriLens AI – Context Learning Service
 // ============================================
 // Learns user patterns to suggest smart defaults for meal context.
+import { scopedGet, scopedSet } from './scoped-storage';
 
 import { getRecentLogs, type MealSourceCategory, type CookingMethod } from './store';
 
@@ -126,8 +127,9 @@ interface CookingPrefs {
 
 function getCookingPrefs(): CookingPrefs {
   try {
-    return JSON.parse(localStorage.getItem(COOKING_PREFS_KEY) || '{}');
-  } catch {
+    return JSON.parse(scopedGet(COOKING_PREFS_KEY) || '{}');
+  } catch (e) {
+    console.warn('[context-learning] Failed to parse cooking prefs:', e);
     return {};
   }
 }
@@ -139,7 +141,7 @@ export function learnCookingMethod(foodNames: string[], method: CookingMethod): 
     if (!prefs[key]) prefs[key] = {};
     prefs[key][method] = (prefs[key][method] || 0) + 1;
   }
-  localStorage.setItem(COOKING_PREFS_KEY, JSON.stringify(prefs));
+  scopedSet(COOKING_PREFS_KEY, JSON.stringify(prefs));
 }
 
 export function getDefaultCookingMethod(foodNames: string[]): CookingMethod | null {

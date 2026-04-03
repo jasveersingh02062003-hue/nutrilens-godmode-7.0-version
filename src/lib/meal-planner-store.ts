@@ -1,3 +1,5 @@
+import { scopedGet, scopedSet } from "./scoped-storage";
+import { safeJsonParse } from "./safe-json";
 export interface MealPlannerProfile {
   // Personal
   name: string;
@@ -81,21 +83,21 @@ const PLANNER_PROFILE_KEY = 'nutrilens_meal_planner_profile';
 const WEEK_PLAN_KEY_PREFIX = 'nutrilens_week_plan_';
 
 export function getMealPlannerProfile(): MealPlannerProfile | null {
-  const data = localStorage.getItem(PLANNER_PROFILE_KEY);
+  const data = scopedGet(PLANNER_PROFILE_KEY);
   return data ? JSON.parse(data) : null;
 }
 
 export function saveMealPlannerProfile(profile: MealPlannerProfile) {
-  localStorage.setItem(PLANNER_PROFILE_KEY, JSON.stringify(profile));
+  scopedSet(PLANNER_PROFILE_KEY, JSON.stringify(profile));
 }
 
 export function getWeekPlan(weekStart: string): WeekPlan | null {
-  const data = localStorage.getItem(WEEK_PLAN_KEY_PREFIX + weekStart);
+  const data = scopedGet(WEEK_PLAN_KEY_PREFIX + weekStart);
   return data ? JSON.parse(data) : null;
 }
 
 export function saveWeekPlan(plan: WeekPlan) {
-  localStorage.setItem(WEEK_PLAN_KEY_PREFIX + plan.weekStart, JSON.stringify(plan));
+  scopedSet(WEEK_PLAN_KEY_PREFIX + plan.weekStart, JSON.stringify(plan));
 }
 
 export function getCurrentWeekStart(): string {

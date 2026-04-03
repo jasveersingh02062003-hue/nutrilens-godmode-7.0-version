@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
@@ -8,13 +9,13 @@ interface SplashScreenProps {
 
 export default function SplashScreen({ onComplete }: SplashScreenProps) {
   const [visible, setVisible] = useState(true);
-  const isFirstLaunch = !localStorage.getItem('nutrilens_splash_shown');
+  const isFirstLaunch = !scopedGet('nutrilens_splash_shown');
   const duration = isFirstLaunch ? 2000 : 400;
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setVisible(false);
-      localStorage.setItem('nutrilens_splash_shown', 'true');
+      scopedSet('nutrilens_splash_shown', 'true');
     }, duration);
     return () => clearTimeout(timer);
   }, [duration]);

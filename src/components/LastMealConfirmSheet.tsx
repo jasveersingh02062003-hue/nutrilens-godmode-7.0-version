@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Moon, ArrowRight } from 'lucide-react';
@@ -23,7 +24,7 @@ export default function LastMealConfirmSheet({ open, onClose, todayKey }: Props)
 
   const handleConfirmLastMeal = () => {
     // Mark day as finalized
-    localStorage.setItem(`nutrilens_day_finalized_${todayKey}`, '1');
+    scopedSet(`nutrilens_day_finalized_${todayKey}`, '1');
     // Actually freeze the day and recompute future targets
     finalizeDay(todayKey);
     setConfirmed(true);

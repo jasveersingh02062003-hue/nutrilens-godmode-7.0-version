@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState, useMemo } from 'react';
 import { ChefHat, ArrowRight, Check, Clock, Flame, ChevronDown, IndianRupee, Repeat, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -33,7 +34,7 @@ export default function TodayMealPlan() {
   const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   const [isExpanded, setIsExpanded] = useState(false);
   const [loggedMeals, setLoggedMeals] = useState<Set<string>>(() => {
-    const saved = localStorage.getItem('nutrilens_home_logged_meals_' + today);
+    const saved = scopedGet('nutrilens_home_logged_meals_' + today);
     return saved ? new Set(JSON.parse(saved)) : new Set();
   });
 
@@ -124,7 +125,7 @@ export default function TodayMealPlan() {
     const newLogged = new Set(loggedMeals);
     newLogged.add(recipeId);
     setLoggedMeals(newLogged);
-    localStorage.setItem('nutrilens_home_logged_meals_' + today, JSON.stringify([...newLogged]));
+    scopedSet('nutrilens_home_logged_meals_' + today, JSON.stringify([...newLogged]));
 
     window.dispatchEvent(new Event('storage'));
   };

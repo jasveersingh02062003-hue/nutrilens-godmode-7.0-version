@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from './scoped-storage';
 // ==========================================
 // NutriLens AI – Verified Weight History
 // Separate from daily log. Stores weight
@@ -21,12 +22,12 @@ export interface WeightEntry {
 const HISTORY_KEY = 'nutrilens_weight_history';
 
 function getAll(): WeightEntry[] {
-  const data = localStorage.getItem(HISTORY_KEY);
+  const data = scopedGet(HISTORY_KEY);
   return data ? JSON.parse(data) : [];
 }
 
 function saveAll(entries: WeightEntry[]) {
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(entries));
+  scopedSet(HISTORY_KEY, JSON.stringify(entries));
 }
 
 /** Get Monday of the week for a given date */

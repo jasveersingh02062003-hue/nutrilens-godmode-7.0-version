@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Zap } from 'lucide-react';
@@ -67,12 +68,12 @@ export default function BoostersChecklist({ activeBoosters }: Props) {
 
   const [checked, setChecked] = useState<Record<string, boolean>>(() => {
     try {
-      return JSON.parse(localStorage.getItem(storageKey) || '{}');
+      return JSON.parse(scopedGet(storageKey) || '{}');
     } catch { return {}; }
   });
 
   useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify(checked));
+    scopedSet(storageKey, JSON.stringify(checked));
   }, [checked, storageKey]);
 
   const allItems = activeBoosters.flatMap(b => ALL_BOOSTERS[b]?.items || []);

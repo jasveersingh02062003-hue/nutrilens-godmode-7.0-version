@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -146,7 +147,7 @@ export default function PESFeatureFlex({ onDismiss }: Props) {
         transition={{ delay: 2 }}
         whileTap={{ scale: 0.96 }}
         onClick={() => {
-          localStorage.setItem('pes_flex_seen', 'true');
+          scopedSet('pes_flex_seen', 'true');
           onDismiss();
         }}
         className="px-8 py-3.5 rounded-2xl text-sm font-bold text-white"

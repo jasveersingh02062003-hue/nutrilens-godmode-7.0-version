@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { ShieldAlert } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -145,7 +146,7 @@ export default function DashboardModals({
       {/* One-time planner setup modal */}
       <Dialog open={showPlannerModal} onOpenChange={(open) => {
         if (!open) {
-          localStorage.setItem(plannerDismissKey, 'true');
+          scopedSet(plannerDismissKey, 'true');
           setShowPlannerModal(false);
         }
       }}>
@@ -161,7 +162,7 @@ export default function DashboardModals({
               Set My Plan
             </Button>
             <Button variant="ghost" onClick={() => {
-              localStorage.setItem(plannerDismissKey, 'true');
+              scopedSet(plannerDismissKey, 'true');
               setShowPlannerModal(false);
             }}>
               Do it later

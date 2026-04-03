@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from './scoped-storage';
 import { getProfile, getDailyLog, getDailyTotals, getTodayKey } from '@/lib/store';
 
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -139,19 +140,19 @@ export function notifyWidgetUpdate(): void {
 /** Get/set last used logging mode */
 const LAST_MODE_KEY = 'nutrilens_last_log_mode';
 export function getLastLogMode(): string {
-  return localStorage.getItem(LAST_MODE_KEY) || 'manual';
+  return scopedGet(LAST_MODE_KEY) || 'manual';
 }
 export function setLastLogMode(mode: string): void {
-  localStorage.setItem(LAST_MODE_KEY, mode);
+  scopedSet(LAST_MODE_KEY, mode);
 }
 
 /** Track quicklog visits for smart PWA hint */
 const QUICKLOG_VISITS_KEY = 'nutrilens_quicklog_visits';
 export function trackQuickLogVisit(): number {
-  const count = parseInt(localStorage.getItem(QUICKLOG_VISITS_KEY) || '0', 10) + 1;
-  localStorage.setItem(QUICKLOG_VISITS_KEY, count.toString());
+  const count = parseInt(scopedGet(QUICKLOG_VISITS_KEY) || '0', 10) + 1;
+  scopedSet(QUICKLOG_VISITS_KEY, count.toString());
   return count;
 }
 export function getQuickLogVisits(): number {
-  return parseInt(localStorage.getItem(QUICKLOG_VISITS_KEY) || '0', 10);
+  return parseInt(scopedGet(QUICKLOG_VISITS_KEY) || '0', 10);
 }

@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from './scoped-storage';
 // ==========================================
 // NutriLens AI – Protein Rescue System
 // Triggers after 6 PM when remaining protein > 40g
@@ -74,7 +75,7 @@ export function checkProteinRescue(profile: UserProfile): {
   if (remaining <= 40) return { needed: false, remaining: 0, options: [] };
 
   // Check cooldown
-  const dismissed = localStorage.getItem(DISMISSED_KEY);
+  const dismissed = scopedGet(DISMISSED_KEY);
   if (dismissed) {
     const dismissedAt = parseInt(dismissed, 10);
     if (Date.now() - dismissedAt < COOLDOWN_MS) {
@@ -86,7 +87,7 @@ export function checkProteinRescue(profile: UserProfile): {
 }
 
 export function dismissProteinRescue(): void {
-  localStorage.setItem(DISMISSED_KEY, String(Date.now()));
+  scopedSet(DISMISSED_KEY, String(Date.now()));
 }
 
 export function applyRescueOption(option: ProteinRescueOption): void {

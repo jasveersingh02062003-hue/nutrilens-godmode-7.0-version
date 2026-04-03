@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Footprints, Plus, Minus, ChevronDown, ChevronUp, Check, Dumbbell } from 'lucide-react';
@@ -44,22 +45,22 @@ export default function ActivityTracker({ exerciseTime, planStartDate }: Props) 
   const goal = STEP_GOALS[exerciseTime];
 
   const [steps, setSteps] = useState(() => {
-    try { return parseInt(localStorage.getItem(storageKey) || '0', 10); }
+    try { return parseInt(scopedGet(storageKey) || '0', 10); }
     catch { return 0; }
   });
 
   const [workoutsExpanded, setWorkoutsExpanded] = useState(false);
   const [completedWorkouts, setCompletedWorkouts] = useState<Record<string, boolean>>(() => {
-    try { return JSON.parse(localStorage.getItem(workoutKey) || '{}'); }
+    try { return JSON.parse(scopedGet(workoutKey) || '{}'); }
     catch { return {}; }
   });
 
   useEffect(() => {
-    localStorage.setItem(storageKey, String(steps));
+    scopedSet(storageKey, String(steps));
   }, [steps, storageKey]);
 
   useEffect(() => {
-    localStorage.setItem(workoutKey, JSON.stringify(completedWorkouts));
+    scopedSet(workoutKey, JSON.stringify(completedWorkouts));
   }, [completedWorkouts, workoutKey]);
 
   const progress = Math.min(100, Math.round((steps / goal) * 100));

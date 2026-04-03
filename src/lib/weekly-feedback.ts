@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from './scoped-storage';
 // Weekly Feedback Engine — behavior correction loop
 import { getRecentLogs, getDailyTotals, getProfile, type DailyLog } from './store';
 import { getExpensesForRange, getBudgetSettings, getWeekDateRange, saveBudgetSettings } from './expense-store';
@@ -24,12 +25,12 @@ export interface WeeklySummary {
 const SUMMARIES_KEY = 'nutrilens_weekly_summaries';
 
 export function getWeeklySummaries(): WeeklySummary[] {
-  const data = localStorage.getItem(SUMMARIES_KEY);
+  const data = scopedGet(SUMMARIES_KEY);
   return data ? JSON.parse(data) : [];
 }
 
 function saveSummaries(summaries: WeeklySummary[]) {
-  localStorage.setItem(SUMMARIES_KEY, JSON.stringify(summaries));
+  scopedSet(SUMMARIES_KEY, JSON.stringify(summaries));
 }
 
 export function saveWeeklySummary(summary: WeeklySummary) {
@@ -78,7 +79,7 @@ export function generateWeeklySummary(): WeeklySummary {
   while (d <= endD) {
     const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     // Use dynamic import to avoid issues
-    const data = localStorage.getItem(`nutrilens_log_${key}`);
+    const data = scopedGet(`nutrilens_log_${key}`);
     if (data) {
       const parsed = JSON.parse(data);
       logs.push(parsed);

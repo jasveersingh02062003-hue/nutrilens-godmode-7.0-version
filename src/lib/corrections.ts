@@ -1,4 +1,6 @@
 // AI Correction tracking for learning from user adjustments
+import { scopedGet, scopedSet, scopedRemove } from './scoped-storage';
+import { safeJsonParse } from './safe-json';
 
 export interface CorrectionRecord {
   id: string;
@@ -11,20 +13,20 @@ const CORRECTIONS_KEY = 'nutrilens_corrections';
 const CONSENT_KEY = 'nutrilens_ai_learning_consent';
 
 export function getAILearningConsent(): boolean {
-  return localStorage.getItem(CONSENT_KEY) === 'true';
+  return scopedGet(CONSENT_KEY) === 'true';
 }
 
 export function setAILearningConsent(consent: boolean) {
-  localStorage.setItem(CONSENT_KEY, consent ? 'true' : 'false');
+  scopedSet(CONSENT_KEY, consent ? 'true' : 'false');
 }
 
 export function hasAskedConsent(): boolean {
-  return localStorage.getItem(CONSENT_KEY) !== null;
+  return scopedGet(CONSENT_KEY) !== null;
 }
 
 export function getCorrections(): CorrectionRecord[] {
-  const data = localStorage.getItem(CORRECTIONS_KEY);
-  return data ? JSON.parse(data) : [];
+  const data = scopedGet(CORRECTIONS_KEY);
+  return data ? safeJsonParse(data, [] as CorrectionRecord[]) : [];
 }
 
 export function addCorrection(record: CorrectionRecord) {
@@ -32,11 +34,11 @@ export function addCorrection(record: CorrectionRecord) {
   corrections.push(record);
   // Keep only last 200 corrections
   if (corrections.length > 200) corrections.splice(0, corrections.length - 200);
-  localStorage.setItem(CORRECTIONS_KEY, JSON.stringify(corrections));
+  scopedSet(CORRECTIONS_KEY, JSON.stringify(corrections));
 }
 
 export function clearCorrections() {
-  localStorage.removeItem(CORRECTIONS_KEY);
+  scopedRemove(CORRECTIONS_KEY);
 }
 
 export function trackCorrections(

@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { motion } from 'framer-motion';
 import { X, Sparkles, Clock, Zap, Gift } from 'lucide-react';
 import { setPlan } from '@/lib/subscription-service';
@@ -11,13 +12,13 @@ interface Props {
 export default function RetentionOfferScreen({ onAccept, onDismiss }: Props) {
   const handleAccept = () => {
     setPlan('premium');
-    localStorage.setItem('retention_offer_shown', 'true');
+    scopedSet('retention_offer_shown', 'true');
     toast.success('Welcome to NutriLens Pro! 🎉 Special offer activated');
     onAccept();
   };
 
   const handleDismiss = () => {
-    localStorage.setItem('retention_offer_shown', 'true');
+    scopedSet('retention_offer_shown', 'true');
     onDismiss();
   };
 

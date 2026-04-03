@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -22,7 +23,7 @@ const STORAGE_KEY = 'nutrilens_body_journal';
 
 function getEntries(): JournalEntry[] {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    return JSON.parse(scopedGet(STORAGE_KEY) || '[]');
   } catch { return []; }
 }
 
@@ -31,7 +32,7 @@ function saveEntry(entry: JournalEntry) {
   entries.push(entry);
   // Keep last 30
   const trimmed = entries.slice(-30);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+  scopedSet(STORAGE_KEY, JSON.stringify(trimmed));
 }
 
 export function hasTodayJournal(): boolean {

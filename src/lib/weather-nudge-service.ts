@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from './scoped-storage';
 // ============================================
 // NutriLens AI – Context-Aware Nutrition Engine
 // ============================================
@@ -31,7 +32,7 @@ export interface NudgeFeedback {
 
 export function getNudgeFeedback(): NudgeFeedback[] {
   try {
-    const data = localStorage.getItem(NUDGE_FEEDBACK_KEY);
+    const data = scopedGet(NUDGE_FEEDBACK_KEY);
     return data ? JSON.parse(data) : [];
   } catch { return []; }
 }
@@ -43,7 +44,7 @@ export function saveNudgeFeedback(nudgeId: string, vote: 'up' | 'down') {
   const entry: NudgeFeedback = { nudgeId, vote, timestamp: Date.now() };
   if (existing >= 0) feedback[existing] = entry;
   else feedback.push(entry);
-  localStorage.setItem(NUDGE_FEEDBACK_KEY, JSON.stringify(feedback.slice(-50)));
+  scopedSet(NUDGE_FEEDBACK_KEY, JSON.stringify(feedback.slice(-50)));
 }
 
 function isNudgeTypeDisliked(type: string): boolean {

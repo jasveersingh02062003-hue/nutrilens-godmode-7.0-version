@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ChefHat, CalendarDays, ArrowLeft, ArrowRight, Check, ShoppingCart, Repeat, X, Search, Target, Scale, Crown, Lock, Zap } from 'lucide-react';
@@ -105,7 +106,7 @@ export default function MealPlanner() {
           const key = localStorage.key(i);
           if (key && key.startsWith('nutrilens_week_plan_')) {
             try {
-              const candidate = JSON.parse(localStorage.getItem(key)!);
+              const candidate = JSON.parse(scopedGet(key)!);
               if (candidate?.days?.length > 0) {
                 existing = candidate;
                 break;

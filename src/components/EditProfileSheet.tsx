@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Camera, User, Ruler, Scale, Target, Activity, Heart, Apple, ChefHat, Save, Shield, Briefcase, ChevronDown, ChevronUp } from 'lucide-react';
@@ -13,11 +14,11 @@ import { fileToDataUrl } from '@/lib/photo-store';
 const PHOTO_KEY = 'nutrilens_profile_photo';
 
 export function getProfilePhoto(): string | null {
-  return localStorage.getItem(PHOTO_KEY);
+  return scopedGet(PHOTO_KEY);
 }
 
 export function saveProfilePhoto(dataUrl: string) {
-  localStorage.setItem(PHOTO_KEY, dataUrl);
+  scopedSet(PHOTO_KEY, dataUrl);
 }
 
 const ACTIVITY_LEVELS = [

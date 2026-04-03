@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -30,7 +31,7 @@ export default function MorningRecoveryPrompt({ open, onClose, missedDate }: Pro
 
   const handleSkippedMeals = () => {
     // Mark as acknowledged — deficit will be auto-adjusted by the correction engine
-    localStorage.setItem(`nutrilens_missed_ack_${missedDate}`, 'skipped');
+    scopedSet(`nutrilens_missed_ack_${missedDate}`, 'skipped');
     syncDailyBalance();
     toast.info('Got it — today\'s target adjusted to recover the deficit 💪');
     onClose();

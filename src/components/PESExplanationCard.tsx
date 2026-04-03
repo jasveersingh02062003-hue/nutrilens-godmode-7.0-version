@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
@@ -24,7 +25,7 @@ export default function PESExplanationCard({ onDismiss }: Props) {
   const item = CAROUSEL[carouselIdx];
 
   const handleDismiss = () => {
-    localStorage.setItem('pes_explanation_seen', 'true');
+    scopedSet('pes_explanation_seen', 'true');
     onDismiss();
   };
 

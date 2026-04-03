@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet, scopedRemove } from '@/lib/scoped-storage';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -25,7 +26,7 @@ export default function PostEventFeedbackModal({ open, onClose, expiredPlan, onE
     }
 
     // Mark feedback as collected
-    localStorage.setItem(`nutrilens_event_feedback_${expiredPlan.startDate}`, 'done');
+    scopedSet(`nutrilens_event_feedback_${expiredPlan.startDate}`, 'done');
 
     const profile = getProfile();
     if (profile) {
@@ -35,7 +36,7 @@ export default function PostEventFeedbackModal({ open, onClose, expiredPlan, onE
 
     if (choice === 'resume' || choice === 'update') {
       clearActivePlan();
-      localStorage.removeItem('nutrilens_active_plan');
+      scopedRemove('nutrilens_active_plan');
       toast.success(choice === 'resume' ? 'Returned to original plan' : 'Goals updated with new weight');
     } else if (choice === 'extend') {
       clearActivePlan();

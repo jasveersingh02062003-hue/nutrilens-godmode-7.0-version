@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet, scopedRemove } from "./scoped-storage";
 // ============================================
 // NutriLens AI – Meal Visual State Service
 // Handles state computation, delay logic, and status display
@@ -121,24 +122,24 @@ export function getMealStateInfo(state: MealState): MealStateInfo {
 
 export function markMealPending(date: string, mealType: string) {
   const key = DELAY_KEY + date + '_' + mealType;
-  localStorage.setItem(key, Date.now().toString());
+  scopedSet(key, Date.now().toString());
 }
 
 export function resetMealPending(date: string, mealType: string) {
   const key = DELAY_KEY + date + '_' + mealType;
-  localStorage.setItem(key, Date.now().toString());
+  scopedSet(key, Date.now().toString());
 }
 
 export function isMealPending(date: string, mealType: string): boolean {
   const key = DELAY_KEY + date + '_' + mealType;
-  const ts = localStorage.getItem(key);
+  const ts = scopedGet(key);
   if (!ts) return false;
   return Date.now() - parseInt(ts) < DELAY_MS;
 }
 
 export function clearMealPending(date: string, mealType: string) {
   const key = DELAY_KEY + date + '_' + mealType;
-  localStorage.removeItem(key);
+  scopedRemove(key);
 }
 
 // ── Full state resolver (combines delay + computation) ──

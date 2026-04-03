@@ -1,3 +1,5 @@
+import { scopedGet, scopedSet } from "./scoped-storage";
+import { safeJsonParse } from "./safe-json";
 // ============================================
 // NutriLens AI – Smart Calorie Adjustment & Recovery Engine (v2)
 // ============================================
@@ -60,24 +62,24 @@ export interface CarryForwardData {
 // ── Tracking Mode ──
 
 export function getTrackingMode(): TrackingMode {
-  return (localStorage.getItem(TRACKING_MODE_KEY) as TrackingMode) || 'flex';
+  return (scopedGet(TRACKING_MODE_KEY) as TrackingMode) || 'flex';
 }
 
 export function setTrackingMode(mode: TrackingMode) {
-  localStorage.setItem(TRACKING_MODE_KEY, mode);
+  scopedSet(TRACKING_MODE_KEY, mode);
 }
 
 // ── Adjustment Log ──
 
 export function getAdjustmentLog(date: string): AdjustmentLogEntry[] {
   try {
-    const data = localStorage.getItem(ADJUSTMENT_LOG_KEY + date);
+    const data = scopedGet(ADJUSTMENT_LOG_KEY + date);
     return data ? JSON.parse(data) : [];
   } catch { return []; }
 }
 
 function saveAdjustmentLog(date: string, log: AdjustmentLogEntry[]) {
-  localStorage.setItem(ADJUSTMENT_LOG_KEY + date, JSON.stringify(log));
+  scopedSet(ADJUSTMENT_LOG_KEY + date, JSON.stringify(log));
 }
 
 // ── Eating Pattern (Adaptive Weights) ──
@@ -89,7 +91,7 @@ const DEFAULT_PATTERN: EatingPattern = {
 
 export function getEatingPattern(): EatingPattern {
   try {
-    const data = localStorage.getItem(EATING_PATTERN_KEY);
+    const data = scopedGet(EATING_PATTERN_KEY);
     return data ? { ...DEFAULT_PATTERN, ...JSON.parse(data) } : DEFAULT_PATTERN;
   } catch { return DEFAULT_PATTERN; }
 }
@@ -115,7 +117,7 @@ export function updateEatingPattern(mealType: string, caloriesEaten: number, dai
 
   pattern.sampleCount++;
   pattern.lastUpdated = new Date().toISOString();
-  localStorage.setItem(EATING_PATTERN_KEY, JSON.stringify(pattern));
+  scopedSet(EATING_PATTERN_KEY, JSON.stringify(pattern));
 }
 
 function getAdaptiveWeights(remainingMeals: string[]): Record<string, number> {
@@ -139,13 +141,13 @@ function getAdaptiveWeights(remainingMeals: string[]): Record<string, number> {
 
 export function getBehaviorMemory(): BehaviorMemory {
   try {
-    const data = localStorage.getItem(BEHAVIOR_MEMORY_KEY);
+    const data = scopedGet(BEHAVIOR_MEMORY_KEY);
     return data ? JSON.parse(data) : { overeatenMeals: [], skippedMeals: [], lastReset: new Date().toISOString() };
   } catch { return { overeatenMeals: [], skippedMeals: [], lastReset: new Date().toISOString() }; }
 }
 
 function saveBehaviorMemory(mem: BehaviorMemory) {
-  localStorage.setItem(BEHAVIOR_MEMORY_KEY, JSON.stringify(mem));
+  scopedSet(BEHAVIOR_MEMORY_KEY, JSON.stringify(mem));
 }
 
 export function recordBehavior(mealType: string, type: 'overeat' | 'skip') {
@@ -425,11 +427,11 @@ export function getDailyOverage(date: string = getTodayKey()): number {
 }
 
 export function isRecoveryDismissed(date: string = getTodayKey()): boolean {
-  return localStorage.getItem(RECOVERY_DISMISSED_KEY + date) === '1';
+  return scopedGet(RECOVERY_DISMISSED_KEY + date) === '1';
 }
 
 export function dismissRecovery(date: string = getTodayKey()) {
-  localStorage.setItem(RECOVERY_DISMISSED_KEY + date, '1');
+  scopedSet(RECOVERY_DISMISSED_KEY + date, '1');
 }
 
 // Single primary action + secondary options behind "More"
@@ -476,12 +478,12 @@ export function applyOverageCarryForward(overage: number) {
     remainingDays: 2, // hard limit
     applied: false,
   };
-  localStorage.setItem(OVEREAT_CARRY_KEY, JSON.stringify(carry));
+  scopedSet(OVEREAT_CARRY_KEY, JSON.stringify(carry));
 }
 
 export function applyOverageCarryOver(date: string): 'applied' | 'fresh_start' | 'none' {
   try {
-    const data = localStorage.getItem(OVEREAT_CARRY_KEY);
+    const data = scopedGet(OVEREAT_CARRY_KEY);
     if (!data) return 'none';
     const carry: CarryForwardData = JSON.parse(data);
     if (carry.applied) return 'none';
@@ -490,8 +492,8 @@ export function applyOverageCarryOver(date: string): 'applied' | 'fresh_start' |
     if (carry.remainingDays <= 0) {
       // Hard reset — fresh start
       carry.applied = true;
-      localStorage.setItem(OVEREAT_CARRY_KEY, JSON.stringify(carry));
-      localStorage.setItem(FRESH_START_KEY + date, '1');
+      scopedSet(OVEREAT_CARRY_KEY, JSON.stringify(carry));
+      scopedSet(FRESH_START_KEY + date, '1');
       return 'fresh_start';
     }
 
@@ -520,15 +522,15 @@ export function applyOverageCarryOver(date: string): 'applied' | 'fresh_start' |
 
     carry.remainingDays--;
     if (carry.remainingDays <= 0) carry.applied = true;
-    localStorage.setItem(OVEREAT_CARRY_KEY, JSON.stringify(carry));
+    scopedSet(OVEREAT_CARRY_KEY, JSON.stringify(carry));
     return 'applied';
   } catch { return 'none'; }
 }
 
 export function isFreshStart(date: string = getTodayKey()): boolean {
-  return localStorage.getItem(FRESH_START_KEY + date) === '1';
+  return scopedGet(FRESH_START_KEY + date) === '1';
 }
 
 export function dismissFreshStart(date: string = getTodayKey()) {
-  localStorage.setItem(FRESH_START_KEY + date, '0');
+  scopedSet(FRESH_START_KEY + date, '0');
 }

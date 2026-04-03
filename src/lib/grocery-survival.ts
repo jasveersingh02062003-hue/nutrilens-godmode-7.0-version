@@ -1,3 +1,5 @@
+import { scopedGet, scopedSet, scopedRemove } from "./scoped-storage";
+import { safeJsonParse } from "./safe-json";
 // ─── Grocery Survival Kit Engine ───
 // Generates an optimized shopping list maximizing protein efficiency (PES)
 // within the user's remaining budget.
@@ -232,15 +234,15 @@ export function generateSurvivalKit(weeklyBudget: number): SurvivalKitResult {
 const STORAGE_KEY = 'nutrilens_survival_kit';
 
 export function saveSurvivalKit(kit: SurvivalKitResult) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...kit, lockedAt: Date.now() }));
+  scopedSet(STORAGE_KEY, JSON.stringify({ ...kit, lockedAt: Date.now() }));
 }
 
 export function getSavedSurvivalKit(): (SurvivalKitResult & { lockedAt: number }) | null {
-  const data = localStorage.getItem(STORAGE_KEY);
+  const data = scopedGet(STORAGE_KEY);
   if (!data) return null;
   try { return JSON.parse(data); } catch { return null; }
 }
 
 export function clearSurvivalKit() {
-  localStorage.removeItem(STORAGE_KEY);
+  scopedRemove(STORAGE_KEY);
 }

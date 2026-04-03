@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from './scoped-storage';
 // ─── Meal Plan Feedback & Learning Loop ───
 
 const FEEDBACK_KEY = 'nutrilens_meal_plan_feedback';
@@ -15,14 +16,14 @@ interface FeedbackStore {
 }
 
 function getStore(): FeedbackStore {
-  const data = localStorage.getItem(FEEDBACK_KEY);
+  const data = scopedGet(FEEDBACK_KEY);
   return data ? JSON.parse(data) : { entries: [] };
 }
 
 function saveStore(store: FeedbackStore) {
   // Keep last 200 entries
   store.entries = store.entries.slice(-200);
-  localStorage.setItem(FEEDBACK_KEY, JSON.stringify(store));
+  scopedSet(FEEDBACK_KEY, JSON.stringify(store));
 }
 
 export function saveMealPlanFeedback(recipeId: string, feedback: { eaten: boolean; liked: boolean; swapped: boolean }) {

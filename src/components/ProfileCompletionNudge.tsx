@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 // ============================================
 // NutriLens AI – Profile Completion Nudge
 // ============================================
@@ -18,7 +19,7 @@ interface Props {
 export default function ProfileCompletionNudge({ onOpenProfile }: Props) {
   const { profile, loadedUserId } = useUserProfile();
   const nudgeKey = `${NUDGE_PREFIX}${loadedUserId || 'anon'}`;
-  const [dismissed, setDismissed] = useState(() => localStorage.getItem(nudgeKey) === 'true');
+  const [dismissed, setDismissed] = useState(() => scopedGet(nudgeKey) === 'true');
 
   if (dismissed || !profile) return null;
 
@@ -29,7 +30,7 @@ export default function ProfileCompletionNudge({ onOpenProfile }: Props) {
   if (hasLifestyle) return null;
 
   const handleDismiss = () => {
-    localStorage.setItem(nudgeKey, 'true');
+    scopedSet(nudgeKey, 'true');
     setDismissed(true);
   };
 

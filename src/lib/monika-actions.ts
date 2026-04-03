@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from './scoped-storage';
 import {
   addMealToLog, addMealToLogForDate, addActivity, addActivityForDate,
   addWater, addWaterForDate, getDailyLog, getDailyTotals, getProfile,
@@ -269,7 +270,7 @@ export function buildMonikaContext() {
   // Skin concerns from onboarding data
   let skinConcerns: string | null = null;
   try {
-    const onboardingData = localStorage.getItem('nutrilens_user');
+    const onboardingData = scopedGet('nutrilens_user');
     if (onboardingData) {
       const parsed = JSON.parse(onboardingData);
       skinConcerns = parsed?.health?.skin || null;
@@ -282,7 +283,7 @@ export function buildMonikaContext() {
   // Liked/disliked foods from learning data
   let foodPreferences: any = null;
   try {
-    const learning = localStorage.getItem('nutrilens_learning');
+    const learning = scopedGet('nutrilens_learning');
     if (learning) {
       const parsed = JSON.parse(learning);
       foodPreferences = {

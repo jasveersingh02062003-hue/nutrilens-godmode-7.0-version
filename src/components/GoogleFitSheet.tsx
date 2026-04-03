@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
@@ -16,13 +17,13 @@ interface GoogleFitSettings {
 const SETTINGS_KEY = 'nutrilens_googlefit_settings';
 
 function getGFSettings(): GoogleFitSettings {
-  const d = localStorage.getItem(SETTINGS_KEY);
+  const d = scopedGet(SETTINGS_KEY);
   if (d) return JSON.parse(d);
   return { connected: false, syncFrequency: 'daily', syncSteps: true, syncCalories: true, syncWorkouts: true, lastSynced: null };
 }
 
 function saveGFSettings(s: GoogleFitSettings) {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+  scopedSet(SETTINGS_KEY, JSON.stringify(s));
 }
 
 interface Props {

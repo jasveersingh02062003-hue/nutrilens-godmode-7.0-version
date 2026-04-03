@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from './scoped-storage';
 // ==========================================
 // NutriLens AI – Plateau Detection & Handling
 // Detects weight stalls and adjusts targets
@@ -56,7 +57,7 @@ export function applyPlateauAdjustment(): PlateauAdjustment | null {
 
   // Check if already adjusted recently
   let adjustments: PlateauAdjustment[] = [];
-  try { adjustments = JSON.parse(localStorage.getItem(PLATEAU_KEY) || '[]'); } catch {}
+  try { adjustments = JSON.parse(scopedGet(PLATEAU_KEY) || '[]'); } catch {}
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const recentAdjustment = adjustments.find(a => {
@@ -84,7 +85,7 @@ export function applyPlateauAdjustment(): PlateauAdjustment | null {
     reductionPercent,
   };
   adjustments.push(adjustment);
-  localStorage.setItem(PLATEAU_KEY, JSON.stringify(adjustments));
+  scopedSet(PLATEAU_KEY, JSON.stringify(adjustments));
 
   // Update profile — protein stays locked, preserve original target
   const updatedProfile = { ...profile, dailyCalories: newTarget };

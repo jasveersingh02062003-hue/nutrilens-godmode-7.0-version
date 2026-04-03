@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -31,7 +32,7 @@ export default function ChewingTimerModal({ open, onClose }: Props) {
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
         // Store completion
         const key = `nutrilens_chew_${new Date().toISOString().split('T')[0]}_${Date.now()}`;
-        localStorage.setItem(key, 'done');
+        scopedSet(key, 'done');
       }
       return next;
     });

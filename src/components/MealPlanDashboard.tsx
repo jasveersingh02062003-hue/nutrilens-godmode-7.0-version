@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getActivePlan, getPlanById } from '@/lib/event-plan-service';
@@ -67,7 +68,7 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
   const [compareItems, setCompareItems] = useState<CompareItem[]>([]);
   const [showCompare, setShowCompare] = useState(false);
   const [loggedDays, setLoggedDays] = useState<Set<string>>(() => {
-    const saved = localStorage.getItem('nutrilens_logged_meal_days');
+    const saved = scopedGet('nutrilens_logged_meal_days');
     return saved ? new Set(JSON.parse(saved)) : new Set();
   });
 
@@ -170,7 +171,7 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
     const newLogged = new Set(loggedDays);
     newLogged.add(currentDay.date);
     setLoggedDays(newLogged);
-    localStorage.setItem('nutrilens_logged_meal_days', JSON.stringify([...newLogged]));
+    scopedSet('nutrilens_logged_meal_days', JSON.stringify([...newLogged]));
     
     setShowLogConfirm(false);
     toast.success(`Logged ${currentDay.meals.length} meals as expenses`);

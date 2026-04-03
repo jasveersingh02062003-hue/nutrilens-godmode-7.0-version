@@ -2,6 +2,8 @@
 // NutriLens AI – localStorage Cleanup Service
 // Prevents quota overflow by pruning old keys.
 // ============================================
+// NOTE: This service intentionally uses raw localStorage to scan ALL keys
+// including scoped and unscoped. Do not convert to scopedGet/scopedSet.
 
 import { toLocalDateKey } from './store';
 

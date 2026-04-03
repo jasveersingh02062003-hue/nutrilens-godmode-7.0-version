@@ -1,3 +1,5 @@
+import { scopedGet, scopedSet } from "./scoped-storage";
+import { safeJsonParse } from "./safe-json";
 // ============================================
 // NutriLens AI – Pattern Detection Engine
 // ============================================
@@ -380,10 +382,10 @@ export function savePatternSnapshot(patterns: DetectedPattern[]) {
   // Keep last 12 weeks
   history.push({ date: key, patterns });
   if (history.length > 12) history.splice(0, history.length - 12);
-  localStorage.setItem(PATTERNS_KEY, JSON.stringify(history));
+  scopedSet(PATTERNS_KEY, JSON.stringify(history));
 }
 
 export function getPatternHistory(): PatternSnapshot[] {
-  const data = localStorage.getItem(PATTERNS_KEY);
+  const data = scopedGet(PATTERNS_KEY);
   return data ? JSON.parse(data) : [];
 }

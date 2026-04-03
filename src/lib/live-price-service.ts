@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from "./scoped-storage";
 // ─── Live Price Service ───
 // Hybrid price resolution: crowdsource → firecrawl cache → static fallback
 
@@ -101,7 +102,7 @@ function getStaticPrice(itemName: string): LivePrice | null {
 
 function getUserCity(): string | null {
   try {
-    const profile = localStorage.getItem('nutrilens_profile');
+    const profile = scopedGet('nutrilens_profile');
     if (profile) {
       const p = JSON.parse(profile);
       return p.city?.toLowerCase() || null;

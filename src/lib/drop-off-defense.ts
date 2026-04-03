@@ -5,6 +5,7 @@
 
 import { getAllLogDates, getDailyLog } from './store';
 import { toLocalDateStr } from './date-utils';
+import { scopedGet, scopedSet } from './scoped-storage';
 
 const LAST_LOG_KEY = 'nutrilens_last_log_date';
 const RESTART_DISMISSED_KEY = 'nutrilens_dropoff_dismissed';
@@ -19,7 +20,7 @@ export function updateLastLogDate(): void {
   const today = toLocalDateStr();
   const log = getDailyLog(today);
   if (log.meals.length > 0) {
-    localStorage.setItem(LAST_LOG_KEY, today);
+    scopedSet(LAST_LOG_KEY, today);
   }
 }
 
@@ -27,11 +28,11 @@ export function checkDropOff(): DropOffResult {
   const today = toLocalDateStr();
 
   // Check if already dismissed today
-  const dismissed = localStorage.getItem(RESTART_DISMISSED_KEY);
+  const dismissed = scopedGet(RESTART_DISMISSED_KEY);
   if (dismissed === today) return { detected: false, daysMissed: 0, message: '' };
 
   // Find last log date
-  let lastLog = localStorage.getItem(LAST_LOG_KEY);
+  let lastLog = scopedGet(LAST_LOG_KEY);
   if (!lastLog) {
     // Find from actual logs
     const allDates = getAllLogDates().sort();
@@ -40,7 +41,7 @@ export function checkDropOff(): DropOffResult {
       return log.meals.length > 0;
     });
     lastLog = datesWithMeals.length > 0 ? datesWithMeals[datesWithMeals.length - 1] : null;
-    if (lastLog) localStorage.setItem(LAST_LOG_KEY, lastLog);
+    if (lastLog) scopedSet(LAST_LOG_KEY, lastLog);
   }
 
   if (!lastLog) return { detected: false, daysMissed: 0, message: '' };
@@ -62,6 +63,6 @@ export function checkDropOff(): DropOffResult {
 
 export function dismissDropOff(): void {
   const today = toLocalDateStr();
-  localStorage.setItem(RESTART_DISMISSED_KEY, today);
-  localStorage.setItem(LAST_LOG_KEY, today);
+  scopedSet(RESTART_DISMISSED_KEY, today);
+  scopedSet(LAST_LOG_KEY, today);
 }

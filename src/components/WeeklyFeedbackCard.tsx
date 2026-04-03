@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState, useEffect } from 'react';
 import { TrendingUp, Zap, Share2, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -50,7 +51,7 @@ export default function WeeklyFeedbackCard() {
   useEffect(() => {
     const s = getLatestSummary();
     if (!s) return;
-    const dismissedWeek = localStorage.getItem(DISMISSED_KEY);
+    const dismissedWeek = scopedGet(DISMISSED_KEY);
     if (dismissedWeek === s.weekStart) {
       setDismissed(true);
     }
@@ -89,7 +90,7 @@ export default function WeeklyFeedbackCard() {
   };
 
   const handleDismiss = () => {
-    localStorage.setItem(DISMISSED_KEY, summary.weekStart);
+    scopedSet(DISMISSED_KEY, summary.weekStart);
     setDismissed(true);
   };
 

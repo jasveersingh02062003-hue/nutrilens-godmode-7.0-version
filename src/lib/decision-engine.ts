@@ -3,6 +3,7 @@
 import { getBudgetSummary, getDaysRemainingInPeriod, getAdjustedDailyBudget } from './budget-service';
 import { getBudgetSettings, saveBudgetSettings } from './expense-store';
 import { toLocalDateStr } from './date-utils';
+import { scopedGet, scopedSet, scopedRemove } from './scoped-storage';
 
 const RECOVERY_KEY = 'nutrilens_recovery_mode';
 
@@ -54,12 +55,12 @@ export function applyDecision(choice: 'continue' | 'recover' | 'ignore'): string
       startDate: toLocalDateStr(),
       daysLeft: 3,
     };
-    localStorage.setItem(RECOVERY_KEY, JSON.stringify(recovery));
+    scopedSet(RECOVERY_KEY, JSON.stringify(recovery));
     return 'Recovery mode activated for 3 days. Meals will prioritise budget-friendly options.';
   }
   if (choice === 'ignore') {
     const today = toLocalDateStr();
-    localStorage.setItem('nutrilens_budget_ignored_' + today, 'true');
+    scopedSet('nutrilens_budget_ignored_' + today, 'true');
     return 'Budget tracking paused for today.';
   }
   return 'Continuing with current budget plan.';
@@ -67,7 +68,7 @@ export function applyDecision(choice: 'continue' | 'recover' | 'ignore'): string
 
 export function isRecoveryModeActive(): boolean {
   try {
-    const data = localStorage.getItem(RECOVERY_KEY);
+    const data = scopedGet(RECOVERY_KEY);
     if (!data) return false;
     const recovery = JSON.parse(data);
     if (!recovery.active) return false;
@@ -75,7 +76,7 @@ export function isRecoveryModeActive(): boolean {
     const now = new Date();
     const daysPassed = Math.floor((now.getTime() - start.getTime()) / (86400000));
     if (daysPassed >= recovery.daysLeft) {
-      localStorage.removeItem(RECOVERY_KEY);
+      scopedRemove(RECOVERY_KEY);
       return false;
     }
     return true;
