@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON } from '@/lib/scoped-storage';
 import { getDailyLog, getRecentLogs, getAllLogDates, type MealEntry } from './store';
 
 export interface Expense {
@@ -22,34 +23,33 @@ const BUDGET_KEY = 'nutrilens_budget_settings';
 const MANUAL_EXPENSES_KEY = 'nutrilens_manual_expenses';
 
 export function getBudgetSettings(): BudgetSettings {
-  const data = localStorage.getItem(BUDGET_KEY);
-  if (data) return JSON.parse(data);
+  const data = scopedGet(BUDGET_KEY);
+  if (data) { try { return JSON.parse(data); } catch { /* fall through */ } }
   return { weeklyBudget: 2000, monthlyBudget: 8000, period: 'week', currency: '₹' };
 }
 
 export function saveBudgetSettings(settings: BudgetSettings) {
-  localStorage.setItem(BUDGET_KEY, JSON.stringify(settings));
+  scopedSet(BUDGET_KEY, JSON.stringify(settings));
 }
 
 export function getManualExpenses(): Expense[] {
-  const data = localStorage.getItem(MANUAL_EXPENSES_KEY);
-  return data ? JSON.parse(data) : [];
+  return scopedGetJSON<Expense[]>(MANUAL_EXPENSES_KEY, []);
 }
 
 export function saveManualExpense(expense: Expense) {
   const expenses = getManualExpenses();
   expenses.push(expense);
-  localStorage.setItem(MANUAL_EXPENSES_KEY, JSON.stringify(expenses));
+  scopedSetJSON(MANUAL_EXPENSES_KEY, expenses);
 }
 
 export function deleteManualExpense(id: string) {
   const expenses = getManualExpenses().filter(e => e.id !== id);
-  localStorage.setItem(MANUAL_EXPENSES_KEY, JSON.stringify(expenses));
+  scopedSetJSON(MANUAL_EXPENSES_KEY, expenses);
 }
 
 export function updateManualExpense(id: string, updates: Partial<Expense>) {
   const expenses = getManualExpenses().map(e => e.id === id ? { ...e, ...updates } : e);
-  localStorage.setItem(MANUAL_EXPENSES_KEY, JSON.stringify(expenses));
+  scopedSetJSON(MANUAL_EXPENSES_KEY, expenses);
 }
 
 function mealSourceToCategory(meal: MealEntry): Expense['category'] {

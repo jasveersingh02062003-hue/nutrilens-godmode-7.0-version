@@ -11,9 +11,8 @@ import { restoreLogsFromCloud } from '@/lib/daily-log-sync';
 import { migrateLocalDataToCloud } from '@/lib/cloud-migration';
 import { clearEngineCache } from '@/lib/calorie-correction';
 import { initStorageCleanup } from '@/lib/storage-cleanup';
-import { getBudgetSettings, saveBudgetSettings } from '@/lib/expense-store';
-import { getEnhancedBudgetSettings, saveEnhancedBudgetSettings } from '@/lib/budget-alerts';
-import { getMealPlannerProfile, saveMealPlannerProfile } from '@/lib/meal-planner-store';
+import { profileToDbRow, dbRowToProfile } from '@/lib/profile-mapper';
+import { setScopedUserId } from '@/lib/scoped-storage';
 import type { PCOSCondition } from '@/lib/pcos-score';
 
 // Extended conditions interface
@@ -56,137 +55,12 @@ function syncToCloud(profile: UserProfile) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return;
 
-    // Pack budget settings from their separate localStorage keys into the budget JSON column
-    const budgetSettings = getBudgetSettings();
-    const enhancedBudget = getEnhancedBudgetSettings();
-    const mealPlannerProfile = getMealPlannerProfile();
-    const budgetPayload = {
-      settings: budgetSettings,
-      enhanced: enhancedBudget,
-      mealPlannerProfile: mealPlannerProfile,
-    };
-
-    const row: Record<string, any> = {
-      id: session.user.id,
-      name: profile.name,
-      gender: profile.gender,
-      occupation: profile.occupation,
-      job_type: profile.jobType,
-      work_activity: profile.workActivity,
-      exercise_routine: profile.exerciseRoutine,
-      sleep_hours: profile.sleepHours,
-      stress_level: profile.stressLevel,
-      cooking_habits: profile.cookingHabits,
-      eating_out: profile.eatingOut,
-      caffeine: profile.caffeine,
-      alcohol: profile.alcohol,
-      activity_level: profile.activityLevel,
-      height_cm: profile.heightCm,
-      weight_kg: profile.weightKg,
-      dob: profile.dob,
-      age: profile.age,
-      goal: profile.goal,
-      target_weight: profile.targetWeight,
-      goal_speed: profile.goalSpeed,
-      dietary_prefs: profile.dietaryPrefs,
-      health_conditions: profile.healthConditions,
-      women_health: profile.womenHealth,
-      men_health: profile.menHealth,
-      medications: profile.medications,
-      meal_times: profile.mealTimes,
-      water_goal: profile.waterGoal,
-      onboarding_complete: profile.onboardingComplete,
-      daily_calories: profile.dailyCalories,
-      daily_protein: profile.dailyProtein,
-      daily_carbs: profile.dailyCarbs,
-      daily_fat: profile.dailyFat,
-      bmi: profile.bmi,
-      bmr: profile.bmr,
-      tdee: profile.tdee,
-      // Sync all extended data into JSON columns
-      budget: budgetPayload,
-      conditions: {
-        ...((profile as any).conditions || {}),
-        allergens: profile.allergens || [],
-        skinConcerns: profile.skinConcerns || undefined,
-        travelFrequency: profile.travelFrequency || undefined,
-        kitchenAppliances: profile.kitchenAppliances || undefined,
-        workplaceFacilities: profile.workplaceFacilities || undefined,
-        carriesFood: profile.carriesFood || undefined,
-        livingSituation: profile.livingSituation || undefined,
-      },
-      coach_settings: (profile as unknown as Record<string, unknown>).coachSettings ?? null,
-      learning: (profile as unknown as Record<string, unknown>).learning ?? null,
-      notification_settings: (profile as unknown as Record<string, unknown>).notificationSettings ?? null,
-      join_date: profile.joinDate || null,
-    };
+    const row = profileToDbRow(profile, session.user.id);
     const { error } = await supabase.from('profiles').upsert(row as any);
     if (error) {
       console.error('Profile sync failed:', error);
     }
   }, 2000);
-}
-
-function dbRowToProfile(row: any): UserProfile {
-  // Restore budget settings from cloud to their separate localStorage keys
-  if (row.budget) {
-    if (row.budget.settings) {
-      saveBudgetSettings(row.budget.settings);
-    }
-    if (row.budget.enhanced) {
-      saveEnhancedBudgetSettings(row.budget.enhanced);
-    }
-    if (row.budget.mealPlannerProfile) {
-      saveMealPlannerProfile(row.budget.mealPlannerProfile);
-    }
-  }
-
-  return {
-    name: row.name || '',
-    gender: row.gender || '',
-    occupation: row.occupation || '',
-    jobType: row.job_type || '',
-    workActivity: row.work_activity || '',
-    exerciseRoutine: row.exercise_routine || '',
-    sleepHours: row.sleep_hours || '',
-    stressLevel: row.stress_level || '',
-    cookingHabits: row.cooking_habits || '',
-    eatingOut: row.eating_out || '',
-    caffeine: row.caffeine || '',
-    alcohol: row.alcohol || '',
-    activityLevel: row.activity_level || 'moderate',
-    heightCm: Number(row.height_cm) || 170,
-    weightKg: Number(row.weight_kg) || 70,
-    dob: row.dob || '',
-    age: Number(row.age) || 25,
-    goal: row.goal || 'lose',
-    targetWeight: Number(row.target_weight) || 65,
-    goalSpeed: Number(row.goal_speed) || 0.5,
-    dietaryPrefs: row.dietary_prefs || [],
-    healthConditions: row.health_conditions || [],
-    womenHealth: row.women_health || [],
-    menHealth: row.men_health || {},
-    medications: row.medications || '',
-    mealTimes: row.meal_times || { breakfast: '08:00', lunch: '13:00', dinner: '20:00', snacks: '16:00' },
-    waterGoal: Number(row.water_goal) || 8,
-    onboardingComplete: Boolean(row.onboarding_complete),
-    dailyCalories: Number(row.daily_calories) || 2000,
-    dailyProtein: Number(row.daily_protein) || 75,
-    dailyCarbs: Number(row.daily_carbs) || 250,
-    dailyFat: Number(row.daily_fat) || 65,
-    bmi: Number(row.bmi) || 24,
-    bmr: Number(row.bmr) || 1500,
-    tdee: Number(row.tdee) || 2000,
-    // Restore extended fields from cloud
-    skinConcerns: row.conditions?.skinConcerns || undefined,
-    allergens: row.conditions?.allergens || [],
-    joinDate: row.join_date || undefined,
-    travelFrequency: row.conditions?.travelFrequency || undefined,
-    kitchenAppliances: row.conditions?.kitchenAppliances || undefined,
-    workplaceFacilities: row.conditions?.workplaceFacilities || undefined,
-    carriesFood: row.conditions?.carriesFood || undefined,
-    livingSituation: row.conditions?.livingSituation || undefined,
-  } as UserProfile;
 }
 
 export function UserProfileProvider({ children }: { children: React.ReactNode }) {
@@ -199,6 +73,9 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
     let cancelled = false;
 
     async function loadFromCloud(userId: string) {
+      // Set scoped storage user ID on load
+      setScopedUserId(userId);
+
       try {
         const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
         if (cancelled) return;
@@ -208,13 +85,11 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
         }
 
         if (data) {
-          const cloudProfile = dbRowToProfile(data);
+          const cloudProfile = dbRowToProfile(data as unknown as Record<string, unknown>);
           saveProfile(cloudProfile);
           setProfile(cloudProfile);
           setLoadedUserId(userId);
           setIsLoaded(true);
-          // Restore daily logs in the background
-          // Restore daily logs and migrate localStorage data in background
           restoreLogsFromCloud().catch(() => {});
           migrateLocalDataToCloud().catch(() => {});
           initStorageCleanup();
@@ -246,6 +121,7 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
       } else {
         // Logged out — clear engine caches to prevent stale data
         clearEngineCache();
+        setScopedUserId(null);
         setProfile(null);
         setLoadedUserId(null);
         setIsLoaded(true);
@@ -296,7 +172,7 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
   const updateConditions = useCallback((conditions: Partial<UserConditions>) => {
     setProfile(prev => {
       if (!prev) return prev;
-      const existing = (prev as any).conditions || {};
+      const existing = ((prev as unknown as Record<string, unknown>).conditions as Record<string, unknown>) || {};
       const updated = { ...prev, conditions: { ...existing, ...conditions } };
       saveProfile(updated);
       syncToCloud(updated);
@@ -307,7 +183,7 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
   const updateBudget = useCallback((budget: any) => {
     setProfile(prev => {
       if (!prev) return prev;
-      const existing = (prev as any).budget || {};
+      const existing = ((prev as unknown as Record<string, unknown>).budget as Record<string, unknown>) || {};
       const updated = { ...prev, budget: { ...existing, ...budget } };
       saveProfile(updated);
       syncToCloud(updated);

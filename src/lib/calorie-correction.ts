@@ -8,6 +8,7 @@
 import { getDailyLog, getDailyTotals, getProfile, getRecentLogs, getAllLogDates, type UserProfile, type DailyLog } from '@/lib/store';
 import { getActivePlan, getPlanProgress } from '@/lib/event-plan-service';
 import { getReverseDietTarget } from '@/lib/reverse-diet-service';
+import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON } from '@/lib/scoped-storage';
 
 // ── Types ──
 
@@ -57,10 +58,10 @@ const DEFAULT_PREFS: CorrectionPrefs = {
 
 function loadPrefs(): CorrectionPrefs {
   try {
-    const raw = localStorage.getItem(PREFS_KEY);
+    const raw = scopedGet(PREFS_KEY);
     if (!raw) {
       // Migrate from old BANK_KEY if present
-      const oldRaw = localStorage.getItem('nutrilens_calorie_bank');
+      const oldRaw = scopedGet('nutrilens_calorie_bank');
       if (oldRaw) {
         const old = JSON.parse(oldRaw);
         const prefs: CorrectionPrefs = {
@@ -68,14 +69,14 @@ function loadPrefs(): CorrectionPrefs {
           autoAdjustMeals: old.autoAdjustMeals ?? true,
           dayCutoffHour: old.dayCutoffHour ?? 3,
         };
-        localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+        scopedSet(PREFS_KEY, JSON.stringify(prefs));
         // Migrate frozen targets
         if (old.dailyBalances) {
           const frozen: Record<string, number> = {};
           for (const b of old.dailyBalances) {
             if (b.adjustedTarget && b.date) frozen[b.date] = b.adjustedTarget;
           }
-          localStorage.setItem(FROZEN_TARGETS_KEY, JSON.stringify(frozen));
+          scopedSet(FROZEN_TARGETS_KEY, JSON.stringify(frozen));
         }
         return prefs;
       }
@@ -88,12 +89,12 @@ function loadPrefs(): CorrectionPrefs {
 }
 
 function savePrefs(prefs: CorrectionPrefs): void {
-  localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  scopedSet(PREFS_KEY, JSON.stringify(prefs));
 }
 
 function loadFrozenTargets(): Record<string, number> {
   try {
-    const raw = localStorage.getItem(FROZEN_TARGETS_KEY);
+    const raw = scopedGet(FROZEN_TARGETS_KEY);
     return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
@@ -101,7 +102,7 @@ function loadFrozenTargets(): Record<string, number> {
 }
 
 function saveFrozenTargets(targets: Record<string, number>): void {
-  localStorage.setItem(FROZEN_TARGETS_KEY, JSON.stringify(targets));
+  scopedSet(FROZEN_TARGETS_KEY, JSON.stringify(targets));
 }
 
 // ── Utility ──
@@ -881,14 +882,14 @@ const TRAINING_DAYS_KEY = 'nutrilens_training_days';
 
 function _getTrainingDays(): number[] {
   try {
-    const raw = localStorage.getItem(TRAINING_DAYS_KEY);
+    const raw = scopedGet(TRAINING_DAYS_KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
-  return [1, 2, 3, 4, 5]; // Mon-Fri default
+  return [1, 2, 3, 4, 5];
 }
 
 export function setTrainingDays(days: number[]): void {
-  localStorage.setItem(TRAINING_DAYS_KEY, JSON.stringify(days));
+  scopedSetJSON(TRAINING_DAYS_KEY, days);
 }
 
 export function getTrainingDays(): number[] {
@@ -953,8 +954,8 @@ export function getContextualMealToast(): { type: 'surplus' | 'deficit' | 'walk_
       const ap = getActivePlan();
       if (ap?.planId === 'event_based' && totals.eaten > 200) {
         const nudgeKey = `walk_nudge_${today}_${hour >= 18 ? 'dinner' : 'lunch'}`;
-        if (!localStorage.getItem(nudgeKey)) {
-          localStorage.setItem(nudgeKey, '1');
+        if (!scopedGet(nudgeKey)) {
+          scopedSet(nudgeKey, '1');
           return { type: 'walk_nudge', message: 'Great meal! A 10-min walk now will stabilize blood sugar 🚶' };
         }
       }

@@ -2,6 +2,7 @@
 
 import { getBudgetSummary } from './budget-service';
 import { getBudgetSettings } from './expense-store';
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 
 export interface PerMealBudget {
   breakfast: number;
@@ -26,13 +27,13 @@ export interface EnhancedBudgetSettings {
 const ENHANCED_KEY = 'nutrilens_enhanced_budget';
 
 export function getEnhancedBudgetSettings(): EnhancedBudgetSettings {
-  const data = localStorage.getItem(ENHANCED_KEY);
-  if (data) return JSON.parse(data);
+  const data = scopedGet(ENHANCED_KEY);
+  if (data) { try { return JSON.parse(data); } catch { /* fall through */ } }
   return { perMealBudget: 0, outsideFoodLimit: 0 };
 }
 
 export function saveEnhancedBudgetSettings(settings: EnhancedBudgetSettings) {
-  localStorage.setItem(ENHANCED_KEY, JSON.stringify(settings));
+  scopedSet(ENHANCED_KEY, JSON.stringify(settings));
 }
 
 // ─── Alert types ───

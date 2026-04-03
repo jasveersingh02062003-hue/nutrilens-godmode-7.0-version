@@ -173,11 +173,14 @@ export interface DailyLog {
   journal?: string;
 }
 
+import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON, scopedRemove } from '@/lib/scoped-storage';
+
 const PROFILE_KEY = 'nutrilens_profile';
 const LOG_KEY_PREFIX = 'nutrilens_log_';
 const PHOTOS_KEY = 'nutrilens_progress_photos';
 
 export function getProfile(): UserProfile | null {
+  // Profile stays global — overwritten on login from cloud
   const data = localStorage.getItem(PROFILE_KEY);
   return data ? JSON.parse(data) : null;
 }
@@ -215,24 +218,28 @@ export function toLocalDateKey(d: Date = new Date()): string {
 
 export function getDailyLog(date?: string): DailyLog {
   const key = date || getTodayKey();
-  const data = localStorage.getItem(LOG_KEY_PREFIX + key);
+  const data = scopedGet(LOG_KEY_PREFIX + key);
   const defaultBurned: BurnedData = { steps: 0, stepsCount: 0, activities: [], total: 0 };
   if (data) {
-    const parsed = JSON.parse(data);
-    return {
-      ...parsed,
-      supplements: parsed.supplements || [],
-      burned: parsed.burned || defaultBurned,
-      weight: parsed.weight ?? null,
-      weightUnit: parsed.weightUnit || 'kg',
-      progressPhotoIds: parsed.progressPhotoIds || [],
-    };
+    try {
+      const parsed = JSON.parse(data);
+      return {
+        ...parsed,
+        supplements: parsed.supplements || [],
+        burned: parsed.burned || defaultBurned,
+        weight: parsed.weight ?? null,
+        weightUnit: parsed.weightUnit || 'kg',
+        progressPhotoIds: parsed.progressPhotoIds || [],
+      };
+    } catch {
+      // Corrupted data — return default
+    }
   }
   return { date: key, meals: [], supplements: [], waterCups: 0, caloriesBurned: 0, burned: defaultBurned, weight: null, weightUnit: 'kg', progressPhotoIds: [] };
 }
 
 export function saveDailyLog(log: DailyLog) {
-  localStorage.setItem(LOG_KEY_PREFIX + log.date, JSON.stringify(log));
+  scopedSet(LOG_KEY_PREFIX + log.date, JSON.stringify(log));
   // Fire-and-forget cloud sync
   import('@/lib/daily-log-sync').then(m => m.syncDailyLogToCloud(log)).catch(() => {});
   // Centralized recompute + UI refresh after every mutation
@@ -517,11 +524,23 @@ export function saveJournalNote(date: string, note: string) {
 
 export function getAllLogDates(): string[] {
   const dates: string[] = [];
+  // Scan for both scoped and legacy un-scoped log keys
+  const scopedPrefix = (() => {
+    const { getScopedUserId } = require('@/lib/scoped-storage');
+    const uid = getScopedUserId();
+    return uid ? `u_${uid.slice(0, 8)}_${LOG_KEY_PREFIX}` : null;
+  })();
+
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key?.startsWith(LOG_KEY_PREFIX)) {
+    if (!key) continue;
+    // Check scoped keys first
+    if (scopedPrefix && key.startsWith(scopedPrefix)) {
+      dates.push(key.replace(scopedPrefix, ''));
+    } else if (key.startsWith(LOG_KEY_PREFIX) && !key.startsWith('u_')) {
+      // Legacy un-scoped keys (for migration period)
       dates.push(key.replace(LOG_KEY_PREFIX, ''));
     }
   }
-  return dates;
+  return [...new Set(dates)]; // deduplicate
 }

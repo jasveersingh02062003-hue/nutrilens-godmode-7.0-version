@@ -7,6 +7,7 @@
 import { getProfile, getDailyLog, saveProfile, type UserProfile, getTodayKey } from './store';
 import { getEatingPattern, getBehaviorMemory, type EatingPattern } from './smart-adjustment';
 import { toLocalDateStr } from './date-utils';
+import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON } from '@/lib/scoped-storage';
 
 const BEHAVIOR_STATS_KEY = 'nutrilens_behavior_stats';
 const WEEKLY_ADAPTATION_KEY = 'nutrilens_weekly_adaptation';
@@ -57,14 +58,14 @@ const DEFAULT_STATS: BehaviorStats = {
 
 export function getBehaviorStats(): BehaviorStats {
   try {
-    const data = localStorage.getItem(BEHAVIOR_STATS_KEY);
+    const data = scopedGet(BEHAVIOR_STATS_KEY);
     return data ? { ...DEFAULT_STATS, ...JSON.parse(data) } : DEFAULT_STATS;
   } catch { return DEFAULT_STATS; }
 }
 
 function saveBehaviorStats(stats: BehaviorStats) {
   stats.lastUpdated = new Date().toISOString();
-  localStorage.setItem(BEHAVIOR_STATS_KEY, JSON.stringify(stats));
+  scopedSetJSON(BEHAVIOR_STATS_KEY, stats);
 }
 
 // ── Consistency Score Calculation ──
@@ -178,7 +179,7 @@ export function updateDailyBehaviorStats() {
 
   // ── Budget-aware scoring ──
   const budgetSpent = log.meals.reduce((s, m) => s + (m.cost?.amount || 0), 0);
-  const budgetSettings = (() => { try { return JSON.parse(localStorage.getItem('nutrilens_budget') || '{}'); } catch { return {}; } })();
+  const budgetSettings = (() => { try { return JSON.parse(scopedGet('nutrilens_budget') || '{}'); } catch { return {}; } })();
   const dailyBudget = budgetSettings.dailyBudget || 0;
 
   // Overspend penalty: -10 per overspend day
@@ -248,7 +249,7 @@ export function runWeeklyAdaptation(): { adapted: boolean; changes: string[] } {
   if (stats.daysTracked < 4) return { adapted: false, changes: [] };
 
   // Check if already run this week
-  const lastAdaptation = localStorage.getItem(WEEKLY_ADAPTATION_KEY);
+  const lastAdaptation = scopedGet(WEEKLY_ADAPTATION_KEY);
   const currentWeek = getWeekKey();
   if (lastAdaptation === currentWeek) return { adapted: false, changes: [] };
 
@@ -305,9 +306,9 @@ export function runWeeklyAdaptation(): { adapted: boolean; changes: string[] } {
   pattern.dinner = newSplit.dinner;
   pattern.snacks = newSplit.snacks;
   pattern.lastUpdated = new Date().toISOString();
-  localStorage.setItem('nutrilens_eating_pattern', JSON.stringify(pattern));
+  scopedSetJSON('nutrilens_eating_pattern', pattern);
 
-  localStorage.setItem(WEEKLY_ADAPTATION_KEY, currentWeek);
+  scopedSet(WEEKLY_ADAPTATION_KEY, currentWeek);
 
   return { adapted: changes.length > 0, changes };
 }
