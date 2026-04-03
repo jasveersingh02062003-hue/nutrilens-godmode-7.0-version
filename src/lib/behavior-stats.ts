@@ -7,6 +7,7 @@
 import { getProfile, getDailyLog, saveProfile, type UserProfile, getTodayKey } from './store';
 import { getEatingPattern, getBehaviorMemory, type EatingPattern } from './smart-adjustment';
 import { toLocalDateStr } from './date-utils';
+import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON } from '@/lib/scoped-storage';
 
 const BEHAVIOR_STATS_KEY = 'nutrilens_behavior_stats';
 const WEEKLY_ADAPTATION_KEY = 'nutrilens_weekly_adaptation';
