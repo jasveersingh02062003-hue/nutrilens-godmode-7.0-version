@@ -537,7 +537,6 @@ export function computeAdjustedTarget(
   try {
     const profile = getProfile();
     if (profile?.gym?.goer) {
-      const { isGymDay, getWeeklyConsistency, getGymBonus } = require('@/lib/gym-service');
       if (isGymDay(profile, date)) {
         const consistency = getWeeklyConsistency(profile, date);
         const { bonus, reduceBase } = getGymBonus(profile, consistency, true);
