@@ -1100,7 +1100,52 @@ export default function Onboarding() {
         );
 
       // ── Phase 5: Goal ──
-      case 11:
+      case 11: {
+        return (
+          <div className="space-y-5">
+            <StepHeader title="Do you go to the gym?" subtitle="We'll adjust your calories on workout days." />
+            <div className="space-y-2.5">
+              <Option value="yes" current={f.gymGoer === true ? 'yes' : f.gymGoer === false ? 'no' : ''} label="🏋️ Yes, I go to the gym" sub="We'll track your workouts and adjust nutrition"
+                onSelect={() => set('gymGoer', true)} idx={0} />
+              <Option value="no" current={f.gymGoer === false ? 'no' : f.gymGoer === true ? 'yes' : ''} label="❌ No" sub="No gym tracking needed"
+                onSelect={() => set('gymGoer', false)} idx={1} />
+            </div>
+            {f.gymGoer && (
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+                <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-foreground">Days per week</p>
+                    <p className="text-lg font-mono font-bold text-primary">{f.gymDays}</p>
+                  </div>
+                  <input type="range" min={1} max={7} step={1} value={f.gymDays}
+                    onChange={e => set('gymDays', Number(e.target.value))} className="w-full accent-primary" />
+                </div>
+                <div className="space-y-2.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Workout duration</p>
+                  {[{ v: 30, l: '⏱️ 30 min' }, { v: 45, l: '⏱️ 45 min' }, { v: 60, l: '⏱️ 60+ min' }].map((o, i) => (
+                    <Option key={o.v} value={String(o.v)} current={String(f.gymDuration)} label={o.l} onSelect={v => set('gymDuration', Number(v))} idx={i} />
+                  ))}
+                </div>
+                <div className="space-y-2.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Intensity</p>
+                  {[{ v: 'light', l: '🧘 Light', s: 'Stretching, yoga, walking' }, { v: 'moderate', l: '💪 Moderate', s: 'Weights, calisthenics' }, { v: 'intense', l: '🔥 Intense', s: 'HIIT, heavy lifting' }].map((o, i) => (
+                    <Option key={o.v} value={o.v} current={f.gymIntensity} label={o.l} sub={o.s} onSelect={v => set('gymIntensity', v)} idx={i} />
+                  ))}
+                </div>
+                <div className="space-y-2.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Primary gym goal</p>
+                  {[{ v: 'fat_loss', l: '🔥 Fat Loss' }, { v: 'muscle_gain', l: '💪 Muscle Gain' }, { v: 'general', l: '🏃 General Fitness' }].map((o, i) => (
+                    <Option key={o.v} value={o.v} current={f.gymGoal} label={o.l} onSelect={v => set('gymGoal', v)} idx={i} />
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </div>
+        );
+      }
+
+      // ── Phase 5: Goal ──
+      case 12:
         return (
           <div className="space-y-5">
             <StepHeader title="What's your goal?" subtitle="This determines your calorie target." />
