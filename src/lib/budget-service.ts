@@ -12,6 +12,7 @@ import { toLocalDateStr } from './date-utils';
 import { getEnhancedBudgetSettings } from './budget-alerts';
 import { getUnifiedBudget } from './budget-engine';
 import { foodDatabase } from './pes-engine';
+import { getActivePlan } from './event-plan-service';
 
 export interface BudgetSummary {
   budget: number;
@@ -22,6 +23,8 @@ export interface BudgetSummary {
   currency: string;
   byCategory: Record<string, number>;
   expenses: Expense[];
+  planOverride?: boolean;
+  planBudgetTier?: string;
 }
 
 export function getBudgetSummary(periodOverride?: 'week' | 'month'): BudgetSummary {
@@ -37,15 +40,37 @@ export function getBudgetSummary(periodOverride?: 'week' | 'month'): BudgetSumma
     byCategory[e.category] = (byCategory[e.category] || 0) + e.amount;
   }
 
+  // Plan budget tier override
+  let finalBudget = budget;
+  let planOverride = false;
+  let planBudgetTier: string | undefined;
+  const activePlan = getActivePlan();
+  if (activePlan?.eventSettings?.budgetTier) {
+    const tier = activePlan.eventSettings.budgetTier;
+    planBudgetTier = tier;
+    const dailyCaps: Record<string, number> = { tight: 150, moderate: 250 };
+    if (tier in dailyCaps) {
+      const dailyCap = dailyCaps[tier];
+      const periodDays = period === 'week' ? 7 : 30;
+      const cappedBudget = dailyCap * periodDays;
+      if (cappedBudget < finalBudget) {
+        finalBudget = cappedBudget;
+        planOverride = true;
+      }
+    }
+  }
+
   return {
-    budget,
+    budget: finalBudget,
     spent,
-    remaining: Math.max(0, budget - spent),
-    percentage: budget > 0 ? Math.round((spent / budget) * 100) : 0,
+    remaining: Math.max(0, finalBudget - spent),
+    percentage: finalBudget > 0 ? Math.round((spent / finalBudget) * 100) : 0,
     period,
     currency: settings.currency,
     byCategory,
     expenses,
+    planOverride,
+    planBudgetTier,
   };
 }
 

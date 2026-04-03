@@ -29,6 +29,7 @@ import { checkAllergens, getAllergenLabel, getAllergenEmoji, hasSevereAllergen }
 import { checkFoodForConditions, getUserConditions, type FoodConditionWarning } from '@/lib/condition-coach';
 import { getSugarWarnings, isSugarDetectionActive } from '@/lib/sugar-detector';
 import AnimatedWarningBanner, { type WarningMessage } from '@/components/AnimatedWarningBanner';
+import { getActivePlan, getPlanById } from '@/lib/event-plan-service';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 type Step = 'camera' | 'confirm' | 'edit' | 'save';
@@ -844,7 +845,42 @@ export default function CameraHome() {
               }
             }
 
-            const allMessages = [...allergenMessages, ...condMessages, ...sugarWarnings];
+            // Plan rule violation warnings
+            const planWarnings: WarningMessage[] = [];
+            const activePlan = getActivePlan();
+            if (activePlan) {
+              const planMeta = getPlanById(activePlan.planId);
+              const ruleTexts = (planMeta?.rules || []).map(r => r.toLowerCase());
+              const hasHomeOnly = ruleTexts.some(r => r.includes('home-cooked') || r.includes('home cooked'));
+              const hasNoJunk = ruleTexts.some(r => r.includes('no junk') || r.includes('no processed'));
+
+              // Home-cooked only check
+              if (hasHomeOnly && selectedSource && ['restaurant', 'street_food', 'packaged', 'fast_food'].includes(selectedSource)) {
+                planWarnings.push({
+                  icon: '🎯',
+                  text: `This meal isn't home-cooked — your ${planMeta?.name || 'plan'} requires home-cooked meals`,
+                });
+              }
+
+              // No junk food check
+              if (hasNoJunk) {
+                const junkKeywords = ['pizza', 'burger', 'fries', 'chips', 'soda', 'cola', 'pepsi', 'maggi', 'noodles', 'instant', 'samosa', 'pakora', 'bhatura', 'jalebi', 'gulab jamun', 'cake', 'pastry', 'candy', 'chocolate', 'ice cream', 'fried'];
+                for (const item of activeItems) {
+                  const nameLower = item.name.toLowerCase();
+                  const matchedJunk = junkKeywords.find(k => nameLower.includes(k));
+                  if (matchedJunk) {
+                    planWarnings.push({
+                      icon: '🎯',
+                      text: `${item.name} is flagged as junk food — not allowed in your plan`,
+                      itemId: item.id,
+                      itemName: item.name,
+                    });
+                  }
+                }
+              }
+            }
+
+            const allMessages = [...allergenMessages, ...condMessages, ...sugarWarnings, ...planWarnings];
             if (allMessages.length === 0) return null;
 
             const allMatched = [...new Set(allergenItems.flatMap(item => checkAllergens(item.name, userAllergens).matched))];
@@ -856,19 +892,23 @@ export default function CameraHome() {
             });
 
             const severity = (isSevere || hasHighCondition) ? 'high' as const : 'medium' as const;
+            const hasPlanWarnings = planWarnings.length > 0;
             const type = allergenMessages.length > 0 && condMessages.length > 0 ? 'combined' as const
               : allergenMessages.length > 0 ? 'allergen' as const : 'health' as const;
             const title = isSevere ? '🚨 Severe Allergen Detected'
               : allergenMessages.length > 0 ? '⚠️ Allergen Warning'
-              : hasHighCondition ? '🚨 Health Condition Alert' : '⚠️ Health Advisory';
+              : hasHighCondition ? '🚨 Health Condition Alert'
+              : hasPlanWarnings ? '🎯 Plan Rule Violation'
+              : '⚠️ Health Advisory';
 
             return (
               <AnimatedWarningBanner
                 type={type}
-                severity={severity}
+                severity={hasPlanWarnings && !isSevere && !hasHighCondition ? 'medium' : severity}
                 title={title}
                 messages={allMessages}
                 onRemoveItem={(id) => toggleItemSelection(id)}
+                onFindAlternative={hasPlanWarnings && planWarnings[0]?.itemId ? () => setReplacingItemId(planWarnings[0].itemId!) : undefined}
               />
             );
           })()}
