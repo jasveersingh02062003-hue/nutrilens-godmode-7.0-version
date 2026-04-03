@@ -285,6 +285,11 @@ interface FormState {
   testosteroneConcerns: boolean;
   work: string;
   exercise: string;
+  gymGoer: boolean | null;
+  gymDays: number;
+  gymDuration: number;
+  gymIntensity: string;
+  gymGoal: string;
   goalType: string;
   goalSpeed: string;
   targetWeight: number;
