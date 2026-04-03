@@ -387,7 +387,7 @@ export function getLastAdaptationDate(): string | null {
 }
 
 export function setLastAdaptationDate(date: string) {
-  localStorage.setItem(ADAPTATION_KEY, date);
+  scopedSet(ADAPTATION_KEY, date);
 }
 
 interface AdaptationLogEntry {
@@ -395,15 +395,15 @@ interface AdaptationLogEntry {
 }
 
 function getAdaptationLog(): AdaptationLogEntry[] {
-  const data = localStorage.getItem(ADAPTATION_LOG_KEY);
-  return data ? JSON.parse(data) : [];
+  const data = scopedGet(ADAPTATION_LOG_KEY);
+  return data ? safeJsonParse(data, [] as AdaptationLogEntry[]) : [];
 }
 
 function saveAdaptationEntry(entry: AdaptationLogEntry) {
   const log = getAdaptationLog();
   log.push(entry);
   if (log.length > 12) log.splice(0, log.length - 12);
-  localStorage.setItem(ADAPTATION_LOG_KEY, JSON.stringify(log));
+  scopedSet(ADAPTATION_LOG_KEY, JSON.stringify(log));
 }
 
 export function runWeeklyAdaptation(profile: UserProfile): AdaptiveResult | null {

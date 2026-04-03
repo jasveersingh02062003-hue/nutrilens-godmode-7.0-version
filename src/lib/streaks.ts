@@ -42,9 +42,9 @@ function defaultStreak(): StreakData {
 }
 
 export function getStreaks(): AllStreaks {
-  const data = localStorage.getItem(STREAKS_KEY);
+  const data = scopedGet(STREAKS_KEY);
   if (data) {
-    const parsed = JSON.parse(data);
+    const parsed = safeJsonParse(data, { nutrition: defaultStreak(), hydration: defaultStreak() });
     return {
       nutrition: { ...defaultStreak(), ...parsed.nutrition },
       hydration: { ...defaultStreak(), ...parsed.hydration },
@@ -54,7 +54,7 @@ export function getStreaks(): AllStreaks {
 }
 
 export function saveStreaks(streaks: AllStreaks) {
-  localStorage.setItem(STREAKS_KEY, JSON.stringify(streaks));
+  scopedSet(STREAKS_KEY, JSON.stringify(streaks));
 }
 
 // ─── Date helpers ───

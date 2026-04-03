@@ -137,15 +137,15 @@ export function getEducationContent(goal: string, mealType: string): EducationCo
 // ── Shown flag to prevent duplicates ──
 
 export function wasEducationShown(date: string, mealType: string): boolean {
-  const data = localStorage.getItem(EDUCATION_SHOWN_KEY + date);
+  const data = scopedGet(EDUCATION_SHOWN_KEY + date);
   if (!data) return false;
-  const shown: Record<string, boolean> = JSON.parse(data);
+  const shown: Record<string, boolean> = safeJsonParse(data, {});
   return !!shown[mealType];
 }
 
 export function markEducationShown(date: string, mealType: string) {
-  const data = localStorage.getItem(EDUCATION_SHOWN_KEY + date);
-  const shown: Record<string, boolean> = data ? JSON.parse(data) : {};
+  const data = scopedGet(EDUCATION_SHOWN_KEY + date);
+  const shown: Record<string, boolean> = data ? safeJsonParse(data, {}) : {};
   shown[mealType] = true;
-  localStorage.setItem(EDUCATION_SHOWN_KEY + date, JSON.stringify(shown));
+  scopedSet(EDUCATION_SHOWN_KEY + date, JSON.stringify(shown));
 }
