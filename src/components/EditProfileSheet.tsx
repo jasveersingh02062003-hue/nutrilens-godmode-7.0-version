@@ -96,6 +96,11 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
       setCarriesFood(profile.carriesFood || undefined);
       setLivingSituation(profile.livingSituation || undefined);
       setPhoto(getProfilePhoto());
+      setGymGoer(profile.gym?.goer || false);
+      setGymDays(profile.gym?.daysPerWeek || 3);
+      setGymDuration(profile.gym?.durationMinutes || 45);
+      setGymIntensity(profile.gym?.intensity || 'moderate');
+      setGymGoal(profile.gym?.goal || 'general');
     }
   }, [profile, open]);
 
