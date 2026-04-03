@@ -1449,7 +1449,6 @@ export default function Onboarding() {
             )}
           </div>
         );
-      }
 
       // ── Budget Step ──
       case 23:
