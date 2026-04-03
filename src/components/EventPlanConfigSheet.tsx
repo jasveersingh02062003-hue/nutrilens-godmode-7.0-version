@@ -338,8 +338,8 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
               </motion.div>
             )}
 
-            {/* Step 2: Constraints */}
-            {step === 2 && (
+            {/* Step 3: Constraints */}
+            {step === 3 && (
               <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
                 <div>
                   <p className="text-sm font-semibold text-foreground mb-3">Daily exercise time?</p>
