@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Droplets, Plus } from 'lucide-react';
 
 interface Props {
