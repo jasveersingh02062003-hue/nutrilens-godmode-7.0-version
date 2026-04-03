@@ -44,12 +44,12 @@ export function saveManualExpense(expense: Expense) {
 
 export function deleteManualExpense(id: string) {
   const expenses = getManualExpenses().filter(e => e.id !== id);
-  localStorage.setItem(MANUAL_EXPENSES_KEY, JSON.stringify(expenses));
+  scopedSetJSON(MANUAL_EXPENSES_KEY, expenses);
 }
 
 export function updateManualExpense(id: string, updates: Partial<Expense>) {
   const expenses = getManualExpenses().map(e => e.id === id ? { ...e, ...updates } : e);
-  localStorage.setItem(MANUAL_EXPENSES_KEY, JSON.stringify(expenses));
+  scopedSetJSON(MANUAL_EXPENSES_KEY, expenses);
 }
 
 function mealSourceToCategory(meal: MealEntry): Expense['category'] {

@@ -180,12 +180,11 @@ export function computeAchievementStats(): AchievementStats {
 }
 
 export function getUnlockedBadges(): string[] {
-  const data = localStorage.getItem(UNLOCKED_KEY);
-  return data ? JSON.parse(data) : [];
+  return scopedGetJSON<string[]>(UNLOCKED_KEY, []);
 }
 
 export function saveUnlockedBadges(ids: string[]) {
-  localStorage.setItem(UNLOCKED_KEY, JSON.stringify(ids));
+  scopedSetJSON(UNLOCKED_KEY, ids);
 }
 
 export function checkAndUnlockBadges(stats: AchievementStats): string[] {
