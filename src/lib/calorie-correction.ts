@@ -58,10 +58,10 @@ const DEFAULT_PREFS: CorrectionPrefs = {
 
 function loadPrefs(): CorrectionPrefs {
   try {
-    const raw = localStorage.getItem(PREFS_KEY);
+    const raw = scopedGet(PREFS_KEY);
     if (!raw) {
       // Migrate from old BANK_KEY if present
-      const oldRaw = localStorage.getItem('nutrilens_calorie_bank');
+      const oldRaw = scopedGet('nutrilens_calorie_bank');
       if (oldRaw) {
         const old = JSON.parse(oldRaw);
         const prefs: CorrectionPrefs = {
@@ -69,14 +69,14 @@ function loadPrefs(): CorrectionPrefs {
           autoAdjustMeals: old.autoAdjustMeals ?? true,
           dayCutoffHour: old.dayCutoffHour ?? 3,
         };
-        localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+        scopedSet(PREFS_KEY, JSON.stringify(prefs));
         // Migrate frozen targets
         if (old.dailyBalances) {
           const frozen: Record<string, number> = {};
           for (const b of old.dailyBalances) {
             if (b.adjustedTarget && b.date) frozen[b.date] = b.adjustedTarget;
           }
-          localStorage.setItem(FROZEN_TARGETS_KEY, JSON.stringify(frozen));
+          scopedSet(FROZEN_TARGETS_KEY, JSON.stringify(frozen));
         }
         return prefs;
       }
@@ -89,12 +89,12 @@ function loadPrefs(): CorrectionPrefs {
 }
 
 function savePrefs(prefs: CorrectionPrefs): void {
-  localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  scopedSet(PREFS_KEY, JSON.stringify(prefs));
 }
 
 function loadFrozenTargets(): Record<string, number> {
   try {
-    const raw = localStorage.getItem(FROZEN_TARGETS_KEY);
+    const raw = scopedGet(FROZEN_TARGETS_KEY);
     return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
@@ -102,7 +102,7 @@ function loadFrozenTargets(): Record<string, number> {
 }
 
 function saveFrozenTargets(targets: Record<string, number>): void {
-  localStorage.setItem(FROZEN_TARGETS_KEY, JSON.stringify(targets));
+  scopedSet(FROZEN_TARGETS_KEY, JSON.stringify(targets));
 }
 
 // ── Utility ──
