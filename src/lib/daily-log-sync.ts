@@ -1,6 +1,7 @@
 // Cloud sync service for daily logs — NO date limit
 import { supabase } from '@/integrations/supabase/client';
 import type { DailyLog } from '@/lib/store';
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 
 const LOG_KEY_PREFIX = 'nutrilens_log_';
 
