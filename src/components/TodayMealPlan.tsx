@@ -175,10 +175,22 @@ export default function TodayMealPlan() {
                     <img src={imageUrl} alt={recipe.name} className="w-full h-full object-cover" loading="lazy" />
                   </button>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-xs">{MEAL_EMOJI[meal.mealType]}</span>
                       <p className="font-semibold text-xs text-foreground truncate">{recipe.name}</p>
                       {overBudget && <AlertCircle className="w-3 h-3 text-destructive flex-shrink-0" />}
+                      {(() => {
+                        const enriched = getEnrichedRecipe(recipe);
+                        const hasCooling = enriched.tags.includes('cooling');
+                        const hasPortable = enriched.tags.includes('portable');
+                        const hasNoCook = enriched.tags.includes('no_cook');
+                        const badge = hasNoCook ? '⚡ Zero-cook' : hasPortable ? '🚗 Portable' : hasCooling ? '🌡️ Cooling' : null;
+                        return badge ? (
+                          <span className="text-[9px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                            {badge}
+                          </span>
+                        ) : null;
+                      })()}
                     </div>
                     <div className="flex gap-2 mt-0.5 text-[10px] text-muted-foreground">
                       <span className="flex items-center gap-0.5"><Flame className="w-2.5 h-2.5 text-coral" />{scaled.calories} kcal</span>
