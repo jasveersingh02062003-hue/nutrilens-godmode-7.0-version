@@ -177,6 +177,16 @@ export function getRecipesForMeal(
         // Protein targets for Madhavan
         if (r.protein >= 15) planBonus += 10;
       }
+      // Event-based plan boosts
+      if (activePlan.planId === 'event_based' && activePlan.eventSettings) {
+        const es = activePlan.eventSettings;
+        if (r.protein >= 15) planBonus += 8;
+        if (es.goalType === 'tummy' && r.tags.some(t => ['high_fiber', 'low_bloat'].includes(t.toLowerCase()))) planBonus += 12;
+        if (es.budgetTier === 'tight') planBonus += (r.estimatedCost < 50 ? 10 : 0);
+        // Boost superfoods
+        const superfoods = ['makhana', 'sattu', 'chia', 'oats', 'sprout', 'moong'];
+        if (superfoods.some(s => r.name.toLowerCase().includes(s))) planBonus += 10;
+      }
       if (sugarActive) {
         const sugarCheck = detectSugar(r.name);
         if (sugarCheck.hasSugar) {
