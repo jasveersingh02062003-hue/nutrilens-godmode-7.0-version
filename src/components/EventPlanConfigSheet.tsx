@@ -157,7 +157,7 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
     window.dispatchEvent(new Event('nutrilens:update'));
   };
 
-  const STEPS = ['Event', 'Goal', 'Constraints', 'Extras', 'Summary'];
+  const STEPS = ['Event', 'Why', 'Goal', 'Constraints', 'Extras', 'Summary'];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
