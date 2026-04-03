@@ -38,6 +38,8 @@ import ContextualTipsCard from '@/components/ContextualTipsCard';
 import GymCheckInCard from '@/components/GymCheckInCard';
 import GymConsistencyCard from '@/components/GymConsistencyCard';
 import GymUpsellCard from '@/components/GymUpsellCard';
+import ProteinGapNudgeCard from '@/components/ProteinGapNudgeCard';
+import SupplementUpsellCard from '@/components/SupplementUpsellCard';
 
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import DashboardModals from '@/components/dashboard/DashboardModals';
@@ -193,6 +195,10 @@ export default function Dashboard() {
             <div className="animate-fade-in"><GymUpsellCard /></div>
           </>
         )}
+
+        {/* Supplement Intelligence Cards */}
+        <div className="animate-fade-in"><ProteinGapNudgeCard onApplied={d.refreshLog} /></div>
+        <div className="animate-fade-in"><SupplementUpsellCard /></div>
 
         <div className="animate-slide-up" style={{ animationDelay: '0.03s' }}>
           <NextMealCard profile={d.profile} onRefresh={d.refreshLog} />

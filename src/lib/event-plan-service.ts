@@ -1,7 +1,7 @@
 // Event Plan Service — plan catalog, target calculation, active plan state
 import { scopedGet, scopedSet, scopedRemove, scopedGetJSON, scopedSetJSON } from '@/lib/scoped-storage';
 
-export type PlanType = 'celebrity_transformation' | 'sugar_cut' | 'gym_fat_loss' | 'gym_muscle_gain' | 'gym_optimization' | 'madhavan_21_day' | 'event_based';
+export type PlanType = 'celebrity_transformation' | 'sugar_cut' | 'gym_fat_loss' | 'gym_muscle_gain' | 'gym_optimization' | 'supplement_optimization' | 'madhavan_21_day' | 'event_based';
 export type PlanCategory = 'weight_loss' | 'sugar_free' | 'muscle' | 'gym' | 'circadian' | 'event' | 'all';
 
 export type EventGoalType = 'lose' | 'gain' | 'tummy' | 'shape';
@@ -190,6 +190,21 @@ export const PLAN_CATALOG: PlanMeta[] = [
     reviewCount: 1247,
     rules: ['Workout/rest day calorie split', '2g protein/kg', 'Carb cycling', 'Recovery meals', 'Supplement timing'],
     includes: ['Gram-level macro targets', 'Training day meals', 'Rest day meals', 'Recovery recipes', 'Supplement schedule', 'Weekly auto-adjustments'],
+  },
+  {
+    id: 'supplement_optimization',
+    name: 'Supplement Stack Guide',
+    emoji: '💊⚡',
+    description: 'Optimal timing, stacking advice, dosage calculator, and loading phase guidance for your supplements.',
+    shortBenefit: 'Max supplement results',
+    price: 99,
+    durationOptions: [30, 90],
+    defaultDuration: 30,
+    category: 'gym' as PlanCategory,
+    rating: 4.6,
+    reviewCount: 892,
+    rules: ['Timing optimization', 'Stack synergy guide', 'Loading phases', 'Dosage per body weight'],
+    includes: ['Supplement timing schedule', 'Stacking guide', 'Dosage calculator', 'Loading phase tracker', 'Partner brand discounts'],
   },
   {
     id: 'event_based' as PlanType,

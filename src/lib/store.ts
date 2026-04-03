@@ -72,6 +72,15 @@ export interface UserProfile {
       consistencyPercent: number;
     };
   };
+  supplementPrefs?: {
+    items: Array<{
+      name: string;
+      frequency: 'daily' | 'workout_days' | 'occasional';
+      costPerServing: number;
+      proteinPerServing?: number;
+    }>;
+    stats: { totalCost: number; adherencePercent: number; streak: number };
+  };
 }
 
 export interface FoodItem {
