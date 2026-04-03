@@ -108,7 +108,8 @@ export default function TodayMeals({ log, onRefresh, dayState }: Props) {
             const calPct = target && target.calories > 0 ? Math.min(200, Math.round((totalCal / target.calories) * 100)) : 0;
             const engineStatus = engineSlot?.status || 'pending';
             const isMissed = engineStatus === 'missed';
-            const mealRedistributed = isRedistributed(todayKey, mc.type);
+            const isAutoRedist = !!(engineSlot?.autoRedistributed);
+            const mealRedistributed = isAutoRedist || isRedistributed(todayKey, mc.type);
 
             // Visual state
             const stateInfo = resolveMealVisualState(
@@ -119,12 +120,21 @@ export default function TodayMeals({ log, onRefresh, dayState }: Props) {
               mc.type
             );
 
-            // Received redistributions
+            // Received redistributions from engine
             const receivedFrom: { source: string; calories: number }[] = [];
-            for (const [sourceMeal, info] of Object.entries(allRedistributions)) {
-              for (const alloc of info.allocations) {
-                if (alloc.mealType === mc.type) {
-                  receivedFrom.push({ source: sourceMeal, calories: alloc.addedCalories });
+            if (engineSlot?.receivedFrom) {
+              for (const r of engineSlot.receivedFrom) {
+                const sourceName = r.fromMeal.charAt(0).toUpperCase() + r.fromMeal.slice(1);
+                receivedFrom.push({ source: sourceName, calories: r.addedKcal });
+              }
+            }
+            // Fallback to manual redistribution details if no engine data
+            if (receivedFrom.length === 0) {
+              for (const [sourceMeal, info] of Object.entries(allRedistributions)) {
+                for (const alloc of info.allocations) {
+                  if (alloc.mealType === mc.type) {
+                    receivedFrom.push({ source: sourceMeal, calories: alloc.addedCalories });
+                  }
                 }
               }
             }
