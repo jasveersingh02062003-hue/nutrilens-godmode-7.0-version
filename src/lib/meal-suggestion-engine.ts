@@ -108,7 +108,7 @@ export function getRecipesForMeal(
     }
 
     // Event-based plan filters
-    const eventSettings = (activePlan as Record<string, unknown> | null)?.eventSettings as Record<string, string> | undefined;
+    const eventSettings = (activePlan as unknown as Record<string, unknown>)?.eventSettings as Record<string, string> | undefined;
     if (activePlan?.planId === 'event_based' && eventSettings) {
       const es = eventSettings;
       if (es.cookingTime === 'none' && r.difficulty !== 'beginner') return false;
