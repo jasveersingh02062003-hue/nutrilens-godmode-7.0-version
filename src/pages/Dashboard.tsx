@@ -246,13 +246,20 @@ export default function Dashboard() {
 
         {/* 4. Hydration + Supplements */}
         <div className="flex gap-2 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-          <WaterTrackerCompact cups={d.log.waterCups} goal={d.profile.waterGoal} onAdd={d.handleAddWater} />
+          <WaterTrackerCompact cups={d.log.waterCups} goal={d.profile.waterGoal + (creatineBoost?.extraCups || 0)} onAdd={d.handleAddWater} />
           <SupplementsCompact
             supplements={d.log.supplements || []}
             onAdd={() => { d.setEditingSupplement(null); d.setSheetOpen(true); }}
             onTap={d.handleSupplementTap}
           />
         </div>
+        {creatineBoost && (
+          <div className="px-1 animate-slide-up" style={{ animationDelay: '0.11s' }}>
+            <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 px-3 py-2 text-xs text-blue-400 flex items-center gap-2">
+              💧 {creatineBoost.message}
+            </div>
+          </div>
+        )}
 
         <div className="animate-slide-up" style={{ animationDelay: '0.12s' }}>
           <CaloriesBurnedCard log={d.log} weightKg={d.profile.weightKg} onRefresh={d.refreshLog} />
