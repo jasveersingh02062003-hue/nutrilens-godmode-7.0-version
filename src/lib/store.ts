@@ -174,6 +174,7 @@ export interface DailyLog {
 }
 
 import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON, scopedRemove } from '@/lib/scoped-storage';
+import { syncWeight, syncWater, syncSupplements } from '@/lib/cloud-sync';
 
 const PROFILE_KEY = 'nutrilens_profile';
 const LOG_KEY_PREFIX = 'nutrilens_log_';
@@ -258,16 +259,7 @@ export function logWeight(date: string, weight: number, unit: 'kg' | 'lbs' = 'kg
   log.weightUnit = unit;
   saveDailyLog(log);
   // Fire-and-forget cloud sync to weight_logs
-  import('@/integrations/supabase/client').then(({ supabase }) => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session?.user) return;
-      supabase.from('weight_logs').upsert({
-        user_id: session.user.id, log_date: date, weight, unit,
-      } as any, { onConflict: 'user_id,log_date' } as any).then(({ error }: any) => {
-        if (error) console.error('[store] weight_logs sync failed:', error.message);
-      });
-    });
-  }).catch(() => {});
+  syncWeight(date, weight, unit);
   return log;
 }
 
@@ -297,16 +289,7 @@ export function addWater() {
   log.waterCups += 1;
   saveDailyLog(log);
   // Fire-and-forget cloud sync
-  import('@/integrations/supabase/client').then(({ supabase }) => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session?.user) return;
-      supabase.from('water_logs').upsert({
-        user_id: session.user.id, log_date: log.date, cups: log.waterCups,
-      } as any, { onConflict: 'user_id,log_date' } as any).then(({ error }: any) => {
-        if (error) console.error('[store] water_logs sync failed:', error.message);
-      });
-    });
-  }).catch(() => {});
+  syncWater(log.date, log.waterCups);
   return log;
 }
 
@@ -341,16 +324,7 @@ export function addSupplement(entry: SupplementEntry) {
   log.supplements.push(entry);
   saveDailyLog(log);
   // Fire-and-forget cloud sync
-  import('@/integrations/supabase/client').then(({ supabase }) => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session?.user) return;
-      supabase.from('supplement_logs').upsert({
-        user_id: session.user.id, log_date: log.date, supplements: log.supplements as any,
-      } as any, { onConflict: 'user_id,log_date' } as any).then(({ error }: any) => {
-        if (error) console.error('[store] supplement_logs sync failed:', error.message);
-      });
-    });
-  }).catch(() => {});
+  syncSupplements(log.date, log.supplements || []);
   return log;
 }
 
@@ -439,17 +413,7 @@ export function addWaterForDate(date: string) {
   const log = getDailyLog(date);
   log.waterCups += 1;
   saveDailyLog(log);
-  // Sync to water_logs table
-  import('@/integrations/supabase/client').then(({ supabase }) => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session?.user) return;
-      supabase.from('water_logs').upsert({
-        user_id: session.user.id, log_date: date, cups: log.waterCups,
-      } as any, { onConflict: 'user_id,log_date' } as any).then(({ error }: any) => {
-        if (error) console.error('[store] water_logs sync failed:', error.message);
-      });
-    });
-  }).catch(() => {});
+  syncWater(date, log.waterCups);
   return log;
 }
 
@@ -457,17 +421,7 @@ export function removeWaterForDate(date: string) {
   const log = getDailyLog(date);
   log.waterCups = Math.max(0, log.waterCups - 1);
   saveDailyLog(log);
-  // Sync to water_logs table
-  import('@/integrations/supabase/client').then(({ supabase }) => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session?.user) return;
-      supabase.from('water_logs').upsert({
-        user_id: session.user.id, log_date: date, cups: log.waterCups,
-      } as any, { onConflict: 'user_id,log_date' } as any).then(({ error }: any) => {
-        if (error) console.error('[store] water_logs sync failed:', error.message);
-      });
-    });
-  }).catch(() => {});
+  syncWater(date, log.waterCups);
   return log;
 }
 
@@ -476,17 +430,7 @@ export function addSupplementForDate(date: string, entry: SupplementEntry) {
   log.supplements = log.supplements || [];
   log.supplements.push(entry);
   saveDailyLog(log);
-  // Sync to supplement_logs table
-  import('@/integrations/supabase/client').then(({ supabase }) => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session?.user) return;
-      supabase.from('supplement_logs').upsert({
-        user_id: session.user.id, log_date: date, supplements: log.supplements as any,
-      } as any, { onConflict: 'user_id,log_date' } as any).then(({ error }: any) => {
-        if (error) console.error('[store] supplement_logs sync failed:', error.message);
-      });
-    });
-  }).catch(() => {});
+  syncSupplements(date, log.supplements);
   return log;
 }
 
@@ -494,17 +438,7 @@ export function deleteSupplementFromLog(date: string, id: string) {
   const log = getDailyLog(date);
   log.supplements = (log.supplements || []).filter(s => s.id !== id);
   saveDailyLog(log);
-  // Sync to supplement_logs table
-  import('@/integrations/supabase/client').then(({ supabase }) => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session?.user) return;
-      supabase.from('supplement_logs').upsert({
-        user_id: session.user.id, log_date: date, supplements: log.supplements as any,
-      } as any, { onConflict: 'user_id,log_date' } as any).then(({ error }: any) => {
-        if (error) console.error('[store] supplement_logs sync failed:', error.message);
-      });
-    });
-  }).catch(() => {});
+  syncSupplements(date, log.supplements);
   return log;
 }
 
