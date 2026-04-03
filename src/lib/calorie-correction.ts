@@ -954,8 +954,8 @@ export function getContextualMealToast(): { type: 'surplus' | 'deficit' | 'walk_
       const ap = getActivePlan();
       if (ap?.planId === 'event_based' && totals.eaten > 200) {
         const nudgeKey = `walk_nudge_${today}_${hour >= 18 ? 'dinner' : 'lunch'}`;
-        if (!localStorage.getItem(nudgeKey)) {
-          localStorage.setItem(nudgeKey, '1');
+        if (!scopedGet(nudgeKey)) {
+          scopedSet(nudgeKey, '1');
           return { type: 'walk_nudge', message: 'Great meal! A 10-min walk now will stabilize blood sugar 🚶' };
         }
       }
