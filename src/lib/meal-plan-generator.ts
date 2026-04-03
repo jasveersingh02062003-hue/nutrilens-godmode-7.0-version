@@ -10,6 +10,7 @@ import { aggregateIngredients, formatGrams } from './portion-engine';
 import { computePES, getMealTargetCalories } from './pes-engine';
 import { toLocalDateStr } from './date-utils';
 import { optimizeDayMeals, SlotTarget } from './constraint-optimizer';
+import { getActivePlan } from './event-plan-service';
 
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
