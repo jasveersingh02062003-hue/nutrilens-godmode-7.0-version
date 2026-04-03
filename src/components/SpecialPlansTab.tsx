@@ -221,5 +221,7 @@ export default function SpecialPlansTab() {
       {/* Event Plan Config Sheet */}
       <EventPlanConfigSheet open={eventSheetOpen} onOpenChange={setEventSheetOpen} />
     </div>
+      )}
+    </div>
   );
 }
