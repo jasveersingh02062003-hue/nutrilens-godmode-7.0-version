@@ -24,8 +24,8 @@ export default function ContextualTipsCard({ weather }: Props) {
   const [feedbackGiven, setFeedbackGiven] = useState<Record<string, 'up' | 'down'>>({});
 
   useEffect(() => {
-    setTips(getContextualSuggestions(profile));
-  }, [profile]);
+    setTips(getContextualSuggestions(profile, weather));
+  }, [profile, weather]);
 
   const handleDismiss = (key: string) => {
     dismissContextTip(key);

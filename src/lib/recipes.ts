@@ -96,6 +96,17 @@ function inferContextTags(r: Recipe): string[] {
     tags.push('batch_friendly');
   }
 
+  // Air-fried: recipes mentioning air fryer or roasted snacks
+  const airFriedKw = ['air fry', 'air-fry', 'air fried', 'air-fried', 'roasted makhana', 'roasted chana'];
+  if (airFriedKw.some(k => nameL.includes(k)) || existingTags.includes('air-fried')) {
+    tags.push('air-fried');
+  }
+  // Also infer for grilled/roasted items that work in air fryers
+  const airFryerFriendly = ['tikka', 'grilled', 'roasted'];
+  if (airFryerFriendly.some(k => nameL.includes(k)) && !tags.includes('air-fried')) {
+    tags.push('air-fried');
+  }
+
   return tags;
 }
 
