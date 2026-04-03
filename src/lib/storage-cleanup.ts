@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet, scopedRemove } from "./scoped-storage";
 // ============================================
 // NutriLens AI – localStorage Cleanup Service
 // Prevents quota overflow by pruning old keys.
@@ -39,7 +40,7 @@ export function getLocalStorageUsageBytes(): number {
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (key) {
-      total += key.length + (localStorage.getItem(key)?.length || 0);
+      total += key.length + (scopedGet(key)?.length || 0);
     }
   }
   return total * 2; // UTF-16 = 2 bytes per char
@@ -91,9 +92,9 @@ export function runStorageCleanup(): { deletedKeys: number; freedBytes: number }
   }
 
   for (const key of keysToDelete) {
-    const val = localStorage.getItem(key);
+    const val = scopedGet(key);
     freedBytes += ((key.length + (val?.length || 0)) * 2);
-    localStorage.removeItem(key);
+    scopedRemove(key);
     deletedKeys++;
   }
 
@@ -114,14 +115,14 @@ export function checkStorageHealth(): { healthy: boolean; usageMB: number; warni
 
 /** Run cleanup on app launch — safe to call multiple times */
 export function initStorageCleanup(): void {
-  const lastCleanup = localStorage.getItem('nutrilens_last_cleanup');
+  const lastCleanup = scopedGet('nutrilens_last_cleanup');
   const today = toLocalDateKey();
   
   // Only run once per day
   if (lastCleanup === today) return;
   
   const result = runStorageCleanup();
-  localStorage.setItem('nutrilens_last_cleanup', today);
+  scopedSet('nutrilens_last_cleanup', today);
   
   if (result.deletedKeys > 0) {
     console.log(`[StorageCleanup] Removed ${result.deletedKeys} old keys, freed ~${(result.freedBytes / 1024).toFixed(1)}KB`);
@@ -142,7 +143,7 @@ export function initStorageCleanup(): void {
         if (key.startsWith(prefix)) {
           const date = extractDateFromKey(key);
           if (date && date < cutoffStr) {
-            localStorage.removeItem(key);
+            scopedRemove(key);
           }
           break;
         }

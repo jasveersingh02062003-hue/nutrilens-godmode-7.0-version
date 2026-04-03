@@ -1,3 +1,5 @@
+import { scopedGet, scopedSet } from "./scoped-storage";
+import { safeJsonParse } from "./safe-json";
 // ============================================
 // NutriLens AI – Weather & Context Service
 // ============================================
@@ -127,7 +129,7 @@ function simulateWeather(): WeatherData {
 // Synchronous getter – returns cached or simulated data immediately
 export function getWeather(): WeatherData {
   try {
-    const cached = localStorage.getItem(WEATHER_CACHE_KEY);
+    const cached = scopedGet(WEATHER_CACHE_KEY);
     if (cached) {
       const data: WeatherData = JSON.parse(cached);
       if (Date.now() - data.fetchedAt < CACHE_TTL_MS) {
@@ -137,7 +139,7 @@ export function getWeather(): WeatherData {
     }
   } catch {}
   const weather = simulateWeather();
-  try { localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(weather)); } catch {}
+  try { scopedSet(WEATHER_CACHE_KEY, JSON.stringify(weather)); } catch {}
   return weather;
 }
 
@@ -145,7 +147,7 @@ export function getWeather(): WeatherData {
 export async function fetchLiveWeather(): Promise<WeatherData> {
   // Check cache
   try {
-    const cached = localStorage.getItem(WEATHER_CACHE_KEY);
+    const cached = scopedGet(WEATHER_CACHE_KEY);
     if (cached) {
       const data: WeatherData = JSON.parse(cached);
       if (Date.now() - data.fetchedAt < CACHE_TTL_MS && data.isLive) {
@@ -160,14 +162,14 @@ export async function fetchLiveWeather(): Promise<WeatherData> {
   if (coords) {
     const live = await fetchFromAPI(coords.lat, coords.lon);
     if (live) {
-      try { localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(live)); } catch {}
+      try { scopedSet(WEATHER_CACHE_KEY, JSON.stringify(live)); } catch {}
       return live;
     }
   }
 
   // Fallback to simulation
   const simulated = simulateWeather();
-  try { localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(simulated)); } catch {}
+  try { scopedSet(WEATHER_CACHE_KEY, JSON.stringify(simulated)); } catch {}
   return simulated;
 }
 

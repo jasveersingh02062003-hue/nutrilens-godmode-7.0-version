@@ -1,3 +1,5 @@
+import { scopedGet, scopedSet, scopedRemove } from "./scoped-storage";
+import { safeJsonParse } from "./safe-json";
 // Reverse Diet Service — graduated calorie transition after plan completion
 
 const STORAGE_KEY = 'nutrilens_reverse_diet';
@@ -28,12 +30,12 @@ export function startReverseDiet(newWeight: number, heightCm: number, age: numbe
     ],
     originalPlanId: planId,
   };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  scopedSet(STORAGE_KEY, JSON.stringify(state));
 }
 
 export function getReverseDietState(): ReverseDietState | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = scopedGet(STORAGE_KEY);
     if (!raw) return null;
     const state = JSON.parse(raw) as ReverseDietState;
     if (!state.active) return null;
@@ -73,14 +75,14 @@ export function isReverseDietActive(): boolean {
 }
 
 export function clearReverseDiet(): void {
-  const raw = localStorage.getItem(STORAGE_KEY);
+  const raw = scopedGet(STORAGE_KEY);
   if (raw) {
     try {
       const state = JSON.parse(raw);
       state.active = false;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      scopedSet(STORAGE_KEY, JSON.stringify(state));
     } catch {
-      localStorage.removeItem(STORAGE_KEY);
+      scopedRemove(STORAGE_KEY);
     }
   }
 }
