@@ -141,13 +141,17 @@ export function getRecipesForMeal(
   const todayLog = getDailyLog(getTodayKey());
   const isWorkoutDay = todayLog?.gym?.attended === true;
 
+  // Account for supplement protein already logged today
+  const supplementProteinLogged = (todayLog?.supplements || []).reduce((s, sup) => s + (sup.protein || 0), 0);
+  const adjustedRemainingProtein = remainingProtein ? Math.max(0, remainingProtein - supplementProteinLogged) : remainingProtein;
+
   // Compute rank score using unified PES engine + pantry + plan + weather bonuses
   const scored: SuggestedRecipe[] = filtered.map(r => {
     const allText = [r.name.toLowerCase(), ...r.tags, ...r.ingredients.map(i => i.name.toLowerCase())].join(' ');
     const prefMatches = restrictions.prefer.filter(kw => allText.includes(kw.toLowerCase()));
 
     // Boost protein target by 10% on workout days
-    const effectiveProtein = isWorkoutDay && remainingProtein ? Math.round(remainingProtein * 1.1) : remainingProtein;
+    const effectiveProtein = isWorkoutDay && adjustedRemainingProtein ? Math.round(adjustedRemainingProtein * 1.1) : adjustedRemainingProtein;
 
     const baseScore = computePES(r, {
       targetCalories: remainingCalories,
