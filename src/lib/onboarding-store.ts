@@ -6,6 +6,7 @@ import { calculateBMR } from './nutrition';
 import { getActivityMultiplier, calculateTDEEFromWorkExercise } from './nutrition';
 import { saveBudgetSettings } from './expense-store';
 import type { OnboardingGoalResult } from './goal-engine';
+import { inferSchedule } from './gym-service';
 
 const PROGRESS_KEY = 'nutrilens_onboarding_progress';
 const USER_KEY = 'nutrilens_user';
