@@ -90,9 +90,9 @@ export function dbRowToProfile(row: Record<string, unknown>): UserProfile {
 
   // Restore budget settings from cloud to their separate localStorage keys
   if (budget) {
-    if (budget.settings) saveBudgetSettings(budget.settings);
-    if (budget.enhanced) saveEnhancedBudgetSettings(budget.enhanced as any);
-    if (budget.mealPlannerProfile) saveMealPlannerProfile(budget.mealPlannerProfile as any);
+    if (budget.settings) saveBudgetSettings(budget.settings as Parameters<typeof saveBudgetSettings>[0]);
+    if (budget.enhanced) saveEnhancedBudgetSettings(budget.enhanced as Parameters<typeof saveEnhancedBudgetSettings>[0]);
+    if (budget.mealPlannerProfile) saveMealPlannerProfile(budget.mealPlannerProfile as Parameters<typeof saveMealPlannerProfile>[0]);
   }
 
   return {
