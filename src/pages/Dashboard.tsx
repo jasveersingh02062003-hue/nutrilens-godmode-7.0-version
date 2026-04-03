@@ -504,9 +504,60 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Active Plan Banner — Madhavan gets custom banner */}
-        {getActivePlan()?.planId === 'madhavan_21_day' ? <MadhavanPlanBanner /> : <ActivePlanBanner />}
-        <PlanPromoCard />
+        {/* Active Plan Banner — Madhavan gets custom banner, Event gets countdown */}
+        {(() => {
+          const ap = getActivePlan();
+          if (!ap) return <><ActivePlanBanner /><PlanPromoCard /></>;
+          if (ap.planId === 'madhavan_21_day') return <MadhavanPlanBanner />;
+          if (ap.planId === 'event_based' && ap.eventSettings) {
+            const prog = getPlanProgress();
+            return (
+              <div className="animate-fade-in space-y-3">
+                <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">🎯</span>
+                      <div>
+                        <p className="text-sm font-bold text-foreground">
+                          {prog?.daysLeft ?? 0} days until your {ap.eventSettings.eventType}!
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Day {prog?.dayNumber ?? 1} of {prog?.totalDays ?? ap.duration}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-lg font-bold text-primary">{prog?.percentComplete ?? 0}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                    <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${prog?.percentComplete ?? 0}%` }} />
+                  </div>
+                  <div className="flex gap-2 text-center">
+                    <div className="flex-1 rounded-xl bg-card p-2">
+                      <p className="text-xs font-bold text-foreground">{ap.dailyCalories}</p>
+                      <p className="text-[9px] text-muted-foreground">kcal/day</p>
+                    </div>
+                    <div className="flex-1 rounded-xl bg-card p-2">
+                      <p className="text-xs font-bold text-foreground">{ap.dailyProtein}g</p>
+                      <p className="text-[9px] text-muted-foreground">protein</p>
+                    </div>
+                    <div className="flex-1 rounded-xl bg-card p-2">
+                      <p className="text-xs font-bold text-foreground">{ap.targetWeight} kg</p>
+                      <p className="text-[9px] text-muted-foreground">target</p>
+                    </div>
+                  </div>
+                </div>
+                {/* Boosters */}
+                {ap.eventSettings.boosters.length > 0 && (
+                  <BoostersChecklist activeBoosters={ap.eventSettings.boosters} />
+                )}
+                {/* Activity Tracker */}
+                <ActivityTracker exerciseTime={ap.eventSettings.exerciseTime} />
+              </div>
+            );
+          }
+          return <ActivePlanBanner />;
+        })()}
+        {!getActivePlan() && <PlanPromoCard />}
         <PlanCompletionModal open={showPlanComplete} onClose={() => setShowPlanComplete(false)} />
 
         {/* Reverse Diet Banner */}
