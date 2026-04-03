@@ -619,6 +619,9 @@ export default function Dashboard() {
           <NextMealCard profile={profile} onRefresh={refreshLog} />
         </div>
 
+        {/* Profile Completion Nudge */}
+        <ProfileCompletionNudge onOpenProfile={() => navigate('/profile')} />
+
         {/* Contextual Intelligence Tips */}
         <div className="animate-slide-up" style={{ animationDelay: '0.035s' }}>
           <ContextualTipsCard />
