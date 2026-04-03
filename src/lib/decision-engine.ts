@@ -67,7 +67,7 @@ export function applyDecision(choice: 'continue' | 'recover' | 'ignore'): string
 
 export function isRecoveryModeActive(): boolean {
   try {
-    const data = localStorage.getItem(RECOVERY_KEY);
+    const data = scopedGet(RECOVERY_KEY);
     if (!data) return false;
     const recovery = JSON.parse(data);
     if (!recovery.active) return false;
@@ -75,7 +75,7 @@ export function isRecoveryModeActive(): boolean {
     const now = new Date();
     const daysPassed = Math.floor((now.getTime() - start.getTime()) / (86400000));
     if (daysPassed >= recovery.daysLeft) {
-      localStorage.removeItem(RECOVERY_KEY);
+      scopedRemove(RECOVERY_KEY);
       return false;
     }
     return true;

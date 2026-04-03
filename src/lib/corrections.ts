@@ -19,12 +19,12 @@ export function setAILearningConsent(consent: boolean) {
 }
 
 export function hasAskedConsent(): boolean {
-  return localStorage.getItem(CONSENT_KEY) !== null;
+  return scopedGet(CONSENT_KEY) !== null;
 }
 
 export function getCorrections(): CorrectionRecord[] {
-  const data = localStorage.getItem(CORRECTIONS_KEY);
-  return data ? JSON.parse(data) : [];
+  const data = scopedGet(CORRECTIONS_KEY);
+  return data ? safeJsonParse(data, [] as CorrectionRecord[]) : [];
 }
 
 export function addCorrection(record: CorrectionRecord) {
@@ -32,7 +32,7 @@ export function addCorrection(record: CorrectionRecord) {
   corrections.push(record);
   // Keep only last 200 corrections
   if (corrections.length > 200) corrections.splice(0, corrections.length - 200);
-  localStorage.setItem(CORRECTIONS_KEY, JSON.stringify(corrections));
+  scopedSet(CORRECTIONS_KEY, JSON.stringify(corrections));
 }
 
 export function clearCorrections() {

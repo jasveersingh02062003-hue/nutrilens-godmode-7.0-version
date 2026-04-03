@@ -126,8 +126,9 @@ interface CookingPrefs {
 
 function getCookingPrefs(): CookingPrefs {
   try {
-    return JSON.parse(localStorage.getItem(COOKING_PREFS_KEY) || '{}');
-  } catch {
+    return JSON.parse(scopedGet(COOKING_PREFS_KEY) || '{}');
+  } catch (e) {
+    console.warn('[context-learning] Failed to parse cooking prefs:', e);
     return {};
   }
 }
