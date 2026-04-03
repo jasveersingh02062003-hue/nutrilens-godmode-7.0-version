@@ -845,7 +845,42 @@ export default function CameraHome() {
               }
             }
 
-            const allMessages = [...allergenMessages, ...condMessages, ...sugarWarnings];
+            // Plan rule violation warnings
+            const planWarnings: WarningMessage[] = [];
+            const activePlan = getActivePlan();
+            if (activePlan) {
+              const planMeta = getPlanById(activePlan.planId);
+              const ruleTexts = (planMeta?.rules || []).map(r => r.toLowerCase());
+              const hasHomeOnly = ruleTexts.some(r => r.includes('home-cooked') || r.includes('home cooked'));
+              const hasNoJunk = ruleTexts.some(r => r.includes('no junk') || r.includes('no processed'));
+
+              // Home-cooked only check
+              if (hasHomeOnly && selectedSource && ['restaurant', 'street_food', 'packaged', 'fast_food'].includes(selectedSource)) {
+                planWarnings.push({
+                  icon: '🎯',
+                  text: `This meal isn't home-cooked — your ${planMeta?.name || 'plan'} requires home-cooked meals`,
+                });
+              }
+
+              // No junk food check
+              if (hasNoJunk) {
+                const junkKeywords = ['pizza', 'burger', 'fries', 'chips', 'soda', 'cola', 'pepsi', 'maggi', 'noodles', 'instant', 'samosa', 'pakora', 'bhatura', 'jalebi', 'gulab jamun', 'cake', 'pastry', 'candy', 'chocolate', 'ice cream', 'fried'];
+                for (const item of activeItems) {
+                  const nameLower = item.name.toLowerCase();
+                  const matchedJunk = junkKeywords.find(k => nameLower.includes(k));
+                  if (matchedJunk) {
+                    planWarnings.push({
+                      icon: '🎯',
+                      text: `${item.name} is flagged as junk food — not allowed in your plan`,
+                      itemId: item.id,
+                      itemName: item.name,
+                    });
+                  }
+                }
+              }
+            }
+
+            const allMessages = [...allergenMessages, ...condMessages, ...sugarWarnings, ...planWarnings];
             if (allMessages.length === 0) return null;
 
             const allMatched = [...new Set(allergenItems.flatMap(item => checkAllergens(item.name, userAllergens).matched))];
