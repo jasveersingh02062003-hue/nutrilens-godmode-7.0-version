@@ -123,6 +123,7 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
   };
 
   const handleActivate = () => {
+    const finalMotivation = motivation === 'custom' ? customMotivation : MOTIVATION_OPTIONS.find(m => m.id === motivation)?.label || '';
     const settings: EventPlanSettings = {
       eventType,
       eventDate: eventDate ? format(eventDate, 'yyyy-MM-dd') : format(addDays(new Date(), 30), 'yyyy-MM-dd'),
@@ -133,6 +134,7 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
       budgetTier,
       fastingWindow,
       boosters,
+      motivation: finalMotivation,
     };
 
     setActivePlan({
