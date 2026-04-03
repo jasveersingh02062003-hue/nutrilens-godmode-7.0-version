@@ -26,7 +26,7 @@ export interface OnboardingData {
       testosterone: boolean;
     };
   };
-  activity: { work: string; exercise: string };
+  activity: { work: string; exercise: string; gym?: { goer: boolean; daysPerWeek: number; durationMinutes: number; intensity: string; goal: string } };
   goals: {
     type: string;
     speed: string;
