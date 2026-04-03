@@ -88,7 +88,12 @@ export function useDashboardInit() {
         toast.info(`📅 Exercise carry-forward: +${exerciseCarry.lunch} lunch, +${exerciseCarry.dinner} dinner`);
       }
     }
-    fetchLiveWeather().then(setWeather).catch(() => setWeather(getWeather()));
+    // Weather: check cache first, only fetch if stale
+    const cachedWeather = getWeather();
+    if (cachedWeather) {
+      setWeather(cachedWeather);
+    }
+    fetchLiveWeather().then(w => { if (w) setWeather(w); }).catch(() => {});
     updateDailyBehaviorStats();
     const adaptation = runWeeklyAdaptation();
     if (adaptation.adapted) {
