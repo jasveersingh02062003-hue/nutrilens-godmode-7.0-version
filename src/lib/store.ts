@@ -247,6 +247,7 @@ export function getDailyLog(date?: string): DailyLog {
 
 export function saveDailyLog(log: DailyLog) {
   scopedSet(LOG_KEY_PREFIX + log.date, JSON.stringify(log));
+  _logDatesCache = null; // invalidate cache
   // Fire-and-forget cloud sync
   import('@/lib/daily-log-sync').then(m => m.syncDailyLogToCloud(log)).catch(() => {});
   // Centralized recompute + UI refresh after every mutation
