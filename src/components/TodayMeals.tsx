@@ -277,9 +277,6 @@ export default function TodayMeals({ log, onRefresh, dayState }: Props) {
                           : isMissed
                           ? 'Tap to add your meal'
                           : 'Tap to add your meal'}
-                      </p>
-                          : 'Tap to add your meal'}
-                      </p>
                     </div>
                   )}
                 </div>
