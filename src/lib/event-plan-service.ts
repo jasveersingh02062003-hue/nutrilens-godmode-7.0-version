@@ -1,8 +1,8 @@
 // Event Plan Service — plan catalog, target calculation, active plan state
 import { scopedGet, scopedSet, scopedRemove, scopedGetJSON, scopedSetJSON } from '@/lib/scoped-storage';
 
-export type PlanType = 'celebrity_transformation' | 'sugar_cut' | 'gym_fat_loss' | 'gym_muscle_gain' | 'madhavan_21_day' | 'event_based';
-export type PlanCategory = 'weight_loss' | 'sugar_free' | 'muscle' | 'circadian' | 'event' | 'all';
+export type PlanType = 'celebrity_transformation' | 'sugar_cut' | 'gym_fat_loss' | 'gym_muscle_gain' | 'gym_optimization' | 'madhavan_21_day' | 'event_based';
+export type PlanCategory = 'weight_loss' | 'sugar_free' | 'muscle' | 'gym' | 'circadian' | 'event' | 'all';
 
 export type EventGoalType = 'lose' | 'gain' | 'tummy' | 'shape';
 export type ExerciseTime = 'none' | '10min' | '30min' | '1hour';
@@ -123,7 +123,7 @@ export const PLAN_CATALOG: PlanMeta[] = [
     price: 699,
     durationOptions: [14, 21, 30],
     defaultDuration: 21,
-    category: 'weight_loss',
+    category: 'gym',
     rating: 4.7,
     reviewCount: 956,
     rules: ['2g protein/kg bodyweight', 'Moderate carbs around workouts', 'Low fat', 'Pre & post workout meals'],
@@ -138,7 +138,7 @@ export const PLAN_CATALOG: PlanMeta[] = [
     price: 699,
     durationOptions: [21, 30, 60],
     defaultDuration: 30,
-    category: 'muscle',
+    category: 'gym',
     rating: 4.5,
     reviewCount: 678,
     rules: ['Caloric surplus 300-500 kcal', '2g protein/kg', 'High carb on training days', 'Moderate fat'],
@@ -175,6 +175,21 @@ export const PLAN_CATALOG: PlanMeta[] = [
       'Progress tracking',
       'PDF export',
     ],
+  },
+  {
+    id: 'gym_optimization',
+    name: 'Gym Optimization Plan',
+    emoji: '⚡💪',
+    description: 'Exact macros for workout & rest days, recovery meals, supplement timing. Built for serious gym-goers.',
+    shortBenefit: 'Max gym results',
+    price: 199,
+    durationOptions: [30, 90],
+    defaultDuration: 30,
+    category: 'gym',
+    rating: 4.8,
+    reviewCount: 1247,
+    rules: ['Workout/rest day calorie split', '2g protein/kg', 'Carb cycling', 'Recovery meals', 'Supplement timing'],
+    includes: ['Gram-level macro targets', 'Training day meals', 'Rest day meals', 'Recovery recipes', 'Supplement schedule', 'Weekly auto-adjustments'],
   },
   {
     id: 'event_based' as PlanType,
