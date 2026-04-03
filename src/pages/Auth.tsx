@@ -102,7 +102,7 @@ const Auth = function Auth() {
 
 
   return (
-    <div ref={ref} className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       <AnimatePresence mode="wait">
         {mode === 'welcome' && (
           <motion.div key="welcome" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col">
