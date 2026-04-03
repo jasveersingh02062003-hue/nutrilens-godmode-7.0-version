@@ -618,6 +618,11 @@ export default function Dashboard() {
           <NextMealCard profile={profile} onRefresh={refreshLog} />
         </div>
 
+        {/* Contextual Intelligence Tips */}
+        <div className="animate-slide-up" style={{ animationDelay: '0.035s' }}>
+          <ContextualTipsCard />
+        </div>
+
         {/* 3. Macros */}
         <div className="flex gap-2 animate-slide-up">
           <MacroCard label="Protein" current={totals.protein} goal={getProteinTarget(profile)} variant="coral" icon="protein" />
