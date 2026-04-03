@@ -29,6 +29,7 @@ import { checkAllergens, getAllergenLabel, getAllergenEmoji, hasSevereAllergen }
 import { checkFoodForConditions, getUserConditions, type FoodConditionWarning } from '@/lib/condition-coach';
 import { getSugarWarnings, isSugarDetectionActive } from '@/lib/sugar-detector';
 import AnimatedWarningBanner, { type WarningMessage } from '@/components/AnimatedWarningBanner';
+import { getActivePlan, getPlanById } from '@/lib/event-plan-service';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 type Step = 'camera' | 'confirm' | 'edit' | 'save';
