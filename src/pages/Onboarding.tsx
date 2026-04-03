@@ -1161,7 +1161,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 12:
+      case 13:
         return (
           <div className="space-y-5">
             <StepHeader title="How fast?" subtitle={`Choose your ${f.goalType === 'lose' ? 'fat loss' : 'weight gain'} pace.`} />
