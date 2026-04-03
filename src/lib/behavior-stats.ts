@@ -306,9 +306,9 @@ export function runWeeklyAdaptation(): { adapted: boolean; changes: string[] } {
   pattern.dinner = newSplit.dinner;
   pattern.snacks = newSplit.snacks;
   pattern.lastUpdated = new Date().toISOString();
-  localStorage.setItem('nutrilens_eating_pattern', JSON.stringify(pattern));
+  scopedSetJSON('nutrilens_eating_pattern', pattern);
 
-  localStorage.setItem(WEEKLY_ADAPTATION_KEY, currentWeek);
+  scopedSet(WEEKLY_ADAPTATION_KEY, currentWeek);
 
   return { adapted: changes.length > 0, changes };
 }
