@@ -23,8 +23,7 @@ export interface BloodReport {
 }
 
 export function getBloodReports(): BloodReport[] {
-  const data = localStorage.getItem(BLOOD_REPORT_KEY);
-  return data ? JSON.parse(data) : [];
+  return scopedGetJSON<BloodReport[]>(BLOOD_REPORT_KEY, []);
 }
 
 export function getLatestBloodReport(): BloodReport | null {
@@ -35,13 +34,12 @@ export function getLatestBloodReport(): BloodReport | null {
 export function saveBloodReport(report: BloodReport) {
   const reports = getBloodReports().filter(r => r.id !== report.id);
   reports.unshift(report);
-  // Keep last 10 reports
-  localStorage.setItem(BLOOD_REPORT_KEY, JSON.stringify(reports.slice(0, 10)));
+  scopedSetJSON(BLOOD_REPORT_KEY, reports.slice(0, 10));
 }
 
 export function deleteBloodReport(id: string) {
   const reports = getBloodReports().filter(r => r.id !== id);
-  localStorage.setItem(BLOOD_REPORT_KEY, JSON.stringify(reports));
+  scopedSetJSON(BLOOD_REPORT_KEY, reports);
 }
 
 // ── Deficiency Detection ──
