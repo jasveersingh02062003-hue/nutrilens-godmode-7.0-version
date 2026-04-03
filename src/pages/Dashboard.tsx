@@ -142,7 +142,7 @@ export default function Dashboard() {
       }
     }
     // Fetch live weather
-    fetchLiveWeather().then(setWeather).catch(() => {});
+    fetchLiveWeather().then(setWeather).catch(() => setWeather(getWeather()));
     // Update behavioral stats & run weekly adaptation
     updateDailyBehaviorStats();
     const adaptation = runWeeklyAdaptation();
