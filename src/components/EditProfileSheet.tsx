@@ -67,6 +67,12 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
   const [carriesFood, setCarriesFood] = useState<UserProfile['carriesFood']>(undefined);
   const [livingSituation, setLivingSituation] = useState<UserProfile['livingSituation']>(undefined);
   const [lifestyleOpen, setLifestyleOpen] = useState(false);
+  const [gymOpen, setGymOpen] = useState(false);
+  const [gymGoer, setGymGoer] = useState(false);
+  const [gymDays, setGymDays] = useState(3);
+  const [gymDuration, setGymDuration] = useState(45);
+  const [gymIntensity, setGymIntensity] = useState<'light' | 'moderate' | 'intense'>('moderate');
+  const [gymGoal, setGymGoal] = useState<'fat_loss' | 'muscle_gain' | 'general'>('general');
 
   useEffect(() => {
     if (profile && open) {
