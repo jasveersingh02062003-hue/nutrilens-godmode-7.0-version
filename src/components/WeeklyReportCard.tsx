@@ -8,7 +8,7 @@ import { getUserConditions } from '@/lib/condition-coach';
 import { getSourceEmoji, getSourceLabel } from '@/lib/context-learning';
 import type { MealSourceCategory } from '@/lib/store';
 
-export default function WeeklyReportCard() {
+export default memo(function WeeklyReportCard() {
   const [dismissed, setDismissed] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const profile = getProfile();
