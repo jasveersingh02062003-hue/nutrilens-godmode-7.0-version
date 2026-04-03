@@ -3,6 +3,8 @@
 // ============================================
 // CRUD for blood reports + integration with health scoring.
 
+import { scopedGetJSON, scopedSetJSON } from '@/lib/scoped-storage';
+
 const BLOOD_REPORT_KEY = 'nutrilens_blood_reports';
 
 export interface BloodReport {
