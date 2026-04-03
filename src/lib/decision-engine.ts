@@ -3,6 +3,7 @@
 import { getBudgetSummary, getDaysRemainingInPeriod, getAdjustedDailyBudget } from './budget-service';
 import { getBudgetSettings, saveBudgetSettings } from './expense-store';
 import { toLocalDateStr } from './date-utils';
+import { scopedGet, scopedRemove } from './scoped-storage';
 
 const RECOVERY_KEY = 'nutrilens_recovery_mode';
 

@@ -2,6 +2,7 @@
 // NutriLens AI – Context Learning Service
 // ============================================
 // Learns user patterns to suggest smart defaults for meal context.
+import { scopedGet, scopedSet } from './scoped-storage';
 
 import { getRecentLogs, type MealSourceCategory, type CookingMethod } from './store';
 
