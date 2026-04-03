@@ -276,7 +276,8 @@ export default function TodayMeals({ log, onRefresh, dayState }: Props) {
                           ? 'Auto-redistributed · Tap to view details'
                           : isMissed
                           ? 'Tap to add your meal'
-                          : 'Tap to add your meal'}
+                           : 'Tap to add your meal'}
+                      </p>
                     </div>
                   )}
                 </div>
