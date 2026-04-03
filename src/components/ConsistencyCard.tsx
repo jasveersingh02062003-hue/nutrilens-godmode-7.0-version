@@ -8,7 +8,7 @@ interface Props {
   refreshKey?: number;
 }
 
-export default function ConsistencyCard({ refreshKey }: Props) {
+export default memo(function ConsistencyCard({ refreshKey }: Props) {
   const streaks = useMemo(() => {
     checkStreakBreaks();
     return getStreaks();
