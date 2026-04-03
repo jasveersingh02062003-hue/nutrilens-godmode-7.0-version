@@ -76,6 +76,7 @@ export interface PlanTargets {
 }
 
 const STORAGE_KEY = 'nutrilens_active_plan';
+const HISTORY_KEY = 'nutrilens_plan_history';
 const KCAL_PER_KG = 7700;
 const MIN_CALORIES = 1200;
 const MAX_WEEKLY_LOSS = 1; // kg
