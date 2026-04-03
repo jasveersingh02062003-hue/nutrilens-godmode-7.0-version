@@ -6,7 +6,7 @@
 // Includes feedback system + tiered cooldowns.
 
 import { UserProfile, getDailyLog, getDailyTotals, getTodayKey } from './store';
-import { getWeather } from './weather-service';
+import { getWeather, type WeatherData } from './weather-service';
 
 // ── Types ──
 
@@ -24,6 +24,7 @@ export interface ContextSuggestion {
 
 const DISMISS_STORE = 'nutrilens_context_dismissed';
 const FEEDBACK_STORE = 'nutrilens_context_feedback';
+const MAX_DISMISS_ENTRIES = 200;
 
 function getDismissed(): Record<string, number> {
   try { return JSON.parse(localStorage.getItem(DISMISS_STORE) || '{}'); } catch { return {}; }
@@ -32,6 +33,13 @@ function getDismissed(): Record<string, number> {
 export function dismissContextTip(key: string) {
   const d = getDismissed();
   d[key] = Date.now();
+  // #10 — Cap dismiss store: prune oldest entries if over limit
+  const keys = Object.keys(d);
+  if (keys.length > MAX_DISMISS_ENTRIES) {
+    const sorted = keys.sort((a, b) => d[a] - d[b]);
+    const toRemove = sorted.slice(0, keys.length - MAX_DISMISS_ENTRIES);
+    for (const k of toRemove) delete d[k];
+  }
   localStorage.setItem(DISMISS_STORE, JSON.stringify(d));
 }
 
@@ -70,12 +78,13 @@ function isSuppressed(baseKey: string): boolean {
 }
 
 // ── Main engine ──
+// #6 — Accept optional weather param to avoid stale data on first load
 
-export function getContextualSuggestions(profile: UserProfile | null): ContextSuggestion[] {
+export function getContextualSuggestions(profile: UserProfile | null, weather?: WeatherData): ContextSuggestion[] {
   if (!profile) return [];
 
   const suggestions: ContextSuggestion[] = [];
-  const weather = getWeather();
+  const w = weather || getWeather();
   const todayLog = getDailyLog(getTodayKey());
   const lastMeal = todayLog.meals.length > 0 ? todayLog.meals[todayLog.meals.length - 1] : null;
   const hour = new Date().getHours();
@@ -90,6 +99,7 @@ export function getContextualSuggestions(profile: UserProfile | null): ContextSu
   const workFacilities: string[] = profile.workplaceFacilities || [];
   const kitchenApps: string[] = profile.kitchenAppliances || [];
   const living = profile.livingSituation || '';
+  const cookingHabits = (profile.cookingHabits || '').toLowerCase();
 
   const isPhysical = jt === 'physical' || jt === 'field' || wa === 'heavy' || wa === 'very_active' ||
     ['driver', 'labourer', 'labor', 'construction', 'delivery', 'farmer'].some(k => occ.includes(k));
@@ -105,9 +115,9 @@ export function getContextualSuggestions(profile: UserProfile | null): ContextSu
   if (isPhysical) {
     suggestions.push({
       type: 'meal_idea', icon: '💪',
-      text: 'Your job burns a lot of energy — pack high-protein, slow-digesting meals like soya wrap, eggs, dal rice',
+      text: 'Your job burns a lot of energy — pack high-protein, slow-digesting meals like egg bhurji, dal rice, paratha',
       explanation: 'Physical jobs burn 2-3x more calories. Sustained energy from protein + complex carbs prevents mid-shift fatigue.',
-      priority: 75, recipes: ['soya_wrap', 'egg_bhurji', 'dal_rice'], dismissKey: 'ctx_physical_job',
+      priority: 75, recipes: ['egg-bhurji-roti', 'dal-rice', 'paratha-curd'], dismissKey: 'ctx_physical_job',
     });
   }
 
@@ -116,7 +126,7 @@ export function getContextualSuggestions(profile: UserProfile | null): ContextSu
       type: 'wellness', icon: '🧘',
       text: 'Afternoon slump? Take a 5-min stretch break. A light snack like makhana or green tea can help',
       explanation: 'Desk workers experience energy dips post-lunch. Movement + light snacks stabilize blood sugar.',
-      priority: 35, recipes: ['makhana_roast', 'green_tea'], dismissKey: 'ctx_desk_slump',
+      priority: 35, recipes: ['roasted-makhana'], dismissKey: 'ctx_desk_slump',
     });
   }
 
@@ -125,7 +135,7 @@ export function getContextualSuggestions(profile: UserProfile | null): ContextSu
       type: 'meal_prep', icon: '🚗',
       text: 'No-fridge meals for travel: wraps, boiled eggs, makhana, roasted chana, sprouts box',
       explanation: 'Frequent travelers often miss meals or grab junk. These options are portable and nutrient-dense.',
-      priority: 65, recipes: ['soya_wrap', 'sprout_chaat', 'makhana_roast'], dismissKey: 'ctx_travel_meals',
+      priority: 65, recipes: ['chicken-wrap', 'sprout-chaat', 'roasted-makhana'], dismissKey: 'ctx_travel_meals',
     });
   }
 
@@ -147,47 +157,44 @@ export function getContextualSuggestions(profile: UserProfile | null): ContextSu
     });
   }
 
-  // Workplace facilities
-  if (workFacilities.length > 0 && !workFacilities.includes('microwave')) {
+  // #5 — Workplace facilities: also trigger if cooking = none (proxy for no facilities)
+  if ((workFacilities.length > 0 && !workFacilities.includes('microwave')) ||
+      (workFacilities.length === 0 && cookingHabits === 'none')) {
     suggestions.push({
       type: 'meal_prep', icon: '❄️',
       text: 'No microwave at work? Try no-reheat meals: wraps, curd rice, salads, boiled eggs',
       explanation: 'Without reheating, you need meals that taste good at room temp. These are designed for that.',
-      priority: 45, recipes: ['curd_rice', 'veg_wrap', 'sprout_salad'], dismissKey: 'ctx_no_microwave',
+      priority: 45, recipes: ['curd-rice', 'chicken-wrap', 'sprout-chaat'], dismissKey: 'ctx_no_microwave',
     });
   }
 
   // #11 — Kitchen appliances
-  if (kitchenApps.length > 0 && !kitchenApps.includes('oven')) {
-    // Don't suggest oven recipes
-  }
   if (kitchenApps.length > 0 && kitchenApps.includes('air_fryer')) {
     suggestions.push({
       type: 'meal_idea', icon: '🍟',
       text: 'You have an air fryer! Try oil-free snacks: roasted makhana, paneer tikka, grilled sandwich',
       explanation: 'Air fryers reduce oil by 80%. Perfect for crispy snacks without the calories.',
-      priority: 32, recipes: ['roasted_makhana', 'paneer_tikka', 'grilled_sandwich'], dismissKey: 'ctx_air_fryer',
+      priority: 32, recipes: ['roasted-makhana', 'paneer-tikka', 'grilled-sandwich'], dismissKey: 'ctx_air_fryer',
     });
   }
 
   // Cooking habits
-  const cookingHabits = (profile.cookingHabits || '').toLowerCase();
   if (cookingHabits === 'none' || cookingHabits === 'minimal') {
     suggestions.push({
       type: 'meal_idea', icon: '⚡',
       text: 'Zero-cook meals: curd + muesli, fruit bowl with nuts, sprout chaat, banana shake',
       explanation: 'You prefer minimal cooking. These require no stove time and still deliver balanced nutrition.',
-      priority: 50, recipes: ['muesli_curd', 'fruit_bowl', 'sprout_chaat'], dismissKey: 'ctx_no_cook',
+      priority: 50, recipes: ['fruit-yogurt', 'sprout-chaat', 'overnight-oats'], dismissKey: 'ctx_no_cook',
     });
   }
 
-  // #10 — Living situation
+  // #8 + #10 — Living situation (including 'shared')
   if (living === 'alone') {
     suggestions.push({
       type: 'meal_prep', icon: '🏠',
       text: 'Living alone? Single-serving recipes save food waste — try chilla, egg bhurji, or overnight oats',
       explanation: 'Cooking for one often leads to waste. These recipes are perfectly portioned for a single serving.',
-      priority: 30, recipes: ['moong_dal_chilla', 'egg_bhurji', 'overnight_oats'], dismissKey: 'ctx_living_alone',
+      priority: 30, recipes: ['moong-dal-chilla', 'egg-bhurji-roti', 'overnight-oats'], dismissKey: 'ctx_living_alone',
     });
   }
   if (living === 'family') {
@@ -195,25 +202,30 @@ export function getContextualSuggestions(profile: UserProfile | null): ContextSu
       type: 'meal_prep', icon: '👨‍👩‍👧‍👦',
       text: 'Cooking for family? Batch recipes like dal, khichdi, and sabzi save time and money',
       explanation: 'Family cooking is efficient when batch-prepared. These recipes scale well and taste great reheated.',
-      priority: 28, recipes: ['dal_rice', 'khichdi', 'aloo_gobi'], dismissKey: 'ctx_family_cooking',
+      priority: 28, recipes: ['dal-rice', 'khichdi', 'aloo-gobi'], dismissKey: 'ctx_family_cooking',
+    });
+  }
+  if (living === 'shared') {
+    suggestions.push({
+      type: 'meal_prep', icon: '🏘️',
+      text: 'Shared kitchen? Quick, self-contained meals avoid conflicts — try wraps, overnight oats, or chilla',
+      explanation: 'In shared living, minimal kitchen time is a plus. These need just 5-10 minutes and one pan.',
+      priority: 28, recipes: ['chicken-wrap', 'overnight-oats', 'moong-dal-chilla'], dismissKey: 'ctx_shared_living',
     });
   }
 
-  // ─── Weather & Season (#8 — skip weather tips if type conflicts with WeatherNudgeCard) ───
+  // ─── Weather & Season (#8 — skip weather tips that overlap with WeatherNudgeCard) ───
 
-  const temp = weather.temperature;
-  const season = weather.season;
+  const temp = w.temperature;
+  const season = w.season;
 
   // Only show weather tips that are ACTIONABLE (food suggestions), not generic hydration
-  // The WeatherNudgeCard already handles hydration/weather awareness
-  // We focus on meal-specific suggestions here
-
   if ((temp > 34 || season === 'summer') && hour >= 11 && hour <= 14) {
     suggestions.push({
       type: 'food_suggestion', icon: '🌡️',
       text: `${temp}°C today — cool down with cucumber raita, watermelon, or buttermilk with lunch`,
       explanation: 'High temperatures increase sweat loss. Adding cooling sides to meals prevents dehydration.',
-      priority: 62, recipes: ['cucumber_raita', 'buttermilk', 'watermelon_salad'],
+      priority: 62, recipes: ['fruit-yogurt', 'curd-rice'],
       dismissKey: `ctx_hot_food_${getTodayKey()}`,
     });
   }
@@ -223,7 +235,7 @@ export function getContextualSuggestions(profile: UserProfile | null): ContextSu
       type: 'food_suggestion', icon: '🧣',
       text: 'Cold evening — warm up with ginger tea, soup, or dal for dinner',
       explanation: 'Cold weather increases calorie burn. Warming foods improve circulation and immunity.',
-      priority: 50, recipes: ['ginger_tea', 'dal_soup', 'gajar_halwa'],
+      priority: 50, recipes: ['dal-fry', 'khichdi'],
       dismissKey: `ctx_cold_food_${getTodayKey()}`,
     });
   }
@@ -233,7 +245,7 @@ export function getContextualSuggestions(profile: UserProfile | null): ContextSu
       type: 'food_suggestion', icon: '🌧️',
       text: 'Monsoon immunity boost — turmeric milk, ginger tea, light cooked meals. Avoid raw salads',
       explanation: 'Monsoon weakens digestive fire (Agni). Raw foods increase bacterial risk. Warm, cooked meals are safer.',
-      priority: 55, recipes: ['haldi_doodh', 'moong_khichdi', 'ginger_tea'],
+      priority: 55, recipes: ['khichdi', 'masala-oats'],
       dismissKey: `ctx_monsoon_${getTodayKey()}`,
     });
   }
@@ -245,7 +257,7 @@ export function getContextualSuggestions(profile: UserProfile | null): ContextSu
       type: 'next_meal', icon: '🍽️',
       text: 'Your last meal was heavy. Consider a light dinner — soup, salad, or curd rice',
       explanation: `Your last meal was ${lastMeal.totalCalories} kcal. A lighter next meal keeps you within your daily target.`,
-      priority: 62, recipes: ['tomato_soup', 'green_salad', 'curd_rice'],
+      priority: 62, recipes: ['curd-rice', 'greek-salad'],
       dismissKey: `ctx_heavy_meal_${getTodayKey()}`,
     });
   }
@@ -255,7 +267,7 @@ export function getContextualSuggestions(profile: UserProfile | null): ContextSu
       type: 'next_meal', icon: '🥚',
       text: 'You ate very little last time — add a protein-rich snack like eggs, paneer, or nuts',
       explanation: 'Under-eating leads to energy crashes and overeating later. A protein snack stabilizes blood sugar.',
-      priority: 55, recipes: ['boiled_eggs', 'paneer_tikka', 'mixed_nuts'],
+      priority: 55, recipes: ['paneer-tikka', 'banana-peanut-butter'],
       dismissKey: `ctx_light_meal_${getTodayKey()}`,
     });
   }
@@ -279,7 +291,7 @@ export function getContextualSuggestions(profile: UserProfile | null): ContextSu
       type: 'wellness', icon: '😌',
       text: 'High stress? Calming foods: bananas, oats, dark chocolate, walnuts (rich in magnesium)',
       explanation: 'Stress depletes magnesium. These foods replenish it and support serotonin production.',
-      priority: 52, recipes: ['banana_oat_smoothie', 'dark_choc_walnut'], dismissKey: 'ctx_stress',
+      priority: 52, recipes: ['oatmeal-banana', 'banana-peanut-butter'], dismissKey: 'ctx_stress',
     });
   }
 

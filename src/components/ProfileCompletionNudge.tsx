@@ -7,16 +7,18 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Briefcase, ChevronRight } from 'lucide-react';
 import { useUserProfile } from '@/contexts/UserProfileContext';
+import { supabase } from '@/integrations/supabase/client';
 
-const NUDGE_KEY = 'nutrilens_profile_nudge_dismissed';
+const NUDGE_PREFIX = 'nutrilens_profile_nudge_dismissed_';
 
 interface Props {
   onOpenProfile: () => void;
 }
 
 export default function ProfileCompletionNudge({ onOpenProfile }: Props) {
-  const { profile } = useUserProfile();
-  const [dismissed, setDismissed] = useState(() => localStorage.getItem(NUDGE_KEY) === 'true');
+  const { profile, loadedUserId } = useUserProfile();
+  const nudgeKey = `${NUDGE_PREFIX}${loadedUserId || 'anon'}`;
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem(nudgeKey) === 'true');
 
   if (dismissed || !profile) return null;
 
@@ -27,7 +29,7 @@ export default function ProfileCompletionNudge({ onOpenProfile }: Props) {
   if (hasLifestyle) return null;
 
   const handleDismiss = () => {
-    localStorage.setItem(NUDGE_KEY, 'true');
+    localStorage.setItem(nudgeKey, 'true');
     setDismissed(true);
   };
 

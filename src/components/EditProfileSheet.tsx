@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Camera, User, Ruler, Scale, Target, Activity, Heart, Apple, ChefHat, Save, Shield, Briefcase, ChevronDown, ChevronUp } from 'lucide-react';
+import type { UserProfile } from '@/lib/store';
 import { COMMON_ALLERGENS } from '@/lib/allergen-tags';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { calculateBMI, calculateBMR, calculateTDEE } from '@/lib/nutrition';
@@ -59,11 +60,11 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
   const [dietaryPrefs, setDietaryPrefs] = useState<string[]>([]);
   const [waterGoal, setWaterGoal] = useState(2000);
   const [occupation, setOccupation] = useState('');
-  const [travelFrequency, setTravelFrequency] = useState<string>('');
+  const [travelFrequency, setTravelFrequency] = useState<UserProfile['travelFrequency']>(undefined);
   const [kitchenAppliances, setKitchenAppliances] = useState<string[]>([]);
   const [workplaceFacilities, setWorkplaceFacilities] = useState<string[]>([]);
-  const [carriesFood, setCarriesFood] = useState<string>('');
-  const [livingSituation, setLivingSituation] = useState<string>('');
+  const [carriesFood, setCarriesFood] = useState<UserProfile['carriesFood']>(undefined);
+  const [livingSituation, setLivingSituation] = useState<UserProfile['livingSituation']>(undefined);
   const [lifestyleOpen, setLifestyleOpen] = useState(false);
 
   useEffect(() => {
@@ -82,11 +83,11 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
       setDietaryPrefs(profile.dietaryPrefs || []);
       setWaterGoal(profile.waterGoal || 2000);
       setOccupation(profile.occupation || '');
-      setTravelFrequency(profile.travelFrequency || '');
+      setTravelFrequency(profile.travelFrequency || undefined);
       setKitchenAppliances(profile.kitchenAppliances || []);
       setWorkplaceFacilities(profile.workplaceFacilities || []);
-      setCarriesFood(profile.carriesFood || '');
-      setLivingSituation(profile.livingSituation || '');
+      setCarriesFood(profile.carriesFood || undefined);
+      setLivingSituation(profile.livingSituation || undefined);
       setPhoto(getProfilePhoto());
     }
   }, [profile, open]);
@@ -140,11 +141,11 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
       dietaryPrefs,
       waterGoal,
       occupation,
-      travelFrequency: travelFrequency as any,
+      travelFrequency,
       kitchenAppliances,
       workplaceFacilities,
-      carriesFood: carriesFood as any,
-      livingSituation: livingSituation as any,
+      carriesFood,
+      livingSituation,
       bmi: decision.bmi,
       bmr: calculateBMR(weightKg, heightCm, age, gender),
       tdee: calculateTDEE(calculateBMR(weightKg, heightCm, age, gender), activityLevel),
@@ -361,7 +362,7 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
                     <Field label="How often do you travel for work?">
                       <div className="flex gap-2">
                         {['never', 'sometimes', 'often'].map(v => (
-                          <button key={v} onClick={() => setTravelFrequency(v)}
+                          <button key={v} onClick={() => setTravelFrequency(v as UserProfile['travelFrequency'])}
                             className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${travelFrequency === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
                             {v.charAt(0).toUpperCase() + v.slice(1)}
                           </button>
@@ -394,7 +395,7 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
                     <Field label="Do you carry food when traveling?">
                       <div className="flex gap-2">
                         {['always', 'sometimes', 'never'].map(v => (
-                          <button key={v} onClick={() => setCarriesFood(v)}
+                          <button key={v} onClick={() => setCarriesFood(v as UserProfile['carriesFood'])}
                             className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${carriesFood === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
                             {v.charAt(0).toUpperCase() + v.slice(1)}
                           </button>
@@ -405,7 +406,7 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
                     <Field label="Living Situation">
                       <div className="flex gap-2">
                         {['alone', 'family', 'shared'].map(v => (
-                          <button key={v} onClick={() => setLivingSituation(v)}
+                          <button key={v} onClick={() => setLivingSituation(v as UserProfile['livingSituation'])}
                             className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${livingSituation === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
                             {v.charAt(0).toUpperCase() + v.slice(1)}
                           </button>
