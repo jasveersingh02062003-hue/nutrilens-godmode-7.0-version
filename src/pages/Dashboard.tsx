@@ -298,10 +298,14 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-2">
             {/* Weather indicator */}
-            <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-card border border-border shadow-sm">
-              <span className="text-sm">{weather.icon}</span>
-              <span className="text-xs font-semibold text-foreground">{weather.temperature}°</span>
-            </div>
+            {weather ? (
+              <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-card border border-border shadow-sm">
+                <span className="text-sm">{weather.icon}</span>
+                <span className="text-xs font-semibold text-foreground">{weather.temperature}°</span>
+              </div>
+            ) : (
+              <div className="w-16 h-8 rounded-xl bg-muted animate-pulse" />
+            )}
             <button className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center relative shadow-sm">
               <Bell className="w-4.5 h-4.5 text-muted-foreground" />
               <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-coral" />
