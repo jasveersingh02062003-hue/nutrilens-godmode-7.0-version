@@ -263,7 +263,9 @@ export function logWeight(date: string, weight: number, unit: 'kg' | 'lbs' = 'kg
       if (!session?.user) return;
       supabase.from('weight_logs').upsert({
         user_id: session.user.id, log_date: date, weight, unit,
-      } as any, { onConflict: 'user_id,log_date' } as any).then(() => {});
+      } as any, { onConflict: 'user_id,log_date' } as any).then(({ error }: any) => {
+        if (error) console.error('[store] weight_logs sync failed:', error.message);
+      });
     });
   }).catch(() => {});
   return log;
