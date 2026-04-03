@@ -21,7 +21,7 @@ interface Props {
   refreshKey?: number;
 }
 
-export default function HealthScoreCard({ refreshKey }: Props) {
+export default memo(function HealthScoreCard({ refreshKey }: Props) {
   const { profile } = useUserProfile();
   const [expanded, setExpanded] = useState(false);
   const hasConditions = userHasHealthConditions(profile);
