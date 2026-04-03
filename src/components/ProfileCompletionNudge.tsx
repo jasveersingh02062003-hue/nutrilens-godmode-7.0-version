@@ -7,8 +7,9 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Briefcase, ChevronRight } from 'lucide-react';
 import { useUserProfile } from '@/contexts/UserProfileContext';
+import { supabase } from '@/integrations/supabase/client';
 
-const NUDGE_KEY = 'nutrilens_profile_nudge_dismissed';
+const NUDGE_PREFIX = 'nutrilens_profile_nudge_dismissed_';
 
 interface Props {
   onOpenProfile: () => void;
