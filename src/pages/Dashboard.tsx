@@ -103,6 +103,9 @@ export default function Dashboard() {
     const progress = getPlanProgress();
     return progress !== null && progress.daysLeft === 0;
   });
+  const [expiredEventPlan] = useState(() => getExpiredEventPlan());
+  const [showEventFeedback, setShowEventFeedback] = useState(() => !!getExpiredEventPlan());
+  const [eventExtendSheet, setEventExtendSheet] = useState(false);
 
   const plannerProfile = getMealPlannerProfile();
   const plannerIncomplete = !plannerProfile || !plannerProfile.onboardingComplete;
