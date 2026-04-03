@@ -1341,8 +1341,8 @@ export default function Onboarding() {
         );
       }
 
-      // ── Step 16: Prediction Summary ──
-      case 16:
+      // ── Step 17: Prediction Summary ──
+      case 17:
         return goalResult ? (
           <PredictionSummaryStep
             goalResult={goalResult}
@@ -1352,8 +1352,8 @@ export default function Onboarding() {
           />
         ) : <div className="text-center text-muted-foreground">Calculating...</div>;
 
-      // ── Step 17: Food Intelligence ──
-      case 17:
+      // ── Step 18: Food Intelligence ──
+      case 18:
         return (
           <FoodIntelligenceStep
             conditions={f.conditions}
@@ -1369,7 +1369,7 @@ export default function Onboarding() {
         );
 
       // ── Phase 7: Lifestyle ──
-      case 18:
+      case 19:
         return (
           <div className="space-y-5">
             <StepHeader title="Want to personalise more?" subtitle="Diet preferences, supplements, budget, and cooking habits." />
@@ -1382,7 +1382,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 19:
+      case 20:
         return (
           <div className="space-y-5">
             <StepHeader title="Dietary preference" subtitle="Your plan will be tailored accordingly." />
@@ -1399,7 +1399,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 20: {
+      case 21:
         const multiplier = getActivityMultiplier(f.work || 'sitting', f.exercise || 'none');
         const recommended = calculateWaterGoal(f.weightKg, multiplier);
         return (
@@ -1421,7 +1421,7 @@ export default function Onboarding() {
         );
       }
 
-      case 21: {
+      case 22:
         const suppOptions = [
           { value: 'vitaminD', label: '☀️ Vitamin D' },
           { value: 'omega3', label: '🐟 Omega-3' },
@@ -1453,7 +1453,7 @@ export default function Onboarding() {
       }
 
       // ── Budget Step ──
-      case 22:
+      case 23:
         return (
           <div className="space-y-5">
             <StepHeader title="Daily food budget" subtitle="Set a budget to get cost-aware meal suggestions." />
@@ -1508,7 +1508,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 23: {
+      case 24:
         const equipmentOpts = [
           { value: 'basic', label: '🍳 Basic (Pan/Pot)' },
           { value: 'microwave', label: '📡 Microwave' },
@@ -1557,7 +1557,7 @@ export default function Onboarding() {
       }
 
       // ── Intelligence Demo ──
-      case 24: {
+      case 25:
         const meal = getDemoMeal(f.diet || 'noRestrictions', f.conditions);
         const warnings = getCameraWarnings(f.conditions);
         const budgetFits = !f.budgetEnabled || meal.cost <= (f.budgetAmount * 0.35);
@@ -1633,7 +1633,7 @@ export default function Onboarding() {
       }
 
       // ── Finish ──
-      case 25:
+      case 26:
         return (
           <div className="space-y-6">
             <StepHeader title="All set! 🎉" subtitle="Your personalized nutrition plan is ready." />
@@ -1721,8 +1721,8 @@ export default function Onboarding() {
   }
 
   // ── Wizard phase ──
-  const isFinishStep = step === 25;
-  const isSummaryStep = step === 14;
+  const isFinishStep = step === 26;
+  const isSummaryStep = step === 15;
 
   // Button label logic
   let buttonLabel = <>Continue <ArrowRight className="w-4 h-4" /></>;
