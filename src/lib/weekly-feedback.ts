@@ -1,6 +1,8 @@
 import { scopedGet, scopedSet } from './scoped-storage';
 // Weekly Feedback Engine — behavior correction loop
-import { getRecentLogs, getDailyTotals, getProfile, type DailyLog } from './store';
+import { getRecentLogs, getDailyTotals, getProfile, getDailyLog, saveProfile, type DailyLog } from './store';
+import { generateWeekPlan } from './meal-plan-generator';
+import { saveWeekPlan } from './meal-planner-store';
 import { getExpensesForRange, getBudgetSettings, getWeekDateRange, saveBudgetSettings } from './expense-store';
 import { getWeightEntries } from './weight-history';
 import { getMealPlannerProfile, saveMealPlannerProfile } from './meal-planner-store';
