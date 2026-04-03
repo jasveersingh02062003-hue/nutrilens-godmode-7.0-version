@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getActivePlan, getPlanById } from '@/lib/event-plan-service';
 import { checkAllergens, getAllergenLabel, getAllergenEmoji } from '@/lib/allergen-engine';
 import { checkFoodForConditions, getUserConditions } from '@/lib/condition-coach';
 import { RefreshCw, ShoppingCart, Clock, Flame, Beef, Wheat, Droplets, ArrowRight, Check, Repeat, IndianRupee, AlertCircle, CheckCircle2, XCircle, AlertTriangle, TrendingUp, Scale } from 'lucide-react';
@@ -283,31 +284,44 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
           </div>
         )}
 
-        {/* Daily targets */}
-        <div className="card-subtle p-3">
-          <div className="flex justify-between">
-            <div className="text-center flex-1">
-              <Flame className="w-4 h-4 text-coral mx-auto mb-1" />
-              <p className="text-sm font-bold text-foreground">{profile.dailyCalories}</p>
-              <p className="text-[10px] text-muted-foreground">kcal</p>
+        {/* Daily targets — plan-aware */}
+        {(() => {
+          const ap = getActivePlan();
+          const cal = ap ? ap.dailyCalories : profile.dailyCalories;
+          const prot = ap ? ap.dailyProtein : profile.dailyProtein;
+          const carbs = ap ? ap.dailyCarbs : profile.dailyCarbs;
+          const fat = ap ? ap.dailyFat : profile.dailyFat;
+          const isPlan = !!ap;
+          return (
+            <div className="card-subtle p-3">
+              {isPlan && (
+                <p className="text-[9px] font-bold text-primary text-center mb-1.5">🎯 Plan Targets</p>
+              )}
+              <div className="flex justify-between">
+                <div className="text-center flex-1">
+                  <Flame className="w-4 h-4 text-coral mx-auto mb-1" />
+                  <p className="text-sm font-bold text-foreground">{cal}</p>
+                  <p className="text-[10px] text-muted-foreground">kcal</p>
+                </div>
+                <div className="text-center flex-1">
+                  <Beef className="w-4 h-4 text-coral mx-auto mb-1" />
+                  <p className="text-sm font-bold text-foreground">{prot}g</p>
+                  <p className="text-[10px] text-muted-foreground">Protein</p>
+                </div>
+                <div className="text-center flex-1">
+                  <Wheat className="w-4 h-4 text-primary mx-auto mb-1" />
+                  <p className="text-sm font-bold text-foreground">{carbs}g</p>
+                  <p className="text-[10px] text-muted-foreground">Carbs</p>
+                </div>
+                <div className="text-center flex-1">
+                  <Droplets className="w-4 h-4 text-gold mx-auto mb-1" />
+                  <p className="text-sm font-bold text-foreground">{fat}g</p>
+                  <p className="text-[10px] text-muted-foreground">Fat</p>
+                </div>
+              </div>
             </div>
-            <div className="text-center flex-1">
-              <Beef className="w-4 h-4 text-coral mx-auto mb-1" />
-              <p className="text-sm font-bold text-foreground">{profile.dailyProtein}g</p>
-              <p className="text-[10px] text-muted-foreground">Protein</p>
-            </div>
-            <div className="text-center flex-1">
-              <Wheat className="w-4 h-4 text-primary mx-auto mb-1" />
-              <p className="text-sm font-bold text-foreground">{profile.dailyCarbs}g</p>
-              <p className="text-[10px] text-muted-foreground">Carbs</p>
-            </div>
-            <div className="text-center flex-1">
-              <Droplets className="w-4 h-4 text-gold mx-auto mb-1" />
-              <p className="text-sm font-bold text-foreground">{profile.dailyFat}g</p>
-              <p className="text-[10px] text-muted-foreground">Fat</p>
-            </div>
-          </div>
-        </div>
+          );
+        })()}
 
         {/* Day selector */}
         <div className="flex gap-1.5 overflow-x-auto pb-1">

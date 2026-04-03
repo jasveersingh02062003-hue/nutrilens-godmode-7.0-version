@@ -1,7 +1,10 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Trophy, TrendingUp, Scale, Share2, Camera, IndianRupee, FileText, Crown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trophy, TrendingUp, Scale, Share2, Camera, IndianRupee, FileText, Crown, Target, CheckCircle2 } from 'lucide-react';
 import { getRecentLogs, getDailyTotals, getDailyLog, getAllLogDates, getProfile } from '@/lib/store';
 import { hasExpensesOnDate } from '@/lib/expense-store';
+import { getActivePlan, getActivePlanRaw, getPlanProgress, getPlanById, type ActivePlan } from '@/lib/event-plan-service';
+import { motion } from 'framer-motion';
+import { Progress as ProgressBarUI } from '@/components/ui/progress';
 import { Flame, BarChart3 } from 'lucide-react';
 import { getWeeklySummaries, type WeeklySummary } from '@/lib/weekly-feedback';
 import { Progress as ProgressBar } from '@/components/ui/progress';
@@ -186,19 +189,29 @@ export default function ProgressPage() {
 
   const joinDate = profile?.joinDate;
 
+  // Plan date range for calendar highlighting
+  const planRange = useMemo(() => {
+    const raw = getActivePlanRaw();
+    if (!raw) return null;
+    const end = new Date(raw.startDate);
+    end.setDate(end.getDate() + raw.duration);
+    return { start: raw.startDate, end: end.toISOString().split('T')[0] };
+  }, [refreshKey]);
+
   const calendarDays = useMemo(() => {
-    const days: { day: number; dateStr: string; balance: DayBalance; diff: number; isToday: boolean; isFuture: boolean; locked: boolean; isPreJoin: boolean }[] = [];
+    const days: { day: number; dateStr: string; balance: DayBalance; diff: number; isToday: boolean; isFuture: boolean; locked: boolean; isPreJoin: boolean; isPlanDay: boolean }[] = [];
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${viewDate.getFullYear()}-${String(viewDate.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const isFuture = dateStr > todayStr;
       const isToday = dateStr === todayStr;
       const isPreJoin = !!(joinDate && dateStr < joinDate);
       const locked = isPreJoin || (!premium && dateStr < threeDaysAgo);
+      const isPlanDay = !!(planRange && dateStr >= planRange.start && dateStr <= planRange.end);
       const { status: balance, diff } = locked ? { status: 'no-data' as DayBalance, diff: 0 } : computeDayBalance(dateStr, todayStr, logDatesSet, baseTarget, allBalances, adjMap, projMap);
-      days.push({ day: d, dateStr, balance, diff, isToday, isFuture, locked, isPreJoin });
+      days.push({ day: d, dateStr, balance, diff, isToday, isFuture, locked, isPreJoin, isPlanDay });
     }
     return days;
-  }, [monthOffset, refreshKey, logDatesSet, baseTarget, premium, threeDaysAgo, adjMap, projMap, allBalances, todayStr, joinDate]);
+  }, [monthOffset, refreshKey, logDatesSet, baseTarget, premium, threeDaysAgo, adjMap, projMap, allBalances, todayStr, joinDate, planRange]);
 
   const weeklyData = useMemo(() => {
     return logs.slice(0, 7).reverse().map(l => {
@@ -225,6 +238,46 @@ export default function ProgressPage() {
             <Share2 className="w-3.5 h-3.5" /> Share Report
           </button>
         </div>
+
+        {/* Plan Progress Card */}
+        {(() => {
+          const activePlan = getActivePlanRaw();
+          if (!activePlan) return null;
+          const meta = getPlanById(activePlan.planId);
+          const prog = getPlanProgress(activePlan);
+          if (!prog) return null;
+          const startWeight = activePlan.targetWeight ? (profile?.weightKg || 0) : 0;
+          return (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card-elevated p-4 space-y-3 border-l-4 border-l-primary">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Target className="w-4 h-4 text-primary" />
+                  <h3 className="text-sm font-bold text-foreground">{meta?.name || 'Active Plan'}</h3>
+                </div>
+                <span className="text-xs font-bold text-primary">{prog.percentComplete}%</span>
+              </div>
+              <ProgressBarUI value={prog.percentComplete} className="h-2" />
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                <span>Day {prog.dayNumber} of {prog.totalDays}</span>
+                <span>{prog.daysLeft} days remaining</span>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { label: 'Plan Cal', value: activePlan.dailyCalories, unit: 'kcal' },
+                  { label: 'Protein', value: activePlan.dailyProtein, unit: 'g' },
+                  { label: 'Target', value: activePlan.targetWeight, unit: 'kg' },
+                  { label: 'Deficit', value: activePlan.dailyDeficit, unit: 'kcal' },
+                ].map(s => (
+                  <div key={s.label} className="text-center">
+                    <p className="text-xs font-bold text-foreground">{s.value}</p>
+                    <p className="text-[8px] text-muted-foreground">{s.unit}</p>
+                    <p className="text-[8px] text-muted-foreground">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          );
+        })()}
 
         {/* Overview Stats */}
         <OverviewStats refreshKey={refreshKey} />
@@ -255,7 +308,7 @@ export default function ProgressPage() {
                 className={`flex flex-col items-center justify-center py-0.5 group ${d.locked && !d.isPreJoin ? 'opacity-30' : ''} ${d.isPreJoin ? 'opacity-40' : ''}`}
               >
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-semibold border transition-colors group-active:scale-90 relative
-                  ${d.isToday ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''}
+                  ${d.isToday ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : d.isPlanDay ? 'ring-1 ring-primary/30' : ''}
                   ${balanceCellColors[d.balance]}`}>
                   {d.day}
                   {premium && datesWithPhotos.has(d.dateStr) && (
@@ -288,6 +341,7 @@ export default function ProgressPage() {
             <span className="flex items-center gap-1">🔻 Reduced</span>
             <span className="flex items-center gap-1">🔺 Recovery</span>
             {joinDate && <span className="flex items-center gap-1">🔒 Before join</span>}
+            {planRange && <span className="flex items-center gap-1">🎯 Plan Day</span>}
           </div>
           {!premium && (
             <button

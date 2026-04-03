@@ -314,6 +314,20 @@ function balanceWeeklyProtein(plan: WeekPlan, profile: MealPlannerProfile): Week
 }
 
 export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?: string[], womenHealth?: string[]): WeekPlan {
+  // ─── Plan-Aware Target Override ───
+  // If an active transformation plan exists, use its targets instead of profile defaults
+  let planAwareProfile = { ...profile };
+  try {
+    const { getActivePlan } = require('./event-plan-service');
+    const activePlan = getActivePlan();
+    if (activePlan) {
+      planAwareProfile.dailyCalories = activePlan.dailyCalories;
+      planAwareProfile.dailyProtein = activePlan.dailyProtein;
+      planAwareProfile.dailyCarbs = activePlan.dailyCarbs;
+      planAwareProfile.dailyFat = activePlan.dailyFat;
+    }
+  } catch {}
+
   const weekStart = new Date();
   const day = weekStart.getDay();
   const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1);
@@ -321,14 +335,14 @@ export function generateWeekPlan(profile: MealPlannerProfile, healthConditions?:
   const weekStartStr = toLocalDateStr(weekStart);
 
   const healthTags = getHealthTags(healthConditions, womenHealth);
-  const tags = [...(profile.dietaryPrefs || []), ...healthTags];
-  const cuisines = getCuisineMap(profile.cuisinePrefs || []);
-  const difficulty = getDifficultyFilter(profile.cookingSkill);
-  const mealsPerDay = profile.mealsPerDay || 3;
-  const baseCal = profile.dailyCalories;
+  const tags = [...(planAwareProfile.dietaryPrefs || []), ...healthTags];
+  const cuisines = getCuisineMap(planAwareProfile.cuisinePrefs || []);
+  const difficulty = getDifficultyFilter(planAwareProfile.cookingSkill);
+  const mealsPerDay = planAwareProfile.mealsPerDay || 3;
+  const baseCal = planAwareProfile.dailyCalories;
   const flexReserve = Math.round(baseCal * 0.1);
   const targetCal = baseCal - flexReserve; // 90% for planned meals
-  const targetProtein = profile.dailyProtein || Math.round(baseCal * 0.15 / 4);
+  const targetProtein = planAwareProfile.dailyProtein || Math.round(baseCal * 0.15 / 4);
   const allHealthConds = [...(healthConditions || []), ...(womenHealth || [])];
 
   // Adherence-based complexity adjustment

@@ -1482,8 +1482,31 @@ export default function BudgetPlannerTab({ onOnboardingComplete }: { onOnboardin
     refresh();
   };
 
+  // Plan budget banner
+  const planBudgetBanner = (() => {
+    try {
+      const { getActivePlan } = require('@/lib/event-plan-service');
+      const ap = getActivePlan();
+      if (!ap || !ap.eventSettings?.budgetTier) return null;
+      const tier = ap.eventSettings.budgetTier;
+      const dailyBudget = tier === 'tight' ? 150 : tier === 'moderate' ? 250 : null;
+      if (!dailyBudget) return null;
+      return (
+        <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl border border-primary/20 bg-primary/5 p-3 flex items-center gap-2.5">
+          <span className="text-lg">🎯</span>
+          <div className="flex-1">
+            <p className="text-[11px] font-bold text-foreground">Event Plan Budget: ₹{dailyBudget}/day ({tier})</p>
+            <p className="text-[9px] text-muted-foreground">Your budget is temporarily adjusted for your transformation plan</p>
+          </div>
+        </motion.div>
+      );
+    } catch { return null; }
+  })();
+
   return (
     <div className="space-y-4 pb-4">
+      {planBudgetBanner}
       {/* ₹100/Day Survival Mode Toggle */}
       <div className={`rounded-2xl border p-4 transition-colors ${survivalOn ? 'bg-destructive/10 border-destructive/20' : 'bg-card border-border'}`}>
         <div className="flex items-center justify-between">

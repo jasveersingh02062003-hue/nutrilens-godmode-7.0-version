@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ChefHat, CalendarDays, ArrowLeft, ArrowRight, Check, ShoppingCart, Repeat, X, Search, Target, Scale, Crown, Lock, Zap } from 'lucide-react';
 import { isPremium } from '@/lib/subscription-service';
@@ -22,6 +22,7 @@ import type { WeekPlan } from '@/lib/meal-planner-store';
 import MonikaFab from '@/components/MonikaFab';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { getActivePlan, getPlanById } from '@/lib/event-plan-service';
 
 type PlannerStep = 'initial' | 'dates' | 'onboarding' | 'generating' | 'preview' | 'dashboard';
 
@@ -65,6 +66,8 @@ export default function MealPlanner() {
   });
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const premium = isPremium();
+  const activePlanData = useMemo(() => getActivePlan(), []);
+  const planMeta = activePlanData ? getPlanById(activePlanData.planId) : null;
 
   // Sync planner profile targets with main UserProfile to prevent mismatches
   useEffect(() => {
@@ -337,7 +340,19 @@ export default function MealPlanner() {
 
   if (step === 'dashboard' && plan && profile) {
     mealPlanContent = (
-      <MealPlanDashboard plan={plan} profile={profile} onRegenerate={handleRegenerate} onSwapMeal={handleSwapMeal} onMarkCooked={handleMarkCooked} />
+      <>
+        {activePlanData && planMeta && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-primary/20 bg-primary/5 p-3 flex items-center gap-2.5 mb-3">
+            <Target className="w-4 h-4 text-primary flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-bold text-foreground">Meals optimized for {planMeta.name}</p>
+              <p className="text-[9px] text-muted-foreground truncate">{planMeta.rules.slice(0, 3).join(' · ')}</p>
+            </div>
+            <span className="text-lg">{planMeta.emoji}</span>
+          </motion.div>
+        )}
+        <MealPlanDashboard plan={plan} profile={profile} onRegenerate={handleRegenerate} onSwapMeal={handleSwapMeal} onMarkCooked={handleMarkCooked} />
+      </>
     );
   } else if (step === 'dates') {
     mealPlanContent = (
