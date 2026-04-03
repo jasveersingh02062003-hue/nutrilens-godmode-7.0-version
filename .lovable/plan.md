@@ -3,137 +3,165 @@
 # Gym Attendance Tracking & Dynamic Calorie Adjustment
 
 ## Overview
-Add gym tracking to onboarding, daily check-ins on the dashboard, weekly consistency-based calorie adjustments, stats tracking, and premium upsell for gym-goers. No database migration needed — gym data stored in existing JSONB columns.
+Add gym tracking across onboarding, dashboard, calorie engine, and progress. 5 new files, 8 modified files. No database migration — data stored in existing JSONB columns.
 
 ---
 
 ## Step 1: Extend Data Models
 
-**Files:** `src/lib/store.ts`, `src/lib/onboarding-store.ts`, `src/lib/profile-mapper.ts`
+**`src/lib/store.ts`** — Add to `UserProfile` interface (after line 59):
+```typescript
+gym?: {
+  goer: boolean;
+  daysPerWeek: number;
+  durationMinutes: number;
+  intensity: 'light' | 'moderate' | 'intense';
+  goal: 'fat_loss' | 'muscle_gain' | 'general';
+  schedule: string[];
+  stats: { totalWorkouts: number; totalCaloriesBurned: number; currentStreak: number; bestStreak: number; consistencyPercent: number; };
+};
+```
 
-- Add `gym?` field to `UserProfile` interface (goer, daysPerWeek, durationMinutes, intensity, goal, schedule, stats)
-- Add `gym?` field to `DailyLog` interface (attended, durationMinutes, caloriesBurned, intensity)
-- Add gym fields to `OnboardingData.activity` section
-- Update `saveOnboardingData()` to wire gym data into profile
-- Map gym data through `conditions` JSONB in `profileToDbRow`/`dbRowToProfile`
-- Add gym fields to `FormState` in onboarding
+Add to `DailyLog` interface (after line 173):
+```typescript
+gym?: { attended: boolean; durationMinutes: number; caloriesBurned: number; intensity: string; };
+```
+
+**`src/lib/onboarding-store.ts`** — Add `gym?` fields to `OnboardingData.activity` and wire gym data into the profile in `saveOnboardingData()`.
+
+**`src/lib/profile-mapper.ts`** — Map `gym` through existing `conditions` JSONB in both `profileToDbRow` and `dbRowToProfile`.
+
+---
 
 ## Step 2: Onboarding Gym Questions
 
-**File:** `src/pages/Onboarding.tsx`
+**`src/pages/Onboarding.tsx`**
 
-- Add 5 new fields to `FormState`: `gymGoer`, `gymDays`, `gymDuration`, `gymIntensity`, `gymGoal`
-- Insert a new step after step 10 (Exercise) — becomes step 10.5, renumber subsequent steps
-- Questions: gym yes/no → days/week slider → duration picker → intensity → goal
-- If "No", skip remaining gym questions via `getVisibleSteps()`
-- Auto-infer schedule from `daysPerWeek` (3 → Mon/Wed/Fri pattern)
-- Update `canContinue()`, step map comments, `handleFinish()` to include gym data
-- Wire into `OnboardingData.activity` section
+- Add 5 fields to `FormState`: `gymGoer` (boolean), `gymDays` (number), `gymDuration` (number), `gymIntensity` (string), `gymGoal` (string)
+- Insert new step after step 10 (Exercise) with 5 sub-questions:
+  1. "Do you go to the gym regularly?" — Yes/No
+  2. Days/week slider (1-7, shown only if Yes)
+  3. Duration picker (30/45/60+ min)
+  4. Intensity (Light/Moderate/Intense)
+  5. Gym goal (Fat loss/Muscle gain/General)
+- Update step map comments (renumber steps 11+ accordingly), `getVisibleSteps()` to skip gym sub-questions if No, `canContinue()` for new steps
+- Auto-infer schedule from `daysPerWeek` (e.g., 3 → Mon/Wed/Fri)
+- Wire gym data into `handleFinish()` → `OnboardingData.activity`
+
+---
 
 ## Step 3: Create Gym Service
 
-**New file:** `src/lib/gym-service.ts`
+**New file: `src/lib/gym-service.ts`**
 
 Pure logic functions:
-- `isGymDay(profile, date)` — matches day-of-week against profile schedule
-- `getGymCheckInStatus(date)` — reads `dailyLog.gym`
-- `saveGymCheckIn(date, attended, duration?, intensity?)` — writes to daily log, updates profile stats
-- `estimateCaloriesBurned(weightKg, duration, intensity)` — MET formula: `duration × MET × (weightKg/60)`, MET: light=4, moderate=6, intense=8
-- `getWeeklyConsistency(profile, date)` — actualWorkouts / plannedWorkouts for last 7 days from logs
-- `getGymBonus(profile, consistency, isGymDay)` — base bonus = `duration × intensityFactor × 0.6`, scaled by consistency (≥80% full, 50-80% ×0.75, <50% zero + 5% base reduction flag)
-- `getGymStats(allLogs)` — compute totals, streaks, consistency from all daily logs
-- `updateGymStats(profile)` — recompute and save stats to profile
+- `isGymDay(profile, date)` — day-of-week match against schedule
+- `getGymCheckInStatus(date)` — read dailyLog.gym
+- `saveGymCheckIn(date, attended, duration?, intensity?)` — write to daily log + update profile stats
+- `estimateCaloriesBurned(weightKg, duration, intensity)` — `duration × MET × (weightKg/60)`, MET: light=4, moderate=6, intense=8
+- `getWeeklyConsistency(profile, date)` — actual/planned for last 7 days
+- `getGymBonus(profile, consistency, isGymDay)` — `duration × factor × 0.6`, scaled by consistency tier
+- `getGymStats(allLogs)` / `updateGymStats(profile)` — totals, streaks, consistency
+- `inferSchedule(daysPerWeek)` — returns default day names array
 
-## Step 4: Create UI Components
+---
 
-**New files:**
+## Step 4: UI Components (4 new files)
 
-### `src/components/GymCheckInCard.tsx`
-- Non-intrusive card, shown on gym days if not checked in
+**`src/components/GymCheckInCard.tsx`**
+- Non-intrusive card on gym days if not checked in
 - "Did you work out today? 🏋️" with Yes/No buttons
 - Yes → expand: duration slider, intensity picker, live calorie estimate
-- Saves via `saveGymCheckIn()`, shows "Logged ✓" state after
+- Saves via `saveGymCheckIn()`, shows "Logged ✓" after
 
-### `src/components/GymConsistencyCard.tsx`
+**`src/components/GymConsistencyCard.tsx`**
 - Below CalorieRing for gym-goers only
-- "This week: X/Y workouts" with mini progress ring
-- Current streak with fire emoji
-- Consistency % with color coding (green/amber/red)
-- "Log workout" button
-- Wrapped in `React.memo`
+- "This week: X/Y workouts" with mini progress ring, streak with 🔥, consistency % color-coded (green/amber/red)
+- "Log workout" button, wrapped in `React.memo`
 
-### `src/components/GymUpsellCard.tsx`
+**`src/components/GymUpsellCard.tsx`**
 - Conditional: gym-goer + ≥5 sessions in 30 days + streak ≥3
-- "Unlock Your Gym Diet Plan 💪" with features list
-- Upgrade button → Plans tab
+- "Unlock Your Gym Diet Plan 💪" with features, upgrade button → Plans tab
 
-### `src/components/GymProgressSection.tsx`
+**`src/components/GymProgressSection.tsx`**
 - For Progress tab, gym-goers only
 - Monthly calendar with green dots on workout days
 - Weekly consistency bars (last 12 weeks)
 - Lifetime stats: total workouts, calories burned, best streak
 
+---
+
 ## Step 5: Calorie Engine Integration
 
-**File:** `src/lib/calorie-correction.ts`
+**`src/lib/calorie-correction.ts`**
 
-- In `getAdjustedDailyTarget()`, after base target calculation and before return:
-  - If user is gym-goer and today is a gym day, compute gym bonus via `getGymBonus()`
-  - Add bonus to target (or subtract 5% if consistency <50%)
-  - Clamp to ≥1200 kcal
-- Bonus based on previous week's consistency, not current week
+In `computeAdjustedTarget()` (around line 511-533), after computing the base adjustment, add gym bonus logic:
+- Import `isGymDay`, `getWeeklyConsistency`, `getGymBonus` from gym-service
+- If user is gym-goer and today is a gym day, compute bonus from previous week's consistency
+- Add bonus to target (or subtract 5% if consistency <50%)
+- Existing 1200 kcal floor clamp already handles safety
 
-## Step 6: Dashboard & Profile Integration
+| Consistency | Bonus | Base Adjustment |
+|---|---|---|
+| ≥80% | 1.0× | None |
+| 50-80% | 0.75× | None |
+| <50% | 0× | −5% base |
 
-**File:** `src/pages/Dashboard.tsx`
-- Import and render `GymCheckInCard`, `GymConsistencyCard`, `GymUpsellCard` conditionally
-- Place after CalorieRing, before Today's Meals
+---
 
-**File:** `src/pages/Progress.tsx`
-- Import and render `GymProgressSection` for gym-goers
+## Step 6: Dashboard Integration
 
-**File:** `src/components/EditProfileSheet.tsx`
+**`src/pages/Dashboard.tsx`**
+
+- Import `GymCheckInCard`, `GymConsistencyCard`, `GymUpsellCard`
+- Place after CalorieRing (line ~183), before NextMealCard:
+  - `GymCheckInCard` (if gym-goer + gym day + not logged)
+  - `GymConsistencyCard` (if gym-goer)
+  - `GymUpsellCard` (if conditions met)
+
+---
+
+## Step 7: Progress Tab
+
+**`src/pages/Progress.tsx`**
+
+- Import and render `GymProgressSection` for gym-goers (after existing weight/consistency sections)
+
+---
+
+## Step 8: Edit Profile
+
+**`src/components/EditProfileSheet.tsx`**
+
 - Add collapsible "Gym Settings" section: toggle, days slider, duration, intensity, goal pickers
+- Save updates to profile and trigger calorie engine recompute
 
-## Step 7: Meal Suggestion & Premium Plan
+---
 
-**File:** `src/lib/meal-suggestion-engine.ts`
-- On workout days (`gym.attended = true`): boost protein-rich recipe scores by +15, increase protein target by 10%
+## Step 9: Meal Suggestion Integration
 
-**Files:** `src/components/SpecialPlansTab.tsx`, `src/components/PlanDetailSheet.tsx`
+**`src/lib/meal-suggestion-engine.ts`**
+
+- On days where `gym.attended = true`: boost protein-rich recipe scores by +15, increase protein target by 10%
+
+---
+
+## Step 10: Premium Plan
+
+**`src/components/SpecialPlansTab.tsx`**, **`src/components/PlanDetailSheet.tsx`**
+
 - Add `gym_optimization` plan type (₹199/month)
 - When active: workout-day/rest-day calorie split, recovery meal suggestions
 
 ---
 
-## Technical Details
+## Technical Summary
 
-### Files Created (5)
-- `src/lib/gym-service.ts`
-- `src/components/GymCheckInCard.tsx`
-- `src/components/GymConsistencyCard.tsx`
-- `src/components/GymUpsellCard.tsx`
-- `src/components/GymProgressSection.tsx`
+| Category | Files |
+|---|---|
+| **Created (5)** | `gym-service.ts`, `GymCheckInCard.tsx`, `GymConsistencyCard.tsx`, `GymUpsellCard.tsx`, `GymProgressSection.tsx` |
+| **Modified (8)** | `store.ts`, `onboarding-store.ts`, `profile-mapper.ts`, `Onboarding.tsx`, `calorie-correction.ts`, `Dashboard.tsx`, `Progress.tsx`, `EditProfileSheet.tsx` |
+| **Also modified (2)** | `meal-suggestion-engine.ts`, `SpecialPlansTab.tsx` |
 
-### Files Modified (8)
-- `src/lib/store.ts` — type extensions
-- `src/lib/onboarding-store.ts` — gym in OnboardingData + saveOnboardingData
-- `src/lib/profile-mapper.ts` — cloud sync mapping
-- `src/pages/Onboarding.tsx` — gym questions (new steps 11-15, renumber)
-- `src/lib/calorie-correction.ts` — gym bonus in getAdjustedDailyTarget
-- `src/pages/Dashboard.tsx` — render gym cards
-- `src/pages/Progress.tsx` — gym stats section
-- `src/components/EditProfileSheet.tsx` — gym settings
-
-### No Database Migration
-All gym data stored in existing `conditions` JSONB column (profile) and `log_data` JSONB column (daily logs).
-
-### Calorie Adjustment Table
-| Weekly Consistency | Bonus Multiplier | Base Adjustment |
-|---|---|---|
-| ≥80% | 1.0× | None |
-| 50–80% | 0.75× | None |
-| <50% | 0× | −5% base calories |
-
-Safety floor: 1200 kcal always enforced.
+No database migration. Gym profile data syncs via `conditions` JSONB. Daily gym logs sync via `log_data` JSONB.
 
