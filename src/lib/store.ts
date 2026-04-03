@@ -51,6 +51,12 @@ export interface UserProfile {
     summerOily?: boolean;
     diagnosedConditions?: string[];
   };
+  // Context Intelligence fields
+  travelFrequency?: 'never' | 'sometimes' | 'often';
+  kitchenAppliances?: string[];
+  workplaceFacilities?: string[];
+  carriesFood?: 'always' | 'sometimes' | 'never';
+  livingSituation?: 'alone' | 'family' | 'shared';
 }
 
 export interface FoodItem {
