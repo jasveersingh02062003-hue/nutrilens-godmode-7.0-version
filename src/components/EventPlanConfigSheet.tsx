@@ -68,11 +68,20 @@ const FASTING_OPTIONS = [
   { value: 16, label: '16h Fast' },
 ];
 
+const MOTIVATION_OPTIONS = [
+  { id: 'look_best', emoji: '✨', label: 'Look my best' },
+  { id: 'feel_confident', emoji: '💪', label: 'Feel confident' },
+  { id: 'health_milestone', emoji: '🏆', label: 'Health milestone' },
+  { id: 'impress_someone', emoji: '💫', label: 'Impress someone' },
+];
+
 const BOOSTER_OPTIONS = [
   { id: 'morning_routine', emoji: '🌅', label: 'Morning Routine', desc: 'Warm water + lemon + jeera, walk, stretching' },
   { id: 'metabolism_drinks', emoji: '☕', label: 'Metabolism Drinks', desc: 'Jeera water, ginger tea, green tea, black coffee' },
   { id: 'superfoods', emoji: '🥜', label: 'Superfoods', desc: 'Makhana, sattu, chia seeds, sprouted moong' },
   { id: 'evening_routine', emoji: '🌙', label: 'Evening Routine', desc: 'Herbal tea, finish dinner by 7 PM' },
+  { id: 'supplements', emoji: '💊', label: 'Supplements', desc: 'Spirulina, Shilajit (purified)' },
+  { id: 'post_meal', emoji: '🚶', label: 'Post-Meal Activity', desc: '10-min walk + deep breathing after meals' },
 ];
 
 export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
