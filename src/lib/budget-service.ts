@@ -128,6 +128,7 @@ export const CATEGORY_CONFIG: Record<string, { label: string; emoji: string; col
   street_food: { label: 'Street Food', emoji: '🛺', color: 'hsl(38, 70%, 55%)' },
   packaged: { label: 'Packaged', emoji: '📦', color: 'hsl(256, 50%, 60%)' },
   home: { label: 'Home', emoji: '🏠', color: 'hsl(170, 35%, 48%)' },
+  supplements: { label: 'Supplements', emoji: '💊', color: 'hsl(280, 55%, 55%)' },
   other: { label: 'Other', emoji: '💰', color: 'hsl(160, 8%, 48%)' },
 };
 
