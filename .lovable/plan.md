@@ -1,108 +1,139 @@
 
-Problem understood: the breakfast calories are already being auto-shifted by the engine into lunch/dinner/snacks, but the breakfast detail sheet still offers redistribution actions and the manual apply flow adds another redistribution on top. That is why targets jump again and totals become inflated.
 
-What is happening now
-- The daily engine already auto-redistributes missed meal calories by recalculating pending slot targets in `src/lib/calorie-engine.ts`.
-- The meal detail UI separately exposes:
-  - “Smart Redistribute”
-  - “Quick → Lunch”
-  - “Apply Redistribution”
-- Those UI actions use `src/lib/redistribution-service.ts` and `src/lib/meal-targets.ts` to add explicit per-meal adjustments.
-- Result: one missed breakfast gets counted twice:
-  1. once by the engine’s automatic pending-slot redistribution
-  2. again by explicit redistribution adjustments
-- The breakfast detail screen correctly hides the action buttons only if `isRedistributed(date, mealType)` is true, but that flag is only set after the manual redistribution flow. So an auto-redistributed missed meal still looks “missed and actionable,” which is the core UX bug.
+# Gym Attendance Tracking & Dynamic Calorie Adjustment
 
-What to build
-1. Make engine auto-redistribution the single source of truth for missed meals
-- Keep the calorie engine’s automatic redistribution behavior.
-- Stop offering manual redistribute actions for a meal that is already auto-redistributed by the engine.
-- Treat “missed + no logged items” as already redistributed for UI purposes when remaining meals exist and the engine has reweighted targets.
+## Overview
+Add gym tracking to onboarding, daily check-ins on the dashboard, weekly consistency-based calorie adjustments, stats tracking, and premium upsell for gym-goers. No database migration needed — gym data stored in existing JSONB columns.
 
-2. Split “auto redistribution state” from “manual override state”
-- Add a clear state model in the redistribution layer:
-  - auto redistributed
-  - manual override applied
-  - not redistributed
-- Use this to drive banners, CTA visibility, and undo behavior.
-- This prevents the UI from assuming “not manually flagged” means “not redistributed.”
+---
 
-3. Replace the breakfast detail CTA with a read-only summary
-- In `MealDetailSheet`, when breakfast is missed and auto-redistributed:
-  - remove “Smart Redistribute”
-  - remove “Quick → Lunch”
-  - remove the apply flow
-  - show summary only:
-    - “Breakfast was automatically redistributed”
-    - lunch + dinner + snacks breakdown
-- This matches the behavior you want in the screenshots.
+## Step 1: Extend Data Models
 
-4. Derive the summary from actual engine targets, not a second redistribution pass
-- Build the displayed breakdown from the auto-redistributed result already reflected in current meal targets/day state.
-- Do not recompute and reapply a new redistribution plan in the sheet.
-- This ensures the displayed numbers exactly match lunch/dinner/snacks targets on the dashboard.
+**Files:** `src/lib/store.ts`, `src/lib/onboarding-store.ts`, `src/lib/profile-mapper.ts`
 
-5. Add a true “Undo auto redistribution” flow
-- If user chooses to remove redistribution:
-  - restore the missed meal target to breakfast
-  - remove the extra amounts from lunch/dinner/snacks
-  - keep totals conserved
-- This should be a dedicated reversal of the auto-redistribution state, not the current manual-adjustment subtraction logic only.
+- Add `gym?` field to `UserProfile` interface (goer, daysPerWeek, durationMinutes, intensity, goal, schedule, stats)
+- Add `gym?` field to `DailyLog` interface (attended, durationMinutes, caloriesBurned, intensity)
+- Add gym fields to `OnboardingData.activity` section
+- Update `saveOnboardingData()` to wire gym data into profile
+- Map gym data through `conditions` JSONB in `profileToDbRow`/`dbRowToProfile`
+- Add gym fields to `FormState` in onboarding
 
-6. Auto-undo when user logs food into a previously redistributed meal
-- Project memory says redistributed slots must auto-undo when the user actually logs that meal.
-- Add this in `MealDetailSheet` item-save flow:
-  - before saving food for a redistributed breakfast, reverse redistribution first
-  - then log the food
-- This avoids stale redistributed state and prevents target corruption.
+## Step 2: Onboarding Gym Questions
 
-7. Remove the old double-application paths
-- Deprecate or guard these paths so they cannot stack on top of auto redistribution:
-  - `redistributeMissedMeal(...)` quick flow in `meal-targets.ts`
-  - `applyRedistribution(...)` from `SmartRedistributionSheet` when meal is already auto-redistributed
-- Keep manual customization only if you still want an advanced override mode; if so, it must first clear the auto state before applying custom allocations.
+**File:** `src/pages/Onboarding.tsx`
 
-8. Fix the dashboard meal copy
-- In `TodayMeals`, keep:
-  - missed meal shows “Redistributed”
-  - receiving meals show “+331 from breakfast”
-- Ensure the breakfast card opens a summary/details screen only, not a redistribution action screen.
-- Update wording to explicitly say “Automatically redistributed” to reduce confusion.
+- Add 5 new fields to `FormState`: `gymGoer`, `gymDays`, `gymDuration`, `gymIntensity`, `gymGoal`
+- Insert a new step after step 10 (Exercise) — becomes step 10.5, renumber subsequent steps
+- Questions: gym yes/no → days/week slider → duration picker → intensity → goal
+- If "No", skip remaining gym questions via `getVisibleSteps()`
+- Auto-infer schedule from `daysPerWeek` (3 → Mon/Wed/Fri pattern)
+- Update `canContinue()`, step map comments, `handleFinish()` to include gym data
+- Wire into `OnboardingData.activity` section
 
-Files to update
-- `src/lib/calorie-engine.ts`
-  - expose enough information to know when a missed meal has already been auto-redistributed
-  - possibly include source breakdown data
-- `src/lib/redistribution-service.ts`
-  - add explicit auto/manual redistribution state
-  - add reversal helpers
-  - align undo behavior with auto redistribution
-- `src/components/MealDetailSheet.tsx`
-  - remove redistribution CTAs for already auto-redistributed meals
-  - show read-only summary banner
-  - auto-undo on meal logging
-- `src/components/SmartRedistributionSheet.tsx`
-  - block apply when auto redistribution already exists, or convert it into an override flow
-- `src/components/TodayMeals.tsx`
-  - align status/copy with the new single-source redistribution logic
-- `src/lib/meal-targets.ts`
-  - either retire `redistributeMissedMeal` for missed-meal auto flows or restrict it to explicit override scenarios only
+## Step 3: Create Gym Service
 
-Expected result after fix
-- Breakfast missed once
-- Lunch/dinner/snacks already receive the redistributed calories once
-- Opening breakfast does not show redistribute/apply again
-- No calorie inflation
-- User can still view where calories went
-- If they log breakfast later, redistribution is reversed first, then breakfast becomes normal again
+**New file:** `src/lib/gym-service.ts`
 
-Technical note
-Right now the architecture has two competing systems:
-- engine-level implicit redistribution (`recalculateDay`)
-- adjustment-level explicit redistribution (`applyRedistribution` / `redistributeMissedMeal`)
-The safest fix is to make one canonical path for missed-meal redistribution and convert the other path into either:
-- display-only summary
-or
-- explicit override after clearing the first state
+Pure logic functions:
+- `isGymDay(profile, date)` — matches day-of-week against profile schedule
+- `getGymCheckInStatus(date)` — reads `dailyLog.gym`
+- `saveGymCheckIn(date, attended, duration?, intensity?)` — writes to daily log, updates profile stats
+- `estimateCaloriesBurned(weightKg, duration, intensity)` — MET formula: `duration × MET × (weightKg/60)`, MET: light=4, moderate=6, intense=8
+- `getWeeklyConsistency(profile, date)` — actualWorkouts / plannedWorkouts for last 7 days from logs
+- `getGymBonus(profile, consistency, isGymDay)` — base bonus = `duration × intensityFactor × 0.6`, scaled by consistency (≥80% full, 50-80% ×0.75, <50% zero + 5% base reduction flag)
+- `getGymStats(allLogs)` — compute totals, streaks, consistency from all daily logs
+- `updateGymStats(profile)` — recompute and save stats to profile
 
-This is the root cause of the problem you described.
+## Step 4: Create UI Components
+
+**New files:**
+
+### `src/components/GymCheckInCard.tsx`
+- Non-intrusive card, shown on gym days if not checked in
+- "Did you work out today? 🏋️" with Yes/No buttons
+- Yes → expand: duration slider, intensity picker, live calorie estimate
+- Saves via `saveGymCheckIn()`, shows "Logged ✓" state after
+
+### `src/components/GymConsistencyCard.tsx`
+- Below CalorieRing for gym-goers only
+- "This week: X/Y workouts" with mini progress ring
+- Current streak with fire emoji
+- Consistency % with color coding (green/amber/red)
+- "Log workout" button
+- Wrapped in `React.memo`
+
+### `src/components/GymUpsellCard.tsx`
+- Conditional: gym-goer + ≥5 sessions in 30 days + streak ≥3
+- "Unlock Your Gym Diet Plan 💪" with features list
+- Upgrade button → Plans tab
+
+### `src/components/GymProgressSection.tsx`
+- For Progress tab, gym-goers only
+- Monthly calendar with green dots on workout days
+- Weekly consistency bars (last 12 weeks)
+- Lifetime stats: total workouts, calories burned, best streak
+
+## Step 5: Calorie Engine Integration
+
+**File:** `src/lib/calorie-correction.ts`
+
+- In `getAdjustedDailyTarget()`, after base target calculation and before return:
+  - If user is gym-goer and today is a gym day, compute gym bonus via `getGymBonus()`
+  - Add bonus to target (or subtract 5% if consistency <50%)
+  - Clamp to ≥1200 kcal
+- Bonus based on previous week's consistency, not current week
+
+## Step 6: Dashboard & Profile Integration
+
+**File:** `src/pages/Dashboard.tsx`
+- Import and render `GymCheckInCard`, `GymConsistencyCard`, `GymUpsellCard` conditionally
+- Place after CalorieRing, before Today's Meals
+
+**File:** `src/pages/Progress.tsx`
+- Import and render `GymProgressSection` for gym-goers
+
+**File:** `src/components/EditProfileSheet.tsx`
+- Add collapsible "Gym Settings" section: toggle, days slider, duration, intensity, goal pickers
+
+## Step 7: Meal Suggestion & Premium Plan
+
+**File:** `src/lib/meal-suggestion-engine.ts`
+- On workout days (`gym.attended = true`): boost protein-rich recipe scores by +15, increase protein target by 10%
+
+**Files:** `src/components/SpecialPlansTab.tsx`, `src/components/PlanDetailSheet.tsx`
+- Add `gym_optimization` plan type (₹199/month)
+- When active: workout-day/rest-day calorie split, recovery meal suggestions
+
+---
+
+## Technical Details
+
+### Files Created (5)
+- `src/lib/gym-service.ts`
+- `src/components/GymCheckInCard.tsx`
+- `src/components/GymConsistencyCard.tsx`
+- `src/components/GymUpsellCard.tsx`
+- `src/components/GymProgressSection.tsx`
+
+### Files Modified (8)
+- `src/lib/store.ts` — type extensions
+- `src/lib/onboarding-store.ts` — gym in OnboardingData + saveOnboardingData
+- `src/lib/profile-mapper.ts` — cloud sync mapping
+- `src/pages/Onboarding.tsx` — gym questions (new steps 11-15, renumber)
+- `src/lib/calorie-correction.ts` — gym bonus in getAdjustedDailyTarget
+- `src/pages/Dashboard.tsx` — render gym cards
+- `src/pages/Progress.tsx` — gym stats section
+- `src/components/EditProfileSheet.tsx` — gym settings
+
+### No Database Migration
+All gym data stored in existing `conditions` JSONB column (profile) and `log_data` JSONB column (daily logs).
+
+### Calorie Adjustment Table
+| Weekly Consistency | Bonus Multiplier | Base Adjustment |
+|---|---|---|
+| ≥80% | 1.0× | None |
+| 50–80% | 0.75× | None |
+| <50% | 0× | −5% base calories |
+
+Safety floor: 1200 kcal always enforced.
+
