@@ -1,6 +1,6 @@
-import { useState, forwardRef } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Phone, ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Phone, ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import heroImg from '@/assets/hero-nutrition.jpg';
@@ -8,7 +8,7 @@ import heroImg from '@/assets/hero-nutrition.jpg';
 
 type AuthMode = 'welcome' | 'login' | 'signup' | 'phone-otp';
 
-const Auth = forwardRef<HTMLDivElement>(function Auth(_props, ref) {
+const Auth = function Auth() {
   const [mode, setMode] = useState<AuthMode>('welcome');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -102,7 +102,7 @@ const Auth = forwardRef<HTMLDivElement>(function Auth(_props, ref) {
 
 
   return (
-    <div ref={ref} className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       <AnimatePresence mode="wait">
         {mode === 'welcome' && (
           <motion.div key="welcome" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col">
@@ -222,6 +222,6 @@ const Auth = forwardRef<HTMLDivElement>(function Auth(_props, ref) {
       </AnimatePresence>
     </div>
   );
-});
+};
 
 export default Auth;

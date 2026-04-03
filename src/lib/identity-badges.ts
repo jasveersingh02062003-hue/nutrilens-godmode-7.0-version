@@ -56,7 +56,8 @@ export interface EarnedBadge {
 }
 
 function getEarnedBadges(): EarnedBadge[] {
-  return JSON.parse(localStorage.getItem(BADGES_KEY) || '[]');
+  try { return JSON.parse(localStorage.getItem(BADGES_KEY) || '[]'); }
+  catch { return []; }
 }
 
 function saveEarnedBadges(badges: EarnedBadge[]): void {

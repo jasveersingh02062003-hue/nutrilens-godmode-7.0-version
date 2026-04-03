@@ -33,7 +33,8 @@ export default function CoachSettingsSheet({ open, onClose }: Props) {
 
   // Store tone and frequency as extended settings in localStorage
   const extKey = 'nutrilens_coach_extended';
-  const ext = JSON.parse(localStorage.getItem(extKey) || '{"tone":"friendly","frequency":"medium"}');
+  let ext = { tone: 'friendly', frequency: 'medium' };
+  try { ext = JSON.parse(localStorage.getItem(extKey) || '{}'); if (!ext.tone) ext.tone = 'friendly'; if (!ext.frequency) ext.frequency = 'medium'; } catch {}
 
   const updateExt = (partial: Record<string, string>) => {
     const next = { ...ext, ...partial };

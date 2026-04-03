@@ -182,7 +182,13 @@ const PHOTOS_KEY = 'nutrilens_progress_photos';
 export function getProfile(): UserProfile | null {
   // Profile stays global — overwritten on login from cloud
   const data = localStorage.getItem(PROFILE_KEY);
-  return data ? JSON.parse(data) : null;
+  if (!data) return null;
+  try {
+    return JSON.parse(data);
+  } catch (e) {
+    console.warn('[store] Corrupted profile JSON, returning null:', e);
+    return null;
+  }
 }
 
 /** Get dynamically computed age from DOB (falls back to stored age) */
@@ -257,7 +263,9 @@ export function logWeight(date: string, weight: number, unit: 'kg' | 'lbs' = 'kg
       if (!session?.user) return;
       supabase.from('weight_logs').upsert({
         user_id: session.user.id, log_date: date, weight, unit,
-      } as any, { onConflict: 'user_id,log_date' } as any).then(() => {});
+      } as any, { onConflict: 'user_id,log_date' } as any).then(({ error }: any) => {
+        if (error) console.error('[store] weight_logs sync failed:', error.message);
+      });
     });
   }).catch(() => {});
   return log;
@@ -294,7 +302,9 @@ export function addWater() {
       if (!session?.user) return;
       supabase.from('water_logs').upsert({
         user_id: session.user.id, log_date: log.date, cups: log.waterCups,
-      } as any, { onConflict: 'user_id,log_date' } as any).then(() => {});
+      } as any, { onConflict: 'user_id,log_date' } as any).then(({ error }: any) => {
+        if (error) console.error('[store] water_logs sync failed:', error.message);
+      });
     });
   }).catch(() => {});
   return log;
@@ -336,7 +346,9 @@ export function addSupplement(entry: SupplementEntry) {
       if (!session?.user) return;
       supabase.from('supplement_logs').upsert({
         user_id: session.user.id, log_date: log.date, supplements: log.supplements as any,
-      } as any, { onConflict: 'user_id,log_date' } as any).then(() => {});
+      } as any, { onConflict: 'user_id,log_date' } as any).then(({ error }: any) => {
+        if (error) console.error('[store] supplement_logs sync failed:', error.message);
+      });
     });
   }).catch(() => {});
   return log;
@@ -433,7 +445,9 @@ export function addWaterForDate(date: string) {
       if (!session?.user) return;
       supabase.from('water_logs').upsert({
         user_id: session.user.id, log_date: date, cups: log.waterCups,
-      } as any, { onConflict: 'user_id,log_date' } as any).then(() => {});
+      } as any, { onConflict: 'user_id,log_date' } as any).then(({ error }: any) => {
+        if (error) console.error('[store] water_logs sync failed:', error.message);
+      });
     });
   }).catch(() => {});
   return log;
@@ -449,7 +463,9 @@ export function removeWaterForDate(date: string) {
       if (!session?.user) return;
       supabase.from('water_logs').upsert({
         user_id: session.user.id, log_date: date, cups: log.waterCups,
-      } as any, { onConflict: 'user_id,log_date' } as any).then(() => {});
+      } as any, { onConflict: 'user_id,log_date' } as any).then(({ error }: any) => {
+        if (error) console.error('[store] water_logs sync failed:', error.message);
+      });
     });
   }).catch(() => {});
   return log;
@@ -466,7 +482,9 @@ export function addSupplementForDate(date: string, entry: SupplementEntry) {
       if (!session?.user) return;
       supabase.from('supplement_logs').upsert({
         user_id: session.user.id, log_date: date, supplements: log.supplements as any,
-      } as any, { onConflict: 'user_id,log_date' } as any).then(() => {});
+      } as any, { onConflict: 'user_id,log_date' } as any).then(({ error }: any) => {
+        if (error) console.error('[store] supplement_logs sync failed:', error.message);
+      });
     });
   }).catch(() => {});
   return log;
@@ -482,7 +500,9 @@ export function deleteSupplementFromLog(date: string, id: string) {
       if (!session?.user) return;
       supabase.from('supplement_logs').upsert({
         user_id: session.user.id, log_date: date, supplements: log.supplements as any,
-      } as any, { onConflict: 'user_id,log_date' } as any).then(() => {});
+      } as any, { onConflict: 'user_id,log_date' } as any).then(({ error }: any) => {
+        if (error) console.error('[store] supplement_logs sync failed:', error.message);
+      });
     });
   }).catch(() => {});
   return log;

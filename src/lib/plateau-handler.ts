@@ -55,7 +55,8 @@ export function applyPlateauAdjustment(): PlateauAdjustment | null {
   if (!profile) return null;
 
   // Check if already adjusted recently
-  const adjustments: PlateauAdjustment[] = JSON.parse(localStorage.getItem(PLATEAU_KEY) || '[]');
+  let adjustments: PlateauAdjustment[] = [];
+  try { adjustments = JSON.parse(localStorage.getItem(PLATEAU_KEY) || '[]'); } catch {}
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const recentAdjustment = adjustments.find(a => {
