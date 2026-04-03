@@ -35,7 +35,7 @@ export default function PlanBannerSection() {
 
       {/* Active Plan Banner */}
       {(() => {
-        if (!ap) return <><ActivePlanBanner /><PlanPromoCard /></>;
+        if (!ap) return <ActivePlanBanner />;
         if (ap.planId === 'madhavan_21_day') return <MadhavanPlanBanner />;
         if (ap.planId === 'event_based' && ap.eventSettings) {
           const prog = getPlanProgress();

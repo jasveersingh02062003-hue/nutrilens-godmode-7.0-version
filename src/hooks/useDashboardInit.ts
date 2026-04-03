@@ -136,13 +136,18 @@ export function useDashboardInit() {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
-    const recoveryDismissed = scopedGet(`nutrilens_missed_ack_${yesterdayKey}`);
-    if (!recoveryDismissed) {
-      const yLog = getDailyLog(yesterdayKey);
-      const yTotals = getDailyTotals(yLog);
-      if (yTotals.eaten < 300) {
-        setMissedDate(yesterdayKey);
-        setMissedPromptOpen(true);
+    // Don't show missed-day prompt for dates on or before the join date
+    const joinDate = profile?.joinDate;
+    const isBeforeOrOnJoinDate = joinDate && yesterdayKey <= joinDate;
+    if (!isBeforeOrOnJoinDate) {
+      const recoveryDismissed = scopedGet(`nutrilens_missed_ack_${yesterdayKey}`);
+      if (!recoveryDismissed) {
+        const yLog = getDailyLog(yesterdayKey);
+        const yTotals = getDailyTotals(yLog);
+        if (yTotals.eaten < 300) {
+          setMissedDate(yesterdayKey);
+          setMissedPromptOpen(true);
+        }
       }
     }
     updateLastLogDate();

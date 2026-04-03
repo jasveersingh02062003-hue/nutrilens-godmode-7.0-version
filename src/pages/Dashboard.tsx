@@ -150,8 +150,8 @@ export default function Dashboard() {
               <span className="text-lg">💪</span>
             </div>
             <div className="flex-1">
-              <p className="text-lg font-bold text-foreground">{Math.max(0, getProteinTarget(d.profile) - d.totals.protein)}g <span className="text-xs font-medium text-muted-foreground">protein remaining</span></p>
-              <p className="text-[10px] text-muted-foreground">Target: {getProteinTarget(d.profile)}g · Eaten: {d.totals.protein}g</p>
+            <p className="text-lg font-bold text-foreground">{Math.round(Math.max(0, getProteinTarget(d.profile) - d.totals.protein))}g <span className="text-xs font-medium text-muted-foreground">protein remaining</span></p>
+              <p className="text-[10px] text-muted-foreground">Target: {Math.round(getProteinTarget(d.profile))}g · Eaten: {Math.round(d.totals.protein)}g</p>
             </div>
           </div>
         </div>
@@ -179,7 +179,7 @@ export default function Dashboard() {
 
         {/* 2. Calorie Ring */}
         <div className="animate-scale-in">
-          <CalorieRing dayState={d.dayState} proteinRemaining={Math.max(0, getProteinTarget(d.profile) - d.totals.protein)} />
+          <CalorieRing dayState={d.dayState} proteinRemaining={Math.round(Math.max(0, getProteinTarget(d.profile) - d.totals.protein))} />
         </div>
 
         <div className="animate-slide-up" style={{ animationDelay: '0.03s' }}>
@@ -194,9 +194,9 @@ export default function Dashboard() {
 
         {/* 3. Macros */}
         <div className="flex gap-2 animate-slide-up">
-          <MacroCard label="Protein" current={d.totals.protein} goal={getProteinTarget(d.profile)} variant="coral" icon="protein" />
-          <MacroCard label="Carbs" current={d.totals.carbs} goal={getCarbTarget(d.profile)} variant="primary" icon="carbs" />
-          <MacroCard label="Fats" current={d.totals.fat} goal={getFatTarget(d.profile)} variant="gold" icon="fat" />
+          <MacroCard label="Protein" current={Math.round(d.totals.protein)} goal={Math.round(getProteinTarget(d.profile))} variant="coral" icon="protein" />
+          <MacroCard label="Carbs" current={Math.round(d.totals.carbs)} goal={Math.round(getCarbTarget(d.profile))} variant="primary" icon="carbs" />
+          <MacroCard label="Fats" current={Math.round(d.totals.fat)} goal={Math.round(getFatTarget(d.profile))} variant="gold" icon="fat" />
         </div>
 
         <div className="animate-slide-up" style={{ animationDelay: '0.05s' }}><BudgetSummaryCard /></div>
