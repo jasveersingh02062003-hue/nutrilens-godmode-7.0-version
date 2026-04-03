@@ -26,7 +26,33 @@ export default function SpecialPlansTab() {
 
   return (
     <div className="space-y-4">
-      {/* Active Plan Banner */}
+      {/* Segmented Control */}
+      <div className="flex rounded-xl bg-muted p-1 gap-1">
+        <button
+          onClick={() => setSubTab('available')}
+          className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors ${
+            subTab === 'available' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
+          }`}
+        >
+          Available Plans
+        </button>
+        <button
+          onClick={() => setSubTab('my')}
+          className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors relative ${
+            subTab === 'my' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
+          }`}
+        >
+          My Plans
+          {getActivePlanRaw() && (
+            <span className="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-primary" />
+          )}
+        </button>
+      </div>
+
+      {subTab === 'my' ? (
+        <CurrentPlansTab onBrowse={() => setSubTab('available')} />
+      ) : (
+      <div className="space-y-4">
       {activePlan && progress && (() => {
         const meta = getPlanById(activePlan.planId);
         return (
