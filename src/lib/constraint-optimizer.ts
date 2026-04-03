@@ -72,7 +72,7 @@ function findBestForSlot(
   excludeIds: string[]
 ): ScoredCandidate | null {
   const eligible = candidates.filter(r =>
-    r.mealType.includes(slot.mealType as any) &&
+    r.mealType.includes(slot.mealType) &&
     !excludeIds.includes(r.id)
   );
 
