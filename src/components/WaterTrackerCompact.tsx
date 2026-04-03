@@ -11,7 +11,7 @@ interface Props {
   onAdd: () => void;
 }
 
-export default function WaterTrackerCompact({ cups, goal, onAdd }: Props) {
+export default memo(function WaterTrackerCompact({ cups, goal, onAdd }: Props) {
   const weather = useMemo(() => getWeather(), []);
   const weatherBonus = useMemo(() => getWeatherWaterBonus(weather.temperature, weather.season), [weather]);
   const activePlan = getActivePlan();
