@@ -892,19 +892,23 @@ export default function CameraHome() {
             });
 
             const severity = (isSevere || hasHighCondition) ? 'high' as const : 'medium' as const;
+            const hasPlanWarnings = planWarnings.length > 0;
             const type = allergenMessages.length > 0 && condMessages.length > 0 ? 'combined' as const
               : allergenMessages.length > 0 ? 'allergen' as const : 'health' as const;
             const title = isSevere ? '🚨 Severe Allergen Detected'
               : allergenMessages.length > 0 ? '⚠️ Allergen Warning'
-              : hasHighCondition ? '🚨 Health Condition Alert' : '⚠️ Health Advisory';
+              : hasHighCondition ? '🚨 Health Condition Alert'
+              : hasPlanWarnings ? '🎯 Plan Rule Violation'
+              : '⚠️ Health Advisory';
 
             return (
               <AnimatedWarningBanner
                 type={type}
-                severity={severity}
+                severity={hasPlanWarnings && !isSevere && !hasHighCondition ? 'medium' : severity}
                 title={title}
                 messages={allMessages}
                 onRemoveItem={(id) => toggleItemSelection(id)}
+                onFindAlternative={hasPlanWarnings ? () => setReplaceOpen(true) : undefined}
               />
             );
           })()}
