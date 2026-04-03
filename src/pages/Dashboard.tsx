@@ -821,7 +821,7 @@ export default function Dashboard() {
             Set My Plan
           </Button>
           <Button variant="ghost" onClick={() => {
-            localStorage.setItem('planner_modal_dismissed', 'true');
+            localStorage.setItem(plannerDismissKey, 'true');
             setShowPlannerModal(false);
           }}>
             Do it later
