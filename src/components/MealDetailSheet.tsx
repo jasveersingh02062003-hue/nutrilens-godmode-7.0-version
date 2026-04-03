@@ -22,6 +22,7 @@ import MissedMealEducation from '@/components/MissedMealEducation';
 import EditMealTargetModal from '@/components/EditMealTargetModal';
 import { wasEducationShown } from '@/lib/education-service';
 import { isRedistributed, getRedistributionDetails, markRedistributed, undoRedistribution } from '@/lib/redistribution-service';
+import { recalculateDay, type DayState } from '@/lib/calorie-engine';
 import WeatherNudgeCard from '@/components/WeatherNudgeCard';
 import { getMealDetailNudge } from '@/lib/weather-nudge-service';
 import SmartAdjustmentCard from '@/components/SmartAdjustmentCard';
@@ -111,9 +112,30 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
   const nextMeal = getNextMealType(mealType);
   const nextMealLabel = nextMeal === 'lunch' ? 'Lunch' : nextMeal === 'dinner' ? 'Dinner' : nextMeal === 'snack' ? 'Snacks' : null;
 
-  // Redistribution guard
+  // Auto-redistribution from engine: check if the engine already redistributed this missed meal
+  const dayState = useMemo(() => recalculateDay(profile, log), [profile, log]);
+  const engineSlotName = mealType === 'snack' ? 'snacks' : mealType;
+  const engineSlot = dayState.slots.find(s => s.name === engineSlotName);
+  const isAutoRedistributed = !!(engineSlot?.autoRedistributed);
+  
+  // Build auto-redistribution breakdown from engine data
+  const autoRedistributionBreakdown = useMemo(() => {
+    if (!isAutoRedistributed) return [];
+    return dayState.slots
+      .filter(s => s.receivedFrom && s.receivedFrom.some(r => r.fromMeal === engineSlotName))
+      .map(s => {
+        const received = s.receivedFrom!.find(r => r.fromMeal === engineSlotName)!;
+        const label = s.name === 'snacks' ? 'Snacks' : s.name.charAt(0).toUpperCase() + s.name.slice(1);
+        return { mealType: s.name, label, addedKcal: received.addedKcal };
+      });
+  }, [isAutoRedistributed, dayState, engineSlotName]);
+
+  // Legacy manual redistribution flag (still needed for undo)
   const alreadyRedistributed = isRedistributed(date, mealType);
   const redistributionInfo = alreadyRedistributed ? getRedistributionDetails(date, mealType) : null;
+  
+  // Effective redistribution state: either engine auto or manual
+  const effectivelyRedistributed = isAutoRedistributed || alreadyRedistributed;
 
   // AI suggestions
   const suggestions = hasGap ? getGapSuggestions({ calories: gapCal, protein: gapP, carbs: gapC, fat: gapF }) : [];
@@ -417,8 +439,8 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
             );
           })()}
 
-          {/* Missed Meal Banner */}
-          {isMissed && !alreadyRedistributed && (
+          {/* Missed Meal Banner — only show CTAs if NOT auto-redistributed by engine */}
+          {isMissed && !effectivelyRedistributed && (
             <div className="mx-4 mt-2 p-3 rounded-xl bg-destructive/10 border border-destructive/20">
               <p className="text-xs font-semibold text-destructive mb-1">You missed {mealLabel}</p>
               <p className="text-[11px] text-muted-foreground mb-2">Redistribute these calories to remaining meals?</p>
@@ -441,21 +463,42 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
             </div>
           )}
 
-          {/* Redistributed Summary Banner */}
-          {isMissed && alreadyRedistributed && redistributionInfo && (
+          {/* Auto-Redistributed Summary Banner (engine-driven) */}
+          {isMissed && isAutoRedistributed && autoRedistributionBreakdown.length > 0 && (
+            <div className="mx-4 mt-2 p-3 rounded-xl bg-primary/5 border border-primary/20">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm">✅</span>
+                <p className="text-xs font-semibold text-foreground">{mealLabel} — Automatically Redistributed</p>
+              </div>
+              <p className="text-[11px] text-muted-foreground mb-2">
+                Calories were automatically balanced across your remaining meals:
+              </p>
+              <div className="space-y-1">
+                {autoRedistributionBreakdown.map(a => (
+                  <div key={a.mealType} className="flex items-center justify-between px-2 py-1 rounded-lg bg-card border border-border">
+                    <span className="text-[11px] font-medium text-foreground">{a.label}</span>
+                    <span className="text-[11px] font-bold text-primary">+{a.addedKcal} kcal</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-2 italic">
+                Want to log this meal instead? Add food items above and targets will auto-adjust.
+              </p>
+            </div>
+          )}
+
+          {/* Legacy manual redistribution banner */}
+          {isMissed && alreadyRedistributed && !isAutoRedistributed && redistributionInfo && (
             <div className="mx-4 mt-2 p-3 rounded-xl bg-primary/5 border border-primary/20">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-sm">✅</span>
                 <p className="text-xs font-semibold text-foreground">{mealLabel} – Redistributed</p>
               </div>
-              <p className="text-[11px] text-muted-foreground mb-2">
-                Calories were redistributed to other meals:
-              </p>
               <div className="space-y-1">
                 {redistributionInfo.allocations.map(a => (
                   <div key={a.mealType} className="flex items-center justify-between px-2 py-1 rounded-lg bg-card border border-border">
                     <span className="text-[11px] font-medium text-foreground">{a.label}</span>
-                    <span className="text-[11px] font-bold text-primary">+{a.addedCalories} kcal · +{a.addedProtein}g protein</span>
+                    <span className="text-[11px] font-bold text-primary">+{a.addedCalories} kcal</span>
                   </div>
                 ))}
               </div>
@@ -467,9 +510,6 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
                   ↩️ Undo & Log {mealLabel}
                 </button>
               </div>
-              <p className="text-[10px] text-muted-foreground mt-2 italic">
-                Already redistributed. Tap undo if you actually ate this meal.
-              </p>
             </div>
           )}
 

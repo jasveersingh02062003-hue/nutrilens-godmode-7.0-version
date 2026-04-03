@@ -108,7 +108,8 @@ export default function TodayMeals({ log, onRefresh, dayState }: Props) {
             const calPct = target && target.calories > 0 ? Math.min(200, Math.round((totalCal / target.calories) * 100)) : 0;
             const engineStatus = engineSlot?.status || 'pending';
             const isMissed = engineStatus === 'missed';
-            const mealRedistributed = isRedistributed(todayKey, mc.type);
+            const isAutoRedist = !!(engineSlot?.autoRedistributed);
+            const mealRedistributed = isAutoRedist || isRedistributed(todayKey, mc.type);
 
             // Visual state
             const stateInfo = resolveMealVisualState(
@@ -119,12 +120,21 @@ export default function TodayMeals({ log, onRefresh, dayState }: Props) {
               mc.type
             );
 
-            // Received redistributions
+            // Received redistributions from engine
             const receivedFrom: { source: string; calories: number }[] = [];
-            for (const [sourceMeal, info] of Object.entries(allRedistributions)) {
-              for (const alloc of info.allocations) {
-                if (alloc.mealType === mc.type) {
-                  receivedFrom.push({ source: sourceMeal, calories: alloc.addedCalories });
+            if (engineSlot?.receivedFrom) {
+              for (const r of engineSlot.receivedFrom) {
+                const sourceName = r.fromMeal.charAt(0).toUpperCase() + r.fromMeal.slice(1);
+                receivedFrom.push({ source: sourceName, calories: r.addedKcal });
+              }
+            }
+            // Fallback to manual redistribution details if no engine data
+            if (receivedFrom.length === 0) {
+              for (const [sourceMeal, info] of Object.entries(allRedistributions)) {
+                for (const alloc of info.allocations) {
+                  if (alloc.mealType === mc.type) {
+                    receivedFrom.push({ source: sourceMeal, calories: alloc.addedCalories });
+                  }
                 }
               }
             }
@@ -161,7 +171,7 @@ export default function TodayMeals({ log, onRefresh, dayState }: Props) {
                     <p className="font-semibold text-sm text-foreground">{mc.label}</p>
                     <span className="text-[10px] text-muted-foreground">{displayTime}</span>
                     {isMissed && !mealRedistributed && <span className="text-[9px] font-semibold text-status-danger">Missed</span>}
-                    {isMissed && mealRedistributed && <span className="text-[9px] font-semibold text-primary">Redistributed</span>}
+                    {isMissed && mealRedistributed && <span className="text-[9px] font-semibold text-primary">Auto-Redistributed</span>}
                     {/* Status badge */}
                     {stateInfo.state !== 'empty' && !isMissed && (
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${stateInfo.pillClass}`}>
@@ -263,10 +273,10 @@ export default function TodayMeals({ log, onRefresh, dayState }: Props) {
                       )}
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {isMissed && mealRedistributed
-                          ? 'Redistributed · Tap to view details'
+                          ? 'Auto-redistributed · Tap to view details'
                           : isMissed
-                          ? 'Tap to redistribute or add'
-                          : 'Tap to add your meal'}
+                          ? 'Tap to add your meal'
+                           : 'Tap to add your meal'}
                       </p>
                     </div>
                   )}

@@ -8,7 +8,7 @@ import { ChevronLeft, Check, ArrowRight, CalendarPlus, Crown } from 'lucide-reac
 import { motion } from 'framer-motion';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
-import { UserProfile } from '@/lib/store';
+import { UserProfile, getDailyLog } from '@/lib/store';
 import {
   calculateProportionalDistribution,
   applyRedistribution,
@@ -16,6 +16,7 @@ import {
   isRedistributed,
   type RedistributionResult,
 } from '@/lib/redistribution-service';
+import { recalculateDay } from '@/lib/calorie-engine';
 import { toast } from 'sonner';
 import { isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
@@ -105,7 +106,17 @@ export default function SmartRedistributionSheet({
   }
 
   function handleApply() {
-    // Double-check at execution time to prevent double redistribution
+    // Block if engine already auto-redistributed
+    const log = getDailyLog(date);
+    const dayState = recalculateDay(profile, log);
+    const slotName = missedMealType === 'snack' ? 'snacks' : missedMealType;
+    const engineSlot = dayState.slots.find(s => s.name === slotName);
+    if (engineSlot?.autoRedistributed) {
+      toast.info('This meal is already automatically redistributed by the engine.');
+      onClose();
+      return;
+    }
+    // Double-check manual flag
     if (isRedistributed(date, missedMealType)) {
       toast.error('This meal has already been redistributed.');
       onClose();
