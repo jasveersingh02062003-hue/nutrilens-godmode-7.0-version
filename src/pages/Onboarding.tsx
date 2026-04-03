@@ -1552,7 +1552,6 @@ export default function Onboarding() {
             )}
           </div>
         );
-      }
 
       // ── Intelligence Demo ──
       case 25:
