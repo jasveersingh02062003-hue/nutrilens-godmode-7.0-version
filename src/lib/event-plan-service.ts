@@ -57,6 +57,9 @@ export interface ActivePlan {
   dailyFat: number;
   dailyDeficit: number;
   activatedAt: string;
+  status?: 'active' | 'paused';
+  pausedAt?: string;
+  cancelledAt?: string;
   customSettings?: MadhavanSettings;
   eventSettings?: EventPlanSettings;
 }
@@ -73,6 +76,7 @@ export interface PlanTargets {
 }
 
 const STORAGE_KEY = 'nutrilens_active_plan';
+const HISTORY_KEY = 'nutrilens_plan_history';
 const KCAL_PER_KG = 7700;
 const MIN_CALORIES = 1200;
 const MAX_WEEKLY_LOSS = 1; // kg
@@ -337,19 +341,31 @@ export function getExpiredEventPlan(): ActivePlan | null {
   }
 }
 
-// Active plan CRUD — modified to support event expiry detection
+// Returns the raw plan regardless of status (for UI display)
+export function getActivePlanRaw(): ActivePlan | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as ActivePlan;
+  } catch {
+    return null;
+  }
+}
+
+// Active plan CRUD — returns null if paused or expired
 export function getActivePlan(): ActivePlan | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const plan = JSON.parse(raw) as ActivePlan;
+    // Paused plans are not "active" for calorie engine purposes
+    if (plan.status === 'paused') return null;
     const endDate = new Date(plan.startDate);
     endDate.setDate(endDate.getDate() + plan.duration);
     if (new Date() > endDate) {
-      // For event plans, keep in storage until feedback is collected
       if (plan.planId === 'event_based') {
         const feedbackKey = `nutrilens_event_feedback_${plan.startDate}`;
-        if (!localStorage.getItem(feedbackKey)) return null; // expired but awaiting feedback
+        if (!localStorage.getItem(feedbackKey)) return null;
       }
       localStorage.removeItem(STORAGE_KEY);
       return null;
@@ -362,28 +378,67 @@ export function getActivePlan(): ActivePlan | null {
 
 export function setActivePlan(plan: ActivePlan): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(plan));
+  window.dispatchEvent(new Event('nutrilens:plan_changed'));
 }
 
 export function clearActivePlan(): void {
   localStorage.removeItem(STORAGE_KEY);
+  window.dispatchEvent(new Event('nutrilens:plan_changed'));
 }
 
 export function isPlanActive(): boolean {
   return getActivePlan() !== null;
 }
 
-export function getPlanProgress(): { dayNumber: number; totalDays: number; daysLeft: number; percentComplete: number } | null {
-  const plan = getActivePlan();
-  if (!plan) return null;
-  const start = new Date(plan.startDate);
+// Pause / Resume / Cancel
+export function pauseActivePlan(): void {
+  const raw = getActivePlanRaw();
+  if (raw && (raw.status || 'active') === 'active') {
+    raw.status = 'paused';
+    raw.pausedAt = new Date().toISOString();
+    setActivePlan(raw);
+  }
+}
+
+export function resumeActivePlan(): void {
+  const raw = getActivePlanRaw();
+  if (raw && raw.status === 'paused') {
+    raw.status = 'active';
+    delete raw.pausedAt;
+    setActivePlan(raw);
+  }
+}
+
+export function cancelActivePlan(): void {
+  const raw = getActivePlanRaw();
+  if (raw) {
+    const history: ActivePlan[] = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    history.push({ ...raw, cancelledAt: new Date().toISOString() });
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    clearActivePlan();
+  }
+}
+
+export function getPlanHistory(): ActivePlan[] {
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+export function getPlanProgress(plan?: ActivePlan | null): { dayNumber: number; totalDays: number; daysLeft: number; percentComplete: number } | null {
+  const p = plan ?? getActivePlanRaw();
+  if (!p) return null;
+  const start = new Date(p.startDate);
   const now = new Date();
   const diffMs = now.getTime() - start.getTime();
   const dayNumber = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-  const daysLeft = Math.max(0, plan.duration - dayNumber);
+  const daysLeft = Math.max(0, p.duration - dayNumber);
   return {
-    dayNumber: Math.min(dayNumber, plan.duration),
-    totalDays: plan.duration,
+    dayNumber: Math.min(dayNumber, p.duration),
+    totalDays: p.duration,
     daysLeft,
-    percentComplete: Math.round((Math.min(dayNumber, plan.duration) / plan.duration) * 100),
+    percentComplete: Math.round((Math.min(dayNumber, p.duration) / p.duration) * 100),
   };
 }

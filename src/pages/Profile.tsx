@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo } from 'react';
 import { ArrowLeft, Edit2, Bell, Activity, Download, HelpCircle, ChevronRight, Package, LogOut, Loader2, Heart, SlidersHorizontal, Crown, Zap, Star, ArrowRight } from 'lucide-react';
-import { getActivePlan, getPlanProgress, getPlanById } from '@/lib/event-plan-service';
+import { getActivePlan, getActivePlanRaw, getPlanProgress, getPlanById } from '@/lib/event-plan-service';
 import { isReverseDietActive, getReverseDietWeek } from '@/lib/reverse-diet-service';
 import { useNavigate } from 'react-router-dom';
 import { getBMICategory } from '@/lib/nutrition';
@@ -151,6 +151,18 @@ export default function Profile() {
               <div className="flex items-center gap-2">
                 <h2 className="font-bold text-lg text-foreground">{profile.name || 'NutriLens User'}</h2>
                 <SubscriptionBadge />
+                {(() => {
+                  const raw = getActivePlanRaw();
+                  if (!raw) return null;
+                  const st = raw.status || 'active';
+                  return (
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                      st === 'active' ? 'bg-primary/15 text-primary' : 'bg-accent/15 text-accent-foreground'
+                    }`}>
+                      {st === 'active' ? '⚡ Active Plan' : '⏸ Paused'}
+                    </span>
+                  );
+                })()}
               </div>
               <p className="text-xs text-muted-foreground">{user?.email || profile.occupation || 'Health Enthusiast'} · {profile.age} years</p>
               <div className="flex gap-2 mt-2">
@@ -162,6 +174,36 @@ export default function Profile() {
           </div>
           <p className="text-[9px] text-muted-foreground mt-2 text-center">Tap to view your Health Card</p>
         </div>
+
+        {/* Active Plan Quick Card */}
+        {(() => {
+          const raw = getActivePlanRaw();
+          if (!raw) return null;
+          const meta = getPlanById(raw.planId);
+          const prog = getPlanProgress(raw);
+          const st = raw.status || 'active';
+          return (
+            <div className="card-elevated p-4 space-y-3" onClick={() => navigate('/planner?tab=Plans')}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{meta?.emoji}</span>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{meta?.name}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {prog ? `Day ${prog.dayNumber}/${prog.totalDays} · ${prog.daysLeft} days left` : ''}
+                    </p>
+                  </div>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  st === 'active' ? 'bg-primary/15 text-primary' : 'bg-accent/15 text-accent-foreground'
+                }`}>
+                  {st === 'active' ? 'Active' : 'Paused'}
+                </span>
+              </div>
+              <p className="text-[10px] text-primary font-medium text-center">Tap to manage →</p>
+            </div>
+          );
+        })()}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-3 gap-2">

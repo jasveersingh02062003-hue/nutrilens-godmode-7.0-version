@@ -52,7 +52,7 @@ import ActivePlanBanner from '@/components/ActivePlanBanner';
 import MadhavanPlanBanner from '@/components/MadhavanPlanBanner';
 import PlanCompletionModal from '@/components/PlanCompletionModal';
 import PlanPromoCard from '@/components/PlanPromoCard';
-import { getPlanProgress, getActivePlan, getExpiredEventPlan } from '@/lib/event-plan-service';
+import { getPlanProgress, getActivePlan, getActivePlanRaw, getExpiredEventPlan, resumeActivePlan, getPlanById } from '@/lib/event-plan-service';
 import { isReverseDietActive, getReverseDietWeek } from '@/lib/reverse-diet-service';
 import BoostersChecklist from '@/components/BoostersChecklist';
 import ActivityTracker from '@/components/ActivityTracker';
@@ -503,6 +503,29 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+
+        {/* Paused Plan Banner */}
+        {(() => {
+          const raw = getActivePlanRaw();
+          if (raw && raw.status === 'paused') {
+            const meta = getPlanById(raw.planId);
+            return (
+              <div className="animate-fade-in">
+                <div className="flex items-center gap-3 rounded-2xl px-4 py-3 border bg-accent/10 border-accent/20">
+                  <span className="text-sm">⏸</span>
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-foreground">{meta?.name || 'Plan'} is paused</p>
+                    <p className="text-[10px] text-muted-foreground">Your normal targets are active. Resume anytime.</p>
+                  </div>
+                  <Button size="sm" className="h-7 text-[10px]" onClick={() => { resumeActivePlan(); window.location.reload(); }}>
+                    Resume
+                  </Button>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
 
         {/* Active Plan Banner — Madhavan gets custom banner, Event gets countdown */}
         {(() => {

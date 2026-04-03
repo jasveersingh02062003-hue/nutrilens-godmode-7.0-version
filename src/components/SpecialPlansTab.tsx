@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Star, ArrowRight, Crown, Zap, Target } from 'lucide-react';
-import { PLAN_CATALOG, type PlanMeta, type PlanCategory, getActivePlan, getPlanProgress, getPlanById } from '@/lib/event-plan-service';
+import { PLAN_CATALOG, type PlanMeta, type PlanCategory, getActivePlan, getActivePlanRaw, getPlanProgress, getPlanById } from '@/lib/event-plan-service';
 import PlanDetailSheet from './PlanDetailSheet';
 import EventPlanConfigSheet from './EventPlanConfigSheet';
+import CurrentPlansTab from './CurrentPlansTab';
 
 const FILTERS: { key: PlanCategory; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -17,6 +18,7 @@ export default function SpecialPlansTab() {
   const [filter, setFilter] = useState<PlanCategory>('all');
   const [selectedPlan, setSelectedPlan] = useState<PlanMeta | null>(null);
   const [eventSheetOpen, setEventSheetOpen] = useState(false);
+  const [subTab, setSubTab] = useState<'available' | 'my'>(() => getActivePlanRaw() ? 'my' : 'available');
   const activePlan = getActivePlan();
   const progress = getPlanProgress();
 
@@ -24,7 +26,33 @@ export default function SpecialPlansTab() {
 
   return (
     <div className="space-y-4">
-      {/* Active Plan Banner */}
+      {/* Segmented Control */}
+      <div className="flex rounded-xl bg-muted p-1 gap-1">
+        <button
+          onClick={() => setSubTab('available')}
+          className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors ${
+            subTab === 'available' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
+          }`}
+        >
+          Available Plans
+        </button>
+        <button
+          onClick={() => setSubTab('my')}
+          className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors relative ${
+            subTab === 'my' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
+          }`}
+        >
+          My Plans
+          {getActivePlanRaw() && (
+            <span className="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-primary" />
+          )}
+        </button>
+      </div>
+
+      {subTab === 'my' ? (
+        <CurrentPlansTab onBrowse={() => setSubTab('available')} />
+      ) : (
+      <div className="space-y-4">
       {activePlan && progress && (() => {
         const meta = getPlanById(activePlan.planId);
         return (
@@ -192,6 +220,8 @@ export default function SpecialPlansTab() {
 
       {/* Event Plan Config Sheet */}
       <EventPlanConfigSheet open={eventSheetOpen} onOpenChange={setEventSheetOpen} />
+    </div>
+      )}
     </div>
   );
 }
