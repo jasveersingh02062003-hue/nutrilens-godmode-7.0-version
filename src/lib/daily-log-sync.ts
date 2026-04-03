@@ -50,8 +50,8 @@ export async function restoreLogsFromCloud(): Promise<number> {
     let hasMore = true;
 
     while (hasMore) {
-      const { data, error } = await supabase
-        .from('daily_logs' as any)
+      const { data, error } = await (supabase
+        .from('daily_logs') as any)
         .select('log_date, log_data, updated_at')
         .eq('user_id', session.user.id)
         .order('log_date', { ascending: false })
