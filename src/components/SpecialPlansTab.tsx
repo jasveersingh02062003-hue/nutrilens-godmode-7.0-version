@@ -16,6 +16,7 @@ const FILTERS: { key: PlanCategory; label: string }[] = [
 export default function SpecialPlansTab() {
   const [filter, setFilter] = useState<PlanCategory>('all');
   const [selectedPlan, setSelectedPlan] = useState<PlanMeta | null>(null);
+  const [eventSheetOpen, setEventSheetOpen] = useState(false);
   const activePlan = getActivePlan();
   const progress = getPlanProgress();
 
