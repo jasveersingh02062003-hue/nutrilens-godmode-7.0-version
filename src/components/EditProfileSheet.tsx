@@ -59,6 +59,12 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
   const [dietaryPrefs, setDietaryPrefs] = useState<string[]>([]);
   const [waterGoal, setWaterGoal] = useState(2000);
   const [occupation, setOccupation] = useState('');
+  const [travelFrequency, setTravelFrequency] = useState<string>('');
+  const [kitchenAppliances, setKitchenAppliances] = useState<string[]>([]);
+  const [workplaceFacilities, setWorkplaceFacilities] = useState<string[]>([]);
+  const [carriesFood, setCarriesFood] = useState<string>('');
+  const [livingSituation, setLivingSituation] = useState<string>('');
+  const [lifestyleOpen, setLifestyleOpen] = useState(false);
 
   useEffect(() => {
     if (profile && open) {
