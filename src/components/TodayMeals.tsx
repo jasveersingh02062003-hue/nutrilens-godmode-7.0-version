@@ -171,7 +171,7 @@ export default function TodayMeals({ log, onRefresh, dayState }: Props) {
                     <p className="font-semibold text-sm text-foreground">{mc.label}</p>
                     <span className="text-[10px] text-muted-foreground">{displayTime}</span>
                     {isMissed && !mealRedistributed && <span className="text-[9px] font-semibold text-status-danger">Missed</span>}
-                    {isMissed && mealRedistributed && <span className="text-[9px] font-semibold text-primary">Redistributed</span>}
+                    {isMissed && mealRedistributed && <span className="text-[9px] font-semibold text-primary">Auto-Redistributed</span>}
                     {/* Status badge */}
                     {stateInfo.state !== 'empty' && !isMissed && (
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${stateInfo.pillClass}`}>
