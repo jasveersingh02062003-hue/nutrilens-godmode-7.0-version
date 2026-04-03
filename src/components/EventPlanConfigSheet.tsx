@@ -88,16 +88,18 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
   const { profile } = useUserProfile();
   const [step, setStep] = useState(0);
 
-  // Step 1
+  // Step 0 - Event
   const [eventType, setEventType] = useState('wedding');
   const [eventDate, setEventDate] = useState<Date | undefined>(addDays(new Date(), 30));
   const [dateOpen, setDateOpen] = useState(false);
+  const [motivation, setMotivation] = useState('');
+  const [customMotivation, setCustomMotivation] = useState('');
 
-  // Step 2
+  // Step 1 - Goal
   const [goalType, setGoalType] = useState<EventGoalType>('lose');
   const [targetWeight, setTargetWeight] = useState(profile?.weightKg ? profile.weightKg - 3 : 70);
 
-  // Step 3
+  // Step 2 - Constraints
   const [exerciseTime, setExerciseTime] = useState<ExerciseTime>('none');
   const [cookingTime, setCookingTime] = useState<CookingTime>(() => {
     if (profile?.cookingHabits === 'none' || profile?.cookingHabits === 'minimal') return 'none';
@@ -106,7 +108,7 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
   });
   const [budgetTier, setBudgetTier] = useState<BudgetTier>('moderate');
 
-  // Step 4
+  // Step 3 - Extras
   const [fastingWindow, setFastingWindow] = useState<0 | 12 | 14 | 16>(0);
   const [boosters, setBoosters] = useState<string[]>(['morning_routine', 'metabolism_drinks']);
 
