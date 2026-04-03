@@ -15,6 +15,7 @@ import { getEnhancedBudgetSettings } from './budget-alerts';
 import { getUnifiedBudget } from './budget-engine';
 import { foodDatabase } from './pes-engine';
 import { getActivePlan } from './event-plan-service';
+import { getSupplementSpendingForRange } from './supplement-service';
 
 export interface BudgetSummary {
   budget: number;
@@ -44,7 +45,6 @@ export function getBudgetSummary(periodOverride?: 'week' | 'month'): BudgetSumma
 
   // Add supplement costs as a separate category
   try {
-    const { getSupplementSpendingForRange } = require('./supplement-service');
     const suppCost = getSupplementSpendingForRange(range.start, range.end);
     if (suppCost > 0) {
       byCategory['supplements'] = suppCost;

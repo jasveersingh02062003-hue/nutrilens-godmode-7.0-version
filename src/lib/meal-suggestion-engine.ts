@@ -155,6 +155,7 @@ export function getRecipesForMeal(
 
     const baseScore = computePES(r, {
       targetCalories: remainingCalories,
+      originalProtein: effectiveProtein || undefined,
       budgetPerMeal: maxCost > 0 ? maxCost : undefined,
     });
     

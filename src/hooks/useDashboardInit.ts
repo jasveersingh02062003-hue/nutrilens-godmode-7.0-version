@@ -141,6 +141,12 @@ export function useDashboardInit() {
       if (dropOff.detected) setDropOffModal(dropOff);
       const boundary = checkWeeklySurplus();
       if (boundary) setHardBoundaryModal(boundary);
+
+      // Keep gym & supplement stats fresh on profile
+      import('@/lib/gym-service').then(m => {
+        const p = getStoredProfile();
+        if (p?.gym?.goer) m.updateGymStats(p);
+      }).catch(() => {});
     });
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
