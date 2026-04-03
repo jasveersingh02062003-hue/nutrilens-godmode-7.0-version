@@ -1627,7 +1627,6 @@ export default function Onboarding() {
             </motion.div>
           </div>
         );
-      }
 
       // ── Finish ──
       case 26:
