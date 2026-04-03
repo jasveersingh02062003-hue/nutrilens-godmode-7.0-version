@@ -61,7 +61,6 @@ function getLogsForRange(start: string, end: string): DailyLog[] {
   const endD = new Date(end + 'T00:00:00');
   while (d <= endD) {
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const { getDailyLog } = require('./store');
     logs.push(getDailyLog(key));
     d.setDate(d.getDate() + 1);
   }
