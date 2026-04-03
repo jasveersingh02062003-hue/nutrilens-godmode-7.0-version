@@ -186,6 +186,12 @@ export interface DailyLog {
   weightUnit?: 'kg' | 'lbs';
   progressPhotoIds?: string[];
   journal?: string;
+  gym?: {
+    attended: boolean;
+    durationMinutes: number;
+    caloriesBurned: number;
+    intensity: string;
+  };
 }
 
 import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON, scopedRemove, getScopedUserId } from '@/lib/scoped-storage';
