@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON } from '@/lib/scoped-storage';
 import { getDailyLog, getRecentLogs, getAllLogDates, type MealEntry } from './store';
 
 export interface Expense {
