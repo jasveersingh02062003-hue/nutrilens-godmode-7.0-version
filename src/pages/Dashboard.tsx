@@ -179,7 +179,7 @@ export default function Dashboard() {
 
         {/* 2. Calorie Ring */}
         <div className="animate-scale-in">
-          <CalorieRing dayState={d.dayState} proteinRemaining={Math.max(0, getProteinTarget(d.profile) - d.totals.protein)} />
+          <CalorieRing dayState={d.dayState} proteinRemaining={Math.round(Math.max(0, getProteinTarget(d.profile) - d.totals.protein))} />
         </div>
 
         <div className="animate-slide-up" style={{ animationDelay: '0.03s' }}>
