@@ -276,6 +276,8 @@ export function getDailyLog(date?: string): DailyLog {
 }
 
 export function saveDailyLog(log: DailyLog) {
+  // Stamp _updatedAt for cloud merge conflict resolution
+  (log as any)._updatedAt = new Date().toISOString();
   scopedSet(LOG_KEY_PREFIX + log.date, JSON.stringify(log));
   _logDatesCache = null; // invalidate cache
   // Fire-and-forget cloud sync

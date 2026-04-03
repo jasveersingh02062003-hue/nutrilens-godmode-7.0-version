@@ -44,8 +44,8 @@ export function getBudgetSummary(periodOverride?: 'week' | 'month'): BudgetSumma
 
   // Add supplement costs as a separate category
   try {
-    const { getSupplementSpendingForRange } = require('./supplement-service');
-    const suppCost = getSupplementSpendingForRange(range.start, range.end);
+    const suppModule = await import('./supplement-service');
+    const suppCost = suppModule.getSupplementSpendingForRange(range.start, range.end);
     if (suppCost > 0) {
       byCategory['supplements'] = suppCost;
     }
