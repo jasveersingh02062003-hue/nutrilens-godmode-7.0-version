@@ -1,159 +1,88 @@
 
 
-# Intelligent Supplement Tracking & Protein Gap Engine
+# Upgrade Supplement Engine: Relative Gaps, Behavior History, Multi-Trigger Upsells
 
-## Current State
-The app already has:
-- **SupplementEntry** type in `store.ts` with full macro data (calories, protein, carbs, fat)
-- **SupplementLogSheet** for manual logging with a database of 20+ supplements
-- **SupplementsCompact** card on Dashboard for quick add/view
-- **Onboarding step 22** that captures supplement preferences (multi-select chips: whey, creatine, multivitamin, etc.) — but only stores names as `string[]`, no frequency/cost data
-- **Protein Rescue System** that triggers after 6 PM when protein gap > 40g
-- **Weather Nudge Service** with existing protein gap detection and food suggestions
-- **Redistribution Service** for reallocating macros across remaining meals
+## What Changes
 
-What's **missing**: No intelligence layer connecting supplement intake to the calorie/macro engine, no adherence tracking, no budget integration, no gap-based supplement suggestions, no upsell logic.
+### 1. Relative Protein Gap (not absolute)
 
----
+**File:** `src/lib/supplement-service.ts` — `shouldSuggestSupplement()`
 
-## Architecture: Intelligence-First, Not Check-In-First
+Current: `gap > 20 && hour >= 14` (same for everyone).
 
-Per the critique, we avoid a daily "did you take supplements?" card. Instead, we build a **Protein Gap Engine** that infers when supplements would help and suggests them contextually.
-
----
-
-## Step 1: Extend Data Models
-
-**`src/lib/store.ts`** — Add to `UserProfile`:
-```typescript
-supplementPrefs?: {
-  items: Array<{
-    name: string;
-    frequency: 'daily' | 'workout_days' | 'occasional';
-    costPerServing: number;
-    proteinPerServing?: number;
-  }>;
-  stats: { totalCost: number; adherencePercent: number; streak: number };
-};
+New logic:
+```
+gapPercent = (gap / targetProtein) * 100
+if (gapPercent > 25 && hour >= 14) → suggest
+if (gapPercent > 40 && hour >= 11) → strong push
 ```
 
-No change to `DailyLog` — supplements are already tracked via `SupplementEntry[]`.
+### 2. Protein Miss Streak (behavior history)
 
-**`src/lib/onboarding-store.ts`** — Add `supplementPrefs` to `OnboardingData.lifestyle` and wire into `saveOnboardingData()`.
+**File:** `src/lib/supplement-service.ts` — new `getProteinMissStreak(profile, days = 5)`
 
-**`src/lib/profile-mapper.ts`** — Map `supplementPrefs` through existing `conditions` JSONB.
+- Look back 3-5 days, count days where protein consumed < 75% of target
+- Return `missStreak` count
+- In `shouldSuggestSupplement()`: if `missStreak >= 3`, lower the time threshold (show from 10 AM) and add `urgency: 'high'` to suggestion
+- Update `ProteinGapSuggestion` type to include `urgency: 'low' | 'medium' | 'high'`
 
----
+### 3. Cost-Weighted Decision Scoring
 
-## Step 2: Enhance Onboarding Supplement Step
+**File:** `src/lib/supplement-service.ts` — `shouldSuggestSupplement()`
 
-**`src/pages/Onboarding.tsx`** — Step 22 currently captures supplement names only. Extend:
-- After multi-select, for each selected supplement show:
-  - Frequency picker: Daily / Workout days / Occasional
-  - Cost per serving (₹) — optional number input
-  - Protein per serving (g) — auto-filled for whey/casein/plant protein from `SUPPLEMENTS_DB`
-- Store enriched data in `formState.supplementPrefs` instead of flat `string[]`
-- Wire into `OnboardingData.lifestyle.supplementPrefs`
+Use existing `getSupplementCostEfficiency()` to boost priority:
+```
+if (suppCostPerGram < wholeFoodCostPerGram * 0.8):
+  → add cost savings message: "35% cheaper than chicken"
+```
+Add `savingsMessage?: string` to `ProteinGapSuggestion`.
 
----
+### 4. Multi-Trigger Upsell System
 
-## Step 3: Create Supplement Intelligence Service
+**File:** `src/lib/supplement-service.ts` — replace `shouldShowSupplementUpsell()` with `getUpsellTrigger()`
 
-**New file: `src/lib/supplement-service.ts`**
+Three independent triggers (return first match):
+- **Problem-based:** `proteinMissStreak >= 3` → "You've missed protein 3 days straight. Get a personalized fix."
+- **Efficiency-based:** `suppCostPerGram > wholeFoodCostPerGram * 1.2` → "You're overspending on protein. Optimize your stack."
+- **Behavior-based:** (existing) `adherence.streak >= 7 && items >= 2` → "Unlock advanced stacking guide."
 
-Core functions:
-- `getProteinGap(profile, dailyLog)` — `targetProtein - consumedProtein` (from meals + logged supplements)
-- `shouldSuggestSupplement(profile, dailyLog, hour)` — Returns suggestion when:
-  - Protein gap > 20g AND hour >= 14 (afternoon)
-  - OR protein gap > 30g AND hour >= 11 (midday)
-  - User has whey/casein in their `supplementPrefs`
-- `getSupplementCostEfficiency(profile)` — Calculates ₹/gram protein from supplements vs whole foods
-- `getSupplementAdherence(profile, logs, days)` — Days with ≥1 supplement logged / days where frequency matches
-- `updateSupplementStats(profile)` — Recompute adherence, streak, totalCost from logs
-- `adjustRemainingMealsForSupplement(profile, dailyLog)` — After supplement logged, recalculate remaining protein needed from whole foods and return adjusted meal targets (uses existing redistribution patterns)
+Return `{ trigger: string; headline: string; body: string }` or `null`.
 
----
+**File:** `src/components/SupplementUpsellCard.tsx` — use `getUpsellTrigger()` instead of `shouldShowSupplementUpsell()`, render dynamic headline/body.
 
-## Step 4: Integrate Into Calorie/Macro Engine
+### 5. Time-Pressure Signal
 
-**`src/lib/calorie-correction.ts`**
-- In `computeAdjustedTarget()`: After computing base + gym bonus, check if supplements with calories were logged today. Add their caloric contribution to `actual` consumed (they're already in `dailyLog.supplements`), NOT subtract from target. The existing `getDailyTotals()` should already sum supplement calories — verify and fix if not.
+**File:** `src/lib/supplement-service.ts` — `shouldSuggestSupplement()`
 
-**`src/lib/meal-suggestion-engine.ts`**
-- Before scoring recipes, compute `effectiveProteinTarget = targetProtein - supplementProteinLogged`
-- Use `effectiveProteinTarget` for remaining meal scoring
-- If user took creatine today, boost hydration nudge priority
+Check `profile.cookingHabits` and `profile.occupation`/`profile.jobType`:
+- If cooking = 'rarely' or 'never', or jobType = 'shift' → `timeConstrained = true`
+- If `timeConstrained`: lower gap threshold by 10% (e.g., 25% becomes 15%) and add "No time to cook? Fix protein in 10 seconds" to message
 
----
+### 6. Outcome-Driven Nudge Copy
 
-## Step 5: Protein Gap Nudge Card
+**File:** `src/components/ProteinGapNudgeCard.tsx`
 
-**New file: `src/components/ProteinGapNudgeCard.tsx`**
-- Replaces the "did you take supplements?" check-in pattern
-- Shows only when `shouldSuggestSupplement()` returns true
-- Content: "You're {gap}g short on protein. A whey scoop (₹{cost}) fixes it instantly."
-- One-tap action: logs the supplement (using existing `addSupplement()`) and recalculates remaining meals
-- Also shows cost comparison: "That's ₹{wheyPerGram}/g vs ₹{chickenPerGram}/g from chicken"
-- Dismissible, doesn't reappear until next relevant gap
+Replace generic copy with urgency-aware messaging:
+- **Low urgency:** "You'll miss today's muscle target. Fix in 10 seconds →"
+- **High urgency (miss streak):** "You're losing progress — 3 days of low protein. Quick fix available ⚡"
+- Button text: "Fix Protein Now ⚡" instead of "Log Whey →"
+- Use `suggestion.urgency` and `suggestion.savingsMessage` from service
+
+### 7. One-Tap Friction Killer
+
+Already implemented — `handleQuickLog()` does log + dismiss in one tap. Enhance:
+- After logging, call `onApplied()` which triggers Dashboard refresh (already wired)
+- Add a brief toast: "Whey logged. Meals adjusted." via existing toast system
 
 ---
 
-## Step 6: Budget Integration
+## Files Modified
 
-**`src/lib/budget-service.ts`**
-- In `getBudgetSummary()`, add a `supplements` category to `byCategory`
-- Calculate from daily logs: sum `costPerServing` for each logged supplement that matches a `supplementPrefs` item
-- Show in `BudgetInsightsCard` as a separate line
+| File | Change |
+|------|--------|
+| `src/lib/supplement-service.ts` | Relative gap %, miss streak, cost-weighted scoring, multi-trigger upsell, time-pressure signal |
+| `src/components/ProteinGapNudgeCard.tsx` | Outcome-driven copy, urgency levels, "Fix Protein Now" CTA, toast feedback |
+| `src/components/SupplementUpsellCard.tsx` | Dynamic trigger-based content from `getUpsellTrigger()` |
 
----
-
-## Step 7: Supplement Consistency Section in Progress
-
-**`src/components/SupplementConsistencySection.tsx`** (new)
-- Added to `Progress.tsx` for users with `supplementPrefs`
-- Shows: adherence % (ring), monthly cost total, streak
-- Weekly bar chart of supplements taken vs planned
-- Uses `getSupplementAdherence()` from supplement-service
-
----
-
-## Step 8: Premium Upsell — Supplement Optimization
-
-**`src/components/SupplementUpsellCard.tsx`** (new)
-- Triggered when: user logs supplements for 7+ consecutive days AND takes 2+ different supplements
-- Content: "Unlock Supplement Stack Guide 💊" — timing optimization, stacking, dosage calculator
-- Links to Plans tab with `supplement_optimization` plan
-
-**`src/lib/event-plan-service.ts`**
-- Add `'supplement_optimization'` to `PlanType`
-- Add catalog entry: ₹99/month, features: timing guide, stacking, loading phases, partner discounts
-
----
-
-## Step 9: Dashboard Integration
-
-**`src/pages/Dashboard.tsx`**
-- Import and render `ProteinGapNudgeCard` (conditionally, based on `shouldSuggestSupplement()`)
-- Import and render `SupplementUpsellCard` (conditionally)
-- Place after gym cards, before Today's Meals
-
----
-
-## Technical Summary
-
-| Action | File | Type |
-|--------|------|------|
-| Add `supplementPrefs` to UserProfile | `store.ts` | Modify |
-| Wire supplement prefs in onboarding | `onboarding-store.ts`, `Onboarding.tsx` | Modify |
-| Map to cloud JSONB | `profile-mapper.ts` | Modify |
-| Protein gap engine + adherence | `supplement-service.ts` | **New** |
-| Adjust consumed not target | `calorie-correction.ts` | Modify |
-| Effective protein for meal scoring | `meal-suggestion-engine.ts` | Modify |
-| Context-driven gap nudge | `ProteinGapNudgeCard.tsx` | **New** |
-| Supplement budget category | `budget-service.ts` | Modify |
-| Progress consistency section | `SupplementConsistencySection.tsx` | **New** |
-| Upsell card + plan catalog | `SupplementUpsellCard.tsx`, `event-plan-service.ts` | **New** + Modify |
-| Dashboard wiring | `Dashboard.tsx` | Modify |
-
-No database migration. All data flows through existing JSONB columns.
+No new files. No data model changes. No migration needed.
 
