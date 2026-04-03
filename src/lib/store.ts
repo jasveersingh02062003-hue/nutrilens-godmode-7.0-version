@@ -218,18 +218,22 @@ export function toLocalDateKey(d: Date = new Date()): string {
 
 export function getDailyLog(date?: string): DailyLog {
   const key = date || getTodayKey();
-  const data = localStorage.getItem(LOG_KEY_PREFIX + key);
+  const data = scopedGet(LOG_KEY_PREFIX + key);
   const defaultBurned: BurnedData = { steps: 0, stepsCount: 0, activities: [], total: 0 };
   if (data) {
-    const parsed = JSON.parse(data);
-    return {
-      ...parsed,
-      supplements: parsed.supplements || [],
-      burned: parsed.burned || defaultBurned,
-      weight: parsed.weight ?? null,
-      weightUnit: parsed.weightUnit || 'kg',
-      progressPhotoIds: parsed.progressPhotoIds || [],
-    };
+    try {
+      const parsed = JSON.parse(data);
+      return {
+        ...parsed,
+        supplements: parsed.supplements || [],
+        burned: parsed.burned || defaultBurned,
+        weight: parsed.weight ?? null,
+        weightUnit: parsed.weightUnit || 'kg',
+        progressPhotoIds: parsed.progressPhotoIds || [],
+      };
+    } catch {
+      // Corrupted data — return default
+    }
   }
   return { date: key, meals: [], supplements: [], waterCups: 0, caloriesBurned: 0, burned: defaultBurned, weight: null, weightUnit: 'kg', progressPhotoIds: [] };
 }
