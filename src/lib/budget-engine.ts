@@ -103,9 +103,9 @@ function migrateOldPerMealIfNeeded(): MealSplitPcts {
         // Save migrated percentages
         saveEnhancedBudgetSettings({
           ...enhanced,
-          perMeal: pcts as any,
+          perMeal: pcts,
           mealSplitPcts: pcts,
-        } as any);
+        });
         return pcts;
       }
     }
