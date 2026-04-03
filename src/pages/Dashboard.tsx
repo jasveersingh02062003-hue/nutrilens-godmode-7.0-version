@@ -542,12 +542,20 @@ export default function Dashboard() {
                     <div className="flex items-center gap-2">
                       <span className="text-lg">🎯</span>
                       <div>
-                        <p className="text-sm font-bold text-foreground">
-                          {prog?.daysLeft ?? 0} days until your {ap.eventSettings.eventType}!
-                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-bold text-foreground">
+                            {prog?.daysLeft ?? 0} days until your {ap.eventSettings.eventType}!
+                          </p>
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-primary/15 text-[8px] font-bold text-primary">
+                            🔒 Locked
+                          </span>
+                        </div>
                         <p className="text-[10px] text-muted-foreground">
                           Day {prog?.dayNumber ?? 1} of {prog?.totalDays ?? ap.duration}
                         </p>
+                        {ap.eventSettings.motivation && (
+                          <p className="text-[9px] text-primary/80 italic mt-0.5">"{ap.eventSettings.motivation}"</p>
+                        )}
                       </div>
                     </div>
                     <span className="text-lg font-bold text-primary">{prog?.percentComplete ?? 0}%</span>
@@ -570,12 +578,14 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
+                {/* Tummy Insight Card */}
+                {ap.eventSettings.goalType === 'tummy' && <TummyInsightCard />}
                 {/* Boosters */}
                 {ap.eventSettings.boosters.length > 0 && (
                   <BoostersChecklist activeBoosters={ap.eventSettings.boosters} />
                 )}
                 {/* Activity Tracker */}
-                <ActivityTracker exerciseTime={ap.eventSettings.exerciseTime} />
+                <ActivityTracker exerciseTime={ap.eventSettings.exerciseTime} planStartDate={ap.startDate} />
               </div>
             );
           }
