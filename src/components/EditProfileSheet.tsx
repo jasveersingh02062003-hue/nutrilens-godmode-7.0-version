@@ -406,7 +406,7 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
                     <Field label="Living Situation">
                       <div className="flex gap-2">
                         {['alone', 'family', 'shared'].map(v => (
-                          <button key={v} onClick={() => setLivingSituation(v)}
+                          <button key={v} onClick={() => setLivingSituation(v as UserProfile['livingSituation'])}
                             className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${livingSituation === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
                             {v.charAt(0).toUpperCase() + v.slice(1)}
                           </button>
