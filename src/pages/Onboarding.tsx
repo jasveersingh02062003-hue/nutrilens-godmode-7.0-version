@@ -361,7 +361,7 @@ export default function Onboarding() {
     gymGoer: null, gymDays: 3, gymDuration: 45, gymIntensity: '', gymGoal: '',
     goalType: '', goalSpeed: 'balanced', targetWeight: 65,
     wantLifestyle: null,
-    diet: '', water: 2.5, supplements: [], cookingSkill: '', cookingTime: 30, cookingEquipment: [],
+    diet: '', water: 2.5, supplements: [], supplementPrefs: [], cookingSkill: '', cookingTime: 30, cookingEquipment: [],
     budgetEnabled: false, budgetAmount: 500, budgetBreakfast: 25, budgetLunch: 35, budgetDinner: 30, budgetSnacks: 10,
   });
 
