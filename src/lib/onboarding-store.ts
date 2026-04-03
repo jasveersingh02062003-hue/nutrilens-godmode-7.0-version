@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet, scopedRemove } from "./scoped-storage";
 // Onboarding data persistence – new nested structure + legacy compat
 
 import { saveProfile, type UserProfile, toLocalDateKey } from './store';
@@ -56,22 +57,22 @@ export interface OnboardingData {
 }
 
 export function saveOnboardingProgress(phase: number, data: any) {
-  localStorage.setItem(PROGRESS_KEY, JSON.stringify({ phase, data, savedAt: new Date().toISOString() }));
+  scopedSet(PROGRESS_KEY, JSON.stringify({ phase, data, savedAt: new Date().toISOString() }));
 }
 
 export function getOnboardingProgress(): { phase: number; data: any } | null {
-  const raw = localStorage.getItem(PROGRESS_KEY);
+  const raw = scopedGet(PROGRESS_KEY);
   if (!raw) return null;
   try { return JSON.parse(raw); } catch { return null; }
 }
 
 export function clearOnboardingProgress() {
-  localStorage.removeItem(PROGRESS_KEY);
+  scopedRemove(PROGRESS_KEY);
 }
 
 export function saveOnboardingData(data: OnboardingData) {
   // Save new nested structure
-  localStorage.setItem(USER_KEY, JSON.stringify(data));
+  scopedSet(USER_KEY, JSON.stringify(data));
 
   // Compute ACTUAL TDEE (not goal calories) for profile
   const bmr = calculateBMR(data.basic.weightKg, data.basic.heightCm, data.basic.age, data.basic.gender);

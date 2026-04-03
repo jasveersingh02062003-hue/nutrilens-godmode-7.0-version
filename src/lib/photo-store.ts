@@ -1,3 +1,5 @@
+import { scopedGet, scopedSet } from "@/lib/scoped-storage";
+import { safeJsonParse } from "@/lib/safe-json";
 // ==========================================
 // NutriLens AI – Progress Photos Storage
 // Cloud-first: uploads to storage bucket, stores URL locally.
@@ -11,12 +13,12 @@ import { supabase } from '@/integrations/supabase/client';
 const PHOTOS_KEY = 'nutrilens_progress_photos';
 
 function getAllPhotos(): ProgressPhoto[] {
-  const data = localStorage.getItem(PHOTOS_KEY);
+  const data = scopedGet(PHOTOS_KEY);
   return data ? JSON.parse(data) : [];
 }
 
 function saveAllPhotos(photos: ProgressPhoto[]) {
-  localStorage.setItem(PHOTOS_KEY, JSON.stringify(photos));
+  scopedSet(PHOTOS_KEY, JSON.stringify(photos));
 }
 
 export function getProgressPhotos(): ProgressPhoto[] {

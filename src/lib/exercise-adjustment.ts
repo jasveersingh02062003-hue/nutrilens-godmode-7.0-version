@@ -1,3 +1,5 @@
+import { scopedGet, scopedSet, scopedRemove } from "./scoped-storage";
+import { safeJsonParse } from "./safe-json";
 // ============================================
 // NutriLens AI – Exercise-Aware Meal Adjustment Service (v2)
 // Behavior-first hybrid distribution with smart caps,
@@ -73,27 +75,27 @@ export function getDefaultEatBackFactor(goal?: string): number {
 }
 
 export function getEatBackFactor(): number {
-  const stored = localStorage.getItem(EAT_BACK_FACTOR_KEY);
+  const stored = scopedGet(EAT_BACK_FACTOR_KEY);
   if (stored) return parseFloat(stored);
   const profile = getProfile();
   return getDefaultEatBackFactor(profile?.goal);
 }
 
 export function setEatBackFactor(factor: number) {
-  localStorage.setItem(EAT_BACK_FACTOR_KEY, String(Math.max(0, Math.min(1, factor))));
+  scopedSet(EAT_BACK_FACTOR_KEY, String(Math.max(0, Math.min(1, factor))));
 }
 
 // ── Exercise Adjustment Log ──
 
 export function getExerciseAdjustments(date: string = getTodayKey()): ExerciseAdjustmentLog[] {
   try {
-    const data = localStorage.getItem(EXERCISE_ADJ_KEY + date);
+    const data = scopedGet(EXERCISE_ADJ_KEY + date);
     return data ? JSON.parse(data) : [];
   } catch { return []; }
 }
 
 function saveExerciseAdjustments(date: string, logs: ExerciseAdjustmentLog[]) {
-  localStorage.setItem(EXERCISE_ADJ_KEY + date, JSON.stringify(logs));
+  scopedSet(EXERCISE_ADJ_KEY + date, JSON.stringify(logs));
 }
 
 export function getTotalExerciseAddedCalories(date: string = getTodayKey()): number {
@@ -104,13 +106,13 @@ export function getTotalExerciseAddedCalories(date: string = getTodayKey()): num
 
 export function getCarryForward(date: string): CarryForwardData | null {
   try {
-    const data = localStorage.getItem(CARRY_FORWARD_KEY + date);
+    const data = scopedGet(CARRY_FORWARD_KEY + date);
     return data ? JSON.parse(data) : null;
   } catch { return null; }
 }
 
 function saveCarryForward(date: string, data: CarryForwardData) {
-  localStorage.setItem(CARRY_FORWARD_KEY + date, JSON.stringify(data));
+  scopedSet(CARRY_FORWARD_KEY + date, JSON.stringify(data));
 }
 
 export function applyCarryForwardToday(date: string = getTodayKey()): { lunch: number; dinner: number } | null {
@@ -152,13 +154,13 @@ export function applyCarryForwardToday(date: string = getTodayKey()): { lunch: n
 
 export function getRecoverySnack(date: string = getTodayKey()): RecoverySnack | null {
   try {
-    const data = localStorage.getItem(RECOVERY_SNACK_KEY + date);
+    const data = scopedGet(RECOVERY_SNACK_KEY + date);
     return data ? JSON.parse(data) : null;
   } catch { return null; }
 }
 
 function saveRecoverySnack(date: string, data: RecoverySnack) {
-  localStorage.setItem(RECOVERY_SNACK_KEY + date, JSON.stringify(data));
+  scopedSet(RECOVERY_SNACK_KEY + date, JSON.stringify(data));
 }
 
 export function dismissRecoverySnack(date: string = getTodayKey()) {
@@ -520,7 +522,7 @@ export function revertExerciseAdjustment(activityId: string, activityType: strin
   if (removedLog.recoverySnack && removedLog.recoverySnack > 0) {
     const remainingRecovery = logs.reduce((s, l) => s + (l.recoverySnack ?? 0), 0);
     if (remainingRecovery === 0) {
-      localStorage.removeItem(RECOVERY_SNACK_KEY + date);
+      scopedRemove(RECOVERY_SNACK_KEY + date);
     } else {
       saveRecoverySnack(date, {
         calories: remainingRecovery,
@@ -537,7 +539,7 @@ export function revertExerciseAdjustment(activityId: string, activityType: strin
     if (existingCarry && !existingCarry.applied) {
       const newAmount = Math.max(0, existingCarry.amount - removedLog.carriedForward);
       if (newAmount <= 0) {
-        localStorage.removeItem(CARRY_FORWARD_KEY + nextDay);
+        scopedRemove(CARRY_FORWARD_KEY + nextDay);
       } else {
         saveCarryForward(nextDay, { ...existingCarry, amount: newAmount });
       }

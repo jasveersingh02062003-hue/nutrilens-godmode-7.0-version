@@ -1,3 +1,5 @@
+import { scopedGet, scopedSet } from "./scoped-storage";
+import { safeJsonParse } from "./safe-json";
 // ─── Adaptive Price Intelligence Engine ───
 // Learns from user purchases, decays confidence over time, provides smart suggestions
 
@@ -50,12 +52,12 @@ const MEMORY_KEY = 'nutrilens_price_memory';
 // ─── Storage ───
 
 function getMemoryStore(): Record<string, PriceMemoryEntry> {
-  const data = localStorage.getItem(MEMORY_KEY);
+  const data = scopedGet(MEMORY_KEY);
   return data ? JSON.parse(data) : {};
 }
 
 function saveMemoryStore(store: Record<string, PriceMemoryEntry>) {
-  localStorage.setItem(MEMORY_KEY, JSON.stringify(store));
+  scopedSet(MEMORY_KEY, JSON.stringify(store));
 }
 
 // ─── Confidence Helpers ───
