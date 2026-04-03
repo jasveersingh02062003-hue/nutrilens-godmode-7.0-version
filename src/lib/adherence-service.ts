@@ -53,13 +53,11 @@ export function calculateAdherenceScore(weekPlan: WeekPlan): AdherenceScore {
 // ─── Persistence ───
 
 function getHistory(): AdherenceScore[] {
-  const data = localStorage.getItem(ADHERENCE_KEY);
-  return data ? JSON.parse(data) : [];
+  return scopedGetJSON<AdherenceScore[]>(ADHERENCE_KEY, []);
 }
 
 function saveHistory(history: AdherenceScore[]) {
-  // Keep last 12 weeks
-  localStorage.setItem(ADHERENCE_KEY, JSON.stringify(history.slice(-12)));
+  scopedSetJSON(ADHERENCE_KEY, history.slice(-12));
 }
 
 export function saveAdherenceScore(score: AdherenceScore) {
