@@ -144,7 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       join_date: profile.joinDate || null,
       budget: budgetPayload,
       conditions: {
-        ...((profile as unknown as Record<string, unknown>).conditions || {}),
+        ...(((profile as unknown as Record<string, unknown>).conditions as Record<string, unknown>) || {}),
         allergens: profile.allergens || [],
         skinConcerns: profile.skinConcerns || undefined,
         travelFrequency: profile.travelFrequency || undefined,
