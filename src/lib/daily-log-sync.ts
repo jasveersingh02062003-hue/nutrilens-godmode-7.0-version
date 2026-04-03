@@ -74,11 +74,11 @@ export async function restoreLogsFromCloud(): Promise<number> {
         if (!logDate || !logData) continue;
 
         const localKey = LOG_KEY_PREFIX + logDate;
-        const localData = localStorage.getItem(localKey);
+        const localData = scopedGet(localKey);
 
         if (!localData) {
           // No local data — restore from cloud
-          localStorage.setItem(localKey, JSON.stringify(logData));
+          scopedSet(localKey, JSON.stringify(logData));
           restored++;
         } else {
           // Compare updated_at if available
@@ -87,11 +87,11 @@ export async function restoreLogsFromCloud(): Promise<number> {
             const cloudUpdated = row.updated_at ? new Date(row.updated_at).getTime() : 0;
             const localUpdated = local._updatedAt ? new Date(local._updatedAt).getTime() : 0;
             if (cloudUpdated > localUpdated) {
-              localStorage.setItem(localKey, JSON.stringify(logData));
+              scopedSet(localKey, JSON.stringify(logData));
               restored++;
             }
-          } catch {
-            // Keep local on parse error
+          } catch (e) {
+            console.warn('[daily-log-sync] Parse error during restore:', e);
           }
         }
       }
