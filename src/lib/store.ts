@@ -346,7 +346,9 @@ export function addSupplement(entry: SupplementEntry) {
       if (!session?.user) return;
       supabase.from('supplement_logs').upsert({
         user_id: session.user.id, log_date: log.date, supplements: log.supplements as any,
-      } as any, { onConflict: 'user_id,log_date' } as any).then(() => {});
+      } as any, { onConflict: 'user_id,log_date' } as any).then(({ error }: any) => {
+        if (error) console.error('[store] supplement_logs sync failed:', error.message);
+      });
     });
   }).catch(() => {});
   return log;
