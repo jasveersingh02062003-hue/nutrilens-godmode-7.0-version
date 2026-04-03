@@ -130,6 +130,10 @@ export function saveOnboardingData(data: OnboardingData) {
     tdee, // ← ACTUAL TDEE, not goal calories
     skinConcerns: data.health.skin !== 'none' ? { [data.health.skin]: true } : undefined,
     allergens: data.health.allergens || [],
+    supplementPrefs: data.lifestyle.supplementPrefs ? {
+      items: data.lifestyle.supplementPrefs.items,
+      stats: { totalCost: 0, adherencePercent: 0, streak: 0 },
+    } : undefined,
     joinDate: toLocalDateKey(new Date()),
     gym: data.activity.gym?.goer ? {
       goer: true,
