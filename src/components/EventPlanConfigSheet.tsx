@@ -399,7 +399,7 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
                   </div>
                 </div>
 
-                <Button className="w-full" onClick={() => setStep(3)}>
+                <Button className="w-full" onClick={() => setStep(4)}>
                   Next <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
               </motion.div>
