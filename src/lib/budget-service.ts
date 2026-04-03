@@ -12,6 +12,7 @@ import { toLocalDateStr } from './date-utils';
 import { getEnhancedBudgetSettings } from './budget-alerts';
 import { getUnifiedBudget } from './budget-engine';
 import { foodDatabase } from './pes-engine';
+import { getActivePlan } from './event-plan-service';
 
 export interface BudgetSummary {
   budget: number;
@@ -22,6 +23,8 @@ export interface BudgetSummary {
   currency: string;
   byCategory: Record<string, number>;
   expenses: Expense[];
+  planOverride?: boolean;
+  planBudgetTier?: string;
 }
 
 export function getBudgetSummary(periodOverride?: 'week' | 'month'): BudgetSummary {
