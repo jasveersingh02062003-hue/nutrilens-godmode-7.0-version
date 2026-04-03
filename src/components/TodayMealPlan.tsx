@@ -122,8 +122,8 @@ export default function TodayMealPlan() {
   const cookedCount = todayPlan.meals.filter(m => m.cooked || loggedMeals.has(m.recipeId)).length;
 
   function getMealBudget(mealType: string): number {
-    const slotKey = mealType === 'snack' ? 'snacks' : mealType;
-    return (unified.perMeal as any)[slotKey] || 0;
+    const slotKey = (mealType === 'snack' ? 'snacks' : mealType) as keyof typeof unified.perMeal;
+    return unified.perMeal[slotKey] || 0;
   }
 
   return (
