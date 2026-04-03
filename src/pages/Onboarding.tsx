@@ -1172,7 +1172,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 13: {
+      case 14: {
         const { min: healthyMin, max: healthyMax } = getHealthyWeightRange(f.heightCm, f.age);
         const insight = f.targetWeight > 0 ? getWeightInsight(f.weightKg, f.targetWeight, f.heightCm, f.age, f.goalType) : null;
         const targetBMI = f.targetWeight > 0 ? getTargetBMI(f.targetWeight, f.heightCm) : 0;
