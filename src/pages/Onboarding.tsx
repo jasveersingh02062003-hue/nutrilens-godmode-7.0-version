@@ -1419,7 +1419,6 @@ export default function Onboarding() {
             </div>
           </div>
         );
-      }
 
       case 22:
         const suppOptions = [
@@ -1450,7 +1449,6 @@ export default function Onboarding() {
             )}
           </div>
         );
-      }
 
       // ── Budget Step ──
       case 23:
@@ -1554,7 +1552,6 @@ export default function Onboarding() {
             )}
           </div>
         );
-      }
 
       // ── Intelligence Demo ──
       case 25:
@@ -1630,7 +1627,6 @@ export default function Onboarding() {
             </motion.div>
           </div>
         );
-      }
 
       // ── Finish ──
       case 26:
