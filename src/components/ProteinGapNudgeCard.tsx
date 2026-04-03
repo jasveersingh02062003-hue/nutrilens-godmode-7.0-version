@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Zap } from 'lucide-react';
+import { X, Zap, AlertTriangle, TrendingDown } from 'lucide-react';
 import { shouldSuggestSupplement, type ProteinGapSuggestion } from '@/lib/supplement-service';
-import { addSupplement, getProfile, getDailyLog, getTodayKey, type SupplementEntry } from '@/lib/store';
+import { addSupplement, getProfile, type SupplementEntry } from '@/lib/store';
 import { SUPPLEMENTS_DB } from '@/lib/supplements';
+import { toast } from 'sonner';
 
 interface Props {
   onApplied?: () => void;
@@ -39,8 +40,25 @@ export default function ProteinGapNudgeCard({ onApplied }: Props) {
 
     addSupplement(entry);
     setDismissed(true);
+    toast.success(`${suggestion.supplementName} logged. Meals adjusted.`);
     onApplied?.();
   };
+
+  const UrgencyIcon = suggestion.urgency === 'high' ? AlertTriangle 
+    : suggestion.urgency === 'medium' ? TrendingDown 
+    : Zap;
+
+  const borderColor = suggestion.urgency === 'high' ? 'border-l-destructive'
+    : suggestion.urgency === 'medium' ? 'border-l-orange-500'
+    : 'border-l-primary';
+
+  const iconBg = suggestion.urgency === 'high' ? 'bg-destructive/10'
+    : suggestion.urgency === 'medium' ? 'bg-orange-500/10'
+    : 'bg-primary/10';
+
+  const iconColor = suggestion.urgency === 'high' ? 'text-destructive'
+    : suggestion.urgency === 'medium' ? 'text-orange-500'
+    : 'text-primary';
 
   return (
     <AnimatePresence>
@@ -48,20 +66,27 @@ export default function ProteinGapNudgeCard({ onApplied }: Props) {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
-        className="card-elevated p-4 border-l-4 border-l-primary"
+        className={`card-elevated p-4 border-l-4 ${borderColor}`}
       >
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <Zap className="w-5 h-5 text-primary" />
+          <div className={`w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center shrink-0`}>
+            <UrgencyIcon className={`w-5 h-5 ${iconColor}`} />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-foreground">
-              {suggestion.gap}g protein gap
+              {suggestion.urgency === 'high'
+                ? `You're losing progress — ${suggestion.gap}g short`
+                : `${suggestion.gap}g protein gap (${suggestion.gapPercent}% of target)`}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
               {suggestion.message}
             </p>
-            {suggestion.costPerGramProtein > 0 && (
+            {suggestion.savingsMessage && (
+              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
+                💰 {suggestion.savingsMessage}
+              </p>
+            )}
+            {suggestion.costPerGramProtein > 0 && !suggestion.savingsMessage && (
               <p className="text-[10px] text-muted-foreground mt-1">
                 ₹{suggestion.costPerGramProtein}/g protein vs ₹{suggestion.chickenCostPerGram}/g from chicken
               </p>
@@ -70,7 +95,7 @@ export default function ProteinGapNudgeCard({ onApplied }: Props) {
               onClick={handleQuickLog}
               className="mt-2 px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold active:scale-95 transition-transform"
             >
-              Log {suggestion.supplementName} →
+              Fix Protein Now ⚡
             </button>
           </div>
           <button onClick={() => setDismissed(true)} className="shrink-0">
