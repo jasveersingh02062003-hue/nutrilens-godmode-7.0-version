@@ -287,7 +287,7 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
             )}
 
             {/* Step 2: Goal */}
-            {step === 1 && (
+            {step === 2 && (
               <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
                 <div>
                   <p className="text-sm font-semibold text-foreground mb-3">What do you want to achieve?</p>
