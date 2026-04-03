@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from './scoped-storage';
 // ==========================================
 // NutriLens AI – Protein Rescue System
 // Triggers after 6 PM when remaining protein > 40g

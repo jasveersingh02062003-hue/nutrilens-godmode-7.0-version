@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from './scoped-storage';
 // Weekly Feedback Engine — behavior correction loop
 import { getRecentLogs, getDailyTotals, getProfile, type DailyLog } from './store';
 import { getExpensesForRange, getBudgetSettings, getWeekDateRange, saveBudgetSettings } from './expense-store';

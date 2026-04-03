@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from './scoped-storage';
 // ==========================================
 // NutriLens AI – Hard Boundary Layer
 // Alerts when weekly surplus > 1000 kcal

@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from './scoped-storage';
 // ─── Dynamic Market Pricing Engine ───
 // Seeded with typical Indian market prices (national averages)
 

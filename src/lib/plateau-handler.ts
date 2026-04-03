@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from './scoped-storage';
 // ==========================================
 // NutriLens AI – Plateau Detection & Handling
 // Detects weight stalls and adjusts targets

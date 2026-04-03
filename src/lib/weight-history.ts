@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from './scoped-storage';
 // ==========================================
 // NutriLens AI – Verified Weight History
 // Separate from daily log. Stores weight

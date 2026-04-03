@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from './scoped-storage';
 import { getProfile, getDailyLog, getDailyTotals, getTodayKey } from '@/lib/store';
 
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';

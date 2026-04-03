@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from './scoped-storage';
 // ==========================================
 // NutriLens AI – Identity Shift Badges
 // Rewards consistent behavior patterns

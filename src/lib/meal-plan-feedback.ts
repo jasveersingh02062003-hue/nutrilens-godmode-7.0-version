@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from './scoped-storage';
 // ─── Meal Plan Feedback & Learning Loop ───
 
 const FEEDBACK_KEY = 'nutrilens_meal_plan_feedback';

@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from './scoped-storage';
 import {
   addMealToLog, addMealToLogForDate, addActivity, addActivityForDate,
   addWater, addWaterForDate, getDailyLog, getDailyTotals, getProfile,

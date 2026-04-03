@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import LastMealConfirmSheet from '@/components/LastMealConfirmSheet';
 import { useNavigate, useSearchParams } from 'react-router-dom';

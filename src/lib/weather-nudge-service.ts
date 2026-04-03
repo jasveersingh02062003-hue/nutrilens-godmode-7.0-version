@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from './scoped-storage';
 // ============================================
 // NutriLens AI – Context-Aware Nutrition Engine
 // ============================================

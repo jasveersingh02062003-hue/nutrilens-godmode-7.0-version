@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from './scoped-storage';
 // ==========================================
 // NutriLens AI – Weekly Weight Check-In
 // Prompts on Sunday for weight + gives feedback
