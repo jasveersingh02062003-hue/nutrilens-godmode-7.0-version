@@ -42,7 +42,8 @@ export function applyHardReset(): void {
   const today = `${now2.getFullYear()}-${String(now2.getMonth() + 1).padStart(2, '0')}-${String(now2.getDate()).padStart(2, '0')}`;
   localStorage.setItem(COOLDOWN_KEY, today);
 
-  const log: Array<{ date: string; surplus: number }> = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
+  let log: Array<{ date: string; surplus: number }> = [];
+  try { log = JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); } catch {}
   const balances = getDailyBalances();
   const last7 = balances.slice(-7);
   const weeklySurplus = last7.reduce((sum, b) => sum + Math.max(0, b.diff), 0);
