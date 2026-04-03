@@ -8,7 +8,7 @@ interface Props {
   onTap: (supplement: SupplementEntry) => void;
 }
 
-export default function SupplementsCompact({ supplements, onAdd, onTap }: Props) {
+export default memo(function SupplementsCompact({ supplements, onAdd, onTap }: Props) {
   return (
     <div className="card-subtle p-3 flex-1 min-w-0">
       <div className="flex items-center justify-between mb-2">
