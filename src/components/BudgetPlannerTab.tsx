@@ -18,6 +18,7 @@ import { getPriceTrends } from '@/lib/price-database';
 import GroceryBillScanner from '@/components/GroceryBillScanner';
 import MonikaGuide, { BUDGET_PLANNER_MONIKA } from '@/components/onboarding/MonikaGuide';
 import { useUserProfile } from '@/contexts/UserProfileContext';
+import { getActivePlan } from '@/lib/event-plan-service';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
   AlertDialog,
