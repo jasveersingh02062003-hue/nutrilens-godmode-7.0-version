@@ -170,6 +170,21 @@ export const PLAN_CATALOG: PlanMeta[] = [
       'PDF export',
     ],
   },
+  {
+    id: 'event_based' as PlanType,
+    name: 'Transform for Your Event',
+    emoji: '🎯',
+    description: 'Deadline-driven plan for weddings, vacations, meetings — personalized to your constraints and budget.',
+    shortBenefit: 'Event-ready transformation',
+    price: 399,
+    durationOptions: [7, 14, 21, 30, 45, 60],
+    defaultDuration: 30,
+    category: 'event' as PlanCategory,
+    rating: 4.7,
+    reviewCount: 2134,
+    rules: ['Deadline-driven targets', 'Budget-aware meals', 'Constraint-fit recipes', 'Daily boosters', 'Walking goals'],
+    includes: ['Custom event plan', 'Daily boosters checklist', 'Activity tracker', 'Budget-fit meals', 'Post-event feedback', 'Progress tracking'],
+  },
 ];
 
 export function getPlanById(id: PlanType): PlanMeta | undefined {
