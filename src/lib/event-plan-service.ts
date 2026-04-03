@@ -123,7 +123,7 @@ export const PLAN_CATALOG: PlanMeta[] = [
     price: 699,
     durationOptions: [14, 21, 30],
     defaultDuration: 21,
-    category: 'weight_loss',
+    category: 'gym',
     rating: 4.7,
     reviewCount: 956,
     rules: ['2g protein/kg bodyweight', 'Moderate carbs around workouts', 'Low fat', 'Pre & post workout meals'],
