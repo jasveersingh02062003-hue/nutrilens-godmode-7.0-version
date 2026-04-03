@@ -121,10 +121,8 @@ function migrateOldPerMealIfNeeded(): MealSplitPcts {
     }
   }
 
-  // Check for mealSplitPcts field
-  const anyEnhanced = enhanced as any;
-  if (anyEnhanced.mealSplitPcts) {
-    return anyEnhanced.mealSplitPcts;
+  if (enhanced.mealSplitPcts) {
+    return enhanced.mealSplitPcts;
   }
 
   return DEFAULT_MEAL_SPLIT;
