@@ -189,19 +189,29 @@ export default function ProgressPage() {
 
   const joinDate = profile?.joinDate;
 
+  // Plan date range for calendar highlighting
+  const planRange = useMemo(() => {
+    const raw = getActivePlanRaw();
+    if (!raw) return null;
+    const end = new Date(raw.startDate);
+    end.setDate(end.getDate() + raw.duration);
+    return { start: raw.startDate, end: end.toISOString().split('T')[0] };
+  }, [refreshKey]);
+
   const calendarDays = useMemo(() => {
-    const days: { day: number; dateStr: string; balance: DayBalance; diff: number; isToday: boolean; isFuture: boolean; locked: boolean; isPreJoin: boolean }[] = [];
+    const days: { day: number; dateStr: string; balance: DayBalance; diff: number; isToday: boolean; isFuture: boolean; locked: boolean; isPreJoin: boolean; isPlanDay: boolean }[] = [];
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${viewDate.getFullYear()}-${String(viewDate.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const isFuture = dateStr > todayStr;
       const isToday = dateStr === todayStr;
       const isPreJoin = !!(joinDate && dateStr < joinDate);
       const locked = isPreJoin || (!premium && dateStr < threeDaysAgo);
+      const isPlanDay = !!(planRange && dateStr >= planRange.start && dateStr <= planRange.end);
       const { status: balance, diff } = locked ? { status: 'no-data' as DayBalance, diff: 0 } : computeDayBalance(dateStr, todayStr, logDatesSet, baseTarget, allBalances, adjMap, projMap);
-      days.push({ day: d, dateStr, balance, diff, isToday, isFuture, locked, isPreJoin });
+      days.push({ day: d, dateStr, balance, diff, isToday, isFuture, locked, isPreJoin, isPlanDay });
     }
     return days;
-  }, [monthOffset, refreshKey, logDatesSet, baseTarget, premium, threeDaysAgo, adjMap, projMap, allBalances, todayStr, joinDate]);
+  }, [monthOffset, refreshKey, logDatesSet, baseTarget, premium, threeDaysAgo, adjMap, projMap, allBalances, todayStr, joinDate, planRange]);
 
   const weeklyData = useMemo(() => {
     return logs.slice(0, 7).reverse().map(l => {
