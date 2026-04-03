@@ -142,7 +142,7 @@ function generateId(): string {
 }
 
 function initPriceDB(): PriceEntry[] {
-  const existing = localStorage.getItem(PRICE_DB_KEY);
+  const existing = scopedGet(PRICE_DB_KEY);
   if (existing) return JSON.parse(existing);
 
   const today = toLocalDateStr();
@@ -152,7 +152,7 @@ function initPriceDB(): PriceEntry[] {
     lastUpdated: today,
     source: 'seed' as const,
   }));
-  localStorage.setItem(PRICE_DB_KEY, JSON.stringify(entries));
+  scopedSet(PRICE_DB_KEY, JSON.stringify(entries));
   return entries;
 }
 
@@ -225,7 +225,7 @@ export function estimateCost(items: { name: string; quantity?: number; unit?: st
 // ─── User Overrides ───
 
 function getUserOverrides(): PriceEntry[] {
-  const data = localStorage.getItem(USER_OVERRIDES_KEY);
+  const data = scopedGet(USER_OVERRIDES_KEY);
   return data ? JSON.parse(data) : [];
 }
 
@@ -249,7 +249,7 @@ export function saveUserPriceOverride(itemName: string, price: number, unit: str
       source: 'user',
     });
   }
-  localStorage.setItem(USER_OVERRIDES_KEY, JSON.stringify(overrides));
+  scopedSet(USER_OVERRIDES_KEY, JSON.stringify(overrides));
 }
 
 // ─── Location ───
@@ -260,12 +260,12 @@ export interface UserLocation {
 }
 
 export function getUserLocation(): UserLocation | null {
-  const data = localStorage.getItem(LOCATION_KEY);
+  const data = scopedGet(LOCATION_KEY);
   return data ? JSON.parse(data) : null;
 }
 
 export function saveUserLocation(location: UserLocation) {
-  localStorage.setItem(LOCATION_KEY, JSON.stringify(location));
+  scopedSet(LOCATION_KEY, JSON.stringify(location));
 }
 
 // ─── Price stats for UI ───

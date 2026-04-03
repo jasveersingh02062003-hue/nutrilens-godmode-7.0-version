@@ -116,12 +116,12 @@ export interface DailyAdjustments {
 }
 
 export function getDailyAdjustments(date: string): DailyAdjustments {
-  const data = localStorage.getItem(ADJUSTMENTS_KEY_PREFIX + date);
+  const data = scopedGet(ADJUSTMENTS_KEY_PREFIX + date);
   return data ? JSON.parse(data) : {};
 }
 
 export function saveDailyAdjustments(date: string, adjustments: DailyAdjustments) {
-  localStorage.setItem(ADJUSTMENTS_KEY_PREFIX + date, JSON.stringify(adjustments));
+  scopedSet(ADJUSTMENTS_KEY_PREFIX + date, JSON.stringify(adjustments));
 }
 
 export function getAdjustedMealTarget(profile: UserProfile, mealType: string, date: string): MealTarget {

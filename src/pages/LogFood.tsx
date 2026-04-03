@@ -273,8 +273,8 @@ export default function LogFood() {
     if (mealType === 'dinner') {
       const todayKey = targetDate || new Date().toISOString().split('T')[0];
       const dinnerKey = `nutrilens_dinner_notif_${todayKey}`;
-      if (!localStorage.getItem(dinnerKey)) {
-        localStorage.setItem(dinnerKey, '1');
+      if (!scopedGet(dinnerKey)) {
+        scopedSet(dinnerKey, '1');
         setLastMealSheetOpen(true);
         // Don't navigate yet — let sheet handle it
         setContextPickerOpen(false);

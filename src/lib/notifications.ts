@@ -37,7 +37,7 @@ const DEFAULT_SETTINGS: NotificationSettings = {
 // ── Settings persistence ──
 
 export function getNotificationSettings(): NotificationSettings {
-  const data = localStorage.getItem(SETTINGS_KEY);
+  const data = scopedGet(SETTINGS_KEY);
   if (data) {
     return { ...DEFAULT_SETTINGS, ...JSON.parse(data) };
   }
@@ -45,7 +45,7 @@ export function getNotificationSettings(): NotificationSettings {
 }
 
 export function saveNotificationSettings(settings: NotificationSettings) {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  scopedSet(SETTINGS_KEY, JSON.stringify(settings));
 }
 
 // ── Browser permission ──
@@ -119,7 +119,7 @@ export function checkMissedMealNotifications(settings: NotificationSettings) {
     if (hour === thresholdHour && lastFiredMissedMeals[mealType] !== today) {
       // Check if meal is logged (import dynamically to avoid circular deps)
       try {
-        const logData = localStorage.getItem(`nutrilens_log_${today}`);
+        const logData = scopedGet(`nutrilens_log_${today}`);
         const log = logData ? JSON.parse(logData) : { meals: [] };
         const hasMeal = log.meals?.some((m: any) => m.type === mealType);
         if (!hasMeal) {
@@ -261,12 +261,12 @@ let proactiveInterval: ReturnType<typeof setInterval> | null = null;
 const PROACTIVE_KEY = 'nutrilens_proactive_notif_last';
 
 function getProactiveLast(): Record<string, string> {
-  try { return JSON.parse(localStorage.getItem(PROACTIVE_KEY) || '{}'); } catch { return {}; }
+  try { return JSON.parse(scopedGet(PROACTIVE_KEY) || '{}'); } catch { return {}; }
 }
 function setProactiveLast(key: string, date: string) {
   const data = getProactiveLast();
   data[key] = date;
-  localStorage.setItem(PROACTIVE_KEY, JSON.stringify(data));
+  scopedSet(PROACTIVE_KEY, JSON.stringify(data));
 }
 
 export function startProactiveChecks() {
@@ -291,7 +291,7 @@ export function startProactiveChecks() {
     // 6 PM: Protein remaining check
     if (hour === 18 && last['evening_protein'] !== today) {
       try {
-        const logData = localStorage.getItem(`nutrilens_log_${today}`);
+        const logData = scopedGet(`nutrilens_log_${today}`);
         const log = logData ? JSON.parse(logData) : { meals: [] };
         let totalProtein = 0;
         for (const meal of (log.meals || [])) {
@@ -299,7 +299,7 @@ export function startProactiveChecks() {
             totalProtein += (item.protein || 0) * (item.quantity || 1);
           }
         }
-        const profile = localStorage.getItem('nutrilens_profile');
+        const profile = scopedGet('nutrilens_profile');
         const proteinTarget = profile ? (JSON.parse(profile).dailyProtein || 60) : 60;
         const remaining = proteinTarget - totalProtein;
         if (remaining > 40) {

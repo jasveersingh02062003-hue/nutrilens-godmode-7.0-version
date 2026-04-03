@@ -64,7 +64,7 @@ export interface OverrideRecord {
 
 export function getOverrides(): OverrideRecord[] {
   try {
-    return JSON.parse(localStorage.getItem(OVERRIDE_KEY) || '[]');
+    return JSON.parse(scopedGet(OVERRIDE_KEY) || '[]');
   } catch { return []; }
 }
 
@@ -77,7 +77,7 @@ export function recordOverride(ruleId: string) {
   } else {
     overrides.push({ ruleId, count: 1, lastTimestamp: new Date().toISOString() });
   }
-  localStorage.setItem(OVERRIDE_KEY, JSON.stringify(overrides));
+  scopedSet(OVERRIDE_KEY, JSON.stringify(overrides));
 }
 
 function getOverrideCount(ruleId: string): number {

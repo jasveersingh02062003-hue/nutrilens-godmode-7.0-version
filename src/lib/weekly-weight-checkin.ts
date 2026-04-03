@@ -14,14 +14,14 @@ export function shouldPromptWeightCheckin(): boolean {
   const now = new Date();
   if (now.getDay() !== 0) return false;
 
-  const lastCheckin = localStorage.getItem(LAST_CHECKIN_KEY);
+  const lastCheckin = scopedGet(LAST_CHECKIN_KEY);
   const thisWeek = getWeekStart(toLocalDateStr());
   return lastCheckin !== thisWeek;
 }
 
 export function markWeightCheckinDone(): void {
   const thisWeek = getWeekStart(toLocalDateStr());
-  localStorage.setItem(LAST_CHECKIN_KEY, thisWeek);
+  scopedSet(LAST_CHECKIN_KEY, thisWeek);
 }
 
 export interface WeightFeedback {

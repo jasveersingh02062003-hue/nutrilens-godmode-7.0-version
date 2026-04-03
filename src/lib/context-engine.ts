@@ -27,7 +27,7 @@ const FEEDBACK_STORE = 'nutrilens_context_feedback';
 const MAX_DISMISS_ENTRIES = 200;
 
 function getDismissed(): Record<string, number> {
-  try { return JSON.parse(localStorage.getItem(DISMISS_STORE) || '{}'); } catch { return {}; }
+  try { return JSON.parse(scopedGet(DISMISS_STORE) || '{}'); } catch { return {}; }
 }
 
 export function dismissContextTip(key: string) {
@@ -40,7 +40,7 @@ export function dismissContextTip(key: string) {
     const toRemove = sorted.slice(0, keys.length - MAX_DISMISS_ENTRIES);
     for (const k of toRemove) delete d[k];
   }
-  localStorage.setItem(DISMISS_STORE, JSON.stringify(d));
+  scopedSet(DISMISS_STORE, JSON.stringify(d));
 }
 
 // #7 — Tiered cooldowns: static tips = 7 days, dynamic (date-based) = 24h
@@ -61,13 +61,13 @@ interface TipFeedback {
 }
 
 function getFeedbackStore(): TipFeedback[] {
-  try { return JSON.parse(localStorage.getItem(FEEDBACK_STORE) || '[]'); } catch { return []; }
+  try { return JSON.parse(scopedGet(FEEDBACK_STORE) || '[]'); } catch { return []; }
 }
 
 export function recordTipFeedback(key: string, reaction: 'positive' | 'negative') {
   const store = getFeedbackStore();
   store.push({ key, reaction, timestamp: new Date().toISOString() });
-  localStorage.setItem(FEEDBACK_STORE, JSON.stringify(store.slice(-100)));
+  scopedSet(FEEDBACK_STORE, JSON.stringify(store.slice(-100)));
 }
 
 function isSuppressed(baseKey: string): boolean {

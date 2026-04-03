@@ -1599,7 +1599,7 @@ export default function Onboarding() {
   if (phase === 'splash') {
     return (
       <SplashScreen
-        onComplete={() => setPhase(!localStorage.getItem('pes_flex_seen') ? 'featureFlex' : 'welcome')}
+        onComplete={() => setPhase(!scopedGet('pes_flex_seen') ? 'featureFlex' : 'welcome')}
       />
     );
   }
