@@ -40,6 +40,7 @@ import GymConsistencyCard from '@/components/GymConsistencyCard';
 import GymUpsellCard from '@/components/GymUpsellCard';
 import ProteinGapNudgeCard from '@/components/ProteinGapNudgeCard';
 import SupplementUpsellCard from '@/components/SupplementUpsellCard';
+import { shouldBoostWater } from '@/lib/supplement-service';
 
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import DashboardModals from '@/components/dashboard/DashboardModals';
