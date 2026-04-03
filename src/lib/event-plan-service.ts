@@ -1,8 +1,8 @@
 // Event Plan Service — plan catalog, target calculation, active plan state
 import { scopedGet, scopedSet, scopedRemove, scopedGetJSON, scopedSetJSON } from '@/lib/scoped-storage';
 
-export type PlanType = 'celebrity_transformation' | 'sugar_cut' | 'gym_fat_loss' | 'gym_muscle_gain' | 'madhavan_21_day' | 'event_based';
-export type PlanCategory = 'weight_loss' | 'sugar_free' | 'muscle' | 'circadian' | 'event' | 'all';
+export type PlanType = 'celebrity_transformation' | 'sugar_cut' | 'gym_fat_loss' | 'gym_muscle_gain' | 'gym_optimization' | 'madhavan_21_day' | 'event_based';
+export type PlanCategory = 'weight_loss' | 'sugar_free' | 'muscle' | 'gym' | 'circadian' | 'event' | 'all';
 
 export type EventGoalType = 'lose' | 'gain' | 'tummy' | 'shape';
 export type ExerciseTime = 'none' | '10min' | '30min' | '1hour';
