@@ -297,6 +297,7 @@ interface FormState {
   diet: string;
   water: number;
   supplements: string[];
+  supplementPrefs: Array<{ name: string; frequency: 'daily' | 'workout_days' | 'occasional'; costPerServing: number; proteinPerServing?: number }>;
   cookingSkill: string;
   cookingTime: number;
   cookingEquipment: string[];
