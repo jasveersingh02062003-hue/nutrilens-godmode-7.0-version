@@ -1,6 +1,6 @@
 // Plan PDF Export — generates a printable HTML page for active plan details
 
-import { getActivePlan, getPlanById, getPlanProgress, type ActivePlan } from './event-plan-service';
+import { getActivePlan, getActivePlanRaw, getPlanById, getPlanProgress, type ActivePlan } from './event-plan-service';
 import { getProfile } from './store';
 
 function buildPlanHTML(plan: ActivePlan): string {
