@@ -238,8 +238,8 @@ export function getRecipesForMeal(
     let contextBadge: string | undefined;
 
     if (profile) {
-      const travelFreq = (profile as any).travelFrequency || '';
-      const workFacilities: string[] = (profile as any).workplaceFacilities || [];
+      const travelFreq = profile.travelFrequency || '';
+      const workFacilities: string[] = profile.workplaceFacilities || [];
       const cooking = (profile.cookingHabits || '').toLowerCase();
 
       // Travelers get boost for portable meals
