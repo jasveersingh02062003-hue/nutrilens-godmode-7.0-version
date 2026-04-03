@@ -181,6 +181,11 @@ function dbRowToProfile(row: any): UserProfile {
     skinConcerns: row.conditions?.skinConcerns || undefined,
     allergens: row.conditions?.allergens || [],
     joinDate: row.join_date || undefined,
+    travelFrequency: row.conditions?.travelFrequency || undefined,
+    kitchenAppliances: row.conditions?.kitchenAppliances || undefined,
+    workplaceFacilities: row.conditions?.workplaceFacilities || undefined,
+    carriesFood: row.conditions?.carriesFood || undefined,
+    livingSituation: row.conditions?.livingSituation || undefined,
   } as UserProfile;
 }
 
