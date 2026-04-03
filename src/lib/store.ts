@@ -248,9 +248,9 @@ export function logWeight(date: string, weight: number, unit: 'kg' | 'lbs' = 'kg
   import('@/integrations/supabase/client').then(({ supabase }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session?.user) return;
-      supabase.from('weight_logs' as any).upsert({
+      supabase.from('weight_logs').upsert({
         user_id: session.user.id, log_date: date, weight, unit,
-      }, { onConflict: 'user_id,log_date' } as any).then(() => {});
+      } as any, { onConflict: 'user_id,log_date' } as any).then(() => {});
     });
   }).catch(() => {});
   return log;
