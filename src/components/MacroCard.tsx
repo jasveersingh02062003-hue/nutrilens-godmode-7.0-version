@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Flame, Wheat, Droplets } from 'lucide-react';
 
 interface Props {
