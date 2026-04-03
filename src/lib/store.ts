@@ -173,11 +173,14 @@ export interface DailyLog {
   journal?: string;
 }
 
+import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON, scopedRemove } from '@/lib/scoped-storage';
+
 const PROFILE_KEY = 'nutrilens_profile';
 const LOG_KEY_PREFIX = 'nutrilens_log_';
 const PHOTOS_KEY = 'nutrilens_progress_photos';
 
 export function getProfile(): UserProfile | null {
+  // Profile stays global — overwritten on login from cloud
   const data = localStorage.getItem(PROFILE_KEY);
   return data ? JSON.parse(data) : null;
 }
