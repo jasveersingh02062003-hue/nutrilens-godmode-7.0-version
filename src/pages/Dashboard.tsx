@@ -112,8 +112,9 @@ export default function Dashboard() {
 
   const plannerProfile = getMealPlannerProfile();
   const plannerIncomplete = !plannerProfile || !plannerProfile.onboardingComplete;
+  const plannerDismissKey = `planner_modal_dismissed_${loadedUserId || 'anon'}`;
   const [showPlannerModal, setShowPlannerModal] = useState(() =>
-    plannerIncomplete && !localStorage.getItem('planner_modal_dismissed')
+    plannerIncomplete && !localStorage.getItem(plannerDismissKey)
   );
   const showPlannerBanner = plannerIncomplete && !showPlannerModal;
 

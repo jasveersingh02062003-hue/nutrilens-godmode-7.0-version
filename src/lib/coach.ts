@@ -241,22 +241,26 @@ function detectPatterns(logs: DailyLog[], profile: UserProfile): CoachMessage[] 
     }
   }
 
-  // Late-night eating
-  const lateNightCount = logs.filter(l => l.meals.some(m => {
-    const h = parseInt(m.time?.split(':')[0] || '0');
-    return h >= 22 || h < 4;
-  })).length;
-  if (lateNightCount >= 3) {
-    messages.push({
-      id: 'pattern_late_night',
-      category: 'pattern',
-      icon: '🌙',
-      title: 'Late-night eating trend',
-      body: `You ate after 10 PM on ${lateNightCount} of the last ${logs.length} days. A protein-rich dinner might reduce late cravings.`,
-      priority: 42,
-      tone: 'neutral',
-      actions: [{ label: 'Dinner Ideas', icon: '🍽️', route: '/planner' }],
-    });
+  // Late-night eating — skip for night-shift workers
+  const occ = (profile.occupation || '').toLowerCase();
+  const isNightShift = ['night', 'shift', 'bpo', 'call center'].some(k => occ.includes(k));
+  if (!isNightShift) {
+    const lateNightCount = logs.filter(l => l.meals.some(m => {
+      const h = parseInt(m.time?.split(':')[0] || '0');
+      return h >= 22 || h < 4;
+    })).length;
+    if (lateNightCount >= 3) {
+      messages.push({
+        id: 'pattern_late_night',
+        category: 'pattern',
+        icon: '🌙',
+        title: 'Late-night eating trend',
+        body: `You ate after 10 PM on ${lateNightCount} of the last ${logs.length} days. A protein-rich dinner might reduce late cravings.`,
+        priority: 42,
+        tone: 'neutral',
+        actions: [{ label: 'Dinner Ideas', icon: '🍽️', route: '/planner' }],
+      });
+    }
   }
 
   // Breakfast skipping
