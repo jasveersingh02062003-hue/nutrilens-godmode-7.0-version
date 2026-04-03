@@ -419,16 +419,20 @@ export default function Onboarding() {
   };
 
   const getVisibleSteps = (): number[] => {
-    const steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+    const steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    // Gym step (always show the yes/no question)
+    steps.push(11);
+    // Goal steps
+    steps.push(12);
     if (f.goalType === 'lose' || f.goalType === 'gain') {
-      steps.push(12, 13);
+      steps.push(13, 14);
     }
-    steps.push(14); // Summary screen
-    steps.push(15, 16, 17, 18); // Final plan, Prediction summary, Food intelligence, want lifestyle?
+    steps.push(15); // Summary screen
+    steps.push(16, 17, 18, 19); // Final plan, Prediction summary, Food intelligence, want lifestyle?
     if (f.wantLifestyle === true) {
-      steps.push(19, 20, 21, 22, 23);
+      steps.push(20, 21, 22, 23, 24);
     }
-    steps.push(24, 25);
+    steps.push(25, 26);
     return steps;
   };
 
