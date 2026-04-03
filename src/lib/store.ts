@@ -457,9 +457,9 @@ export function addSupplementForDate(date: string, entry: SupplementEntry) {
   import('@/integrations/supabase/client').then(({ supabase }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session?.user) return;
-      supabase.from('supplement_logs' as any).upsert({
+      supabase.from('supplement_logs').upsert({
         user_id: session.user.id, log_date: date, supplements: log.supplements as any,
-      }, { onConflict: 'user_id,log_date' } as any).then(() => {});
+      } as any, { onConflict: 'user_id,log_date' } as any).then(() => {});
     });
   }).catch(() => {});
   return log;
