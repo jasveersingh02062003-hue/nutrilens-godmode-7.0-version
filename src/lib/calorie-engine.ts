@@ -98,8 +98,7 @@ function getWeightForMeal(name: MealSlot['name'], pendingCount: number, pendingN
 // ── Skip persistence ──
 
 export function getSkippedMeals(date: string): string[] {
-  const data = localStorage.getItem(SKIPPED_KEY_PREFIX + date);
-  return data ? JSON.parse(data) : [];
+  return scopedGetJSON<string[]>(SKIPPED_KEY_PREFIX + date, []);
 }
 
 export function skipMeal(date: string, mealType: string): void {
@@ -107,14 +106,14 @@ export function skipMeal(date: string, mealType: string): void {
   const normalized = mealType === 'snack' ? 'snacks' : mealType;
   if (!skipped.includes(normalized)) {
     skipped.push(normalized);
-    localStorage.setItem(SKIPPED_KEY_PREFIX + date, JSON.stringify(skipped));
+    scopedSetJSON(SKIPPED_KEY_PREFIX + date, skipped);
   }
 }
 
 export function unskipMeal(date: string, mealType: string): void {
   const normalized = mealType === 'snack' ? 'snacks' : mealType;
   const skipped = getSkippedMeals(date).filter(s => s !== normalized);
-  localStorage.setItem(SKIPPED_KEY_PREFIX + date, JSON.stringify(skipped));
+  scopedSetJSON(SKIPPED_KEY_PREFIX + date, skipped);
 }
 
 // ── Auto-missed detection by time ──
