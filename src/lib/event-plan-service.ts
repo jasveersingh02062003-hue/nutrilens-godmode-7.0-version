@@ -268,16 +268,89 @@ export function calculatePlanTargets(
   };
 }
 
-// Active plan CRUD
+// Calculate event-based plan targets
+export function calculateEventTargets(
+  currentWeight: number,
+  targetWeight: number,
+  duration: number,
+  tdee: number,
+  goalType: EventGoalType,
+): PlanTargets {
+  const isGain = goalType === 'gain';
+  if (isGain) {
+    const surplus = 350;
+    const dailyCalories = Math.round(tdee + surplus);
+    const dailyProtein = Math.round(currentWeight * 1.8);
+    const proteinCals = dailyProtein * 4;
+    const fatCals = dailyCalories * 0.25;
+    const dailyFat = Math.round(fatCals / 9);
+    const dailyCarbs = Math.round((dailyCalories - proteinCals - fatCals) / 4);
+    return { dailyCalories, dailyProtein, dailyCarbs, dailyFat, dailyDeficit: -surplus, weeklyLoss: -(surplus * 7) / KCAL_PER_KG, feasible: true };
+  }
+
+  // Loss / tummy / shape
+  const weightDiff = currentWeight - targetWeight;
+  const totalDeficit = weightDiff * KCAL_PER_KG;
+  const dailyDeficit = Math.round(totalDeficit / duration);
+  const weeklyLoss = (dailyDeficit * 7) / KCAL_PER_KG;
+  let dailyCalories = Math.round(tdee - dailyDeficit);
+  let warning: string | undefined;
+  let feasible = true;
+
+  if (dailyCalories < MIN_CALORIES) {
+    dailyCalories = MIN_CALORIES;
+    warning = `Clamped to ${MIN_CALORIES} kcal/day for safety.`;
+  }
+  if (weeklyLoss > MAX_WEEKLY_LOSS) {
+    feasible = false;
+    warning = `Requires ${weeklyLoss.toFixed(1)} kg/week loss — exceeds safe limit. Consider a longer duration.`;
+  }
+
+  // Tummy: higher protein, lower carbs; Shape: moderate
+  const proteinPerKg = goalType === 'tummy' ? 2.0 : goalType === 'shape' ? 1.8 : 1.6;
+  const dailyProtein = Math.round(currentWeight * proteinPerKg);
+  const proteinCals = dailyProtein * 4;
+  const carbRatio = goalType === 'tummy' ? 0.35 : 0.45;
+  const remaining = Math.max(0, dailyCalories - proteinCals);
+  const dailyCarbs = Math.round((remaining * carbRatio) / 4);
+  const dailyFat = Math.round((remaining * (1 - carbRatio)) / 9);
+
+  return { dailyCalories, dailyProtein, dailyCarbs, dailyFat, dailyDeficit, weeklyLoss, feasible, warning };
+}
+
+// Check if expired plan exists for post-event feedback
+export function getExpiredEventPlan(): ActivePlan | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const plan = JSON.parse(raw) as ActivePlan;
+    if (plan.planId !== 'event_based') return null;
+    const endDate = new Date(plan.startDate);
+    endDate.setDate(endDate.getDate() + plan.duration);
+    if (new Date() > endDate) {
+      // Don't remove yet — let feedback modal handle it
+      return plan;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// Active plan CRUD — modified to support event expiry detection
 export function getActivePlan(): ActivePlan | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const plan = JSON.parse(raw) as ActivePlan;
-    // Check if plan has expired
     const endDate = new Date(plan.startDate);
     endDate.setDate(endDate.getDate() + plan.duration);
     if (new Date() > endDate) {
+      // For event plans, keep in storage until feedback is collected
+      if (plan.planId === 'event_based') {
+        const feedbackKey = `nutrilens_event_feedback_${plan.startDate}`;
+        if (!localStorage.getItem(feedbackKey)) return null; // expired but awaiting feedback
+      }
       localStorage.removeItem(STORAGE_KEY);
       return null;
     }
