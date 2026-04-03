@@ -293,6 +293,9 @@ export default function ProgressPage() {
         {/* Gym Progress */}
         {profile?.gym?.goer && <GymProgressSection />}
 
+        {/* Supplement Consistency */}
+        <SupplementConsistencySection refreshKey={refreshKey} />
+
         {/* Calendar */}
         <div className="card-elevated p-4">
           <div className="flex items-center justify-between mb-4">
