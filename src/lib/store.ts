@@ -173,7 +173,7 @@ export interface DailyLog {
   journal?: string;
 }
 
-import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON, scopedRemove } from '@/lib/scoped-storage';
+import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON, scopedRemove, getScopedUserId } from '@/lib/scoped-storage';
 import { syncWeight, syncWater, syncSupplements } from '@/lib/cloud-sync';
 
 const PROFILE_KEY = 'nutrilens_profile';
