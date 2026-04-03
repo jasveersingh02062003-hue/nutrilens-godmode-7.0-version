@@ -87,7 +87,7 @@ function scoreForDiabetes(
   let score = 100;
   const reasons: string[] = [];
   const tips: string[] = [];
-  const conditions = (profile as any).conditions;
+  const conditions = (profile as unknown as Record<string, unknown>).conditions as Record<string, any> | undefined;
   const dtype = conditions?.diabetes?.type || 'type2';
 
   // High-GI penalty
