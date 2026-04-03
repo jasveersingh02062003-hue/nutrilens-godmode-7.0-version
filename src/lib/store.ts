@@ -182,7 +182,7 @@ const PHOTOS_KEY = 'nutrilens_progress_photos';
 
 export function getProfile(): UserProfile | null {
   // Profile stays global — overwritten on login from cloud
-  const data = localStorage.getItem(PROFILE_KEY);
+  const data = scopedGet(PROFILE_KEY);
   if (!data) return null;
   try {
     return JSON.parse(data);
@@ -208,7 +208,7 @@ export function getComputedAge(profile: UserProfile): number {
 }
 
 export function saveProfile(profile: UserProfile) {
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  scopedSet(PROFILE_KEY, JSON.stringify(profile));
   // Dispatch event so UserProfileContext auto-syncs to cloud
   window.dispatchEvent(new CustomEvent('nutrilens:profile-updated'));
 }
