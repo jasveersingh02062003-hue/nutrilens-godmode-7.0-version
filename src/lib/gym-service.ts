@@ -103,11 +103,7 @@ export function saveGymCheckIn(
       intensity: int,
     },
   };
-  saveDailyLog(date, updatedLog);
-
-  // Update profile stats
-  if (profile?.gym) {
-    const allLogs = getRecentLogs(90);
+  saveDailyLog(updatedLog);
     const stats = computeGymStats(profile, allLogs);
     const updatedProfile: UserProfile = {
       ...profile,
