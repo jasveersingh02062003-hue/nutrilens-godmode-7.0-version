@@ -2,6 +2,7 @@
 
 import type { WeekPlan } from './meal-planner-store';
 import { getMealPreferences } from './meal-plan-feedback';
+import { scopedGetJSON, scopedSetJSON } from '@/lib/scoped-storage';
 
 const ADHERENCE_KEY = 'nutrilens_adherence_history';
 
