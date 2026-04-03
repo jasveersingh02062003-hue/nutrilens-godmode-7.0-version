@@ -98,6 +98,18 @@ export default function SpecialPlansTab() {
         ))}
       </div>
 
+      {/* Event Plan CTA */}
+      <motion.button
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        onClick={() => setEventSheetOpen(true)}
+        className="w-full rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 p-5 text-center space-y-2 active:scale-[0.99] transition-transform"
+      >
+        <span className="text-3xl">🎯</span>
+        <p className="text-sm font-bold text-foreground">Create Event Plan</p>
+        <p className="text-[10px] text-muted-foreground">Wedding, vacation, meeting — get a custom deadline-driven plan</p>
+      </motion.button>
+
       {/* Plan Cards */}
       <div className="space-y-3">
         {filtered.map((plan, i) => (
