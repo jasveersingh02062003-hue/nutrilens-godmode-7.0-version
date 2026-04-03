@@ -302,7 +302,9 @@ export function addWater() {
       if (!session?.user) return;
       supabase.from('water_logs').upsert({
         user_id: session.user.id, log_date: log.date, cups: log.waterCups,
-      } as any, { onConflict: 'user_id,log_date' } as any).then(() => {});
+      } as any, { onConflict: 'user_id,log_date' } as any).then(({ error }: any) => {
+        if (error) console.error('[store] water_logs sync failed:', error.message);
+      });
     });
   }).catch(() => {});
   return log;
