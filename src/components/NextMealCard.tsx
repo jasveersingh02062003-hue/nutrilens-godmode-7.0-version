@@ -148,4 +148,4 @@ export default memo(function NextMealCard({ profile }: Props) {
       )}
     </motion.div>
   );
-}
+});

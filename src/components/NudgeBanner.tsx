@@ -68,4 +68,4 @@ export default memo(function NudgeBanner({ onOpenSymptomLog }: Props) {
       </AnimatePresence>
     </div>
   );
-}
+});

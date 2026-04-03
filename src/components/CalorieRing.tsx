@@ -106,4 +106,4 @@ export default memo(function CalorieRing({ dayState, proteinRemaining }: Props) 
       </div>
     </div>
   );
-}
+});

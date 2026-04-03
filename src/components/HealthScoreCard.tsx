@@ -185,4 +185,4 @@ export default memo(function HealthScoreCard({ refreshKey }: Props) {
       </AnimatePresence>
     </div>
   );
-}
+});

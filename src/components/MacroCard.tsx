@@ -51,4 +51,4 @@ export default memo(function MacroCard({ label, current, goal, variant }: Props)
       </div>
     </div>
   );
-}
+});

@@ -38,4 +38,4 @@ export default memo(function WaterTracker({ cups, goal, onAdd }: Props) {
       </div>
     </div>
   );
-}
+});
