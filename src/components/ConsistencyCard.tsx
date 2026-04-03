@@ -2,7 +2,7 @@ import { Flame } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getStreaks, getNextMilestone, getMilestoneProgress, STREAK_META, StreakType, checkStreakBreaks } from '@/lib/streaks';
 import { Progress } from '@/components/ui/progress';
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 
 interface Props {
   refreshKey?: number;
