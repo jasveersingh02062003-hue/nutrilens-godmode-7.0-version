@@ -1,123 +1,114 @@
 
 
-# Implementation Plan: Madhavan 21-Day Metabolic Reset
+# Implementation Plan: Event-Based Transformation Plan
 
 ## Summary
-
-Add the **Madhavan 21-Day Metabolic Reset** as a new plan type in the existing event plans framework. This includes the plan catalog entry, behavioral rule enforcement (eating window, chewing timer, no-raw-after-3PM, home-cooked-only), a custom dashboard banner, body awareness journaling, and a 4-week reverse dieting transition after plan completion.
+Add a new **"Event-Based Plan"** (`event_based`) plan type that allows users to create deadline-driven transformation plans (wedding, vacation, meeting, etc.) with a focused questionnaire that collects event details, constraints (exercise time, cooking time, budget), and goals. The system generates a personalized short-term plan using existing profile data + event inputs, including a daily "Boosters" checklist (superfoods, metabolism drinks, routines). After the event, a feedback modal handles transition back to normal or updated goals.
 
 ## What Already Exists (Reuse)
 - Plan service with catalog, CRUD, target calculation, safety clamps
-- Calorie/macro override in `calorie-correction.ts` (with refeed day, calorie cycling patterns)
-- Sugar detector + warnings in logging flows
-- Meal suggestion engine with plan filters + weather scoring
-- ActivePlanBanner, PlanCompletionModal, PlanPromoCard
-- `event_plans` database table
+- Calorie/macro override engine (calorie-correction.ts)
+- Meal suggestion engine with plan filters, weather scoring, budget/pantry awareness
+- ActivePlanBanner, PlanCompletionModal, PlanPromoCard, SpecialPlansTab, PlanDetailSheet
+- User profile with weight, TDEE, BMR, budget, health conditions, activity level, cooking habits
+- `event_plans` database table with RLS
 
 ## New Components & Changes
 
 ### 1. Plan Service Extension
 **File:** `src/lib/event-plan-service.ts`
-- Add `'madhavan_21_day'` to `PlanType` union
-- Add `'circadian'` to `PlanCategory`
-- Add plan metadata to `PLAN_CATALOG` with rules: `intermittent_fasting_12h`, `chew_timer_50`, `home_cooked_only`, `no_junk_food`, `leafy_greens_daily`, `no_raw_after_3pm`, `hydration_40ml_kg`, `early_sleep_10pm`
-- Add `customSettings` field to `ActivePlan` interface for eating window times, step targets, water multiplier, chew count
-- Add `calculateMadhavanTargets()` using Mifflin-St Jeor with 500-750 kcal deficit, protein at 1.6g/kg
+- Add `'event_based'` to `PlanType` union, `'event'` to `PlanCategory`
+- Add `EventPlanSettings` interface: `{ eventType, eventDate, goalType ('lose'|'gain'|'tummy'|'shape'), exerciseTime ('none'|'10min'|'30min'|'1hour'), cookingTime ('none'|'limited'|'plenty'), budgetTier ('tight'|'moderate'|'flexible'), fastingWindow (0|12|14|16), boosters: string[] }`
+- Add catalog entry for "Transform for Your Event" with dynamic duration
+- Add `calculateEventTargets()` that factors in goal type: loss uses existing deficit logic, "tummy" uses higher protein + lower carbs, "shape" uses moderate deficit + higher protein, gain uses surplus logic
 
-### 2. Reverse Dieting System
-**File:** `src/lib/reverse-diet-service.ts` (new)
-- Store reverse diet state in localStorage: `{ active, startDate, newTDEE, weeklyTargets }`
-- `startReverseDiet(newWeight)` — calculates 3-week graduated return to TDEE
-- `getReverseDietTarget()` — returns current week's calorie target
-- `isReverseDietActive()` — check flag
+### 2. Event Plan Config Sheet (Multi-Step Questionnaire)
+**File:** `src/components/EventPlanConfigSheet.tsx` (new)
+- Full-screen bottom sheet with 4 steps (not 9 separate screens — group related questions):
+  - **Step 1 — Event**: Event type (Wedding/Vacation/Meeting/Reunion/Other) + date picker (min 7 days out)
+  - **Step 2 — Goal**: What do you want (Lose weight / Gain weight / Reduce tummy / Get in shape) + target weight slider showing current → target with feasibility check
+  - **Step 3 — Constraints**: Exercise time, cooking time, budget tier — each as icon-based toggle cards
+  - **Step 4 — Extras**: Intermittent fasting toggle (12h/14h/16h) + optional boosters (superfoods, metabolism drinks, morning routine)
+- Each question is pre-filled from profile where possible (cooking_habits → cookingTime, budget → budgetTier)
+- Final summary screen shows computed targets, sample day, and feasibility warning if needed
+- "Activate Plan" button stores via `setActivePlan()` with `planId: 'event_based'` and `customSettings` containing all event config
 
-**File:** `src/lib/calorie-correction.ts` (modify)
-- In `getAdjustedDailyTarget()`, after active plan check, add reverse diet check: if active, return weekly target instead of normal TDEE
+### 3. Boosters Checklist Component
+**File:** `src/components/BoostersChecklist.tsx` (new)
+- Daily checklist shown on Dashboard when event_based plan is active
+- Items based on user's selected boosters:
+  - **Morning routine**: Warm water + lemon + jeera, 10-min walk, stretching
+  - **Metabolism drinks**: Jeera water, ginger tea, green tea, black coffee
+  - **Superfoods**: Makhana, sattu, chia seeds, sprouted moong
+  - **Evening routine**: Herbal tea, finish dinner by 7 PM
+- Stored in localStorage per day, visual checkmarks with progress ring
 
-### 3. Behavioral Rule Components
+### 4. Post-Event Feedback Modal
+**File:** `src/components/PostEventFeedbackModal.tsx` (new)
+- Triggered when event plan expires (checked in Dashboard on mount)
+- Shows: "Your event plan ended! How did it go?"
+- Collects: current weight (numeric input)
+- Options:
+  - "Return to original plan" → clears active plan, updates weight in profile
+  - "Update my long-term goal" → opens goal editor with new weight pre-filled
+  - "Extend this plan" → re-opens EventPlanConfigSheet with same settings + new date
+- Replaces PlanCompletionModal for event_based plans
 
-**File:** `src/components/ChewingTimerModal.tsx` (new)
-- Modal with animated 50-chew counter
-- Haptic feedback every 10 chews via `navigator.vibrate`
-- Shows after meal logging when Madhavan plan is active
-- Stores completion flag per meal in localStorage
-
-**File:** `src/components/BodyAwarenessJournal.tsx` (new)
-- Evening sheet with sliders: Energy (1-5), Bloating (1-5), Mood (1-5), free-text notes
-- Stores daily entries in localStorage, syncs to cloud via `event_plans.config`
-- After 7 days, shows basic food-symptom correlations
-
-**File:** `src/components/EatingWindowGuard.tsx` (new)
-- Modal triggered when user tries to log food outside 7AM-7PM window
-- "Your eating window is 7 AM – 7 PM. Log anyway?" with delayed confirm button
-- Reuses `AlertDialog` pattern from allergen system
-
-### 4. Logging Flow Integrations
-**File:** `src/components/AddFoodSheet.tsx` (modify)
-- When Madhavan plan active + time > 15:00: check food tags for `raw` → show warning + suggest cooked alternative
-- When Madhavan plan active: check food tags for `junk`, `restaurant`, `fast_food` → show home-cooked warning
-- When time outside eating window (before 7AM or after 7PM): trigger `EatingWindowGuard`
-
-**File:** `src/pages/LogFood.tsx` (modify)
-- After successful meal log, if Madhavan active, show `ChewingTimerModal`
-
-### 5. Meal Suggestion Filtering
+### 5. Meal Suggestion Filters for Event Plans
 **File:** `src/lib/meal-suggestion-engine.ts` (modify)
-- When `madhavan_21_day` active:
-  - Exclude recipes tagged `restaurant`, `junk`, `processed`, `fast_food`
-  - After 3PM slots: exclude `raw` tagged recipes, suggest cooked alternatives
-  - Boost recipes with `leafy_greens`, `home_cooked`, `millet`, `fermented` tags
-  - Boost recipes using coconut oil or sesame oil; penalize other oils
+- When `event_based` active, apply constraint-based filters:
+  - `cookingTime === 'none'`: only recipes with prepTime ≤ 5 min or tag `no_cook`
+  - `cookingTime === 'limited'`: prepTime ≤ 30 min
+  - `budgetTier === 'tight'`: boost PES score weight, exclude recipes > ₹80/serving
+  - `goalType === 'tummy'`: boost high-fiber, low-bloat recipes; penalize gas-causing foods
+  - IF fasting window active: exclude recipes from slots outside eating window
 
 ### 6. Dashboard Integration
-**File:** `src/components/MadhavanPlanBanner.tsx` (new)
-- Replaces standard `ActivePlanBanner` when Madhavan plan active
-- Shows: day countdown, eating window status (open/closed), chewing completion for last meal, water intake vs adjusted goal (weight × 40ml), evening journal prompt
-- Expandable with daily targets + rules + PDF export
-
 **File:** `src/pages/Dashboard.tsx` (modify)
-- Conditionally render `MadhavanPlanBanner` instead of `ActivePlanBanner` when `activePlan.planId === 'madhavan_21_day'`
+- When `event_based` plan active: show event-specific ActivePlanBanner with countdown to event name ("15 days until your wedding!")
+- Render `BoostersChecklist` below the banner
+- On mount: check if event plan expired → show `PostEventFeedbackModal`
 
-### 7. Plan Completion + Reverse Diet Transition
-**File:** `src/components/PlanCompletionModal.tsx` (modify)
-- When Madhavan plan completes, show additional "Start Reverse Diet" button
-- Calls `startReverseDiet()` with current weight
-- Shows 3-week transition schedule preview
+### 7. Plans Tab Integration
+**File:** `src/components/SpecialPlansTab.tsx` (modify)
+- Add `'event'` to category filters
+- Add prominent "Create Event Plan" CTA card at top that opens `EventPlanConfigSheet`
+- Event plan catalog entry shows as "Custom · Your Event" card
 
-**File:** `src/pages/Profile.tsx` (modify)
-- If reverse diet active, show progress in the "Special Plans" row: "Reverse Diet — Week 2/3"
-
-### 8. Water Goal Override
-**File:** `src/components/WaterTrackerCompact.tsx` (modify)
-- When Madhavan active: override goal to `weightKg × 40` ml (clamped 3000-5000ml)
-- Show label "Madhavan hydration target"
+### 8. Activity Tracker (Simple Walking Goal)
+**File:** `src/components/ActivityTracker.tsx` (new)
+- Compact card showing walking step goal based on exerciseTime:
+  - none: 8,000 steps target
+  - 10min: 10,000 steps + "5-min stretching"
+  - 30min: 10,000 steps + "10-min bodyweight circuit"
+- Manual step entry (no Health Connect needed — keep it simple)
+- Stored in localStorage per day
+- Shown on Dashboard when event plan is active
 
 ## Implementation Order
-1. Plan service extension (add type + catalog entry + target calculation)
-2. Reverse diet service (new file)
-3. Calorie correction overrides (Madhavan + reverse diet)
-4. Meal suggestion filters (home-cooked, no-raw-after-3PM, leafy greens boost)
-5. Behavioral components (ChewingTimerModal, EatingWindowGuard, BodyAwarenessJournal)
-6. Logging flow integrations (AddFoodSheet, LogFood)
-7. MadhavanPlanBanner + Dashboard integration
-8. PlanCompletionModal reverse diet transition
-9. Profile + WaterTracker updates
+1. Plan service extension (add event_based type + settings + target calculation)
+2. EventPlanConfigSheet (4-step questionnaire)
+3. BoostersChecklist + ActivityTracker components
+4. PostEventFeedbackModal
+5. Meal suggestion engine filters for event constraints
+6. Dashboard + SpecialPlansTab integration
 
 ## Files Summary
 | File | Action |
 |------|--------|
-| `src/lib/event-plan-service.ts` | Modify — add Madhavan plan type + catalog entry |
-| `src/lib/reverse-diet-service.ts` | Create — reverse dieting logic |
-| `src/lib/calorie-correction.ts` | Modify — Madhavan + reverse diet overrides |
-| `src/lib/meal-suggestion-engine.ts` | Modify — home-cooked, raw food, greens filters |
-| `src/components/ChewingTimerModal.tsx` | Create — 50-chew haptic timer |
-| `src/components/BodyAwarenessJournal.tsx` | Create — evening symptom journal |
-| `src/components/EatingWindowGuard.tsx` | Create — fasting window enforcement |
-| `src/components/MadhavanPlanBanner.tsx` | Create — custom dashboard banner |
-| `src/components/AddFoodSheet.tsx` | Modify — raw food + junk + window checks |
-| `src/pages/LogFood.tsx` | Modify — trigger chewing timer post-log |
-| `src/pages/Dashboard.tsx` | Modify — conditional Madhavan banner |
-| `src/components/PlanCompletionModal.tsx` | Modify — reverse diet transition |
-| `src/components/WaterTrackerCompact.tsx` | Modify — Madhavan hydration override |
-| `src/pages/Profile.tsx` | Modify — reverse diet status display |
+| `src/lib/event-plan-service.ts` | Modify — add event_based type, EventPlanSettings, calculateEventTargets |
+| `src/components/EventPlanConfigSheet.tsx` | Create — 4-step event questionnaire |
+| `src/components/BoostersChecklist.tsx` | Create — daily superfoods/drinks/routine checklist |
+| `src/components/ActivityTracker.tsx` | Create — walking step goal card |
+| `src/components/PostEventFeedbackModal.tsx` | Create — post-event feedback + transition |
+| `src/lib/meal-suggestion-engine.ts` | Modify — cooking time, budget, tummy filters |
+| `src/pages/Dashboard.tsx` | Modify — event banner, boosters, activity, post-event check |
+| `src/components/SpecialPlansTab.tsx` | Modify — event category filter + CTA card |
+
+## Technical Notes
+- Event plan reuses `ActivePlan` interface with `planId: 'event_based'` and `customSettings` holding `EventPlanSettings`
+- Feasibility check: reuses existing `calculatePlanTargets` with `MAX_WEEKLY_LOSS = 1 kg` clamp
+- Boosters stored in `nutrilens_boosters_{date}` localStorage keys
+- Steps stored in `nutrilens_steps_{date}` localStorage keys
+- Post-event modal checks `getActivePlan() === null` AND `localStorage.getItem('nutrilens_last_event_plan')` exists
 
