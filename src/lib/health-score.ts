@@ -238,8 +238,8 @@ export function scoreUnifiedMeal(
     return { overallScore: 100, overallColor: 'green', conditionScores: [], topReasons: [], topTips: [] };
   }
 
-  const conditions = (profile as any).conditions || {};
-  const healthGoals: string[] = (profile as any).healthGoals || [];
+  const conditions = ((profile as unknown as Record<string, unknown>).conditions || {}) as Record<string, any>;
+  const healthGoals: string[] = ((profile as unknown as Record<string, unknown>).healthGoals || []) as string[];
   const healthConditions: string[] = profile.healthConditions || [];
   const scores: ConditionScore[] = [];
 
