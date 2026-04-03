@@ -35,6 +35,8 @@ export interface DayState {
 
 const MEAL_NAMES: MealSlot['name'][] = ['breakfast', 'lunch', 'snacks', 'dinner'];
 
+import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON } from '@/lib/scoped-storage';
+
 const SKIPPED_KEY_PREFIX = 'nutrilens_skipped_';
 
 // Meal type mapping: store uses 'snack', engine uses 'snacks'
