@@ -83,11 +83,11 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
       setDietaryPrefs(profile.dietaryPrefs || []);
       setWaterGoal(profile.waterGoal || 2000);
       setOccupation(profile.occupation || '');
-      setTravelFrequency(profile.travelFrequency || '');
+      setTravelFrequency(profile.travelFrequency || undefined);
       setKitchenAppliances(profile.kitchenAppliances || []);
       setWorkplaceFacilities(profile.workplaceFacilities || []);
-      setCarriesFood(profile.carriesFood || '');
-      setLivingSituation(profile.livingSituation || '');
+      setCarriesFood(profile.carriesFood || undefined);
+      setLivingSituation(profile.livingSituation || undefined);
       setPhoto(getProfilePhoto());
     }
   }, [profile, open]);
