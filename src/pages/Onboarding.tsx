@@ -572,6 +572,7 @@ export default function Onboarding() {
       },
       lifestyle: {
         diet: f.diet || 'noRestrictions', water: f.water, supplements: f.supplements,
+        supplementPrefs: f.supplementPrefs.length > 0 ? { items: f.supplementPrefs } : undefined,
         cooking: { skill: f.cookingSkill || 'beginner', time: f.cookingTime, equipment: f.cookingEquipment },
         budget: {
           enabled: f.budgetEnabled,

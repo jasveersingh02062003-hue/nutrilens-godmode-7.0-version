@@ -196,6 +196,10 @@ export default function Dashboard() {
           </>
         )}
 
+        {/* Supplement Intelligence Cards */}
+        <div className="animate-fade-in"><ProteinGapNudgeCard onApplied={d.refreshLog} /></div>
+        <div className="animate-fade-in"><SupplementUpsellCard /></div>
+
         <div className="animate-slide-up" style={{ animationDelay: '0.03s' }}>
           <NextMealCard profile={d.profile} onRefresh={d.refreshLog} />
         </div>
