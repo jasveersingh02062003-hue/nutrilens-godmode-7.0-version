@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { X, TrendingUp, Droplets, Target, Flame, ChevronDown, ChevronUp, AlertTriangle, Lightbulb, Activity, Utensils } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateWeeklyReport, WeeklyReport } from '@/lib/coach';
