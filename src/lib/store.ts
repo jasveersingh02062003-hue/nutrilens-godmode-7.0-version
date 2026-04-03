@@ -57,6 +57,21 @@ export interface UserProfile {
   workplaceFacilities?: string[];
   carriesFood?: 'always' | 'sometimes' | 'never';
   livingSituation?: 'alone' | 'family' | 'shared';
+  gym?: {
+    goer: boolean;
+    daysPerWeek: number;
+    durationMinutes: number;
+    intensity: 'light' | 'moderate' | 'intense';
+    goal: 'fat_loss' | 'muscle_gain' | 'general';
+    schedule: string[];
+    stats: {
+      totalWorkouts: number;
+      totalCaloriesBurned: number;
+      currentStreak: number;
+      bestStreak: number;
+      consistencyPercent: number;
+    };
+  };
 }
 
 export interface FoodItem {
