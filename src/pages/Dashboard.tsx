@@ -83,7 +83,7 @@ export default function Dashboard() {
   const [log, setLog] = useState<DailyLog>(getDailyLog());
   const totals = getDailyTotals(log);
   const dayState = recalculateDay(profile, log);
-  const [weather, setWeather] = useState<WeatherData>(getWeather());
+  const [weather, setWeather] = useState<WeatherData | null>(null);
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
