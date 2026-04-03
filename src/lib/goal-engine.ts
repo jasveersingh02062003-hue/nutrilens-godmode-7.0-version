@@ -5,6 +5,8 @@
 import { calculateBMI, calculateBMR, calculateTDEE, calculateDailyTargets, getActivityMultiplier, calculateTDEEFromWorkExercise } from './nutrition';
 import { getWeightEntries } from './weight-history';
 import { getRecentLogs, getDailyTotals, type UserProfile, getComputedAge } from './store';
+import { scopedGet, scopedSet } from './scoped-storage';
+import { safeJsonParse } from './safe-json';
 
 // ── Types ──
 

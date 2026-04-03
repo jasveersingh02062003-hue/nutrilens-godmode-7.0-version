@@ -1,4 +1,6 @@
 import { getDailyLog, getDailyTotals, getProfile } from '@/lib/store';
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
+import { safeJsonParse } from '@/lib/safe-json';
 
 // ─── Types ───
 

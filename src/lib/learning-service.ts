@@ -6,6 +6,8 @@
 import { getRecentLogs, getDailyTotals } from './store';
 import { getSymptomLogs } from './symptom-service';
 import { userHasHealthConditions } from './health-score';
+import { scopedGet, scopedSet } from './scoped-storage';
+import { safeJsonParse } from './safe-json';
 import type { UserProfile } from './store';
 import { toLocalDateStr } from './date-utils';
 

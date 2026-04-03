@@ -2,6 +2,9 @@
 // NutriLens AI – Nutritional Education Service
 // ============================================
 
+import { scopedGet, scopedSet } from './scoped-storage';
+import { safeJsonParse } from './safe-json';
+
 const EDUCATION_SHOWN_KEY = 'nutrilens_education_shown_';
 
 export interface EducationContent {
