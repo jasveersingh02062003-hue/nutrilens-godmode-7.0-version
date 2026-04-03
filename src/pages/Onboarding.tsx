@@ -1419,7 +1419,6 @@ export default function Onboarding() {
             </div>
           </div>
         );
-      }
 
       case 22:
         const suppOptions = [
