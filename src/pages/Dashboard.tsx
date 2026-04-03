@@ -629,7 +629,7 @@ export default function Dashboard() {
 
         {/* Contextual Intelligence Tips */}
         <div className="animate-slide-up" style={{ animationDelay: '0.035s' }}>
-          <ContextualTipsCard weather={weather} />
+          <ContextualTipsCard weather={weather ?? undefined} />
         </div>
 
         {/* 3. Macros */}
