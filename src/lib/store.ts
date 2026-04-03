@@ -285,9 +285,9 @@ export function addWater() {
   import('@/integrations/supabase/client').then(({ supabase }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session?.user) return;
-      supabase.from('water_logs' as any).upsert({
+      supabase.from('water_logs').upsert({
         user_id: session.user.id, log_date: log.date, cups: log.waterCups,
-      }, { onConflict: 'user_id,log_date' } as any).then(() => {});
+      } as any, { onConflict: 'user_id,log_date' } as any).then(() => {});
     });
   }).catch(() => {});
   return log;
