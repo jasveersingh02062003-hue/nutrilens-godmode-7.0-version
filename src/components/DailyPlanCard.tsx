@@ -23,7 +23,7 @@ const MEAL_EMOJIS: Record<string, string> = {
   dinner: '🌙',
 };
 
-export default function DailyPlanCard({ profile, open, onDismiss }: DailyPlanCardProps) {
+export default memo(function DailyPlanCard({ profile, open, onDismiss }: DailyPlanCardProps) {
   const navigate = useNavigate();
   const plan = useMemo(() => getDailyPlanData(profile), [profile]);
   const budgetValidation = useMemo(() => {
