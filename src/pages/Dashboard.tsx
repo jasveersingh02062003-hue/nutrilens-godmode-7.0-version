@@ -50,6 +50,7 @@ import { useDashboardInit } from '@/hooks/useDashboardInit';
 
 export default function Dashboard() {
   const d = useDashboardInit();
+  const creatineBoost = d.log ? shouldBoostWater(d.log) : null;
 
   if (!d.profile) return null;
 
