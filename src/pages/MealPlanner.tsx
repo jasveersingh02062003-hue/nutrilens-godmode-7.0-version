@@ -338,14 +338,10 @@ export default function MealPlanner() {
   // Build the meal plan content based on current step
   let mealPlanContent: React.ReactNode;
 
-  // Plan-aware banner
-  const activePlan = useMemo(() => getActivePlan(), []);
-  const planMeta = activePlan ? getPlanById(activePlan.planId) : null;
-
   if (step === 'dashboard' && plan && profile) {
     mealPlanContent = (
       <>
-        {activePlan && planMeta && (
+        {activePlanData && planMeta && (
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-primary/20 bg-primary/5 p-3 flex items-center gap-2.5 mb-3">
             <Target className="w-4 h-4 text-primary flex-shrink-0" />
             <div className="flex-1 min-w-0">
