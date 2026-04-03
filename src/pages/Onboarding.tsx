@@ -453,12 +453,12 @@ export default function Onboarding() {
     if (curIdx < vs.length - 1) {
       const nextStep = vs[curIdx + 1];
       // Show calculating animation before final output (step 15)
-      if (nextStep === 15) {
+      if (nextStep === 16) {
         computeGoals();
         setPhase('calculating');
         setTimeout(() => {
           setPhase('wizard');
-          setStep(15);
+          setStep(16);
         }, 2500);
         return;
       }
