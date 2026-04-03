@@ -266,7 +266,6 @@ export function autoFixNextWeek(summary: WeeklySummary): { changes: string[]; ap
 
   // Save profile properly via store
   if (profileChanged && profile) {
-    const { saveProfile } = require('./store');
     saveProfile(profile);
   }
 
