@@ -18,6 +18,7 @@ export default function SpecialPlansTab() {
   const [filter, setFilter] = useState<PlanCategory>('all');
   const [selectedPlan, setSelectedPlan] = useState<PlanMeta | null>(null);
   const [eventSheetOpen, setEventSheetOpen] = useState(false);
+  const [subTab, setSubTab] = useState<'available' | 'my'>(() => getActivePlanRaw() ? 'my' : 'available');
   const activePlan = getActivePlan();
   const progress = getPlanProgress();
 
