@@ -1,5 +1,6 @@
 import { getRingGradientColors, getRingStatusLabel } from '@/lib/meal-state-service';
 import { DayState } from '@/lib/calorie-engine';
+import { getActivePlan } from '@/lib/event-plan-service';
 
 interface Props {
   dayState: DayState;
