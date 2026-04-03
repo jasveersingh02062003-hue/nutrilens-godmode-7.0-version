@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Info } from 'lucide-react';

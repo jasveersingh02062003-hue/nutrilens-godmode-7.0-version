@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { motion } from 'framer-motion';
 import { X, Sparkles, Clock, Zap, Gift } from 'lucide-react';
 import { setPlan } from '@/lib/subscription-service';

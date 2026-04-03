@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 

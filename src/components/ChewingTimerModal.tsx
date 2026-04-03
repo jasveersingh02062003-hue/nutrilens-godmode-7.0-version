@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';

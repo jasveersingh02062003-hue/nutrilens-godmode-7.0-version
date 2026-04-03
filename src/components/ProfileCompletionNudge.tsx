@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 // ============================================
 // NutriLens AI – Profile Completion Nudge
 // ============================================

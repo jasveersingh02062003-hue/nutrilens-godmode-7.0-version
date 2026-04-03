@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet, scopedRemove } from '@/lib/scoped-storage';
 import { useState, useCallback, useMemo } from 'react';
 import { checkAllergens, getAllergenLabel } from '@/lib/allergen-engine';
 import { Sheet, SheetContent } from '@/components/ui/sheet';

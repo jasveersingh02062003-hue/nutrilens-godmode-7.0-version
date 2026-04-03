@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState, useMemo } from 'react';
 import { ChefHat, ArrowRight, Check, Clock, Flame, ChevronDown, IndianRupee, Repeat, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';

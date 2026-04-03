@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet, scopedRemove } from '@/lib/scoped-storage';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Send, Sparkles, Loader2, Mic, MicOff, Camera, Check, XCircle, Download, Trash2 } from 'lucide-react';

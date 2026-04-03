@@ -1,3 +1,4 @@
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Footprints, Plus, Minus, ChevronDown, ChevronUp, Check, Dumbbell } from 'lucide-react';
