@@ -13,6 +13,7 @@ export interface PerMealBudget {
 export interface EnhancedBudgetSettings {
   perMealBudget: number; // legacy single value
   perMeal?: PerMealBudget;
+  mealSplitPcts?: PerMealBudget; // percentage-based splits
   outsideFoodLimit: number;
   outsideMealSlotsPerWeek?: number; // how many meals/week are outside food
   onboardingDone?: boolean;

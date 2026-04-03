@@ -103,9 +103,9 @@ function migrateOldPerMealIfNeeded(): MealSplitPcts {
         // Save migrated percentages
         saveEnhancedBudgetSettings({
           ...enhanced,
-          perMeal: pcts as any,
+          perMeal: pcts,
           mealSplitPcts: pcts,
-        } as any);
+        });
         return pcts;
       }
     }
@@ -121,10 +121,8 @@ function migrateOldPerMealIfNeeded(): MealSplitPcts {
     }
   }
 
-  // Check for mealSplitPcts field
-  const anyEnhanced = enhanced as any;
-  if (anyEnhanced.mealSplitPcts) {
-    return anyEnhanced.mealSplitPcts;
+  if (enhanced.mealSplitPcts) {
+    return enhanced.mealSplitPcts;
   }
 
   return DEFAULT_MEAL_SPLIT;
@@ -159,8 +157,8 @@ export function getUnifiedBudget(): UnifiedBudget {
  */
 export function getUnifiedRemainingMealBudget(mealType: string): number {
   const budget = getUnifiedBudget();
-  const slotKey = mealType === 'snack' ? 'snacks' : mealType;
-  const mealBudget = (budget.perMeal as any)[slotKey] || 0;
+  const slotKey = (mealType === 'snack' ? 'snacks' : mealType) as keyof typeof budget.perMeal;
+  const mealBudget = budget.perMeal[slotKey] || 0;
 
   const today = getTodayKey();
   const log = getDailyLog(today);
@@ -230,7 +228,6 @@ export function saveMealSplitPcts(pcts: MealSplitPcts): void {
   saveEnhancedBudgetSettings({
     ...enhanced,
     mealSplitPcts: pcts,
-    // Also update perMeal to match percentages for backward compat during transition
-    perMeal: pcts as any,
-  } as any);
+    perMeal: pcts,
+  });
 }

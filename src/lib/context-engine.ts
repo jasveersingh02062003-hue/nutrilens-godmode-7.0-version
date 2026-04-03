@@ -252,17 +252,22 @@ export function getContextualSuggestions(profile: UserProfile | null, weather?: 
 
   // ─── Last Meal & Timing ───
 
-  if (lastMeal && lastMeal.totalCalories > 800) {
+  // Recompute calories from items to avoid stale totalCalories
+  const recomputeMealCal = (meal: { items: Array<{ calories?: number; quantity?: number }> }) =>
+    meal.items.reduce((s, i) => s + (i.calories || 0) * (i.quantity || 1), 0);
+
+  if (lastMeal && recomputeMealCal(lastMeal) > 800) {
+    const lastCal = recomputeMealCal(lastMeal);
     suggestions.push({
       type: 'next_meal', icon: '🍽️',
       text: 'Your last meal was heavy. Consider a light dinner — soup, salad, or curd rice',
-      explanation: `Your last meal was ${lastMeal.totalCalories} kcal. A lighter next meal keeps you within your daily target.`,
+      explanation: `Your last meal was ${lastCal} kcal. A lighter next meal keeps you within your daily target.`,
       priority: 62, recipes: ['curd-rice', 'greek-salad'],
       dismissKey: `ctx_heavy_meal_${getTodayKey()}`,
     });
   }
 
-  if (lastMeal && lastMeal.totalCalories < 300 && todayLog.meals.length >= 1) {
+  if (lastMeal && recomputeMealCal(lastMeal) < 300 && todayLog.meals.length >= 1) {
     suggestions.push({
       type: 'next_meal', icon: '🥚',
       text: 'You ate very little last time — add a protein-rich snack like eggs, paneer, or nuts',

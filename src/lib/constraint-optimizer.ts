@@ -72,7 +72,7 @@ function findBestForSlot(
   excludeIds: string[]
 ): ScoredCandidate | null {
   const eligible = candidates.filter(r =>
-    r.mealType.includes(slot.mealType as any) &&
+    r.mealType.includes(slot.mealType) &&
     !excludeIds.includes(r.id)
   );
 
@@ -242,7 +242,7 @@ export function optimizeDayMeals(input: OptimizeDayInput): OptimizedDay {
         totalProtein += protDiff;
         totalCost += costDiff;
         meals[bestProtIdx].portionScale = newScale;
-        (meals[bestProtIdx] as any).reason = `Scaled ${currentScale}x→${newScale}x to utilize budget (+${protDiff}g protein)`;
+        meals[bestProtIdx].reason = `Scaled ${currentScale}x→${newScale}x to utilize budget (+${protDiff}g protein)`;
       }
     }
   }

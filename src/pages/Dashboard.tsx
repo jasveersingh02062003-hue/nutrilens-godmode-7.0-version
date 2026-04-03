@@ -79,11 +79,11 @@ import { Flame } from 'lucide-react';
 export default function Dashboard() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { profile, refreshProfile } = useUserProfile();
+  const { profile, refreshProfile, loadedUserId } = useUserProfile();
   const [log, setLog] = useState<DailyLog>(getDailyLog());
   const totals = getDailyTotals(log);
   const dayState = recalculateDay(profile, log);
-  const [weather, setWeather] = useState<WeatherData>(getWeather());
+  const [weather, setWeather] = useState<WeatherData | null>(null);
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -112,8 +112,9 @@ export default function Dashboard() {
 
   const plannerProfile = getMealPlannerProfile();
   const plannerIncomplete = !plannerProfile || !plannerProfile.onboardingComplete;
+  const plannerDismissKey = `planner_modal_dismissed_${loadedUserId || 'anon'}`;
   const [showPlannerModal, setShowPlannerModal] = useState(() =>
-    plannerIncomplete && !localStorage.getItem('planner_modal_dismissed')
+    plannerIncomplete && !localStorage.getItem(plannerDismissKey)
   );
   const showPlannerBanner = plannerIncomplete && !showPlannerModal;
 
@@ -141,7 +142,7 @@ export default function Dashboard() {
       }
     }
     // Fetch live weather
-    fetchLiveWeather().then(setWeather).catch(() => {});
+    fetchLiveWeather().then(setWeather).catch(() => setWeather(getWeather()));
     // Update behavioral stats & run weekly adaptation
     updateDailyBehaviorStats();
     const adaptation = runWeeklyAdaptation();
@@ -297,10 +298,14 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-2">
             {/* Weather indicator */}
-            <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-card border border-border shadow-sm">
-              <span className="text-sm">{weather.icon}</span>
-              <span className="text-xs font-semibold text-foreground">{weather.temperature}°</span>
-            </div>
+            {weather ? (
+              <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-card border border-border shadow-sm">
+                <span className="text-sm">{weather.icon}</span>
+                <span className="text-xs font-semibold text-foreground">{weather.temperature}°</span>
+              </div>
+            ) : (
+              <div className="w-16 h-8 rounded-xl bg-muted animate-pulse" />
+            )}
             <button className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center relative shadow-sm">
               <Bell className="w-4.5 h-4.5 text-muted-foreground" />
               <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-coral" />
@@ -624,7 +629,7 @@ export default function Dashboard() {
 
         {/* Contextual Intelligence Tips */}
         <div className="animate-slide-up" style={{ animationDelay: '0.035s' }}>
-          <ContextualTipsCard weather={weather} />
+          <ContextualTipsCard weather={weather ?? undefined} />
         </div>
 
         {/* 3. Macros */}
@@ -800,7 +805,7 @@ export default function Dashboard() {
     {/* One-time planner setup modal */}
     <Dialog open={showPlannerModal} onOpenChange={(open) => {
       if (!open) {
-        localStorage.setItem('planner_modal_dismissed', 'true');
+        localStorage.setItem(plannerDismissKey, 'true');
         setShowPlannerModal(false);
       }
     }}>
@@ -816,7 +821,7 @@ export default function Dashboard() {
             Set My Plan
           </Button>
           <Button variant="ghost" onClick={() => {
-            localStorage.setItem('planner_modal_dismissed', 'true');
+            localStorage.setItem(plannerDismissKey, 'true');
             setShowPlannerModal(false);
           }}>
             Do it later

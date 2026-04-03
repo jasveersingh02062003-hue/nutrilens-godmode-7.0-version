@@ -143,10 +143,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       tdee: profile.tdee,
       join_date: profile.joinDate || null,
       budget: budgetPayload,
-      conditions: (profile as any).conditions || null,
-      coach_settings: (profile as any).coachSettings || null,
-      learning: (profile as any).learning || null,
-      notification_settings: (profile as any).notificationSettings || null,
+      conditions: {
+        ...(((profile as unknown as Record<string, unknown>).conditions as Record<string, unknown>) || {}),
+        allergens: profile.allergens || [],
+        skinConcerns: profile.skinConcerns || undefined,
+        travelFrequency: profile.travelFrequency || undefined,
+        kitchenAppliances: profile.kitchenAppliances || undefined,
+        workplaceFacilities: profile.workplaceFacilities || undefined,
+        carriesFood: profile.carriesFood || undefined,
+        livingSituation: profile.livingSituation || undefined,
+      },
+      coach_settings: (profile as unknown as Record<string, unknown>).coachSettings ?? null,
+      learning: (profile as unknown as Record<string, unknown>).learning ?? null,
+      notification_settings: (profile as unknown as Record<string, unknown>).notificationSettings ?? null,
     };
   };
 
@@ -201,7 +210,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       bmr: Number(row.bmr) || 1500,
       tdee: Number(row.tdee) || 2000,
       joinDate: row.join_date || undefined,
+      // Restore all lifestyle fields from conditions JSON
       skinConcerns: row.conditions?.skinConcerns || undefined,
+      allergens: row.conditions?.allergens || [],
+      travelFrequency: row.conditions?.travelFrequency || undefined,
+      kitchenAppliances: row.conditions?.kitchenAppliances || undefined,
+      workplaceFacilities: row.conditions?.workplaceFacilities || undefined,
+      carriesFood: row.conditions?.carriesFood || undefined,
+      livingSituation: row.conditions?.livingSituation || undefined,
     } as UserProfile;
   };
 

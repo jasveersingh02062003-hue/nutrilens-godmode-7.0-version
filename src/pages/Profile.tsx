@@ -123,7 +123,7 @@ export default function Profile() {
   ];
 
   function skinSub() {
-    const sc = (profile as any)?.skinConcerns;
+    const sc = profile?.skinConcerns;
     if (!sc) return 'Set skin concerns for food tips';
     const active = ['acne','oily','dry','dull','pigmentation','sensitive'].filter(k => sc[k]);
     return active.length ? `${active.length} concern${active.length > 1 ? 's' : ''} tracked` : 'Set skin concerns for food tips';

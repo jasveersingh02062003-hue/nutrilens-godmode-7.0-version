@@ -248,9 +248,9 @@ export function logWeight(date: string, weight: number, unit: 'kg' | 'lbs' = 'kg
   import('@/integrations/supabase/client').then(({ supabase }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session?.user) return;
-      supabase.from('weight_logs' as any).upsert({
+      supabase.from('weight_logs').upsert({
         user_id: session.user.id, log_date: date, weight, unit,
-      }, { onConflict: 'user_id,log_date' } as any).then(() => {});
+      } as any, { onConflict: 'user_id,log_date' } as any).then(() => {});
     });
   }).catch(() => {});
   return log;
@@ -285,9 +285,9 @@ export function addWater() {
   import('@/integrations/supabase/client').then(({ supabase }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session?.user) return;
-      supabase.from('water_logs' as any).upsert({
+      supabase.from('water_logs').upsert({
         user_id: session.user.id, log_date: log.date, cups: log.waterCups,
-      }, { onConflict: 'user_id,log_date' } as any).then(() => {});
+      } as any, { onConflict: 'user_id,log_date' } as any).then(() => {});
     });
   }).catch(() => {});
   return log;
@@ -327,9 +327,9 @@ export function addSupplement(entry: SupplementEntry) {
   import('@/integrations/supabase/client').then(({ supabase }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session?.user) return;
-      supabase.from('supplement_logs' as any).upsert({
-        user_id: session.user.id, log_date: log.date, supplements: log.supplements,
-      }, { onConflict: 'user_id,log_date' } as any).then(() => {});
+      supabase.from('supplement_logs').upsert({
+        user_id: session.user.id, log_date: log.date, supplements: log.supplements as any,
+      } as any, { onConflict: 'user_id,log_date' } as any).then(() => {});
     });
   }).catch(() => {});
   return log;
@@ -424,9 +424,9 @@ export function addWaterForDate(date: string) {
   import('@/integrations/supabase/client').then(({ supabase }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session?.user) return;
-      supabase.from('water_logs' as any).upsert({
+      supabase.from('water_logs').upsert({
         user_id: session.user.id, log_date: date, cups: log.waterCups,
-      }, { onConflict: 'user_id,log_date' } as any).then(() => {});
+      } as any, { onConflict: 'user_id,log_date' } as any).then(() => {});
     });
   }).catch(() => {});
   return log;
@@ -440,9 +440,9 @@ export function removeWaterForDate(date: string) {
   import('@/integrations/supabase/client').then(({ supabase }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session?.user) return;
-      supabase.from('water_logs' as any).upsert({
+      supabase.from('water_logs').upsert({
         user_id: session.user.id, log_date: date, cups: log.waterCups,
-      }, { onConflict: 'user_id,log_date' } as any).then(() => {});
+      } as any, { onConflict: 'user_id,log_date' } as any).then(() => {});
     });
   }).catch(() => {});
   return log;
@@ -457,9 +457,9 @@ export function addSupplementForDate(date: string, entry: SupplementEntry) {
   import('@/integrations/supabase/client').then(({ supabase }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session?.user) return;
-      supabase.from('supplement_logs' as any).upsert({
+      supabase.from('supplement_logs').upsert({
         user_id: session.user.id, log_date: date, supplements: log.supplements as any,
-      }, { onConflict: 'user_id,log_date' } as any).then(() => {});
+      } as any, { onConflict: 'user_id,log_date' } as any).then(() => {});
     });
   }).catch(() => {});
   return log;
@@ -473,9 +473,9 @@ export function deleteSupplementFromLog(date: string, id: string) {
   import('@/integrations/supabase/client').then(({ supabase }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session?.user) return;
-      supabase.from('supplement_logs' as any).upsert({
+      supabase.from('supplement_logs').upsert({
         user_id: session.user.id, log_date: date, supplements: log.supplements as any,
-      }, { onConflict: 'user_id,log_date' } as any).then(() => {});
+      } as any, { onConflict: 'user_id,log_date' } as any).then(() => {});
     });
   }).catch(() => {});
   return log;

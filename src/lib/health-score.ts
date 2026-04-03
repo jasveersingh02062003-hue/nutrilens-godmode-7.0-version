@@ -87,7 +87,7 @@ function scoreForDiabetes(
   let score = 100;
   const reasons: string[] = [];
   const tips: string[] = [];
-  const conditions = (profile as any).conditions;
+  const conditions = (profile as unknown as Record<string, unknown>).conditions as Record<string, any> | undefined;
   const dtype = conditions?.diabetes?.type || 'type2';
 
   // High-GI penalty
@@ -238,8 +238,8 @@ export function scoreUnifiedMeal(
     return { overallScore: 100, overallColor: 'green', conditionScores: [], topReasons: [], topTips: [] };
   }
 
-  const conditions = (profile as any).conditions || {};
-  const healthGoals: string[] = (profile as any).healthGoals || [];
+  const conditions = ((profile as unknown as Record<string, unknown>).conditions || {}) as Record<string, any>;
+  const healthGoals: string[] = ((profile as unknown as Record<string, unknown>).healthGoals || []) as string[];
   const healthConditions: string[] = profile.healthConditions || [];
   const scores: ConditionScore[] = [];
 
@@ -325,8 +325,8 @@ export function scoreDayUnified(
 
 export function userHasHealthConditions(profile: UserProfile | null): boolean {
   if (!profile) return false;
-  const conditions = (profile as any).conditions || {};
-  const healthGoals: string[] = (profile as any).healthGoals || [];
+  const conditions = ((profile as unknown as Record<string, unknown>).conditions || {}) as Record<string, any>;
+  const healthGoals: string[] = ((profile as unknown as Record<string, unknown>).healthGoals || []) as string[];
   const healthConditions: string[] = profile.healthConditions || [];
 
   if (conditions.pcos?.has || conditions.diabetes?.has || conditions.hypertension?.has || conditions.lactoseIntolerance?.has) return true;
