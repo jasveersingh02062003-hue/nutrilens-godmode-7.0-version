@@ -26,7 +26,7 @@ export interface OnboardingData {
       testosterone: boolean;
     };
   };
-  activity: { work: string; exercise: string };
+  activity: { work: string; exercise: string; gym?: { goer: boolean; daysPerWeek: number; durationMinutes: number; intensity: string; goal: string } };
   goals: {
     type: string;
     speed: string;
@@ -122,6 +122,18 @@ export function saveOnboardingData(data: OnboardingData) {
     skinConcerns: data.health.skin !== 'none' ? { [data.health.skin]: true } : undefined,
     allergens: data.health.allergens || [],
     joinDate: toLocalDateKey(new Date()),
+    gym: data.activity.gym?.goer ? {
+      goer: true,
+      daysPerWeek: data.activity.gym.daysPerWeek,
+      durationMinutes: data.activity.gym.durationMinutes,
+      intensity: (data.activity.gym.intensity as 'light' | 'moderate' | 'intense') || 'moderate',
+      goal: (data.activity.gym.goal as 'fat_loss' | 'muscle_gain' | 'general') || 'general',
+      schedule: (() => {
+        const { inferSchedule } = require('./gym-service');
+        return inferSchedule(data.activity.gym.daysPerWeek);
+      })(),
+      stats: { totalWorkouts: 0, totalCaloriesBurned: 0, currentStreak: 0, bestStreak: 0, consistencyPercent: 0 },
+    } : undefined,
   };
   saveProfile(profile);
 

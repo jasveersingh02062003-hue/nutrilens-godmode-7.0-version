@@ -72,6 +72,7 @@ export function profileToDbRow(profile: UserProfile, userId: string): Record<str
       workplaceFacilities: profile.workplaceFacilities || undefined,
       carriesFood: profile.carriesFood || undefined,
       livingSituation: profile.livingSituation || undefined,
+      gym: profile.gym || undefined,
     },
     coach_settings: profileAny.coachSettings ?? null,
     learning: profileAny.learning ?? null,
@@ -140,5 +141,6 @@ export function dbRowToProfile(row: Record<string, unknown>): UserProfile {
     workplaceFacilities: conditions?.workplaceFacilities as string[],
     carriesFood: conditions?.carriesFood as UserProfile['carriesFood'],
     livingSituation: conditions?.livingSituation as UserProfile['livingSituation'],
+    gym: conditions?.gym as UserProfile['gym'],
   } as UserProfile;
 }

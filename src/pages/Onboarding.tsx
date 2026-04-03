@@ -285,6 +285,11 @@ interface FormState {
   testosteroneConcerns: boolean;
   work: string;
   exercise: string;
+  gymGoer: boolean | null;
+  gymDays: number;
+  gymDuration: number;
+  gymIntensity: string;
+  gymGoal: string;
   goalType: string;
   goalSpeed: string;
   targetWeight: number;
@@ -316,21 +321,22 @@ interface FormState {
  * 8  Gender-specific questions
  * 9  Work type
  * 10 Exercise
- * 11 Goal type
- * 12 Goal speed (conditional: lose/gain)
- * 13 Target weight (conditional: lose/gain)
- * 14 ★ SUMMARY SCREEN (review & edit before plan)
- * 15 Final output (calculating transition before this)
- * 16 ★ PREDICTION SUMMARY (timeline, pace options, calorie intelligence)
- * 17 ★ FOOD INTELLIGENCE (personalized avoid/prefer overview)
- * 18 Want lifestyle?
- * 19 Diet (conditional: wantLifestyle)
- * 20 Water (conditional)
- * 21 Supplements (conditional)
- * 22 Budget (conditional)
- * 23 Cooking (conditional)
- * 24 Intelligence demo
- * 25 Finish
+ * 11 Gym questions (conditional)
+ * 12 Goal type
+ * 13 Goal speed (conditional: lose/gain)
+ * 14 Target weight (conditional: lose/gain)
+ * 15 ★ SUMMARY SCREEN (review & edit before plan)
+ * 16 Final output (calculating transition before this)
+ * 17 ★ PREDICTION SUMMARY (timeline, pace options, calorie intelligence)
+ * 18 ★ FOOD INTELLIGENCE (personalized avoid/prefer overview)
+ * 19 Want lifestyle?
+ * 20 Diet (conditional: wantLifestyle)
+ * 21 Water (conditional)
+ * 22 Supplements (conditional)
+ * 23 Budget (conditional)
+ * 24 Cooking (conditional)
+ * 25 Intelligence demo
+ * 26 Finish
  */
 
 export default function Onboarding() {
@@ -351,6 +357,7 @@ export default function Onboarding() {
     pcosSeverity: 3, pregnant: false, breastfeeding: false, menstrualPhase: '',
     prostateConcerns: false, testosteroneConcerns: false,
     work: '', exercise: '',
+    gymGoer: null, gymDays: 3, gymDuration: 45, gymIntensity: '', gymGoal: '',
     goalType: '', goalSpeed: 'balanced', targetWeight: 65,
     wantLifestyle: null,
     diet: '', water: 2.5, supplements: [], cookingSkill: '', cookingTime: 30, cookingEquipment: [],
@@ -391,13 +398,13 @@ export default function Onboarding() {
     skin: 7,
     genderSpecific: 8,
     activity: 9,
-    goal: 11,
+    goal: 12,
   };
 
   const handleEditSection = (section: string) => {
     const targetStep = SECTION_STEP_MAP[section];
     if (targetStep !== undefined) {
-      setEditReturnStep(14); // return to summary
+      setEditReturnStep(15); // return to summary
       setDirection(-1);
       setStep(targetStep);
     }
@@ -412,16 +419,20 @@ export default function Onboarding() {
   };
 
   const getVisibleSteps = (): number[] => {
-    const steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+    const steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    // Gym step (always show the yes/no question)
+    steps.push(11);
+    // Goal steps
+    steps.push(12);
     if (f.goalType === 'lose' || f.goalType === 'gain') {
-      steps.push(12, 13);
+      steps.push(13, 14);
     }
-    steps.push(14); // Summary screen
-    steps.push(15, 16, 17, 18); // Final plan, Prediction summary, Food intelligence, want lifestyle?
+    steps.push(15); // Summary screen
+    steps.push(16, 17, 18, 19); // Final plan, Prediction summary, Food intelligence, want lifestyle?
     if (f.wantLifestyle === true) {
-      steps.push(19, 20, 21, 22, 23);
+      steps.push(20, 21, 22, 23, 24);
     }
-    steps.push(24, 25);
+    steps.push(25, 26);
     return steps;
   };
 
@@ -442,12 +453,12 @@ export default function Onboarding() {
     if (curIdx < vs.length - 1) {
       const nextStep = vs[curIdx + 1];
       // Show calculating animation before final output (step 15)
-      if (nextStep === 15) {
+      if (nextStep === 16) {
         computeGoals();
         setPhase('calculating');
         setTimeout(() => {
           setPhase('wizard');
-          setStep(15);
+          setStep(16);
         }, 2500);
         return;
       }
@@ -497,27 +508,27 @@ export default function Onboarding() {
       case 8: return true;
       case 9: return !!f.work;
       case 10: return !!f.exercise;
-      case 11: return !!f.goalType;
-      case 12: return !!f.goalSpeed;
-      case 13: {
+      case 11: return f.gymGoer !== null; // gym yes/no
+      case 12: return !!f.goalType;
+      case 13: return !!f.goalSpeed;
+      case 14: {
         if (f.targetWeight <= 0 || f.targetWeight > 300) return false;
         if (f.goalType === 'lose' && f.targetWeight >= f.weightKg) return false;
         if (f.goalType === 'gain' && f.targetWeight <= f.weightKg) return false;
-        // Allow amber warnings (user can override), block only direction errors
         return true;
       }
-      case 14: return true; // summary - always can confirm
-      case 15: return true;
-      case 16: return true; // prediction summary
-      case 17: return true; // food intelligence
-      case 18: return f.wantLifestyle !== null;
-      case 19: return !!f.diet;
-      case 20: return f.water >= 0.5 && f.water <= 5.0;
-      case 21: return true;
+      case 15: return true; // summary
+      case 16: return true;
+      case 17: return true;
+      case 18: return true;
+      case 19: return f.wantLifestyle !== null;
+      case 20: return !!f.diet;
+      case 21: return f.water >= 0.5 && f.water <= 5.0;
       case 22: return true;
-      case 23: return !!f.cookingSkill;
-      case 24: return true;
+      case 23: return true;
+      case 24: return !!f.cookingSkill;
       case 25: return true;
+      case 26: return true;
       default: return true;
     }
   };
@@ -548,7 +559,7 @@ export default function Onboarding() {
           testosterone: f.testosteroneConcerns,
         },
       },
-      activity: { work: f.work, exercise: f.exercise },
+      activity: { work: f.work, exercise: f.exercise, gym: f.gymGoer ? { goer: true, daysPerWeek: f.gymDays, durationMinutes: f.gymDuration, intensity: f.gymIntensity || 'moderate', goal: f.gymGoal || 'general' } : undefined },
       goals: {
         type: goals.goalType, speed: f.goalSpeed,
         targetWeight: f.goalType !== 'maintain' ? f.targetWeight : null,
@@ -1089,7 +1100,52 @@ export default function Onboarding() {
         );
 
       // ── Phase 5: Goal ──
-      case 11:
+      case 11: {
+        return (
+          <div className="space-y-5">
+            <StepHeader title="Do you go to the gym?" subtitle="We'll adjust your calories on workout days." />
+            <div className="space-y-2.5">
+              <Option value="yes" current={f.gymGoer === true ? 'yes' : f.gymGoer === false ? 'no' : ''} label="🏋️ Yes, I go to the gym" sub="We'll track your workouts and adjust nutrition"
+                onSelect={() => set('gymGoer', true)} idx={0} />
+              <Option value="no" current={f.gymGoer === false ? 'no' : f.gymGoer === true ? 'yes' : ''} label="❌ No" sub="No gym tracking needed"
+                onSelect={() => set('gymGoer', false)} idx={1} />
+            </div>
+            {f.gymGoer && (
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+                <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-foreground">Days per week</p>
+                    <p className="text-lg font-mono font-bold text-primary">{f.gymDays}</p>
+                  </div>
+                  <input type="range" min={1} max={7} step={1} value={f.gymDays}
+                    onChange={e => set('gymDays', Number(e.target.value))} className="w-full accent-primary" />
+                </div>
+                <div className="space-y-2.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Workout duration</p>
+                  {[{ v: 30, l: '⏱️ 30 min' }, { v: 45, l: '⏱️ 45 min' }, { v: 60, l: '⏱️ 60+ min' }].map((o, i) => (
+                    <Option key={o.v} value={String(o.v)} current={String(f.gymDuration)} label={o.l} onSelect={v => set('gymDuration', Number(v))} idx={i} />
+                  ))}
+                </div>
+                <div className="space-y-2.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Intensity</p>
+                  {[{ v: 'light', l: '🧘 Light', s: 'Stretching, yoga, walking' }, { v: 'moderate', l: '💪 Moderate', s: 'Weights, calisthenics' }, { v: 'intense', l: '🔥 Intense', s: 'HIIT, heavy lifting' }].map((o, i) => (
+                    <Option key={o.v} value={o.v} current={f.gymIntensity} label={o.l} sub={o.s} onSelect={v => set('gymIntensity', v)} idx={i} />
+                  ))}
+                </div>
+                <div className="space-y-2.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Primary gym goal</p>
+                  {[{ v: 'fat_loss', l: '🔥 Fat Loss' }, { v: 'muscle_gain', l: '💪 Muscle Gain' }, { v: 'general', l: '🏃 General Fitness' }].map((o, i) => (
+                    <Option key={o.v} value={o.v} current={f.gymGoal} label={o.l} onSelect={v => set('gymGoal', v)} idx={i} />
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </div>
+        );
+      }
+
+      // ── Phase 5: Goal ──
+      case 12:
         return (
           <div className="space-y-5">
             <StepHeader title="What's your goal?" subtitle="This determines your calorie target." />
@@ -1105,7 +1161,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 12:
+      case 13:
         return (
           <div className="space-y-5">
             <StepHeader title="How fast?" subtitle={`Choose your ${f.goalType === 'lose' ? 'fat loss' : 'weight gain'} pace.`} />
@@ -1116,7 +1172,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 13: {
+      case 14: {
         const { min: healthyMin, max: healthyMax } = getHealthyWeightRange(f.heightCm, f.age);
         const insight = f.targetWeight > 0 ? getWeightInsight(f.weightKg, f.targetWeight, f.heightCm, f.age, f.goalType) : null;
         const targetBMI = f.targetWeight > 0 ? getTargetBMI(f.targetWeight, f.heightCm) : 0;
@@ -1136,12 +1192,12 @@ export default function Onboarding() {
         );
       }
 
-      // ── Step 14: SUMMARY SCREEN ──
-      case 14:
+      // ── Step 15: SUMMARY SCREEN ──
+      case 15:
         return renderSummary();
 
-      // ── Step 15: Final Plan Output ──
-      case 15: {
+      // ── Step 16: Final Plan Output ──
+      case 16: {
         const g = goalResult;
         if (!g) return <div className="text-center text-muted-foreground">Calculating...</div>;
         const calorieCueColors = { sustainable: 'text-primary', moderate: 'text-accent', aggressive: 'text-destructive' };
@@ -1285,8 +1341,8 @@ export default function Onboarding() {
         );
       }
 
-      // ── Step 16: Prediction Summary ──
-      case 16:
+      // ── Step 17: Prediction Summary ──
+      case 17:
         return goalResult ? (
           <PredictionSummaryStep
             goalResult={goalResult}
@@ -1296,8 +1352,8 @@ export default function Onboarding() {
           />
         ) : <div className="text-center text-muted-foreground">Calculating...</div>;
 
-      // ── Step 17: Food Intelligence ──
-      case 17:
+      // ── Step 18: Food Intelligence ──
+      case 18:
         return (
           <FoodIntelligenceStep
             conditions={f.conditions}
@@ -1313,7 +1369,7 @@ export default function Onboarding() {
         );
 
       // ── Phase 7: Lifestyle ──
-      case 18:
+      case 19:
         return (
           <div className="space-y-5">
             <StepHeader title="Want to personalise more?" subtitle="Diet preferences, supplements, budget, and cooking habits." />
@@ -1326,7 +1382,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 19:
+      case 20:
         return (
           <div className="space-y-5">
             <StepHeader title="Dietary preference" subtitle="Your plan will be tailored accordingly." />
@@ -1343,7 +1399,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 20: {
+      case 21:
         const multiplier = getActivityMultiplier(f.work || 'sitting', f.exercise || 'none');
         const recommended = calculateWaterGoal(f.weightKg, multiplier);
         return (
@@ -1365,7 +1421,7 @@ export default function Onboarding() {
         );
       }
 
-      case 21: {
+      case 22:
         const suppOptions = [
           { value: 'vitaminD', label: '☀️ Vitamin D' },
           { value: 'omega3', label: '🐟 Omega-3' },
@@ -1397,7 +1453,7 @@ export default function Onboarding() {
       }
 
       // ── Budget Step ──
-      case 22:
+      case 23:
         return (
           <div className="space-y-5">
             <StepHeader title="Daily food budget" subtitle="Set a budget to get cost-aware meal suggestions." />
@@ -1452,7 +1508,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 23: {
+      case 24:
         const equipmentOpts = [
           { value: 'basic', label: '🍳 Basic (Pan/Pot)' },
           { value: 'microwave', label: '📡 Microwave' },
@@ -1501,7 +1557,7 @@ export default function Onboarding() {
       }
 
       // ── Intelligence Demo ──
-      case 24: {
+      case 25:
         const meal = getDemoMeal(f.diet || 'noRestrictions', f.conditions);
         const warnings = getCameraWarnings(f.conditions);
         const budgetFits = !f.budgetEnabled || meal.cost <= (f.budgetAmount * 0.35);
@@ -1577,7 +1633,7 @@ export default function Onboarding() {
       }
 
       // ── Finish ──
-      case 25:
+      case 26:
         return (
           <div className="space-y-6">
             <StepHeader title="All set! 🎉" subtitle="Your personalized nutrition plan is ready." />
@@ -1665,8 +1721,8 @@ export default function Onboarding() {
   }
 
   // ── Wizard phase ──
-  const isFinishStep = step === 25;
-  const isSummaryStep = step === 14;
+  const isFinishStep = step === 26;
+  const isSummaryStep = step === 15;
 
   // Button label logic
   let buttonLabel = <>Continue <ArrowRight className="w-4 h-4" /></>;

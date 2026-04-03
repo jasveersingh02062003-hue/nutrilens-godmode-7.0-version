@@ -57,6 +57,21 @@ export interface UserProfile {
   workplaceFacilities?: string[];
   carriesFood?: 'always' | 'sometimes' | 'never';
   livingSituation?: 'alone' | 'family' | 'shared';
+  gym?: {
+    goer: boolean;
+    daysPerWeek: number;
+    durationMinutes: number;
+    intensity: 'light' | 'moderate' | 'intense';
+    goal: 'fat_loss' | 'muscle_gain' | 'general';
+    schedule: string[];
+    stats: {
+      totalWorkouts: number;
+      totalCaloriesBurned: number;
+      currentStreak: number;
+      bestStreak: number;
+      consistencyPercent: number;
+    };
+  };
 }
 
 export interface FoodItem {
@@ -171,6 +186,12 @@ export interface DailyLog {
   weightUnit?: 'kg' | 'lbs';
   progressPhotoIds?: string[];
   journal?: string;
+  gym?: {
+    attended: boolean;
+    durationMinutes: number;
+    caloriesBurned: number;
+    intensity: string;
+  };
 }
 
 import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON, scopedRemove, getScopedUserId } from '@/lib/scoped-storage';
