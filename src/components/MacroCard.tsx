@@ -33,7 +33,7 @@ const textMap = {
   gold: 'text-accent',
 };
 
-export default function MacroCard({ label, current, goal, variant }: Props) {
+export default memo(function MacroCard({ label, current, goal, variant }: Props) {
   const pct = Math.min(100, Math.round((current / goal) * 100));
   const Icon = iconMap[variant];
 
