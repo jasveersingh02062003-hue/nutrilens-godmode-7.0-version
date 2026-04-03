@@ -228,7 +228,6 @@ export function saveMealSplitPcts(pcts: MealSplitPcts): void {
   saveEnhancedBudgetSettings({
     ...enhanced,
     mealSplitPcts: pcts,
-    // Also update perMeal to match percentages for backward compat during transition
-    perMeal: pcts as any,
-  } as any);
+    perMeal: pcts,
+  });
 }
