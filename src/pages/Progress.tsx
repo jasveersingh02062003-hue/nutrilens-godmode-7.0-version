@@ -31,6 +31,7 @@ import SymptomTrackerCard from '@/components/SymptomTrackerCard';
 import BloodReportCard from '@/components/BloodReportCard';
 import BloodReportSheet from '@/components/BloodReportSheet';
 import IdentityBadgesCard from '@/components/IdentityBadgesCard';
+import GymProgressSection from '@/components/GymProgressSection';
 import { getMonthlySavings } from '@/lib/budget-impact';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { getPlan, isPremium } from '@/lib/subscription-service';
