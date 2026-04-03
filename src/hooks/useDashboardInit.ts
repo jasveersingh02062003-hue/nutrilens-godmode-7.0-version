@@ -130,14 +130,18 @@ export function useDashboardInit() {
         }
       }
     }
-    if (shouldGenerateSummary()) {
-      const summary = generateWeeklySummary();
-      if (hasBrowserPermission()) scheduleWeeklyNotification(summary);
-    }
-    const dropOff = checkDropOff();
-    if (dropOff.detected) setDropOffModal(dropOff);
-    const boundary = checkWeeklySurplus();
-    if (boundary) setHardBoundaryModal(boundary);
+    // Defer non-critical checks to avoid blocking first paint
+    const runDeferred = typeof requestIdleCallback === 'function' ? requestIdleCallback : (fn: () => void) => setTimeout(fn, 0);
+    runDeferred(() => {
+      if (shouldGenerateSummary()) {
+        const summary = generateWeeklySummary();
+        if (hasBrowserPermission()) scheduleWeeklyNotification(summary);
+      }
+      const dropOff = checkDropOff();
+      if (dropOff.detected) setDropOffModal(dropOff);
+      const boundary = checkWeeklySurplus();
+      if (boundary) setHardBoundaryModal(boundary);
+    });
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
