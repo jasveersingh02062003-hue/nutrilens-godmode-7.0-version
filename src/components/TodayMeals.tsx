@@ -273,9 +273,11 @@ export default function TodayMeals({ log, onRefresh, dayState }: Props) {
                       )}
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {isMissed && mealRedistributed
-                          ? 'Redistributed · Tap to view details'
+                          ? 'Auto-redistributed · Tap to view details'
                           : isMissed
-                          ? 'Tap to redistribute or add'
+                          ? 'Tap to add your meal'
+                          : 'Tap to add your meal'}
+                      </p>
                           : 'Tap to add your meal'}
                       </p>
                     </div>
