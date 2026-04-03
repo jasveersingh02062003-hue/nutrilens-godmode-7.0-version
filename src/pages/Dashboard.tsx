@@ -150,8 +150,8 @@ export default function Dashboard() {
               <span className="text-lg">💪</span>
             </div>
             <div className="flex-1">
-              <p className="text-lg font-bold text-foreground">{Math.max(0, getProteinTarget(d.profile) - d.totals.protein)}g <span className="text-xs font-medium text-muted-foreground">protein remaining</span></p>
-              <p className="text-[10px] text-muted-foreground">Target: {getProteinTarget(d.profile)}g · Eaten: {d.totals.protein}g</p>
+            <p className="text-lg font-bold text-foreground">{Math.round(Math.max(0, getProteinTarget(d.profile) - d.totals.protein))}g <span className="text-xs font-medium text-muted-foreground">protein remaining</span></p>
+              <p className="text-[10px] text-muted-foreground">Target: {Math.round(getProteinTarget(d.profile))}g · Eaten: {Math.round(d.totals.protein)}g</p>
             </div>
           </div>
         </div>
