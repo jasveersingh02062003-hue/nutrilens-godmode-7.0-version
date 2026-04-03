@@ -3,17 +3,20 @@ import { motion } from 'framer-motion';
 import { Star, ArrowRight, Crown, Zap, Target } from 'lucide-react';
 import { PLAN_CATALOG, type PlanMeta, type PlanCategory, getActivePlan, getPlanProgress, getPlanById } from '@/lib/event-plan-service';
 import PlanDetailSheet from './PlanDetailSheet';
+import EventPlanConfigSheet from './EventPlanConfigSheet';
 
 const FILTERS: { key: PlanCategory; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'weight_loss', label: 'Weight Loss' },
   { key: 'sugar_free', label: 'Sugar Free' },
   { key: 'muscle', label: 'Muscle' },
+  { key: 'event', label: 'Event' },
 ];
 
 export default function SpecialPlansTab() {
   const [filter, setFilter] = useState<PlanCategory>('all');
   const [selectedPlan, setSelectedPlan] = useState<PlanMeta | null>(null);
+  const [eventSheetOpen, setEventSheetOpen] = useState(false);
   const activePlan = getActivePlan();
   const progress = getPlanProgress();
 
@@ -95,9 +98,21 @@ export default function SpecialPlansTab() {
         ))}
       </div>
 
+      {/* Event Plan CTA */}
+      <motion.button
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        onClick={() => setEventSheetOpen(true)}
+        className="w-full rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 p-5 text-center space-y-2 active:scale-[0.99] transition-transform"
+      >
+        <span className="text-3xl">🎯</span>
+        <p className="text-sm font-bold text-foreground">Create Event Plan</p>
+        <p className="text-[10px] text-muted-foreground">Wedding, vacation, meeting — get a custom deadline-driven plan</p>
+      </motion.button>
+
       {/* Plan Cards */}
       <div className="space-y-3">
-        {filtered.map((plan, i) => (
+        {filtered.filter(p => p.id !== 'event_based').map((plan, i) => (
           <motion.button
             key={plan.id}
             initial={{ opacity: 0, y: 10 }}
@@ -174,6 +189,9 @@ export default function SpecialPlansTab() {
           onOpenChange={(open) => !open && setSelectedPlan(null)}
         />
       )}
+
+      {/* Event Plan Config Sheet */}
+      <EventPlanConfigSheet open={eventSheetOpen} onOpenChange={setEventSheetOpen} />
     </div>
   );
 }
