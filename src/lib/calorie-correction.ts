@@ -8,6 +8,7 @@
 import { getDailyLog, getDailyTotals, getProfile, getRecentLogs, getAllLogDates, type UserProfile, type DailyLog } from '@/lib/store';
 import { getActivePlan, getPlanProgress } from '@/lib/event-plan-service';
 import { getReverseDietTarget } from '@/lib/reverse-diet-service';
+import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON } from '@/lib/scoped-storage';
 
 // ── Types ──
 
