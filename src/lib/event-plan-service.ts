@@ -1,7 +1,24 @@
 // Event Plan Service — plan catalog, target calculation, active plan state
 
-export type PlanType = 'celebrity_transformation' | 'sugar_cut' | 'gym_fat_loss' | 'gym_muscle_gain' | 'madhavan_21_day';
-export type PlanCategory = 'weight_loss' | 'sugar_free' | 'muscle' | 'circadian' | 'all';
+export type PlanType = 'celebrity_transformation' | 'sugar_cut' | 'gym_fat_loss' | 'gym_muscle_gain' | 'madhavan_21_day' | 'event_based';
+export type PlanCategory = 'weight_loss' | 'sugar_free' | 'muscle' | 'circadian' | 'event' | 'all';
+
+export type EventGoalType = 'lose' | 'gain' | 'tummy' | 'shape';
+export type ExerciseTime = 'none' | '10min' | '30min' | '1hour';
+export type CookingTime = 'none' | 'limited' | 'plenty';
+export type BudgetTier = 'tight' | 'moderate' | 'flexible';
+
+export interface EventPlanSettings {
+  eventType: string;
+  eventDate: string; // YYYY-MM-DD
+  goalType: EventGoalType;
+  targetWeight: number;
+  exerciseTime: ExerciseTime;
+  cookingTime: CookingTime;
+  budgetTier: BudgetTier;
+  fastingWindow: 0 | 12 | 14 | 16;
+  boosters: string[];
+}
 
 export interface PlanMeta {
   id: PlanType;
