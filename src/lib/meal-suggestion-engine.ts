@@ -108,8 +108,9 @@ export function getRecipesForMeal(
     }
 
     // Event-based plan filters
-    if (activePlan?.planId === 'event_based' && (activePlan as any).eventSettings) {
-      const es = (activePlan as any).eventSettings;
+    const eventSettings = (activePlan as Record<string, unknown> | null)?.eventSettings as Record<string, string> | undefined;
+    if (activePlan?.planId === 'event_based' && eventSettings) {
+      const es = eventSettings;
       if (es.cookingTime === 'none' && r.difficulty !== 'beginner') return false;
       if (es.cookingTime === 'limited' && r.difficulty === 'advanced') return false;
       if (es.budgetTier === 'tight' && r.estimatedCost > 80) return false;

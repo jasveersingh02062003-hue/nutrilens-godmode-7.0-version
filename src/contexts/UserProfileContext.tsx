@@ -115,9 +115,9 @@ function syncToCloud(profile: UserProfile) {
         carriesFood: profile.carriesFood || undefined,
         livingSituation: profile.livingSituation || undefined,
       },
-      coach_settings: (profile as any).coachSettings || null,
-      learning: (profile as any).learning || null,
-      notification_settings: (profile as any).notificationSettings || null,
+      coach_settings: (profile as Record<string, unknown>).coachSettings ?? null,
+      learning: (profile as Record<string, unknown>).learning ?? null,
+      notification_settings: (profile as Record<string, unknown>).notificationSettings ?? null,
       join_date: profile.joinDate || null,
     };
     const { error } = await supabase.from('profiles').upsert(row as any);

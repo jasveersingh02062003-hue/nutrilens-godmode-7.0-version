@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Briefcase, ChevronRight } from 'lucide-react';
 import { useUserProfile } from '@/contexts/UserProfileContext';
-import { supabase } from '@/integrations/supabase/client';
+
 
 const NUDGE_PREFIX = 'nutrilens_profile_nudge_dismissed_';
 
