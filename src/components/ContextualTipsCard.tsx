@@ -10,8 +10,13 @@ import { X, ChevronDown, ChevronUp, Lightbulb, ThumbsUp, ThumbsDown, ChevronRigh
 import { useNavigate } from 'react-router-dom';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { getContextualSuggestions, dismissContextTip, recordTipFeedback, type ContextSuggestion } from '@/lib/context-engine';
+import { getWeather, type WeatherData } from '@/lib/weather-service';
 
-export default function ContextualTipsCard() {
+interface Props {
+  weather?: WeatherData;
+}
+
+export default function ContextualTipsCard({ weather }: Props) {
   const { profile } = useUserProfile();
   const navigate = useNavigate();
   const [tips, setTips] = useState<ContextSuggestion[]>([]);
