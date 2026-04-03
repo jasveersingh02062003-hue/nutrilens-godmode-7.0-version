@@ -1,5 +1,6 @@
 import { getRecentLogs, getDailyTotals, getProfile, DailyLog } from './store';
 import { getWeightEntries, getWeightStreak } from './weight-history';
+import { scopedGetJSON, scopedSetJSON } from '@/lib/scoped-storage';
 
 const UNLOCKED_KEY = 'nutrilens_unlocked_badges';
 
