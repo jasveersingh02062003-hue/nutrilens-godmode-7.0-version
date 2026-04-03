@@ -143,10 +143,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       tdee: profile.tdee,
       join_date: profile.joinDate || null,
       budget: budgetPayload,
-      conditions: (profile as any).conditions || null,
-      coach_settings: (profile as any).coachSettings || null,
-      learning: (profile as any).learning || null,
-      notification_settings: (profile as any).notificationSettings || null,
+      conditions: {
+        ...((profile as unknown as Record<string, unknown>).conditions || {}),
+        allergens: profile.allergens || [],
+        skinConcerns: profile.skinConcerns || undefined,
+        travelFrequency: profile.travelFrequency || undefined,
+        kitchenAppliances: profile.kitchenAppliances || undefined,
+        workplaceFacilities: profile.workplaceFacilities || undefined,
+        carriesFood: profile.carriesFood || undefined,
+        livingSituation: profile.livingSituation || undefined,
+      },
+      coach_settings: (profile as unknown as Record<string, unknown>).coachSettings ?? null,
+      learning: (profile as unknown as Record<string, unknown>).learning ?? null,
+      notification_settings: (profile as unknown as Record<string, unknown>).notificationSettings ?? null,
     };
   };
 
