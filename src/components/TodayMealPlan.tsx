@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { ChefHat, ArrowRight, Check, Clock, Flame, ChevronDown, IndianRupee, Repeat, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getMealPlannerProfile, getWeekPlan, getCurrentWeekStart, markMealCooked } from '@/lib/meal-planner-store';
-import { getRecipeById } from '@/lib/recipes';
+import { getRecipeById, getEnrichedRecipe } from '@/lib/recipes';
 import { getRecipeImage } from '@/lib/recipe-images';
 import { getRecipeCost } from '@/lib/recipe-cost';
 import { getUnifiedBudget } from '@/lib/budget-engine';

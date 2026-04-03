@@ -624,7 +624,7 @@ export default function Dashboard() {
 
         {/* Contextual Intelligence Tips */}
         <div className="animate-slide-up" style={{ animationDelay: '0.035s' }}>
-          <ContextualTipsCard />
+          <ContextualTipsCard weather={weather} />
         </div>
 
         {/* 3. Macros */}
