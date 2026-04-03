@@ -112,9 +112,30 @@ export default function MealDetailSheet({ open, onClose, mealType, mealLabel, da
   const nextMeal = getNextMealType(mealType);
   const nextMealLabel = nextMeal === 'lunch' ? 'Lunch' : nextMeal === 'dinner' ? 'Dinner' : nextMeal === 'snack' ? 'Snacks' : null;
 
-  // Redistribution guard
+  // Auto-redistribution from engine: check if the engine already redistributed this missed meal
+  const dayState = useMemo(() => recalculateDay(profile, log), [profile, log]);
+  const engineSlotName = mealType === 'snack' ? 'snacks' : mealType;
+  const engineSlot = dayState.slots.find(s => s.name === engineSlotName);
+  const isAutoRedistributed = !!(engineSlot?.autoRedistributed);
+  
+  // Build auto-redistribution breakdown from engine data
+  const autoRedistributionBreakdown = useMemo(() => {
+    if (!isAutoRedistributed) return [];
+    return dayState.slots
+      .filter(s => s.receivedFrom && s.receivedFrom.some(r => r.fromMeal === engineSlotName))
+      .map(s => {
+        const received = s.receivedFrom!.find(r => r.fromMeal === engineSlotName)!;
+        const label = s.name === 'snacks' ? 'Snacks' : s.name.charAt(0).toUpperCase() + s.name.slice(1);
+        return { mealType: s.name, label, addedKcal: received.addedKcal };
+      });
+  }, [isAutoRedistributed, dayState, engineSlotName]);
+
+  // Legacy manual redistribution flag (still needed for undo)
   const alreadyRedistributed = isRedistributed(date, mealType);
   const redistributionInfo = alreadyRedistributed ? getRedistributionDetails(date, mealType) : null;
+  
+  // Effective redistribution state: either engine auto or manual
+  const effectivelyRedistributed = isAutoRedistributed || alreadyRedistributed;
 
   // AI suggestions
   const suggestions = hasGap ? getGapSuggestions({ calories: gapCal, protein: gapP, carbs: gapC, fat: gapF }) : [];
