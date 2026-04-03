@@ -137,6 +137,8 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
       weightKg, heightCm, age, gender, activityLevel, goal, healthConditions
     );
 
+    const { inferSchedule } = await import('@/lib/gym-service');
+
     updateProfile({
       name: name.trim(),
       gender,
@@ -165,6 +167,15 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
       dailyProtein: decision.targetProtein,
       dailyCarbs: decision.targetCarbs,
       dailyFat: decision.targetFat,
+      gym: gymGoer ? {
+        goer: true,
+        daysPerWeek: gymDays,
+        durationMinutes: gymDuration,
+        intensity: gymIntensity,
+        goal: gymGoal,
+        schedule: inferSchedule(gymDays),
+        stats: profile?.gym?.stats || { totalWorkouts: 0, totalCaloriesBurned: 0, currentStreak: 0, bestStreak: 0, consistencyPercent: 0 },
+      } : { goer: false, daysPerWeek: 0, durationMinutes: 0, intensity: 'moderate' as const, goal: 'general' as const, schedule: [], stats: { totalWorkouts: 0, totalCaloriesBurned: 0, currentStreak: 0, bestStreak: 0, consistencyPercent: 0 } },
     });
 
     // Validate budget against new goals
