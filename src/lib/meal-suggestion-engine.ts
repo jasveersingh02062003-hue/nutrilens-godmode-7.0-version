@@ -106,6 +106,18 @@ export function getRecipesForMeal(
       if (isAfternoonSlot && r.tags.some(t => t.toLowerCase() === 'raw')) return false;
     }
 
+    // Event-based plan filters
+    if (activePlan?.planId === 'event_based' && (activePlan as any).eventSettings) {
+      const es = (activePlan as any).eventSettings;
+      if (es.cookingTime === 'none' && r.difficulty !== 'easy') return false;
+      if (es.cookingTime === 'limited' && r.difficulty === 'advanced') return false;
+      if (es.budgetTier === 'tight' && r.estimatedCost > 80) return false;
+      if (es.goalType === 'tummy') {
+        const gasFoods = ['rajma', 'chole', 'chickpea', 'kidney bean', 'cabbage'];
+        if (gasFoods.some(g => r.name.toLowerCase().includes(g))) return false;
+      }
+    }
+
     if (dietPrefs.includes('vegetarian') || dietPrefs.includes('veg')) {
       if (!r.tags.some(t => ['vegetarian', 'veg'].includes(t.toLowerCase()))) return false;
     }
