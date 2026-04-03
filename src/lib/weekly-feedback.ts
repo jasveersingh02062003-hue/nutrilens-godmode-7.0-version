@@ -1,6 +1,8 @@
 import { scopedGet, scopedSet } from './scoped-storage';
 // Weekly Feedback Engine — behavior correction loop
-import { getRecentLogs, getDailyTotals, getProfile, type DailyLog } from './store';
+import { getRecentLogs, getDailyTotals, getProfile, getDailyLog, saveProfile, type DailyLog } from './store';
+import { generateWeekPlan } from './meal-plan-generator';
+import { saveWeekPlan } from './meal-planner-store';
 import { getExpensesForRange, getBudgetSettings, getWeekDateRange, saveBudgetSettings } from './expense-store';
 import { getWeightEntries } from './weight-history';
 import { getMealPlannerProfile, saveMealPlannerProfile } from './meal-planner-store';
@@ -59,7 +61,6 @@ function getLogsForRange(start: string, end: string): DailyLog[] {
   const endD = new Date(end + 'T00:00:00');
   while (d <= endD) {
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const { getDailyLog } = require('./store');
     logs.push(getDailyLog(key));
     d.setDate(d.getDate() + 1);
   }
@@ -265,15 +266,12 @@ export function autoFixNextWeek(summary: WeeklySummary): { changes: string[]; ap
 
   // Save profile properly via store
   if (profileChanged && profile) {
-    const { saveProfile } = require('./store');
     saveProfile(profile);
   }
 
   // Regenerate meal plan with updated targets
   if (changes.length > 0 && plannerProfile) {
     try {
-      const { generateWeekPlan } = require('./meal-plan-generator');
-      const { saveWeekPlan } = require('./meal-planner-store');
       const newPlan = generateWeekPlan(plannerProfile, profile?.healthConditions, profile?.womenHealth);
       saveWeekPlan(newPlan);
       changes.push('Meal plan regenerated for next week');

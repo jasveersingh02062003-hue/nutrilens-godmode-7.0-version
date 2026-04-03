@@ -173,7 +173,7 @@ export interface DailyLog {
   journal?: string;
 }
 
-import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON, scopedRemove } from '@/lib/scoped-storage';
+import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON, scopedRemove, getScopedUserId } from '@/lib/scoped-storage';
 import { syncWeight, syncWater, syncSupplements } from '@/lib/cloud-sync';
 
 const PROFILE_KEY = 'nutrilens_profile';
@@ -480,7 +480,6 @@ export function getAllLogDates(): string[] {
   const dates: string[] = [];
   // Scan for both scoped and legacy un-scoped log keys
   const scopedPrefix = (() => {
-    const { getScopedUserId } = require('@/lib/scoped-storage');
     const uid = getScopedUserId();
     return uid ? `u_${uid.slice(0, 8)}_${LOG_KEY_PREFIX}` : null;
   })();
