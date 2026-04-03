@@ -94,6 +94,9 @@ export default function CalorieRing({ dayState, proteinRemaining }: Props) {
                 {adjustedTarget} base + {totalBurned} burned
               </p>
             )}
+            {getActivePlan() && (
+              <p className="text-[8px] font-bold text-primary mt-0.5">🎯 Plan Target</p>
+            )}
             <p className={`text-[10px] font-semibold mt-1 ${dayColor}`}>
               {dayLabel}
             </p>

@@ -65,6 +65,21 @@ export default function WeightChart({ refreshKey }: Props) {
       </div>
 
       <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full h-20" preserveAspectRatio="none">
+        {/* Plan period shading */}
+        {(() => {
+          const raw = getActivePlanRaw();
+          if (!raw || history.length < 2) return null;
+          const planStart = raw.startDate;
+          const planEndDate = new Date(raw.startDate);
+          planEndDate.setDate(planEndDate.getDate() + raw.duration);
+          const planEnd = planEndDate.toISOString().split('T')[0];
+          const startIdx = history.findIndex(h => h.date >= planStart);
+          const endIdx = history.length - 1 - [...history].reverse().findIndex(h => h.date <= planEnd);
+          if (startIdx === -1 || endIdx === -1 || startIdx > endIdx) return null;
+          const x1 = history.length === 1 ? 0 : (startIdx / (history.length - 1)) * chartW;
+          const x2 = history.length === 1 ? chartW : (endIdx / (history.length - 1)) * chartW;
+          return <rect x={x1} y={0} width={x2 - x1} height={chartH} fill="hsl(var(--primary))" opacity="0.06" rx="2" />;
+        })()}
         {/* Goal line */}
         {goalY !== null && (
           <>
@@ -72,6 +87,20 @@ export default function WeightChart({ refreshKey }: Props) {
             <text x={chartW - 2} y={goalY - 3} textAnchor="end" fontSize="7" fill="hsl(var(--accent))" opacity="0.8">Goal</text>
           </>
         )}
+        {/* Plan target weight line */}
+        {(() => {
+          const raw = getActivePlanRaw();
+          if (!raw || !raw.targetWeight) return null;
+          const tw = raw.targetWeight;
+          if (tw < minW || tw > maxW) return null;
+          const ty = chartH - ((tw - minW) / range) * chartH;
+          return (
+            <>
+              <line x1="0" y1={ty} x2={chartW} y2={ty} stroke="hsl(var(--primary))" strokeWidth="1" strokeDasharray="2 4" opacity="0.5" />
+              <text x={2} y={ty - 3} fontSize="7" fill="hsl(var(--primary))" opacity="0.7">Plan</text>
+            </>
+          );
+        })()}
         {/* Weight line */}
         <path d={pathD} fill="none" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         {/* Data points */}

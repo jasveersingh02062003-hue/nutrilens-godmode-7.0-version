@@ -341,6 +341,7 @@ export default function ProgressPage() {
             <span className="flex items-center gap-1">🔻 Reduced</span>
             <span className="flex items-center gap-1">🔺 Recovery</span>
             {joinDate && <span className="flex items-center gap-1">🔒 Before join</span>}
+            {planRange && <span className="flex items-center gap-1">🎯 Plan Day</span>}
           </div>
           {!premium && (
             <button

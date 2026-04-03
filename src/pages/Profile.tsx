@@ -200,6 +200,30 @@ export default function Profile() {
                   {st === 'active' ? 'Active' : 'Paused'}
                 </span>
               </div>
+              {/* Plan rules chips */}
+              {meta?.rules && (
+                <div className="flex flex-wrap gap-1">
+                  {meta.rules.slice(0, 5).map((rule, i) => (
+                    <span key={i} className="px-2 py-0.5 rounded-full bg-primary/10 text-[9px] font-medium text-primary">{rule}</span>
+                  ))}
+                </div>
+              )}
+              {/* Plan macro targets */}
+              {raw && (
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { label: 'Cal', value: raw.dailyCalories, unit: 'kcal' },
+                    { label: 'Protein', value: raw.dailyProtein, unit: 'g' },
+                    { label: 'Carbs', value: raw.dailyCarbs, unit: 'g' },
+                    { label: 'Fat', value: raw.dailyFat, unit: 'g' },
+                  ].map(t => (
+                    <div key={t.label} className="text-center rounded-lg bg-muted/50 py-1">
+                      <p className="text-xs font-bold text-foreground">{t.value}</p>
+                      <p className="text-[8px] text-muted-foreground">{t.label}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
               <p className="text-[10px] text-primary font-medium text-center">Tap to manage →</p>
             </div>
           );
