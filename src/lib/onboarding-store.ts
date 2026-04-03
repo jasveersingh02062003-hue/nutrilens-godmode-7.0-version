@@ -42,6 +42,14 @@ export interface OnboardingData {
     diet: string;
     water: number;
     supplements: string[];
+    supplementPrefs?: {
+      items: Array<{
+        name: string;
+        frequency: 'daily' | 'workout_days' | 'occasional';
+        costPerServing: number;
+        proteinPerServing?: number;
+      }>;
+    };
     cooking: { skill: string; time: number; equipment: string[] };
     budget: { enabled: boolean; amount: number; period: string; mealSplit: { breakfast: number; lunch: number; dinner: number; snacks: number } };
   };
