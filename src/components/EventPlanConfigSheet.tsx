@@ -453,8 +453,8 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
               </motion.div>
             )}
 
-            {/* Step 4: Summary */}
-            {step === 4 && (
+            {/* Step 5: Summary */}
+            {step === 5 && (
               <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
                 <div className="text-center space-y-1">
                   <span className="text-4xl">{EVENT_TYPES.find(e => e.id === eventType)?.emoji}</span>
