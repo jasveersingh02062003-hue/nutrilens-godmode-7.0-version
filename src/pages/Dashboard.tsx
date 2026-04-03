@@ -60,6 +60,7 @@ import PostEventFeedbackModal from '@/components/PostEventFeedbackModal';
 import EventPlanConfigSheet from '@/components/EventPlanConfigSheet';
 import TummyInsightCard from '@/components/TummyInsightCard';
 import ContextualTipsCard from '@/components/ContextualTipsCard';
+import ProfileCompletionNudge from '@/components/ProfileCompletionNudge';
 import { getDualSyncInsight, isSurvivalModeManual, getLatestBudgetAlert, clearLatestBudgetAlert, type BudgetAlertResult } from '@/lib/budget-service';
 import UpgradeBanner from '@/components/UpgradeBanner';
 import { getMealPlannerProfile } from '@/lib/meal-planner-store';
