@@ -908,7 +908,7 @@ export default function CameraHome() {
                 title={title}
                 messages={allMessages}
                 onRemoveItem={(id) => toggleItemSelection(id)}
-                onFindAlternative={hasPlanWarnings ? () => setReplaceOpen(true) : undefined}
+                onFindAlternative={hasPlanWarnings && planWarnings[0]?.itemId ? () => setReplacingItemId(planWarnings[0].itemId!) : undefined}
               />
             );
           })()}
