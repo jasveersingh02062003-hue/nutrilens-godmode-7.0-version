@@ -12,11 +12,20 @@ import { getAdjustedDailyTarget } from '@/lib/calorie-correction';
 
 export type MealSlotStatus = 'pending' | 'completed' | 'missed';
 
+export interface RedistributionSource {
+  fromMeal: string;
+  addedKcal: number;
+}
+
 export interface MealSlot {
   name: 'breakfast' | 'lunch' | 'snacks' | 'dinner';
   status: MealSlotStatus;
   consumedKcal: number;
   targetKcal: number;
+  /** If this slot is missed, how its calories were auto-distributed */
+  autoRedistributed?: boolean;
+  /** If this slot received calories from a missed meal */
+  receivedFrom?: RedistributionSource[];
 }
 
 export interface DayState {
