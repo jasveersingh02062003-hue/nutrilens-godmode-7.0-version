@@ -15,7 +15,7 @@ interface Props {
   onOpenSymptomLog?: () => void;
 }
 
-export default function NudgeBanner({ onOpenSymptomLog }: Props) {
+export default memo(function NudgeBanner({ onOpenSymptomLog }: Props) {
   const { profile } = useUserProfile();
   const navigate = useNavigate();
   const nudges = useMemo(() => getActiveNudges(profile), [profile]);
