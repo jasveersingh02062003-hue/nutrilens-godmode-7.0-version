@@ -3,7 +3,7 @@ import { getWeather } from '@/lib/weather-service';
 import { getWeatherWaterBonus } from '@/lib/food-tags';
 import { getActivePlan } from '@/lib/event-plan-service';
 import { getProfile } from '@/lib/store';
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 
 interface Props {
   cups: number;
