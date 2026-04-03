@@ -538,7 +538,7 @@ export function evaluateCoach(profile: UserProfile, log: DailyLog): CoachMessage
   const occ = (profile.occupation || '').toLowerCase();
   const isPhysicalWorker = jt === 'physical' || jt === 'field' || ['driver', 'labourer', 'construction', 'delivery', 'farmer'].some(k => occ.includes(k));
   const isDeskWorker = jt === 'desk' || jt === 'office' || ['software', 'engineer', 'analyst', 'accountant'].some(k => occ.includes(k));
-  const travelsOften = (profile as any).travelFrequency === 'often' || ['travel', 'sales', 'consultant'].some(k => occ.includes(k));
+  const travelsOften = profile.travelFrequency === 'often' || ['travel', 'sales', 'consultant'].some(k => occ.includes(k));
 
   if (isPhysicalWorker && hour >= 6 && hour < 9 && log.meals.length === 0) {
     messages.push({

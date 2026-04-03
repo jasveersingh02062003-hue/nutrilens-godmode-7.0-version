@@ -238,8 +238,8 @@ export function getRecipesForMeal(
     let contextBadge: string | undefined;
 
     if (profile) {
-      const travelFreq = (profile as any).travelFrequency || '';
-      const workFacilities: string[] = (profile as any).workplaceFacilities || [];
+      const travelFreq = profile.travelFrequency || '';
+      const workFacilities: string[] = profile.workplaceFacilities || [];
       const cooking = (profile.cookingHabits || '').toLowerCase();
 
       // Travelers get boost for portable meals
@@ -255,9 +255,22 @@ export function getRecipesForMeal(
       }
 
       // No-cook preference
-      if ((cooking === 'none' || cooking === 'minimal') && r.tags.some(t => ['no_cook', 'quick', 'instant'].includes(t.toLowerCase()))) {
+      if ((cooking === 'none' || cooking === 'minimal') && r.tags.some(t => ['no_cook', 'no-cook', 'quick', 'instant'].includes(t.toLowerCase()))) {
         contextBonus += 20;
         if (!contextBadge) contextBadge = '⚡ Zero-cook';
+      }
+
+      // #11 — Kitchen appliance filtering
+      const kitchenApps: string[] = profile.kitchenAppliances || [];
+      if (kitchenApps.length > 0) {
+        // Boost air fryer recipes if user has one
+        if (kitchenApps.includes('air_fryer') && r.tags.some(t => ['grilled', 'roasted', 'air-fried'].includes(t.toLowerCase()))) {
+          contextBonus += 8;
+        }
+        // If no oven, penalize oven-required recipes
+        if (!kitchenApps.includes('oven') && r.tags.some(t => t.toLowerCase() === 'baked')) {
+          contextBonus -= 10;
+        }
       }
 
       // Weather badges

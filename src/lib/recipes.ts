@@ -44,7 +44,59 @@ export function getEnrichedRecipe(recipe: Recipe): EnrichedRecipe {
   const vf = recipe.volumeFactor ?? 2;
   const satietyScore = (recipe.protein / 10) + ((recipe.fiber || 0) / 5) + (vf / 2);
   const proteinPerRupee = estimatedCost > 0 ? recipe.protein / estimatedCost : 0;
-  return { ...recipe, estimatedCost, nutritionScore, satietyScore, proteinPerRupee };
+  // Auto-infer context tags
+  const contextTags = inferContextTags(recipe);
+  const mergedTags = [...new Set([...recipe.tags, ...contextTags])];
+  return { ...recipe, tags: mergedTags, estimatedCost, nutritionScore, satietyScore, proteinPerRupee };
+}
+
+/** Auto-infer context-aware tags from recipe properties */
+function inferContextTags(r: Recipe): string[] {
+  const tags: string[] = [];
+  const nameL = r.name.toLowerCase();
+  const existingTags = r.tags.map(t => t.toLowerCase());
+
+  // Portable: wraps, rolls, thepla, sandwiches, items that travel well
+  const portableKw = ['wrap', 'roll', 'thepla', 'paratha', 'sandwich', 'chilla', 'roti', 'toast', 'makhana', 'chana', 'sprout'];
+  if (portableKw.some(k => nameL.includes(k)) || existingTags.includes('portable')) {
+    tags.push('portable');
+  }
+
+  // No-cook: cookTime === 0 or already tagged
+  if (r.cookTime === 0 || existingTags.includes('no-cook') || existingTags.includes('no_cook')) {
+    tags.push('no_cook');
+  }
+
+  // Quick: prepTime + cookTime <= 15
+  if (r.prepTime + r.cookTime <= 15 && !existingTags.includes('quick')) {
+    tags.push('quick');
+  }
+
+  // Cooling: raita, buttermilk, curd, watermelon, cucumber, lassi, coconut
+  const coolingKw = ['raita', 'buttermilk', 'curd', 'watermelon', 'cucumber', 'lassi', 'coconut', 'smoothie', 'yogurt', 'fruit'];
+  if (coolingKw.some(k => nameL.includes(k))) {
+    tags.push('cooling');
+  }
+
+  // Warming: soup, dal, khichdi, chai, ginger, curry, stew
+  const warmingKw = ['soup', 'dal', 'khichdi', 'chai', 'ginger', 'curry', 'stew', 'halwa', 'porridge'];
+  if (warmingKw.some(k => nameL.includes(k))) {
+    tags.push('warming');
+  }
+
+  // Needs reheat: biryani, curry, rice dishes, sabzi (not wraps/salads/smoothies)
+  const reheatKw = ['biryani', 'curry', 'rice', 'sabzi', 'masala', 'bharta', 'kadhi', 'chawal'];
+  const noReheatKw = ['salad', 'wrap', 'smoothie', 'shake', 'fruit', 'yogurt', 'curd', 'chaat', 'makhana', 'oats'];
+  if (reheatKw.some(k => nameL.includes(k)) && !noReheatKw.some(k => nameL.includes(k))) {
+    tags.push('needs_reheat');
+  }
+
+  // Batch-friendly: one-pot dishes, large servings
+  if (existingTags.includes('one-pot') || existingTags.includes('comfort-food') || r.servings >= 2) {
+    tags.push('batch_friendly');
+  }
+
+  return tags;
 }
 
 export const recipes: Recipe[] = [
