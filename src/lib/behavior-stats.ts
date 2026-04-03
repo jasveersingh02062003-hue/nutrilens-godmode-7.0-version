@@ -179,7 +179,7 @@ export function updateDailyBehaviorStats() {
 
   // ── Budget-aware scoring ──
   const budgetSpent = log.meals.reduce((s, m) => s + (m.cost?.amount || 0), 0);
-  const budgetSettings = (() => { try { return JSON.parse(localStorage.getItem('nutrilens_budget') || '{}'); } catch { return {}; } })();
+  const budgetSettings = (() => { try { return JSON.parse(scopedGet('nutrilens_budget') || '{}'); } catch { return {}; } })();
   const dailyBudget = budgetSettings.dailyBudget || 0;
 
   // Overspend penalty: -10 per overspend day
