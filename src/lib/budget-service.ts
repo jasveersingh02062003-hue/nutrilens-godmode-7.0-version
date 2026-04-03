@@ -42,6 +42,15 @@ export function getBudgetSummary(periodOverride?: 'week' | 'month'): BudgetSumma
     byCategory[e.category] = (byCategory[e.category] || 0) + e.amount;
   }
 
+  // Add supplement costs as a separate category
+  try {
+    const { getSupplementSpendingForRange } = require('./supplement-service');
+    const suppCost = getSupplementSpendingForRange(range.start, range.end);
+    if (suppCost > 0) {
+      byCategory['supplements'] = suppCost;
+    }
+  } catch { /* supplement-service may not be loaded */ }
+
   // Plan budget tier override
   let finalBudget = budget;
   let planOverride = false;
