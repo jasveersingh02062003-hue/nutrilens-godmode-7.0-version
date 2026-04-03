@@ -7,7 +7,7 @@ interface Props {
   onAdd: () => void;
 }
 
-export default function WaterTracker({ cups, goal, onAdd }: Props) {
+export default memo(function WaterTracker({ cups, goal, onAdd }: Props) {
   const goalCups = Math.round(goal / 250);
   const pct = Math.min(100, (cups / goalCups) * 100);
 
