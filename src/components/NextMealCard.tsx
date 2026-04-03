@@ -88,12 +88,19 @@ export default function NextMealCard({ profile }: Props) {
         >
           <div className="flex items-start justify-between">
             <p className="text-sm font-bold text-foreground mb-1">{recipe.emoji || '🍽️'} {recipe.name}</p>
-            {hasPantryMatch && (
-              <span className="flex items-center gap-0.5 text-[9px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full whitespace-nowrap">
-                <Home className="w-2.5 h-2.5" />
-                {recipe.pantryMatchCount}/{recipe.totalIngredientCount} at home
-              </span>
-            )}
+            <div className="flex items-center gap-1">
+              {recipe.contextBadge && (
+                <span className="text-[9px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                  {recipe.contextBadge}
+                </span>
+              )}
+              {hasPantryMatch && (
+                <span className="flex items-center gap-0.5 text-[9px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                  <Home className="w-2.5 h-2.5" />
+                  {recipe.pantryMatchCount}/{recipe.totalIngredientCount} at home
+                </span>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-3 text-[10px] text-muted-foreground flex-wrap">
             <span className="flex items-center gap-0.5"><Zap className="w-3 h-3" />{recipe.calories} kcal</span>
@@ -104,7 +111,7 @@ export default function NextMealCard({ profile }: Props) {
               return <PESBadge pes={pes} color={color} />;
             })()}
           </div>
-          {recipe.matchReason && !hasPantryMatch && (
+          {recipe.matchReason && !hasPantryMatch && !recipe.contextBadge && (
             <p className="text-[9px] text-muted-foreground mt-1 italic">{recipe.matchReason}</p>
           )}
         </motion.div>
