@@ -2,6 +2,7 @@
 
 import { getBudgetSummary } from './budget-service';
 import { getBudgetSettings } from './expense-store';
+import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 
 export interface PerMealBudget {
   breakfast: number;
