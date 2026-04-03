@@ -58,14 +58,14 @@ const DEFAULT_STATS: BehaviorStats = {
 
 export function getBehaviorStats(): BehaviorStats {
   try {
-    const data = localStorage.getItem(BEHAVIOR_STATS_KEY);
+    const data = scopedGet(BEHAVIOR_STATS_KEY);
     return data ? { ...DEFAULT_STATS, ...JSON.parse(data) } : DEFAULT_STATS;
   } catch { return DEFAULT_STATS; }
 }
 
 function saveBehaviorStats(stats: BehaviorStats) {
   stats.lastUpdated = new Date().toISOString();
-  localStorage.setItem(BEHAVIOR_STATS_KEY, JSON.stringify(stats));
+  scopedSetJSON(BEHAVIOR_STATS_KEY, stats);
 }
 
 // ── Consistency Score Calculation ──
