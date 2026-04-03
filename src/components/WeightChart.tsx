@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import { getWeightHistory, getProfile } from '@/lib/store';
+import { getActivePlanRaw } from '@/lib/event-plan-service';
 
 interface Props {
   refreshKey?: number; // change to trigger re-render
