@@ -413,17 +413,7 @@ export function addWaterForDate(date: string) {
   const log = getDailyLog(date);
   log.waterCups += 1;
   saveDailyLog(log);
-  // Sync to water_logs table
-  import('@/integrations/supabase/client').then(({ supabase }) => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session?.user) return;
-      supabase.from('water_logs').upsert({
-        user_id: session.user.id, log_date: date, cups: log.waterCups,
-      } as any, { onConflict: 'user_id,log_date' } as any).then(({ error }: any) => {
-        if (error) console.error('[store] water_logs sync failed:', error.message);
-      });
-    });
-  }).catch(() => {});
+  syncWater(date, log.waterCups);
   return log;
 }
 
