@@ -61,7 +61,7 @@ export default function ContextualTipsCard() {
                 {/* Recipe links */}
                 {tip.recipes && tip.recipes.length > 0 && (
                   <button
-                    onClick={() => navigate('/planner')}
+                    onClick={() => navigate('/meal-planner')}
                     className="flex items-center gap-0.5 mt-1.5 text-[10px] font-semibold text-primary hover:text-primary/80 transition-colors"
                   >
                     Try these recipes <ChevronRight className="w-3 h-3" />

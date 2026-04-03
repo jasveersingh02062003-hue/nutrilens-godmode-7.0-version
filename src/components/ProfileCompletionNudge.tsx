@@ -16,8 +16,9 @@ interface Props {
 }
 
 export default function ProfileCompletionNudge({ onOpenProfile }: Props) {
-  const { profile } = useUserProfile();
-  const [dismissed, setDismissed] = useState(() => localStorage.getItem(NUDGE_KEY) === 'true');
+  const { profile, loadedUserId } = useUserProfile();
+  const nudgeKey = `${NUDGE_PREFIX}${loadedUserId || 'anon'}`;
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem(nudgeKey) === 'true');
 
   if (dismissed || !profile) return null;
 
@@ -28,7 +29,7 @@ export default function ProfileCompletionNudge({ onOpenProfile }: Props) {
   if (hasLifestyle) return null;
 
   const handleDismiss = () => {
-    localStorage.setItem(NUDGE_KEY, 'true');
+    localStorage.setItem(nudgeKey, 'true');
     setDismissed(true);
   };
 
