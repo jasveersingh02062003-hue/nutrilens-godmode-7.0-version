@@ -8,7 +8,7 @@ import { ChevronLeft, Check, ArrowRight, CalendarPlus, Crown } from 'lucide-reac
 import { motion } from 'framer-motion';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
-import { UserProfile } from '@/lib/store';
+import { UserProfile, getDailyLog } from '@/lib/store';
 import {
   calculateProportionalDistribution,
   applyRedistribution,
@@ -16,6 +16,7 @@ import {
   isRedistributed,
   type RedistributionResult,
 } from '@/lib/redistribution-service';
+import { recalculateDay } from '@/lib/calorie-engine';
 import { toast } from 'sonner';
 import { isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
