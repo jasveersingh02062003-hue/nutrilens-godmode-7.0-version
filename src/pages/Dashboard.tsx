@@ -52,7 +52,7 @@ import ActivePlanBanner from '@/components/ActivePlanBanner';
 import MadhavanPlanBanner from '@/components/MadhavanPlanBanner';
 import PlanCompletionModal from '@/components/PlanCompletionModal';
 import PlanPromoCard from '@/components/PlanPromoCard';
-import { getPlanProgress, getActivePlan, getActivePlanRaw, getExpiredEventPlan, resumeActivePlan } from '@/lib/event-plan-service';
+import { getPlanProgress, getActivePlan, getActivePlanRaw, getExpiredEventPlan, resumeActivePlan, getPlanById } from '@/lib/event-plan-service';
 import { isReverseDietActive, getReverseDietWeek } from '@/lib/reverse-diet-service';
 import BoostersChecklist from '@/components/BoostersChecklist';
 import ActivityTracker from '@/components/ActivityTracker';
