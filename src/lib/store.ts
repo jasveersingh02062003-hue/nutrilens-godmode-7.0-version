@@ -182,7 +182,13 @@ const PHOTOS_KEY = 'nutrilens_progress_photos';
 export function getProfile(): UserProfile | null {
   // Profile stays global — overwritten on login from cloud
   const data = localStorage.getItem(PROFILE_KEY);
-  return data ? JSON.parse(data) : null;
+  if (!data) return null;
+  try {
+    return JSON.parse(data);
+  } catch (e) {
+    console.warn('[store] Corrupted profile JSON, returning null:', e);
+    return null;
+  }
 }
 
 /** Get dynamically computed age from DOB (falls back to stored age) */
