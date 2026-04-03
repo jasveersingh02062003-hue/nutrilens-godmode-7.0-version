@@ -57,6 +57,9 @@ export interface ActivePlan {
   dailyFat: number;
   dailyDeficit: number;
   activatedAt: string;
+  status?: 'active' | 'paused';
+  pausedAt?: string;
+  cancelledAt?: string;
   customSettings?: MadhavanSettings;
   eventSettings?: EventPlanSettings;
 }
