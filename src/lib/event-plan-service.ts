@@ -58,6 +58,7 @@ export interface ActivePlan {
   dailyDeficit: number;
   activatedAt: string;
   customSettings?: MadhavanSettings;
+  eventSettings?: EventPlanSettings;
 }
 
 export interface PlanTargets {
