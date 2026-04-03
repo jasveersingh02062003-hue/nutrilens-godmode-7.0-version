@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Plus } from 'lucide-react';
 import { SupplementEntry } from '@/lib/store';
 
