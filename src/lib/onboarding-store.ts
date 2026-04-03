@@ -6,6 +6,7 @@ import { calculateBMR } from './nutrition';
 import { getActivityMultiplier, calculateTDEEFromWorkExercise } from './nutrition';
 import { saveBudgetSettings } from './expense-store';
 import type { OnboardingGoalResult } from './goal-engine';
+import { inferSchedule } from './gym-service';
 
 const PROGRESS_KEY = 'nutrilens_onboarding_progress';
 const USER_KEY = 'nutrilens_user';
@@ -128,10 +129,7 @@ export function saveOnboardingData(data: OnboardingData) {
       durationMinutes: data.activity.gym.durationMinutes,
       intensity: (data.activity.gym.intensity as 'light' | 'moderate' | 'intense') || 'moderate',
       goal: (data.activity.gym.goal as 'fat_loss' | 'muscle_gain' | 'general') || 'general',
-      schedule: (() => {
-        const { inferSchedule } = require('./gym-service');
-        return inferSchedule(data.activity.gym.daysPerWeek);
-      })(),
+      schedule: inferSchedule(data.activity.gym.daysPerWeek),
       stats: { totalWorkouts: 0, totalCaloriesBurned: 0, currentStreak: 0, bestStreak: 0, consistencyPercent: 0 },
     } : undefined,
   };
