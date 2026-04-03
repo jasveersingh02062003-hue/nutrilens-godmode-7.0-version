@@ -805,7 +805,7 @@ export default function Dashboard() {
     {/* One-time planner setup modal */}
     <Dialog open={showPlannerModal} onOpenChange={(open) => {
       if (!open) {
-        localStorage.setItem('planner_modal_dismissed', 'true');
+        localStorage.setItem(plannerDismissKey, 'true');
         setShowPlannerModal(false);
       }
     }}>
