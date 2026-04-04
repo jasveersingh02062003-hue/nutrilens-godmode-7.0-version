@@ -2,7 +2,26 @@ import { Flame } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getStreaks, getNextMilestone, getMilestoneProgress, STREAK_META, StreakType, checkStreakBreaks } from '@/lib/streaks';
 import { Progress } from '@/components/ui/progress';
-import { useMemo, memo } from 'react';
+import { useMemo, memo, useState, useEffect, useRef } from 'react';
+
+function useCountUp(target: number, duration = 600) {
+  const [value, setValue] = useState(0);
+  const rafRef = useRef<number>(0);
+  useEffect(() => {
+    if (target === 0) { setValue(0); return; }
+    const start = performance.now();
+    const animate = (now: number) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.round(target * eased));
+      if (progress < 1) rafRef.current = requestAnimationFrame(animate);
+    };
+    rafRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [target, duration]);
+  return value;
+}
 
 interface Props {
   refreshKey?: number;
@@ -16,12 +35,13 @@ export default memo(function ConsistencyCard({ refreshKey }: Props) {
 
   const streakTypes: StreakType[] = ['nutrition', 'hydration'];
   const totalStreak = streakTypes.reduce((s, t) => s + streaks[t].current, 0);
+  const animatedTotal = useCountUp(totalStreak);
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="card-elevated p-4"
+      className="glass-card p-4"
     >
       <div className="flex items-center gap-2 mb-3">
         <div className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center">
@@ -34,20 +54,26 @@ export default memo(function ConsistencyCard({ refreshKey }: Props) {
         {totalStreak > 0 && (
           <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-destructive/10">
             <Flame className="w-3 h-3 text-destructive" />
-            <span className="text-xs font-bold text-destructive">{totalStreak}</span>
+            <span className="text-xs font-bold text-destructive">{animatedTotal}</span>
           </div>
         )}
       </div>
 
       <div className="space-y-3">
-        {streakTypes.map(type => {
+        {streakTypes.map((type, i) => {
           const streak = streaks[type];
           const meta = STREAK_META[type];
           const next = getNextMilestone(streak.current);
           const progress = getMilestoneProgress(streak.current);
 
           return (
-            <div key={type} className="flex items-center gap-3">
+            <motion.div
+              key={type}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.08, type: 'spring', stiffness: 300, damping: 25 }}
+              className="flex items-center gap-3"
+            >
               <span className="text-lg">{meta.emoji}</span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-1">
@@ -64,7 +90,7 @@ export default memo(function ConsistencyCard({ refreshKey }: Props) {
                   </p>
                 )}
               </div>
-            </div>
+            </motion.div>
           );
         })}
       </div>
