@@ -569,7 +569,18 @@ export default function Onboarding() {
           testosterone: f.testosteroneConcerns,
         },
       },
-      activity: { work: f.work, exercise: f.exercise, gym: f.gymGoer ? { goer: true, daysPerWeek: f.gymDays, durationMinutes: f.gymDuration, intensity: f.gymIntensity || 'moderate', goal: f.gymGoal || 'general' } : undefined },
+      activity: {
+        work: f.work, exercise: f.exercise,
+        gym: f.gymGoer ? {
+          goer: true, daysPerWeek: f.gymDays, durationMinutes: f.gymDuration,
+          intensity: f.gymIntensity || 'moderate', goal: f.gymGoal || 'general',
+          timeOfDay: f.gymTimeOfDay || undefined,
+          specificHour: f.gymSpecificHour,
+          workStart: f.workStartTime, workEnd: f.workEndTime,
+          sleepStart: f.sleepStartTime, sleepEnd: f.sleepEndTime,
+          shiftType: f.shiftType || 'day',
+        } : undefined,
+      },
       goals: {
         type: goals.goalType, speed: f.goalSpeed,
         targetWeight: f.goalType !== 'maintain' ? f.targetWeight : null,
