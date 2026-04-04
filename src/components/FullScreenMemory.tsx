@@ -107,7 +107,7 @@ export default function FullScreenMemory({ open, date, mealId, onClose, onChange
     }
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
