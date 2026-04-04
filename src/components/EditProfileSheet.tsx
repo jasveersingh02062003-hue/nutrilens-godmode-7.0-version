@@ -80,6 +80,9 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
   const [sleepStart, setSleepStart] = useState('22:00');
   const [sleepEnd, setSleepEnd] = useState('06:00');
   const [shiftType, setShiftType] = useState<string>('day');
+  const [fastedTraining, setFastedTraining] = useState(false);
+  const [hasWeekendSchedule, setHasWeekendSchedule] = useState(false);
+  const [weekendHour, setWeekendHour] = useState(9);
 
   useEffect(() => {
     if (profile && open) {
