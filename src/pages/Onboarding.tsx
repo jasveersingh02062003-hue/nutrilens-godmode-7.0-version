@@ -290,6 +290,13 @@ interface FormState {
   gymDuration: number;
   gymIntensity: string;
   gymGoal: string;
+  gymTimeOfDay: string;
+  gymSpecificHour: number;
+  workStartTime: string;
+  workEndTime: string;
+  sleepStartTime: string;
+  sleepEndTime: string;
+  shiftType: string;
   goalType: string;
   goalSpeed: string;
   targetWeight: number;
