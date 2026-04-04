@@ -15,8 +15,8 @@ export default function BottomNav() {
   const navigate = useNavigate();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/60 backdrop-blur-xl border-t border-border/50">
-      <div className="flex items-center justify-around max-w-lg mx-auto h-16 px-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/60 backdrop-blur-xl border-t border-border/50 pb-[env(safe-area-inset-bottom,0px)]">
+      <div className="grid grid-cols-5 max-w-lg mx-auto h-16 px-1">
         {tabs.map((tab) => {
           const active = location.pathname === tab.path;
 
@@ -25,14 +25,13 @@ export default function BottomNav() {
               <button
                 key="camera-tab"
                 onClick={() => navigate(tab.path)}
-                className="relative -mt-5 flex flex-col items-center"
+                className="flex flex-col items-center justify-center -mt-5"
               >
                 <motion.div
                   className="w-14 h-14 rounded-full bg-primary flex items-center justify-center relative overflow-hidden"
                   whileTap={{ scale: 0.9 }}
                   style={{ boxShadow: '0 8px 24px -4px hsl(var(--primary) / 0.3)' }}
                 >
-                  {/* Rotating gradient border */}
                   <motion.div
                     className="absolute inset-[-2px] rounded-full"
                     style={{
@@ -53,24 +52,23 @@ export default function BottomNav() {
             <button
               key={tab.path}
               onClick={() => navigate(tab.path)}
-              className="relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all duration-200"
+              className="flex flex-col items-center justify-center gap-1 min-h-[48px]"
             >
-              {/* Morphing pill indicator */}
-              {active && (
-                <motion.div
-                  layoutId="nav-pill"
-                  className="absolute inset-0 bg-primary/10 backdrop-blur-sm rounded-xl border border-primary/20"
-                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                />
-              )}
               <motion.div
                 animate={active ? { y: -2 } : { y: 0 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                whileTap={{ scale: 0.85, rotate: -8 }}
+                whileTap={{ scale: 0.9 }}
               >
-                <tab.icon className={`w-5 h-5 relative z-10 ${active ? 'text-primary stroke-[2.5]' : 'text-muted-foreground'}`} />
+                <tab.icon className={`w-5 h-5 ${active ? 'text-primary stroke-[2.5]' : 'text-muted-foreground'}`} />
               </motion.div>
-              <span className={`text-[10px] relative z-10 ${active ? 'font-bold text-primary' : 'font-medium text-muted-foreground'}`}>{tab.label}</span>
+              <span className={`text-[10px] ${active ? 'font-bold text-primary' : 'font-medium text-muted-foreground'}`}>{tab.label}</span>
+              {active && (
+                <motion.div
+                  layoutId="nav-dot"
+                  className="w-1 h-1 rounded-full bg-primary -mt-0.5"
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                />
+              )}
             </button>
           );
         })}
