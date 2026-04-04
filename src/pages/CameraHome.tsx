@@ -795,13 +795,17 @@ export default function CameraHome() {
 
         {/* Camera error fallback */}
         {cameraError && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-foreground">
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-foreground px-6 text-center">
             <Camera className="w-12 h-12 text-primary-foreground/30 mb-4" />
-            <p className="text-primary-foreground/60 text-sm font-medium">Camera access denied</p>
-            <p className="text-primary-foreground/30 text-xs mt-1 mb-4">Allow camera access or use gallery</p>
-            <div className="flex gap-3">
-              <button onClick={() => galleryInputRef.current?.click()}
+            <p className="text-primary-foreground/80 text-sm font-medium">Camera unavailable</p>
+            <p className="text-primary-foreground/50 text-xs mt-1 mb-4 max-w-xs">{cameraErrorMessage}</p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <button onClick={() => void startCamera()}
                 className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold active:scale-95 transition-transform">
+                Retry Camera
+              </button>
+              <button onClick={() => galleryInputRef.current?.click()}
+                className="px-5 py-2.5 rounded-xl bg-primary-foreground/10 text-primary-foreground text-sm font-semibold active:scale-95 transition-transform">
                 Upload Photo
               </button>
               <button onClick={() => navigate('/log?meal=' + selectedMealType)}
