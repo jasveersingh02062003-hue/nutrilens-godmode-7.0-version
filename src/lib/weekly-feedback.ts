@@ -229,6 +229,12 @@ export function generateWeeklySummary(): WeeklySummary {
     insight,
     dominantMetric,
     autoFixApplied: false,
+    gymWorkouts,
+    gymPlanned,
+    gymCaloriesBurned,
+    gymConsistencyPct,
+    gymInsight,
+    strengthGains: strengthGains.length > 0 ? strengthGains : undefined,
   };
 
   saveWeeklySummary(summary);
