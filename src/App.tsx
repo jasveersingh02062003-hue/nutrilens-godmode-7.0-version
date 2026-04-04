@@ -11,6 +11,7 @@ import { getNotificationSettings, startNotificationScheduler, stopNotificationSc
 import { UserProfileProvider, useUserProfile } from "./contexts/UserProfileContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import ErrorBoundary from "./components/ErrorBoundary";
+import PageTransition from "./components/PageTransition";
 
 const ROUTE_RETRY_PREFIX = "nutrilens-route-retry:";
 
