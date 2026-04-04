@@ -260,16 +260,40 @@ export default function MealPlanner() {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6">
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center">
-          <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ repeat: Infinity, duration: 2 }}
-            className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
-            <ChefHat className="w-10 h-10 text-primary" />
-          </motion.div>
+          {/* Multi-ring orbital animation */}
+          <div className="relative w-28 h-28 mx-auto mb-6">
+            <motion.div className="absolute inset-0 rounded-full border-2 border-dashed border-primary/40"
+              animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 4, ease: 'linear' }} />
+            <motion.div className="absolute inset-3 rounded-full border-2 border-dashed border-primary/60"
+              animate={{ rotate: -360 }} transition={{ repeat: Infinity, duration: 3, ease: 'linear' }} />
+            <motion.div className="absolute inset-6 rounded-full border-2 border-dashed border-primary/80"
+              animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: 'linear' }} />
+            {/* Orbiting recipe icons */}
+            {['🍳', '🥗', '🍛'].map((emoji, i) => (
+              <motion.div key={i} className="absolute top-1/2 left-1/2 text-lg"
+                style={{ marginTop: -12, marginLeft: -12 }}
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 3 + i, ease: 'linear', delay: i * 0.5 }}>
+                <motion.span style={{ display: 'inline-block', transform: `translateX(${32 + i * 8}px)` }}
+                  animate={{ rotate: -360 }}
+                  transition={{ repeat: Infinity, duration: 3 + i, ease: 'linear', delay: i * 0.5 }}>
+                  {emoji}
+                </motion.span>
+              </motion.div>
+            ))}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <ChefHat className="w-8 h-8 text-primary" />
+            </div>
+          </div>
           <h2 className="text-lg font-bold text-foreground">Cooking up your personalized plan...</h2>
           <div className="mt-4 space-y-2">
             {['Analyzing your profile...', 'Selecting recipes...', 'Balancing nutrients...'].map((msg, i) => (
               <motion.p key={msg} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.6 }}
                 className="text-sm text-muted-foreground flex items-center justify-center gap-2">
-                <Sparkles className="w-3 h-3 text-primary" /> {msg}
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: i * 0.6 + 0.4, type: 'spring', stiffness: 400, damping: 15 }}>
+                  <Sparkles className="w-3 h-3 text-primary" />
+                </motion.div>
+                {msg}
               </motion.p>
             ))}
           </div>
