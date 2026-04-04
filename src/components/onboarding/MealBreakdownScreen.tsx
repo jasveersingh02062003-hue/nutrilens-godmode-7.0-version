@@ -146,23 +146,21 @@ export default function MealBreakdownScreen({ calories, protein, carbs, fat, onC
       </div>
 
       {/* Edit Split Modal */}
-      <AnimatePresence>
-        {editing && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-primary/30 backdrop-blur-sm z-50 flex items-end justify-center"
-            onClick={() => setEditing(false)}
-          >
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {editing && (
             <motion.div
-              initial={{ y: '8%', opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: '8%', opacity: 0 }}
-              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-              onClick={e => e.stopPropagation()}
-              className="w-full max-w-lg bg-card rounded-t-3xl p-6 pb-8 border-t border-border"
+              {...mobileOverlayMotion}
+              transition={mobileOverlayTransition}
+              className="fixed inset-0 bg-primary/30 backdrop-blur-sm z-50 flex items-end justify-center"
+              onClick={() => setEditing(false)}
             >
+              <motion.div
+                {...mobileSheetMotion}
+                transition={mobileSheetTransition}
+                onClick={e => e.stopPropagation()}
+                className="w-full max-w-lg max-h-[92dvh] overflow-y-auto overscroll-contain bg-card rounded-t-3xl p-6 pb-8 border-t border-border"
+              >
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-display font-bold text-foreground tracking-tight">Edit Meal Split</h3>
                 <button onClick={() => setEditing(false)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
