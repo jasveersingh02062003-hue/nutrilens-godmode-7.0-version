@@ -325,12 +325,7 @@ export default function ProgressPage() {
   return (
     <div className="min-h-screen pb-24 bg-background">
       <ConfettiCelebration show={showConfetti} />
-      <motion.div
-        className="max-w-lg mx-auto px-4 pt-5 space-y-4"
-        initial="hidden"
-        animate="show"
-        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
-      >
+      <div className="max-w-lg mx-auto px-4 pt-5 space-y-4">
         <motion.div variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }} className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-foreground">Progress</h1>
