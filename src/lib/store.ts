@@ -209,6 +209,7 @@ export interface DailyLog {
     caloriesBurned: number;
     intensity: string;
   };
+  energyLevel?: 1 | 2 | 3 | 4 | 5;
 }
 
 import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON, scopedRemove, getScopedUserId } from '@/lib/scoped-storage';
