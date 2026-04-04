@@ -325,13 +325,8 @@ export default function ProgressPage() {
   return (
     <div className="min-h-screen pb-24 bg-background">
       <ConfettiCelebration show={showConfetti} />
-      <motion.div
-        className="max-w-lg mx-auto px-4 pt-5 space-y-4"
-        initial="hidden"
-        animate="show"
-        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
-      >
-        <motion.div variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }} className="flex items-center justify-between">
+      <div className="max-w-lg mx-auto px-4 pt-5 space-y-4">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-foreground">Progress</h1>
             <SubscriptionBadge />
@@ -342,7 +337,7 @@ export default function ProgressPage() {
           >
             <Share2 className="w-3.5 h-3.5" /> Share Report
           </button>
-        </motion.div>
+        </div>
 
         {/* Plan Progress Card */}
         {(() => {
@@ -353,7 +348,7 @@ export default function ProgressPage() {
           if (!prog) return null;
           const startWeight = activePlan.targetWeight ? (profile?.weightKg || 0) : 0;
           return (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card-elevated p-4 space-y-3 border-l-4 border-l-primary">
+            <div className="card-elevated p-4 space-y-3 border-l-4 border-l-primary">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Target className="w-4 h-4 text-primary" />
@@ -380,7 +375,7 @@ export default function ProgressPage() {
                   </div>
                 ))}
               </div>
-            </motion.div>
+            </div>
           );
         })()}
 
@@ -596,7 +591,7 @@ export default function ProgressPage() {
             </div>
           </>
         )}
-      </motion.div>
+      </div>
 
       <WeightLogSheet
         open={showWeightSheet}
