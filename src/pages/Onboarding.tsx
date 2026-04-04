@@ -20,15 +20,15 @@ import PredictionSummaryStep from '@/components/onboarding/PredictionSummaryStep
 import FoodIntelligenceStep from '@/components/onboarding/FoodIntelligenceStep';
 import PlansPage from '@/components/PlansPage';
 
-// ── Animation variants ──
+// ── Animation variants (upgraded) ──
 const pageVariants = {
-  enter: (d: number) => ({ x: d > 0 ? 60 : -60, opacity: 0 }),
-  center: { x: 0, opacity: 1, transition: { type: 'spring' as const, stiffness: 400, damping: 35 } },
-  exit: (d: number) => ({ x: d < 0 ? 60 : -60, opacity: 0, transition: { duration: 0.2 } }),
+  enter: (d: number) => ({ x: d > 0 ? 80 : -80, opacity: 0, scale: 0.95 }),
+  center: { x: 0, opacity: 1, scale: 1, transition: { type: 'spring' as const, stiffness: 350, damping: 32 } },
+  exit: (d: number) => ({ x: d < 0 ? 80 : -80, opacity: 0, scale: 0.95, transition: { duration: 0.2 } }),
 };
 const stagger = {
-  hidden: { opacity: 0, y: 12 },
-  visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.05, type: 'spring' as const, stiffness: 500, damping: 35 } }),
+  hidden: { opacity: 0, y: 16, scale: 0.97 },
+  visible: (i: number) => ({ opacity: 1, y: 0, scale: 1, transition: { delay: i * 0.06, type: 'spring' as const, stiffness: 400, damping: 30 } }),
 };
 
 // ── Reusable UI ──
