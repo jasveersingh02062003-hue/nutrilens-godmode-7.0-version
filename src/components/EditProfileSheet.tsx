@@ -476,152 +476,27 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
               </AnimatePresence>
             </div>
 
-            {/* Gym Settings (Collapsible) */}
+            {/* Gym Settings (Simplified — links to dedicated page) */}
             <div className="space-y-3">
-              <button onClick={() => setGymOpen(!gymOpen)} className="flex items-center gap-2 w-full">
+              <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
                   <Dumbbell className="w-3.5 h-3.5 text-primary" />
                 </div>
                 <h3 className="text-sm font-bold text-foreground flex-1 text-left">Gym Settings</h3>
-                {gymOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-              </button>
-              <AnimatePresence>
-                {gymOpen && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden pl-9 space-y-3">
-                    <Field label="I go to the gym">
-                      <div className="flex gap-2">
-                        {[true, false].map(v => (
-                          <button key={String(v)} onClick={() => setGymGoer(v)}
-                            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${gymGoer === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                            {v ? '🏋️ Yes' : '❌ No'}
-                          </button>
-                        ))}
-                      </div>
-                    </Field>
-                    {gymGoer && (
-                      <>
-                        <Field label={`Days per week: ${gymDays}`}>
-                          <Slider value={[gymDays]} onValueChange={v => setGymDays(v[0])} min={1} max={7} step={1} />
-                        </Field>
-                        <Field label="Duration">
-                          <div className="flex gap-2">
-                            {[30, 45, 60].map(d => (
-                              <button key={d} onClick={() => setGymDuration(d)}
-                                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${gymDuration === d ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                                {d === 60 ? '60+ min' : `${d} min`}
-                              </button>
-                            ))}
-                          </div>
-                        </Field>
-                        <Field label="Intensity">
-                          <div className="flex gap-2">
-                            {(['light', 'moderate', 'intense'] as const).map(i => (
-                              <button key={i} onClick={() => setGymIntensity(i)}
-                                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${gymIntensity === i ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                                {i.charAt(0).toUpperCase() + i.slice(1)}
-                              </button>
-                            ))}
-                          </div>
-                        </Field>
-                        <Field label="Goal">
-                          <div className="flex gap-2">
-                            {([['fat_loss', '🔥 Fat Loss'], ['muscle_gain', '💪 Muscle'], ['general', '🏃 General']] as const).map(([v, l]) => (
-                              <button key={v} onClick={() => setGymGoal(v as any)}
-                                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${gymGoal === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                                {l}
-                              </button>
-                            ))}
-                          </div>
-                        </Field>
-
-                        {/* Gym Timing */}
-                        <Field label="When do you go?">
-                          <div className="grid grid-cols-2 gap-2">
-                            {[
-                              { v: 'morning', l: '🌅 Morning' },
-                              { v: 'afternoon', l: '☀️ Afternoon' },
-                              { v: 'evening', l: '🌆 Evening' },
-                              { v: 'night', l: '🌙 Night' },
-                            ].map(o => (
-                              <button key={o.v} onClick={() => setGymTimeOfDay(o.v)}
-                                className={`py-2 rounded-xl text-xs font-semibold transition-colors ${gymTimeOfDay === o.v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                                {o.l}
-                              </button>
-                            ))}
-                          </div>
-                        </Field>
-
-                        {gymTimeOfDay && (
-                          <Field label={`Exact time: ${gymSpecificHour > 12 ? gymSpecificHour - 12 : gymSpecificHour === 0 ? 12 : gymSpecificHour}:00 ${gymSpecificHour >= 12 ? 'PM' : 'AM'}`}>
-                            <input type="range" min={0} max={23} step={1} value={gymSpecificHour}
-                              onChange={e => setGymSpecificHour(Number(e.target.value))} className="w-full accent-primary" />
-                          </Field>
-                        )}
-
-                        {/* Work Schedule */}
-                        <Field label="Work Hours">
-                          <div className="flex gap-2 items-center">
-                            <input type="time" value={workStart} onChange={e => setWorkStart(e.target.value)}
-                              className="flex-1 px-3 py-2 rounded-xl bg-muted border border-border text-xs font-medium outline-none" />
-                            <span className="text-muted-foreground text-xs">to</span>
-                            <input type="time" value={workEnd} onChange={e => setWorkEnd(e.target.value)}
-                              className="flex-1 px-3 py-2 rounded-xl bg-muted border border-border text-xs font-medium outline-none" />
-                          </div>
-                        </Field>
-
-                        {/* Sleep Schedule */}
-                        <Field label="Sleep Schedule">
-                          <div className="flex gap-2 items-center">
-                            <input type="time" value={sleepStart} onChange={e => setSleepStart(e.target.value)}
-                              className="flex-1 px-3 py-2 rounded-xl bg-muted border border-border text-xs font-medium outline-none" />
-                            <span className="text-muted-foreground text-xs">to</span>
-                            <input type="time" value={sleepEnd} onChange={e => setSleepEnd(e.target.value)}
-                              className="flex-1 px-3 py-2 rounded-xl bg-muted border border-border text-xs font-medium outline-none" />
-                          </div>
-                        </Field>
-
-                        {/* Shift Type */}
-                        <Field label="Shift Type">
-                          <div className="flex gap-2">
-                            {[['day', '☀️ Day'], ['night', '🌙 Night'], ['rotating', '🔄 Rotating']].map(([v, l]) => (
-                              <button key={v} onClick={() => setShiftType(v)}
-                                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${shiftType === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                                {l}
-                              </button>
-                            ))}
-                          </div>
-                        </Field>
-
-                        {/* Fasted Training Toggle */}
-                        <Field label="Training Style">
-                          <button
-                            onClick={() => setFastedTraining(!fastedTraining)}
-                            className={`w-full px-4 py-2.5 rounded-xl text-xs font-semibold transition-colors border ${fastedTraining ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted text-muted-foreground border-border'}`}
-                          >
-                            {fastedTraining ? '🥊 Fasted Training (no pre-workout meal)' : '🍌 Regular (pre-workout meal suggested)'}
-                          </button>
-                        </Field>
-
-                        {/* Weekend Schedule */}
-                        <Field label="Different schedule on weekends?">
-                          <button
-                            onClick={() => setHasWeekendSchedule(!hasWeekendSchedule)}
-                            className={`w-full px-4 py-2.5 rounded-xl text-xs font-semibold transition-colors border ${hasWeekendSchedule ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted text-muted-foreground border-border'}`}
-                          >
-                            {hasWeekendSchedule ? '✅ Yes, different weekend time' : '📅 Same as weekdays'}
-                          </button>
-                        </Field>
-                        {hasWeekendSchedule && (
-                          <Field label={`Weekend gym time: ${weekendHour > 12 ? weekendHour - 12 : weekendHour === 0 ? 12 : weekendHour}:00 ${weekendHour >= 12 ? 'PM' : 'AM'}`}>
-                            <input type="range" min={0} max={23} step={1} value={weekendHour}
-                              onChange={e => setWeekendHour(Number(e.target.value))} className="w-full accent-primary" />
-                          </Field>
-                        )}
-                      </>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              </div>
+              <Field label="I go to the gym">
+                <div className="flex gap-2">
+                  {[true, false].map(v => (
+                    <button key={String(v)} onClick={() => setGymGoer(v)}
+                      className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${gymGoer === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                      {v ? '🏋️ Yes' : '❌ No'}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+              <p className="text-[10px] text-primary font-medium pl-9">
+                Open Gym Settings from Profile for full configuration →
+              </p>
             </div>
 
             {/* Bottom spacer */}

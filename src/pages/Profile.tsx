@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from 'react';
-import { ArrowLeft, Edit2, Bell, Activity, Download, HelpCircle, ChevronRight, Package, LogOut, Loader2, Heart, SlidersHorizontal, Crown, Zap, Star, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Edit2, Bell, Activity, Download, HelpCircle, ChevronRight, Package, LogOut, Loader2, Heart, SlidersHorizontal, Crown, Zap, Star, ArrowRight, Dumbbell } from 'lucide-react';
 import { getActivePlan, getActivePlanRaw, getPlanProgress, getPlanById } from '@/lib/event-plan-service';
 import { isReverseDietActive, getReverseDietWeek } from '@/lib/reverse-diet-service';
 import { useNavigate } from 'react-router-dom';
@@ -14,6 +14,7 @@ import ExportDataSheet from '@/components/ExportDataSheet';
 import HelpSupportSheet from '@/components/HelpSupportSheet';
 import NotificationSettingsPanel from '@/components/NotificationSettingsPanel';
 import SkinConcernsSheet from '@/components/SkinConcernsSheet';
+import GymSettingsPage from '@/components/GymSettingsPage';
 import { getTrackingMode, setTrackingMode, type TrackingMode } from '@/lib/smart-adjustment';
 import { getCorrections } from '@/lib/corrections';
 import { getAutoAdjust, setAutoAdjust, getCorrectionMode, setCorrectionMode, getModeImpactPreview, type CorrectionMode } from '@/lib/calorie-correction';
@@ -42,6 +43,7 @@ export default function Profile() {
   const [showHelp, setShowHelp] = useState(false);
   const [showHealthCard, setShowHealthCard] = useState(false);
   const [showSkinConcerns, setShowSkinConcerns] = useState(false);
+  const [showGymSettings, setShowGymSettings] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [trackingModeState, setTrackingModeState] = useState<TrackingMode>(getTrackingMode());
   const [currentPlan, setCurrentPlan] = useState<Plan>(() => { checkAndExpireTrial(); return getPlan(); });
@@ -112,6 +114,7 @@ export default function Profile() {
     { icon: Brain, label: 'AI Learning', sub: `${correctionCount} corrections stored`, action: () => setShowAILearning(true) },
     { icon: Package, label: 'My Pantry', sub: 'Track grocery inventory', action: () => navigate('/pantry') },
     { icon: Flower2, label: 'Skin Health', sub: skinSub(), action: () => setShowSkinConcerns(true) },
+    { icon: Dumbbell, label: 'Gym Settings', sub: (() => { const g = profile?.gym; if (g?.goer) return `${g.daysPerWeek} days/week · ${g.stats?.currentStreak || 0} day streak`; return 'Set up gym tracking'; })(), action: () => setShowGymSettings(true) },
     { icon: Crown, label: 'Special Plans', sub: (() => { const ap = getActivePlan(); if (ap) { const p = getPlanProgress(); const m = getPlanById(ap.planId); return `${m?.name || 'Active'} — Day ${p?.dayNumber}/${p?.totalDays}`; } if (isReverseDietActive()) { return `Reverse Diet — Week ${getReverseDietWeek()}/3`; } return 'Browse transformation plans'; })(), action: () => { const ap = getActivePlan(); if (ap) { toast('Manage your active plan from Dashboard banner', { icon: '🎯' }); } else { navigate('/planner?tab=Plans'); } } },
     { icon: SlidersHorizontal, label: 'Tracking Mode', sub: trackingModeState === 'flex' ? 'Flex – gentle adjustments' : 'Strict – tighter limits', action: handleTrackingModeToggle },
     { icon: Zap, label: 'Correction Mode', sub: `${correctionModeState.charAt(0).toUpperCase() + correctionModeState.slice(1)} – ${correctionModeState === 'aggressive' ? 'fast recovery' : correctionModeState === 'relaxed' ? 'minimal correction' : 'moderate'}`, action: handleCorrectionModeChange },
@@ -429,6 +432,7 @@ export default function Profile() {
         <HelpSupportSheet open={showHelp} onClose={() => setShowHelp(false)} />
         <HealthCardSheet open={showHealthCard} onClose={() => setShowHealthCard(false)} />
         <SkinConcernsSheet open={showSkinConcerns} onClose={() => setShowSkinConcerns(false)} />
+        <GymSettingsPage open={showGymSettings} onClose={() => setShowGymSettings(false)} />
         <UpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} onUpgraded={() => setCurrentPlan(getPlan())} />
         <PlansPage open={showPlans} onClose={() => setShowPlans(false)} onPlanChanged={() => setCurrentPlan(getPlan())} />
 

@@ -5,7 +5,12 @@ import { toast } from 'sonner';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export default function GymPDFExport() {
+interface GymPDFExportProps {
+  startDate?: string;
+  endDate?: string;
+}
+
+export default function GymPDFExport({ startDate, endDate }: GymPDFExportProps = {}) {
   const [generating, setGenerating] = useState(false);
 
   const handleExport = async () => {
@@ -21,10 +26,18 @@ export default function GymPDFExport() {
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
       const pw = doc.internal.pageSize.getWidth();
       const today = new Date();
-      const year = today.getFullYear();
-      const month = today.getMonth();
+
+      // Determine date range
+      const rangeStart = startDate ? new Date(startDate + 'T00:00:00') : new Date(today.getFullYear(), today.getMonth(), 1);
+      const rangeEnd = endDate ? new Date(endDate + 'T00:00:00') : today;
+      const year = rangeStart.getFullYear();
+      const month = rangeStart.getMonth();
+      const totalDaysInRange = Math.ceil((rangeEnd.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       const daysInMonth = new Date(year, month + 1, 0).getDate();
-      const monthName = today.toLocaleString('default', { month: 'long', year: 'numeric' });
+      const periodLabel = startDate && endDate
+        ? `${rangeStart.toLocaleDateString('default', { month: 'short', day: 'numeric' })} – ${rangeEnd.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}`
+        : today.toLocaleString('default', { month: 'long', year: 'numeric' });
+      const monthName = periodLabel;
 
       // Gather data
       const workoutDays: number[] = [];
@@ -35,8 +48,9 @@ export default function GymPDFExport() {
       const energyOffGym: number[] = [];
       const allEnergy: { day: number; level: number }[] = [];
 
-      for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      for (let dt = new Date(rangeStart); dt <= rangeEnd; dt.setDate(dt.getDate() + 1)) {
+        const d = dt.getDate();
+        const dateStr = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
         const log = getDailyLog(dateStr);
         if (log.gym?.attended) {
           workoutDays.push(d);
@@ -44,7 +58,6 @@ export default function GymPDFExport() {
           totalCals += log.gym.caloriesBurned || 0;
           if (log.energyLevel) energyOnGym.push(log.energyLevel);
         } else {
-          const dt = new Date(dateStr + 'T00:00:00');
           missedDayNames.push(DAY_NAMES[dt.getDay()]);
           if (log.energyLevel) energyOffGym.push(log.energyLevel);
         }
