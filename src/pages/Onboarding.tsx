@@ -15,6 +15,8 @@ import { saveProfile } from '@/lib/store';
 import WelcomeScreen from '@/components/onboarding/WelcomeScreen';
 import SplashScreen from '@/components/onboarding/SplashScreen';
 import ScannerOnboardingScreen from '@/components/onboarding/ScannerOnboardingScreen';
+import CalculatingScreen from '@/components/onboarding/CalculatingScreen';
+import CompletionScreen from '@/components/onboarding/CompletionScreen';
 import TargetWeightStep from '@/components/onboarding/TargetWeightStep';
 import PredictionSummaryStep from '@/components/onboarding/PredictionSummaryStep';
 import FoodIntelligenceStep from '@/components/onboarding/FoodIntelligenceStep';
