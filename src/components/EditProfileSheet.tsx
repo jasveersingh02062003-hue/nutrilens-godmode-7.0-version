@@ -522,6 +522,64 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
                             ))}
                           </div>
                         </Field>
+
+                        {/* Gym Timing */}
+                        <Field label="When do you go?">
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              { v: 'morning', l: '🌅 Morning' },
+                              { v: 'afternoon', l: '☀️ Afternoon' },
+                              { v: 'evening', l: '🌆 Evening' },
+                              { v: 'night', l: '🌙 Night' },
+                            ].map(o => (
+                              <button key={o.v} onClick={() => setGymTimeOfDay(o.v)}
+                                className={`py-2 rounded-xl text-xs font-semibold transition-colors ${gymTimeOfDay === o.v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                                {o.l}
+                              </button>
+                            ))}
+                          </div>
+                        </Field>
+
+                        {gymTimeOfDay && (
+                          <Field label={`Exact time: ${gymSpecificHour > 12 ? gymSpecificHour - 12 : gymSpecificHour === 0 ? 12 : gymSpecificHour}:00 ${gymSpecificHour >= 12 ? 'PM' : 'AM'}`}>
+                            <input type="range" min={0} max={23} step={1} value={gymSpecificHour}
+                              onChange={e => setGymSpecificHour(Number(e.target.value))} className="w-full accent-primary" />
+                          </Field>
+                        )}
+
+                        {/* Work Schedule */}
+                        <Field label="Work Hours">
+                          <div className="flex gap-2 items-center">
+                            <input type="time" value={workStart} onChange={e => setWorkStart(e.target.value)}
+                              className="flex-1 px-3 py-2 rounded-xl bg-muted border border-border text-xs font-medium outline-none" />
+                            <span className="text-muted-foreground text-xs">to</span>
+                            <input type="time" value={workEnd} onChange={e => setWorkEnd(e.target.value)}
+                              className="flex-1 px-3 py-2 rounded-xl bg-muted border border-border text-xs font-medium outline-none" />
+                          </div>
+                        </Field>
+
+                        {/* Sleep Schedule */}
+                        <Field label="Sleep Schedule">
+                          <div className="flex gap-2 items-center">
+                            <input type="time" value={sleepStart} onChange={e => setSleepStart(e.target.value)}
+                              className="flex-1 px-3 py-2 rounded-xl bg-muted border border-border text-xs font-medium outline-none" />
+                            <span className="text-muted-foreground text-xs">to</span>
+                            <input type="time" value={sleepEnd} onChange={e => setSleepEnd(e.target.value)}
+                              className="flex-1 px-3 py-2 rounded-xl bg-muted border border-border text-xs font-medium outline-none" />
+                          </div>
+                        </Field>
+
+                        {/* Shift Type */}
+                        <Field label="Shift Type">
+                          <div className="flex gap-2">
+                            {[['day', '☀️ Day'], ['night', '🌙 Night'], ['rotating', '🔄 Rotating']].map(([v, l]) => (
+                              <button key={v} onClick={() => setShiftType(v)}
+                                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${shiftType === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                                {l}
+                              </button>
+                            ))}
+                          </div>
+                        </Field>
                       </>
                     )}
                   </motion.div>
