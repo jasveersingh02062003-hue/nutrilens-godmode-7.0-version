@@ -432,6 +432,7 @@ export default function Profile() {
         <HelpSupportSheet open={showHelp} onClose={() => setShowHelp(false)} />
         <HealthCardSheet open={showHealthCard} onClose={() => setShowHealthCard(false)} />
         <SkinConcernsSheet open={showSkinConcerns} onClose={() => setShowSkinConcerns(false)} />
+        <GymSettingsPage open={showGymSettings} onClose={() => setShowGymSettings(false)} />
         <UpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} onUpgraded={() => setCurrentPlan(getPlan())} />
         <PlansPage open={showPlans} onClose={() => setShowPlans(false)} onPlanChanged={() => setCurrentPlan(getPlan())} />
 
