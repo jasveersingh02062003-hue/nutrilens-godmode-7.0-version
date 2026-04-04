@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { ArrowLeft, Edit2, Bell, Activity, Download, HelpCircle, ChevronRight, Package, LogOut, Loader2, Heart, SlidersHorizontal, Crown, Zap, Star, ArrowRight, Dumbbell } from 'lucide-react';
 import { getActivePlan, getActivePlanRaw, getPlanProgress, getPlanById } from '@/lib/event-plan-service';
 import { isReverseDietActive, getReverseDietWeek } from '@/lib/reverse-diet-service';
@@ -132,28 +133,55 @@ export default function Profile() {
     return active.length ? `${active.length} concern${active.length > 1 ? 's' : ''} tracked` : 'Set skin concerns for food tips';
   }
 
+  const stagger = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.06 } },
+  };
+  const fadeUp = {
+    hidden: { opacity: 0, y: 12 },
+    visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 350, damping: 30 } },
+  };
+
   return (
     <div className="min-h-screen pb-24 bg-background">
-      <div className="max-w-lg mx-auto px-4 pt-5 space-y-4 animate-fade-in">
-        <div className="flex items-center gap-3">
+      <div className="ambient-mesh" />
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={stagger}
+        className="max-w-lg mx-auto px-4 pt-5 space-y-4"
+      >
+        <motion.div variants={fadeUp} className="flex items-center gap-3">
           <button onClick={() => navigate('/')} className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center"><ArrowLeft className="w-5 h-5" /></button>
           <h1 className="text-lg font-bold text-foreground">Profile</h1>
-        </div>
+        </motion.div>
 
-        {/* Profile Header */}
-        <div className="card-elevated p-5 cursor-pointer" onClick={() => setShowHealthCard(true)}>
+        {/* Profile Header — glassmorphism + breathing ring */}
+        <motion.div variants={fadeUp} className="glass-card p-5 cursor-pointer" onClick={() => setShowHealthCard(true)}>
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center overflow-hidden">
-              {profilePhoto ? (
-                <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-2xl font-bold text-primary">{(profile.name || 'U')[0].toUpperCase()}</span>
-              )}
+            <div className="relative">
+              <motion.div
+                animate={{
+                  boxShadow: [
+                    '0 0 0 3px hsl(var(--primary) / 0.1)',
+                    '0 0 0 6px hsl(var(--primary) / 0.15)',
+                    '0 0 0 3px hsl(var(--primary) / 0.1)',
+                  ],
+                }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center overflow-hidden"
+              >
+                {profilePhoto ? (
+                  <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-2xl font-bold text-primary">{(profile.name || 'U')[0].toUpperCase()}</span>
+                )}
+              </motion.div>
             </div>
             <div className="flex-1">
-              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
                 <h2 className="font-bold text-lg text-foreground">{profile.name || 'NutriLens User'}</h2>
-                <SubscriptionBadge />
+                <span className="animate-shimmer-sweep"><SubscriptionBadge /></span>
                 {(() => {
                   const raw = getActivePlanRaw();
                   if (!raw) return null;
@@ -176,7 +204,7 @@ export default function Profile() {
             <Heart className="w-5 h-5 text-destructive/50" />
           </div>
           <p className="text-[9px] text-muted-foreground mt-2 text-center">Tap to view your Health Card</p>
-        </div>
+        </motion.div>
 
         {/* Active Plan Quick Card */}
         {(() => {
@@ -233,21 +261,31 @@ export default function Profile() {
         })()}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-3 gap-2">
-          {statCards.map(s => (
-            <div key={s.label} className="card-subtle p-3 text-center">
+        <motion.div variants={fadeUp} className="grid grid-cols-3 gap-2">
+          {statCards.map((s, i) => (
+            <motion.div
+              key={s.label}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 + i * 0.05, type: 'spring', stiffness: 350, damping: 30 }}
+              className="card-subtle p-3 text-center"
+            >
               <p className="text-lg font-bold text-foreground">{s.value}</p>
               <p className="text-[9px] text-muted-foreground font-medium">{s.unit}</p>
               <p className="text-[10px] text-muted-foreground mt-0.5">{s.label}</p>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
 
-        {/* Settings */}
-        <div className="card-elevated overflow-hidden">
+        {/* Settings — staggered cascade */}
+        <motion.div variants={fadeUp} className="card-elevated overflow-hidden">
           {settings.map((s, i) => (
-            <button
+            <motion.button
               key={s.label}
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 + i * 0.04, type: 'spring', stiffness: 300, damping: 28 }}
+              whileTap={{ scale: 0.98 }}
               onClick={s.action}
               className={`w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-muted/50 transition-colors ${i < settings.length - 1 ? 'border-b border-border' : ''}`}
             >
@@ -259,9 +297,9 @@ export default function Profile() {
                 <p className="text-[10px] text-muted-foreground">{s.sub}</p>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            </button>
+            </motion.button>
           ))}
-        </div>
+        </motion.div>
 
         {/* ── My Plans Section ── */}
         <div className="card-elevated p-4 space-y-4">
@@ -469,7 +507,7 @@ export default function Profile() {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
+      </motion.div>
     </div>
   );
 }

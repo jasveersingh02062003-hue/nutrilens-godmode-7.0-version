@@ -544,18 +544,25 @@ export default function LogFood() {
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search Indian & global foods..." className="w-full pl-10 pr-4 py-3 rounded-xl bg-card border border-border text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-shadow" />
             </div>
 
-            {/* Results */}
+            {/* Results — staggered entrance */}
             <div className="space-y-1.5">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-0.5">
                 {search ? 'Results' : 'Popular Indian Foods'}
               </p>
-              {filtered.map(food => {
+              {filtered.map((food, foodIdx) => {
                 const allergenCheck = checkAllergens(food.name, userAllergens);
                 const conditionWarnings = checkFoodForConditions(food.name, userConditions);
                 const hasAnyWarning = allergenCheck.hasConflict || conditionWarnings.length > 0;
                 const isCompareSelected = compareSelection.some(c => c.id === food.id);
                 return (
-                  <div key={food.id} className={`card-subtle p-3 flex items-center gap-3 w-full text-left hover:shadow-md transition-shadow ${isCompareSelected ? 'ring-2 ring-primary/50' : ''}`}>
+                  <motion.div
+                    key={food.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: foodIdx * 0.04, type: 'spring', stiffness: 350, damping: 30 }}
+                    whileTap={{ scale: 0.97 }}
+                    className={`card-subtle p-3 flex items-center gap-3 w-full text-left hover:shadow-md transition-shadow ${isCompareSelected ? 'ring-2 ring-primary/50' : ''}`}
+                  >
                     <button onClick={() => addFood(food)} className="flex items-center gap-3 flex-1 min-w-0 active:scale-[0.99]">
                       <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
                         <span className="text-xs font-bold text-muted-foreground">{food.calories}</span>
@@ -603,7 +610,7 @@ export default function LogFood() {
                         <Plus className={`w-4 h-4 ${hasAnyWarning ? 'text-destructive' : 'text-primary'}`} />
                       </button>
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
             </div>
@@ -750,10 +757,10 @@ export default function LogFood() {
                         />
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2 mt-2">
-                        <button onClick={() => updateQty(item.id, -0.5)} className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center active:scale-90 transition-transform"><Minus className="w-3 h-3" /></button>
+                    <div className="flex items-center gap-2 mt-2">
+                        <motion.button whileTap={{ scale: 0.8 }} onClick={() => updateQty(item.id, -0.5)} className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center active:scale-90 transition-transform"><Minus className="w-3 h-3" /></motion.button>
                         <span className="text-sm font-bold min-w-[3.5rem] text-center">{item.quantity} {item.unit}</span>
-                        <button onClick={() => updateQty(item.id, 0.5)} className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center active:scale-90 transition-transform"><Plus className="w-3 h-3 text-primary" /></button>
+                        <motion.button whileTap={{ scale: 0.8 }} onClick={() => updateQty(item.id, 0.5)} className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center active:scale-90 transition-transform"><Plus className="w-3 h-3 text-primary" /></motion.button>
                       </div>
                     )}
                   </div>
@@ -806,10 +813,19 @@ export default function LogFood() {
               </div>
             )}
 
-            <button onClick={saveMeal} disabled={validationResult.hasBlocks}
-              className="btn-primary w-full py-3.5 flex items-center justify-center gap-2 disabled:opacity-40">
+            <motion.button
+              onClick={saveMeal}
+              disabled={validationResult.hasBlocks}
+              whileTap={{ scale: 0.95 }}
+              className="btn-primary w-full py-3.5 flex items-center justify-center gap-2 disabled:opacity-40 relative overflow-hidden"
+            >
+              <motion.div
+                animate={{ x: ['-100%', '200%'] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', repeatDelay: 3 }}
+                className="absolute inset-0 w-1/3 bg-gradient-to-r from-transparent via-primary-foreground/10 to-transparent skew-x-12"
+              />
               <Check className="w-4 h-4" /> {validationResult.hasBlocks ? '⚠️ Fix issues first' : 'Save Meal'}
-            </button>
+            </motion.button>
           </>
         )}
       </div>
