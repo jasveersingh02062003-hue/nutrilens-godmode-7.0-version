@@ -6,6 +6,7 @@ import { isGymDay, getGymCheckInStatus, saveGymCheckIn, estimateCaloriesBurned, 
 import { shouldShowCheckIn, getGymMissedAdjustment, getLowSleepTip, getSleepDuration } from '@/lib/gym-meal-engine';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
+import WorkoutLogger from '@/components/WorkoutLogger';
 
 interface GymCheckInCardProps {
   onRefresh?: () => void;
