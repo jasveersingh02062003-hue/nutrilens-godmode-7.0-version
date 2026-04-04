@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Battery, X } from 'lucide-react';
+import { Battery, X, TrendingUp } from 'lucide-react';
 import { getProfile, getDailyLog, saveDailyLog, toLocalDateKey } from '@/lib/store';
+import { getEnergyInsight } from '@/lib/gym-meal-engine';
 
 interface EnergyTrackerProps {
   onRefresh?: () => void;
@@ -15,6 +16,9 @@ export default function EnergyTracker({ onRefresh }: EnergyTrackerProps) {
   const log = getDailyLog(today);
   const [dismissed, setDismissed] = useState(false);
   const [saved, setSaved] = useState(!!log.energyLevel);
+
+  // Energy correlation insight (shows after 7+ days of data)
+  const insight = useMemo(() => getEnergyInsight(), []);
 
   if (dismissed || saved) return null;
 
@@ -45,6 +49,14 @@ export default function EnergyTracker({ onRefresh }: EnergyTrackerProps) {
           <X className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Energy correlation insight */}
+      {insight && (
+        <div className="bg-primary/5 border border-primary/15 rounded-xl px-3 py-2 flex items-start gap-2">
+          <TrendingUp className="w-3.5 h-3.5 text-primary mt-0.5 flex-shrink-0" />
+          <p className="text-[10px] text-foreground leading-relaxed">{insight}</p>
+        </div>
+      )}
 
       <div className="flex gap-2 justify-center">
         {([1, 2, 3, 4, 5] as const).map(level => (

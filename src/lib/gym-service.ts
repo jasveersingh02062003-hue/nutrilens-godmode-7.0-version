@@ -4,6 +4,7 @@
 // ============================================
 
 import { getDailyLog, getProfile, getRecentLogs, saveDailyLog, saveProfile, type UserProfile, type DailyLog, toLocalDateKey } from './store';
+import { scopedGet, scopedSet } from './scoped-storage';
 
 // ── Types ──
 
@@ -30,6 +31,9 @@ export interface GymDayLog {
   durationMinutes: number;
   caloriesBurned: number;
   intensity: string;
+  actualHour?: number;
+  missReason?: string;
+  restDayPlanned?: boolean;
 }
 
 // ── MET values ──
@@ -54,13 +58,71 @@ export function inferSchedule(daysPerWeek: number): string[] {
   return patterns[daysPerWeek] || patterns[3];
 }
 
-// ── Day check ──
+// ── Rest day management ──
+
+const REST_DAYS_KEY = 'gym_rest_days';
+
+export function getRestDays(): string[] {
+  try {
+    const raw = scopedGet(REST_DAYS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+export function markRestDay(date: string): void {
+  const days = getRestDays();
+  if (!days.includes(date)) {
+    days.push(date);
+    scopedSet(REST_DAYS_KEY, JSON.stringify(days));
+  }
+  // Also mark in daily log
+  const log = getDailyLog(date);
+  log.gym = { attended: false, durationMinutes: 0, caloriesBurned: 0, intensity: 'none', missReason: 'rest_day', restDayPlanned: true };
+  saveDailyLog(log);
+}
+
+export function unmarkRestDay(date: string): void {
+  const days = getRestDays().filter(d => d !== date);
+  scopedSet(REST_DAYS_KEY, JSON.stringify(days));
+}
+
+export function isRestDay(date: string): boolean {
+  return getRestDays().includes(date);
+}
+
+// ── Day check (with weekend schedule support + rest day) ──
 
 export function isGymDay(profile: UserProfile | null, date?: string): boolean {
   if (!profile?.gym?.goer || !profile.gym.schedule?.length) return false;
-  const d = date ? new Date(date + 'T00:00:00') : new Date();
+  const dateStr = date || toLocalDateKey(new Date());
+  
+  // Check rest day
+  if (isRestDay(dateStr)) return false;
+  
+  const d = new Date(dateStr + 'T00:00:00');
   const dayName = DAY_NAMES[d.getDay()];
+  const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+  
+  // Use weekend schedule if available
+  if (isWeekend && profile.gym.weekendSchedule?.length) {
+    return profile.gym.weekendSchedule.includes(dayName);
+  }
+  
   return profile.gym.schedule.includes(dayName);
+}
+
+// ── Get specific hour for a date (respects weekend hour) ──
+
+export function getSpecificHourForDate(profile: UserProfile | null, date?: string): number | undefined {
+  if (!profile?.gym?.goer) return undefined;
+  const dateStr = date || toLocalDateKey(new Date());
+  const d = new Date(dateStr + 'T00:00:00');
+  const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+  
+  if (isWeekend && profile.gym.weekendHour != null) {
+    return profile.gym.weekendHour;
+  }
+  return profile.gym.specificHour;
 }
 
 // ── Check-in status ──
@@ -79,13 +141,15 @@ export function estimateCaloriesBurned(weightKg: number, durationMinutes: number
   return Math.round(durationMinutes * met * (weightKg / 60));
 }
 
-// ── Save check-in ──
+// ── Save check-in (enhanced with actualHour and missReason) ──
 
 export function saveGymCheckIn(
   date: string,
   attended: boolean,
   durationMinutes?: number,
-  intensity?: string
+  intensity?: string,
+  actualHour?: number,
+  missReason?: 'tired' | 'injury' | 'sick' | 'no_time' | 'rest_day' | 'other'
 ): void {
   const profile = getProfile();
   const weightKg = profile?.weightKg || 70;
@@ -101,6 +165,8 @@ export function saveGymCheckIn(
       durationMinutes: dur,
       caloriesBurned: cals,
       intensity: int,
+      ...(actualHour != null ? { actualHour } : {}),
+      ...(missReason ? { missReason } : {}),
     },
   };
   saveDailyLog(updatedLog);

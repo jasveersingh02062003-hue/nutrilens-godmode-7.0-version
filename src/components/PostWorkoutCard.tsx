@@ -1,23 +1,60 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { UtensilsCrossed, X, Check } from 'lucide-react';
-import { getProfile, toLocalDateKey, getDailyLog } from '@/lib/store';
+import { UtensilsCrossed, X, Check, SkipForward } from 'lucide-react';
+import { getProfile, toLocalDateKey, getDailyLog, addMealToLog, type MealEntry, type FoodItem } from '@/lib/store';
 import { isGymDay } from '@/lib/gym-service';
 import { getPostWorkoutSuggestion } from '@/lib/gym-meal-engine';
-import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export default function PostWorkoutCard() {
   const profile = getProfile();
   const today = toLocalDateKey(new Date());
   const log = getDailyLog(today);
-  const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(false);
 
-  const suggestion = useMemo(() => getPostWorkoutSuggestion(profile), [profile]);
+  // Get actual duration/intensity from today's gym log for scaling
+  const actualDuration = log.gym?.durationMinutes;
+  const actualIntensity = log.gym?.intensity;
+
+  const suggestion = useMemo(
+    () => getPostWorkoutSuggestion(profile, actualDuration, actualIntensity),
+    [profile, actualDuration, actualIntensity]
+  );
 
   if (!profile?.gym?.goer || !isGymDay(profile, today) || dismissed) return null;
   if (!log.gym?.attended) return null; // only show after gym check-in "Yes"
   if (!suggestion) return null;
+
+  const handleLogMeal = () => {
+    // Create a meal entry from the suggestion and log it in one tap
+    const mealItems: FoodItem[] = suggestion.items.map((item, i) => ({
+      id: `post-workout-${Date.now()}-${i}`,
+      name: item,
+      calories: Math.round(suggestion.calories / suggestion.items.length),
+      protein: Math.round(suggestion.protein / suggestion.items.length),
+      carbs: 0,
+      fat: 0,
+      quantity: 1,
+      unit: 'serving',
+      confidenceScore: 0.7,
+    }));
+
+    const now = new Date();
+    const meal: MealEntry = {
+      id: `post-workout-${Date.now()}`,
+      type: now.getHours() < 11 ? 'breakfast' : now.getHours() < 15 ? 'lunch' : 'dinner',
+      items: mealItems,
+      totalCalories: suggestion.calories,
+      totalProtein: suggestion.protein,
+      totalCarbs: 0,
+      totalFat: 0,
+      time: now.toTimeString().slice(0, 5),
+    };
+
+    addMealToLog(meal);
+    setDismissed(true);
+    toast.success(`🍽️ Meal logged! +${suggestion.protein}g protein`);
+  };
 
   return (
     <motion.div
@@ -32,7 +69,10 @@ export default function PostWorkoutCard() {
           </div>
           <div>
             <p className="text-sm font-semibold text-foreground">Recovery Meal 🍽️</p>
-            <p className="text-[10px] text-muted-foreground">Great workout! Refuel for recovery · {suggestion.timing}</p>
+            <p className="text-[10px] text-muted-foreground">
+              Great workout! Refuel for recovery · {suggestion.timing}
+              {actualDuration && actualDuration !== 45 && ` · Scaled for ${actualDuration}min`}
+            </p>
           </div>
         </div>
         <button onClick={() => setDismissed(true)} className="text-muted-foreground">
@@ -59,12 +99,20 @@ export default function PostWorkoutCard() {
         <p className="text-[10px] text-muted-foreground italic">💡 {suggestion.tip}</p>
       )}
 
-      <button
-        onClick={() => { setDismissed(true); navigate('/log'); }}
-        className="w-full py-2.5 rounded-xl bg-green-600 text-white text-sm font-semibold flex items-center justify-center gap-2"
-      >
-        <Check className="w-4 h-4" /> Log This Meal
-      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={handleLogMeal}
+          className="flex-1 py-2.5 rounded-xl bg-green-600 text-white text-sm font-semibold flex items-center justify-center gap-2"
+        >
+          <Check className="w-4 h-4" /> Log This Meal
+        </button>
+        <button
+          onClick={() => setDismissed(true)}
+          className="py-2.5 px-4 rounded-xl bg-muted text-muted-foreground text-xs font-semibold flex items-center gap-1"
+        >
+          <SkipForward className="w-3.5 h-3.5" /> Skip
+        </button>
+      </div>
     </motion.div>
   );
 }

@@ -1,9 +1,11 @@
 // ============================================
 // Gym Meal Engine — Time-Aware Pre/Post Workout Nutrition
 // Science-backed suggestions based on gym timing, budget, and diet
+// With duration/intensity scaling and energy correlation
 // ============================================
 
-import { getProfile, getDailyLog, toLocalDateKey, type UserProfile } from './store';
+import { getProfile, getDailyLog, getRecentLogs, toLocalDateKey, type UserProfile } from './store';
+import { getSpecificHourForDate } from './gym-service';
 
 export interface MealSuggestion {
   title: string;
@@ -12,6 +14,7 @@ export interface MealSuggestion {
   protein: number;
   timing: string; // e.g. "1-2 hours before workout"
   tip?: string;
+  exactEatTime?: string; // e.g. "6:30 AM"
 }
 
 interface PrePostPair {
@@ -115,6 +118,31 @@ function getMealPair(timeOfDay: string): PrePostPair {
   }
 }
 
+// ── Format hour for display ──
+function formatHour(hour: number, minutes: number = 0): string {
+  const period = hour >= 12 ? 'PM' : 'AM';
+  const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+  return `${displayHour}:${String(minutes).padStart(2, '0')} ${period}`;
+}
+
+// ── Get exact eat time ──
+export function getExactEatTime(profile: UserProfile | null): string | null {
+  if (!profile?.gym?.goer) return null;
+  const gymHour = getSpecificHourForDate(profile) ?? profile.gym.specificHour;
+  if (gymHour == null) return null;
+  // Recommend eating 30 min before
+  const eatMinutes = gymHour * 60 - 30;
+  const eatHour = Math.floor(eatMinutes / 60);
+  const eatMin = eatMinutes % 60;
+  return formatHour(eatHour < 0 ? 0 : eatHour, eatMin < 0 ? 0 : eatMin);
+}
+
+// ── Duration/intensity scaling factor ──
+function getScaleFactor(duration: number, intensity: string): number {
+  const intensityMultiplier = intensity === 'light' ? 0.8 : intensity === 'intense' ? 1.3 : 1.0;
+  return (duration / 45) * intensityMultiplier;
+}
+
 // ── Public API ──
 
 export function getPreWorkoutSuggestion(profile: UserProfile | null): MealSuggestion | null {
@@ -123,32 +151,61 @@ export function getPreWorkoutSuggestion(profile: UserProfile | null): MealSugges
   const isVeg = profile.dietaryPrefs?.some(d => ['vegetarian', 'vegan', 'veg'].includes(d)) || false;
   const isBudget = (profile as any).lifestyle?.budget?.enabled || false;
   const idx = Math.floor(Math.random() * pair.pre.length);
-  return applySwaps(pair.pre[idx], isBudget, isVeg);
+  const suggestion = applySwaps(pair.pre[idx], isBudget, isVeg);
+  // Add exact eat time
+  const exactTime = getExactEatTime(profile);
+  return { ...suggestion, exactEatTime: exactTime || undefined };
 }
 
-export function getPostWorkoutSuggestion(profile: UserProfile | null): MealSuggestion | null {
+export function getPostWorkoutSuggestion(
+  profile: UserProfile | null,
+  actualDuration?: number,
+  actualIntensity?: string
+): MealSuggestion | null {
   if (!profile?.gym?.goer || !profile.gym.timeOfDay) return null;
   const pair = getMealPair(profile.gym.timeOfDay);
   const isVeg = profile.dietaryPrefs?.some(d => ['vegetarian', 'vegan', 'veg'].includes(d)) || false;
   const isBudget = (profile as any).lifestyle?.budget?.enabled || false;
   const idx = Math.floor(Math.random() * pair.post.length);
-  return applySwaps(pair.post[idx], isBudget, isVeg);
+  let suggestion = applySwaps(pair.post[idx], isBudget, isVeg);
+  
+  // Scale based on actual duration/intensity
+  const dur = actualDuration || profile.gym.durationMinutes || 45;
+  const int = actualIntensity || profile.gym.intensity || 'moderate';
+  const factor = getScaleFactor(dur, int);
+  
+  if (Math.abs(factor - 1.0) > 0.1) {
+    suggestion = {
+      ...suggestion,
+      calories: Math.round(suggestion.calories * factor),
+      protein: Math.round(suggestion.protein * factor),
+    };
+  }
+  
+  return suggestion;
 }
 
 export function shouldShowPreWorkout(profile: UserProfile | null): boolean {
-  if (!profile?.gym?.goer || profile.gym.specificHour == null) return false;
+  if (!profile?.gym?.goer) return false;
+  // If fasted training, never show pre-workout
+  if (profile.gym.fastedTraining) return false;
+  
+  const gymHour = getSpecificHourForDate(profile) ?? profile.gym.specificHour;
+  if (gymHour == null) return false;
   const now = new Date();
   const currentHour = now.getHours();
   const currentMin = now.getMinutes();
   const currentTotal = currentHour * 60 + currentMin;
-  const gymTotal = profile.gym.specificHour * 60;
+  const gymTotal = gymHour * 60;
   const diff = gymTotal - currentTotal;
-  // Show 30-60 min before gym time
+  // Show 30-75 min before gym time
   return diff >= 15 && diff <= 75;
 }
 
 export function shouldShowPostWorkout(profile: UserProfile | null): boolean {
-  if (!profile?.gym?.goer || profile.gym.specificHour == null) return false;
+  if (!profile?.gym?.goer) return false;
+  const gymHour = getSpecificHourForDate(profile) ?? profile.gym.specificHour;
+  if (gymHour == null) return false;
   const today = toLocalDateKey(new Date());
   const log = getDailyLog(today);
   if (!log.gym?.attended) return false;
@@ -156,19 +213,15 @@ export function shouldShowPostWorkout(profile: UserProfile | null): boolean {
   const currentHour = now.getHours();
   const currentMin = now.getMinutes();
   const currentTotal = currentHour * 60 + currentMin;
-  const gymEnd = profile.gym.specificHour * 60 + (profile.gym.durationMinutes || 45);
+  const gymEnd = gymHour * 60 + (profile.gym.durationMinutes || 45);
   const diff = currentTotal - gymEnd;
   // Show within 90 min after gym ends
   return diff >= 0 && diff <= 90;
 }
 
 export function shouldShowCheckIn(profile: UserProfile | null): boolean {
-  if (!profile?.gym?.goer || profile.gym.specificHour == null) return true; // fallback: always show
-  const now = new Date();
-  const currentTotal = now.getHours() * 60 + now.getMinutes();
-  const gymEnd = profile.gym.specificHour * 60 + (profile.gym.durationMinutes || 45) + 30;
-  // Show after expected gym end + 30 min
-  return currentTotal >= gymEnd;
+  // Always show on gym days if not yet answered (fixes late logging)
+  return true;
 }
 
 export function getGymMissedAdjustment(profile: UserProfile | null): { calorieReduction: number; carbReduction: number } {
@@ -200,7 +253,7 @@ export function getSleepDuration(profile: UserProfile | null): number | null {
 export function getLowSleepTip(profile: UserProfile | null): string | null {
   const hours = getSleepDuration(profile);
   if (hours === null || hours >= 6) return null;
-  return 'Low sleep increases hunger — prioritise protein to stay full. Consider reducing workout intensity today.';
+  return 'Low sleep increases hunger — prioritise protein to stay full. Consider a lighter session today.';
 }
 
 export function getWorkLifeTip(profile: UserProfile | null): string | null {
@@ -212,4 +265,52 @@ export function getWorkLifeTip(profile: UserProfile | null): string | null {
     return 'Physical job: Your body needs extra fuel. Consider adding a mid-morning snack.';
   }
   return null;
+}
+
+// ── Energy correlation insights ──
+
+export function getEnergyInsight(): string | null {
+  const logs = getRecentLogs(14);
+  const gymDayEnergies: number[] = [];
+  const restDayEnergies: number[] = [];
+  
+  for (const log of logs) {
+    if (log.energyLevel == null) continue;
+    if (log.gym?.attended) {
+      gymDayEnergies.push(log.energyLevel);
+    } else {
+      restDayEnergies.push(log.energyLevel);
+    }
+  }
+  
+  // Need at least 3 data points in each category
+  if (gymDayEnergies.length < 3 || restDayEnergies.length < 3) return null;
+  
+  const gymAvg = gymDayEnergies.reduce((s, v) => s + v, 0) / gymDayEnergies.length;
+  const restAvg = restDayEnergies.reduce((s, v) => s + v, 0) / restDayEnergies.length;
+  
+  const diff = ((gymAvg - restAvg) / restAvg) * 100;
+  
+  if (diff < -15) {
+    return `Your energy is ${Math.abs(Math.round(diff))}% lower on workout days — try a bigger pre-workout meal or more sleep.`;
+  }
+  if (diff > 15) {
+    return `Your energy is ${Math.round(diff)}% higher on workout days — exercise is boosting your vitality! 💪`;
+  }
+  return null;
+}
+
+// ── Pre-workout countdown (minutes until recommended eat time) ──
+
+export function getPreWorkoutCountdown(profile: UserProfile | null): number | null {
+  if (!profile?.gym?.goer) return null;
+  const gymHour = getSpecificHourForDate(profile) ?? profile.gym.specificHour;
+  if (gymHour == null) return null;
+  
+  const now = new Date();
+  const currentTotal = now.getHours() * 60 + now.getMinutes();
+  const eatTime = gymHour * 60 - 30; // 30 min before gym
+  const diff = eatTime - currentTotal;
+  
+  return diff > 0 ? diff : null;
 }
