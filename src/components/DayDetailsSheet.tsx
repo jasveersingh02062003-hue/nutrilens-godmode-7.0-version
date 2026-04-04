@@ -798,6 +798,11 @@ function TodayLiveBalance({ date, eaten, profile }: { date: string; eaten: numbe
           <p className="text-[9px] text-muted-foreground mt-1">Updates in real time as you eat today</p>
         </div>
       )}
-    </div>
+          </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body
   );
 }
