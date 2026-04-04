@@ -1,8 +1,10 @@
 import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { isGymDay, markRestDay, unmarkRestDay, isRestDay } from '@/lib/gym-service';
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ChefHat, CalendarDays, ArrowLeft, ArrowRight, Check, ShoppingCart, Repeat, X, Search, Target, Scale, Crown, Lock, Zap, Dumbbell } from 'lucide-react';
+import { mobileOverlayMotion, mobileOverlayTransition, mobileSheetMotion, mobileSheetTransition } from '@/hooks/use-body-scroll-lock';
 import { isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
@@ -391,13 +393,14 @@ export default function MealPlanner() {
         )}
 
         {/* Success modal */}
-        <AnimatePresence>
-          {showSuccess && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center px-6" onClick={handleConfirmSave}>
-              <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" />
-              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-                className="relative bg-card rounded-3xl p-6 w-full max-w-sm text-center shadow-lg" onClick={e => e.stopPropagation()}>
+        {typeof document !== 'undefined' && createPortal(
+          <AnimatePresence>
+            {showSuccess && (
+              <motion.div {...mobileOverlayMotion} transition={mobileOverlayTransition}
+                className="fixed inset-0 z-50 flex items-center justify-center px-6" onClick={handleConfirmSave}>
+                <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" />
+                <motion.div {...mobileSheetMotion} transition={mobileSheetTransition}
+                  className="relative bg-card rounded-3xl p-6 w-full max-w-sm text-center shadow-lg" onClick={e => e.stopPropagation()}>
                 {/* Animated checkmark */}
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                   <motion.svg width="32" height="32" viewBox="0 0 32 32" fill="none" className="text-primary">
@@ -423,10 +426,11 @@ export default function MealPlanner() {
                     <ShoppingCart className="w-3.5 h-3.5" /> View Groceries
                   </button>
                 </div>
+                </motion.div>
               </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            )}
+          </AnimatePresence>
+        , document.body)}
 
         <MonikaFab />
       </div>

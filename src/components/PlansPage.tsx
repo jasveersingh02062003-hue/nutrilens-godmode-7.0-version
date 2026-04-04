@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Crown, Check, ChevronDown, ChevronUp, ArrowRight, Star, Zap, Clock, X, Gift } from 'lucide-react';
+import { mobileOverlayMotion, mobileOverlayTransition, mobileSheetMotion, mobileSheetTransition, useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import { getPlan, setPlan, isTrialActive, hasUsedTrial, startFreeTrial, getTrialDaysRemaining, hasTrialExpired, checkAndExpireTrial, type Plan } from '@/lib/subscription-service';
 import { toast } from 'sonner';
 
@@ -461,20 +463,19 @@ export default function PlansPage({ open, onClose, onPlanChanged }: Props) {
       </Sheet>
 
       {/* ── Retention Modal ── */}
-      <AnimatePresence>
-        {showRetention && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-foreground/30 backdrop-blur-sm px-6"
-          >
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showRetention && (
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="w-full max-w-sm rounded-2xl bg-card border border-border shadow-lg overflow-hidden"
+              {...mobileOverlayMotion}
+              transition={mobileOverlayTransition}
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-foreground/30 backdrop-blur-sm px-6"
             >
+              <motion.div
+                {...mobileSheetMotion}
+                transition={mobileSheetTransition}
+                className="w-full max-w-sm max-h-[92dvh] overflow-y-auto overscroll-contain rounded-2xl bg-card border border-border shadow-lg overflow-hidden"
+              >
               {/* Retention header */}
               <div
                 className="px-5 pt-5 pb-4 relative"
@@ -528,9 +529,10 @@ export default function PlansPage({ open, onClose, onPlanChanged }: Props) {
                 </button>
               </div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      , document.body)}
     </>
   );
 }

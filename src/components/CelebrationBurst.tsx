@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const COLORS = [
@@ -65,7 +66,9 @@ export default function CelebrationBurst({
     }
   }, [show, intensity, duration, colors]);
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
       {visible && (
         <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
@@ -104,5 +107,6 @@ export default function CelebrationBurst({
         </div>
       )}
     </AnimatePresence>
+    , document.body
   );
 }

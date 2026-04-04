@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const COLORS = [
@@ -43,7 +44,9 @@ export default function ConfettiCelebration({ show }: { show: boolean }) {
     }
   }, [show]);
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
       {visible && (
         <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
@@ -66,5 +69,6 @@ export default function ConfettiCelebration({ show }: { show: boolean }) {
         </div>
       )}
     </AnimatePresence>
+    , document.body
   );
 }
