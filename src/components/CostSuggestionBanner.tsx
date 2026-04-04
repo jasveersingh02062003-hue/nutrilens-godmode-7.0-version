@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IndianRupee, Gift, ChevronDown, ChevronUp, Sparkles, Edit3, Check, X, Info, Save } from 'lucide-react';
+import { mobileOverlayMotion, mobileOverlayTransition, mobileSheetMotion, mobileSheetTransition } from '@/hooks/use-body-scroll-lock';
 import { estimateCostWithBreakdown, onPriceAccepted, onPriceEdited, type CostEstimate } from '@/lib/price-memory';
 import { wouldExceedBudget } from '@/lib/budget-alerts';
 
