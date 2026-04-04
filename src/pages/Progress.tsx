@@ -154,6 +154,37 @@ function StrengthProgressChart() {
   );
 }
 
+function useIdleMount(delayMs: number = 100) {
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+
+    let timeoutId: number | null = null;
+    let idleId: number | null = null;
+
+    const reveal = () => {
+      timeoutId = window.setTimeout(() => setIsReady(true), delayMs);
+    };
+
+    if (idleWindow.requestIdleCallback) {
+      idleId = idleWindow.requestIdleCallback(reveal, { timeout: delayMs + 600 });
+    } else {
+      reveal();
+    }
+
+    return () => {
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+      if (idleId !== null && idleWindow.cancelIdleCallback) idleWindow.cancelIdleCallback(idleId);
+    };
+  }, [delayMs]);
+
+  return isReady;
+}
+
 export default function ProgressPage() {
   const [monthOffset, setMonthOffset] = useState(0);
   const [showWeightSheet, setShowWeightSheet] = useState(false);
@@ -164,6 +195,7 @@ export default function ProgressPage() {
   const [showBloodReport, setShowBloodReport] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const { profile } = useUserProfile();
+  const showDeferredSections = useIdleMount(120);
   const logs = useMemo(() => getRecentLogs(30), [refreshKey]);
   const premium = isPremium();
 
@@ -421,135 +453,139 @@ export default function ProgressPage() {
           )}
         </div>
 
-        {/* Food Story Strip */}
-        <FoodStoryStrip onOpenDate={(d) => setSelectedDate(d)} refreshKey={refreshKey} />
-
-        {/* Food Archive Entry */}
-        <MemoryArchiveEntry />
-
-        {/* Budget Insights */}
-        <BudgetInsightsCard refreshKey={refreshKey} />
-
-        {/* Monthly Savings Impact */}
-        <MonthlySavingsCard />
-
-        {/* Gym Progress */}
-        {profile?.gym?.goer && (
+        {showDeferredSections && (
           <>
-            <GymProgressSection />
-            <div className="flex justify-end">
-              <GymPDFExport />
+            {/* Food Story Strip */}
+            <FoodStoryStrip onOpenDate={(d) => setSelectedDate(d)} refreshKey={refreshKey} />
+
+            {/* Food Archive Entry */}
+            <MemoryArchiveEntry />
+
+            {/* Budget Insights */}
+            <BudgetInsightsCard refreshKey={refreshKey} />
+
+            {/* Monthly Savings Impact */}
+            <MonthlySavingsCard />
+
+            {/* Gym Progress */}
+            {profile?.gym?.goer && (
+              <>
+                <GymProgressSection />
+                <div className="flex justify-end">
+                  <GymPDFExport />
+                </div>
+              </>
+            )}
+
+            {/* Strength Progress */}
+            {profile?.gym?.goer && <StrengthProgressChart />}
+
+            {/* Energy Trends */}
+            <EnergyTrendCard refreshKey={refreshKey} />
+
+            {/* Supplement Consistency */}
+            <SupplementConsistencySection refreshKey={refreshKey} />
+
+            {/* Identity Badges */}
+            <IdentityBadgesCard />
+
+            {/* Health Score (multi-condition) */}
+            <HealthScoreCard refreshKey={refreshKey} />
+
+            {/* Symptom Tracker */}
+            <SymptomTrackerCard refreshKey={refreshKey} />
+
+            {/* Blood Report & Supplement Insights */}
+            <BloodReportCard refreshKey={refreshKey} />
+
+            <button
+              onClick={() => setShowBloodReport(true)}
+              className="w-full py-3 rounded-2xl bg-card border border-border font-semibold text-sm flex items-center justify-center gap-2 hover:border-primary/30 transition-colors"
+            >
+              <FileText className="w-4 h-4 text-muted-foreground" /> Enter Blood Report
+            </button>
+
+            {/* Calorie Balance History */}
+            <CalorieBalanceCard />
+
+            {/* Weekly Overview */}
+            <div className="card-elevated p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="w-4 h-4 text-primary" />
+                <h3 className="font-semibold text-sm text-foreground">Weekly Overview</h3>
+              </div>
+              <div className="flex items-end gap-2 h-28">
+                {weeklyData.map((d, i) => {
+                  const pct = Math.max(4, (d.calories / maxCal) * 100);
+                  const isToday = i === weeklyData.length - 1;
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+                      <span className="text-[9px] text-muted-foreground font-medium">{d.calories > 0 ? d.calories : ''}</span>
+                      <div className={`w-full rounded-lg transition-all duration-500 ${isToday ? 'bg-primary' : 'bg-primary/20'}`} style={{ height: `${pct}%` }} />
+                      <span className="text-[9px] text-muted-foreground font-medium">{d.date}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Weight Log Button */}
+            <button
+              onClick={() => setShowWeightSheet(true)}
+              className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2.5 shadow-fab active:scale-[0.98] transition-transform"
+            >
+              <Scale className="w-4 h-4" /> Log Weight with Photo
+            </button>
+
+            {/* Weight Progress Arc */}
+            <WeightProgressArc refreshKey={refreshKey} />
+
+            {/* Weekly Weight Timeline */}
+            <WeeklyWeightTimeline refreshKey={refreshKey} onLogWeight={() => setShowWeightSheet(true)} />
+
+            {/* Weight Chart */}
+            <WeightChart refreshKey={refreshKey} />
+
+            {/* Progress Photos */}
+            <ProgressPhotosSection refreshKey={refreshKey} onChanged={refresh} />
+
+            {/* Streaks */}
+            <ConsistencyCard refreshKey={refreshKey} />
+
+            {/* Achievements */}
+            <div className="card-elevated p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Trophy className="w-4 h-4 text-accent" />
+                <h3 className="font-semibold text-sm text-foreground">Achievements</h3>
+                <span className="ml-auto text-[10px] text-muted-foreground font-medium">
+                  {unlockedSet.size}/{BADGES.length}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {BADGES.map(badge => {
+                  const unlocked = unlockedSet.has(badge.id);
+                  const prog = badge.progress(stats);
+                  const pct = Math.round((prog.current / prog.target) * 100);
+                  return (
+                    <div key={badge.id} className={`rounded-xl p-3 text-center border transition-all ${unlocked ? 'border-primary/20 bg-primary/5' : 'border-border bg-muted/50 opacity-60'}`}>
+                      <div className="text-xl mb-1">{badge.icon}</div>
+                      <p className="text-[10px] font-semibold text-foreground">{badge.name}</p>
+                      <p className="text-[9px] text-muted-foreground mb-1.5">{badge.description}</p>
+                      {!unlocked ? (
+                        <div className="space-y-0.5">
+                          <Progress value={pct} className="h-1" />
+                          <p className="text-[8px] text-muted-foreground">{prog.current}/{prog.target}</p>
+                        </div>
+                      ) : (
+                        <span className="text-[9px] text-primary font-semibold">✓ Unlocked</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </>
         )}
-
-        {/* Strength Progress */}
-        {profile?.gym?.goer && <StrengthProgressChart />}
-
-        {/* Energy Trends */}
-        <EnergyTrendCard refreshKey={refreshKey} />
-
-        {/* Supplement Consistency */}
-        <SupplementConsistencySection refreshKey={refreshKey} />
-
-        {/* Identity Badges */}
-        <IdentityBadgesCard />
-
-        {/* Health Score (multi-condition) */}
-        <HealthScoreCard refreshKey={refreshKey} />
-
-        {/* Symptom Tracker */}
-        <SymptomTrackerCard refreshKey={refreshKey} />
-
-        {/* Blood Report & Supplement Insights */}
-        <BloodReportCard refreshKey={refreshKey} />
-
-        <button
-          onClick={() => setShowBloodReport(true)}
-          className="w-full py-3 rounded-2xl bg-card border border-border font-semibold text-sm flex items-center justify-center gap-2 hover:border-primary/30 transition-colors"
-        >
-          <FileText className="w-4 h-4 text-muted-foreground" /> Enter Blood Report
-        </button>
-
-        {/* Calorie Balance History */}
-        <CalorieBalanceCard />
-
-        {/* Weekly Overview */}
-        <div className="card-elevated p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="w-4 h-4 text-primary" />
-            <h3 className="font-semibold text-sm text-foreground">Weekly Overview</h3>
-          </div>
-          <div className="flex items-end gap-2 h-28">
-            {weeklyData.map((d, i) => {
-              const pct = Math.max(4, (d.calories / maxCal) * 100);
-              const isToday = i === weeklyData.length - 1;
-              return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-                  <span className="text-[9px] text-muted-foreground font-medium">{d.calories > 0 ? d.calories : ''}</span>
-                  <div className={`w-full rounded-lg transition-all duration-500 ${isToday ? 'bg-primary' : 'bg-primary/20'}`} style={{ height: `${pct}%` }} />
-                  <span className="text-[9px] text-muted-foreground font-medium">{d.date}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Weight Log Button */}
-        <button
-          onClick={() => setShowWeightSheet(true)}
-          className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2.5 shadow-fab active:scale-[0.98] transition-transform"
-        >
-          <Scale className="w-4 h-4" /> Log Weight with Photo
-        </button>
-
-        {/* Weight Progress Arc */}
-        <WeightProgressArc refreshKey={refreshKey} />
-
-        {/* Weekly Weight Timeline */}
-        <WeeklyWeightTimeline refreshKey={refreshKey} onLogWeight={() => setShowWeightSheet(true)} />
-
-        {/* Weight Chart */}
-        <WeightChart refreshKey={refreshKey} />
-
-        {/* Progress Photos */}
-        <ProgressPhotosSection refreshKey={refreshKey} onChanged={refresh} />
-
-        {/* Streaks */}
-        <ConsistencyCard refreshKey={refreshKey} />
-
-        {/* Achievements */}
-        <div className="card-elevated p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <Trophy className="w-4 h-4 text-accent" />
-            <h3 className="font-semibold text-sm text-foreground">Achievements</h3>
-            <span className="ml-auto text-[10px] text-muted-foreground font-medium">
-              {unlockedSet.size}/{BADGES.length}
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {BADGES.map(badge => {
-              const unlocked = unlockedSet.has(badge.id);
-              const prog = badge.progress(stats);
-              const pct = Math.round((prog.current / prog.target) * 100);
-              return (
-                <div key={badge.id} className={`rounded-xl p-3 text-center border transition-all ${unlocked ? 'border-primary/20 bg-primary/5' : 'border-border bg-muted/50 opacity-60'}`}>
-                  <div className="text-xl mb-1">{badge.icon}</div>
-                  <p className="text-[10px] font-semibold text-foreground">{badge.name}</p>
-                  <p className="text-[9px] text-muted-foreground mb-1.5">{badge.description}</p>
-                  {!unlocked ? (
-                    <div className="space-y-0.5">
-                      <Progress value={pct} className="h-1" />
-                      <p className="text-[8px] text-muted-foreground">{prog.current}/{prog.target}</p>
-                    </div>
-                  ) : (
-                    <span className="text-[9px] text-primary font-semibold">✓ Unlocked</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
       </div>
 
       <WeightLogSheet

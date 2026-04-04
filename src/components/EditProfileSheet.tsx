@@ -119,7 +119,7 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
       setSleepEnd(profile.gym?.sleepEnd || '06:00');
       setShiftType(profile.gym?.shiftType || 'day');
       setFastedTraining(profile.gym?.fastedTraining || false);
-      setHasWeekendSchedule(!!(profile.gym?.weekendSchedule?.length));
+      setHasWeekendSchedule(profile.gym?.weekendHour != null || !!(profile.gym?.weekendSchedule?.length));
       setWeekendHour(profile.gym?.weekendHour ?? 9);
     }
   }, [profile, open]);
@@ -158,6 +158,8 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
     );
 
     const { inferSchedule } = await import('@/lib/gym-service');
+    const inferredSchedule = inferSchedule(gymDays);
+    const inferredWeekendSchedule = inferredSchedule.filter(day => day === 'saturday' || day === 'sunday');
 
     updateProfile({
       name: name.trim(),
@@ -193,14 +195,14 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
         durationMinutes: gymDuration,
         intensity: gymIntensity,
         goal: gymGoal,
-        schedule: inferSchedule(gymDays),
+        schedule: inferredSchedule,
         stats: profile?.gym?.stats || { totalWorkouts: 0, totalCaloriesBurned: 0, currentStreak: 0, bestStreak: 0, consistencyPercent: 0 },
         timeOfDay: gymTimeOfDay as any || undefined,
         specificHour: gymSpecificHour,
         workStart, workEnd, sleepStart, sleepEnd,
         shiftType: shiftType as any || undefined,
         fastedTraining,
-        weekendSchedule: hasWeekendSchedule ? ['saturday', 'sunday'].filter(d => inferSchedule(gymDays).includes(d) || hasWeekendSchedule) : undefined,
+        weekendSchedule: hasWeekendSchedule && inferredWeekendSchedule.length > 0 ? inferredWeekendSchedule : undefined,
         weekendHour: hasWeekendSchedule ? weekendHour : undefined,
       } : { goer: false, daysPerWeek: 0, durationMinutes: 0, intensity: 'moderate' as const, goal: 'general' as const, schedule: [], stats: { totalWorkouts: 0, totalCaloriesBurned: 0, currentStreak: 0, bestStreak: 0, consistencyPercent: 0 } },
     });
