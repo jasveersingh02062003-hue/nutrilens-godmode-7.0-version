@@ -72,6 +72,15 @@ export default function DayDetailsSheet({ open, date, onClose, onChanged }: Prop
     };
   }, [open, reload]);
 
+  // Lock body scroll when sheet is open
+  useEffect(() => {
+    if (open) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [open]);
+
   if (!open || !log) return null;
 
   const totals = getDailyTotals(log);
