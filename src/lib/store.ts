@@ -212,9 +212,10 @@ export interface DailyLog {
     durationMinutes: number;
     caloriesBurned: number;
     intensity: string;
-    actualHour?: number;             // override if different from scheduled
+    actualHour?: number;
     missReason?: 'tired' | 'injury' | 'sick' | 'no_time' | 'rest_day' | 'other';
-    restDayPlanned?: boolean;        // pre-marked rest day
+    restDayPlanned?: boolean;
+    workouts?: Array<{ exercise: string; sets: number; reps: number; weight: number }>;
   };
   energyLevel?: 1 | 2 | 3 | 4 | 5;
 }
