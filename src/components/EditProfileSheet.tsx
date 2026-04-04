@@ -589,6 +589,32 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
                             ))}
                           </div>
                         </Field>
+
+                        {/* Fasted Training Toggle */}
+                        <Field label="Training Style">
+                          <button
+                            onClick={() => setFastedTraining(!fastedTraining)}
+                            className={`w-full px-4 py-2.5 rounded-xl text-xs font-semibold transition-colors border ${fastedTraining ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted text-muted-foreground border-border'}`}
+                          >
+                            {fastedTraining ? '🥊 Fasted Training (no pre-workout meal)' : '🍌 Regular (pre-workout meal suggested)'}
+                          </button>
+                        </Field>
+
+                        {/* Weekend Schedule */}
+                        <Field label="Different schedule on weekends?">
+                          <button
+                            onClick={() => setHasWeekendSchedule(!hasWeekendSchedule)}
+                            className={`w-full px-4 py-2.5 rounded-xl text-xs font-semibold transition-colors border ${hasWeekendSchedule ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted text-muted-foreground border-border'}`}
+                          >
+                            {hasWeekendSchedule ? '✅ Yes, different weekend time' : '📅 Same as weekdays'}
+                          </button>
+                        </Field>
+                        {hasWeekendSchedule && (
+                          <Field label={`Weekend gym time: ${weekendHour > 12 ? weekendHour - 12 : weekendHour === 0 ? 12 : weekendHour}:00 ${weekendHour >= 12 ? 'PM' : 'AM'}`}>
+                            <input type="range" min={0} max={23} step={1} value={weekendHour}
+                              onChange={e => setWeekendHour(Number(e.target.value))} className="w-full accent-primary" />
+                          </Field>
+                        )}
                       </>
                     )}
                   </motion.div>
