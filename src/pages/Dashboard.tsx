@@ -164,7 +164,7 @@ export default function Dashboard() {
 
         <motion.div variants={fadeUp}><DailyAdjustmentSummary /></motion.div>
         <motion.div variants={fadeUp}><RecoveryOptionsCard /></motion.div>
-        <motion.div variants={fadeUp}><SkinHealthCard /></motion.div>
+        <motion.div variants={fadeUp}><Suspense fallback={null}><SkinHealthCard /></Suspense></motion.div>
 
         {/* Dual-Sync Insight */}
         {d.dualSyncInsight && (
