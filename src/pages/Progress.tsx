@@ -923,7 +923,37 @@ function WeeklySummariesSection() {
                         </span>
                       </div>
                     )}
+                    {s.gymPlanned != null && s.gymPlanned > 0 && (
+                      <SummaryMetricBar
+                        label="Gym attendance"
+                        value={s.gymConsistencyPct || 0}
+                        detail={`${s.gymWorkouts || 0}/${s.gymPlanned} sessions`}
+                      />
+                    )}
                   </div>
+
+                  {/* Gym insight */}
+                  {s.gymInsight && (
+                    <div className="p-2.5 rounded-lg bg-accent/5 border border-accent/10">
+                      <p className="text-xs font-medium text-foreground">{s.gymInsight}</p>
+                    </div>
+                  )}
+
+                  {/* Strength gains */}
+                  {s.strengthGains && s.strengthGains.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-medium text-muted-foreground">Strength Changes</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {s.strengthGains.map((g, gi) => (
+                          <span key={gi} className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                            g.change > 0 ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'
+                          }`}>
+                            {g.exercise}: {g.change > 0 ? '+' : ''}{g.change}kg
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )
 
                   {/* Insight */}
                   <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/10">
