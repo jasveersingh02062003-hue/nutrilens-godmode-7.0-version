@@ -366,6 +366,8 @@ export default function Onboarding() {
     prostateConcerns: false, testosteroneConcerns: false,
     work: '', exercise: '',
     gymGoer: null, gymDays: 3, gymDuration: 45, gymIntensity: '', gymGoal: '',
+    gymTimeOfDay: '', gymSpecificHour: 7, workStartTime: '09:00', workEndTime: '18:00',
+    sleepStartTime: '22:00', sleepEndTime: '06:00', shiftType: 'day',
     goalType: '', goalSpeed: 'balanced', targetWeight: 65,
     wantLifestyle: null,
     diet: '', water: 2.5, supplements: [], supplementPrefs: [], cookingSkill: '', cookingTime: 30, cookingEquipment: [],
