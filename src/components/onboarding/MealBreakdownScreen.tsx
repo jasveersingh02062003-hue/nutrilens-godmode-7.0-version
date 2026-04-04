@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Settings2, X, Check } from 'lucide-react';
+import { mobileOverlayMotion, mobileOverlayTransition, mobileSheetMotion, mobileSheetTransition, useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import MonikaGuide from './MonikaGuide';
 
 interface MealBreakdownProps {
