@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, X, Plus, Camera, Flame, Scale, Calendar, StickyNote } from 'lucide-react';
+import { mobileOverlayMotion, mobileOverlayTransition, mobileSheetMotion, mobileSheetTransition, useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import { getWeeklyWeightEntries, getWeightStreak, type WeightEntry } from '@/lib/weight-history';
 
 interface Props {
