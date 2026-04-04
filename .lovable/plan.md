@@ -1,78 +1,85 @@
 
 
-# Next-Phase UI/UX Upgrade — Remaining Areas
+# Performance Diagnosis & Fix Plan
 
-## What's Already Done
-- Dashboard: glassmorphism, staggered cascade, breathing calorie ring, time-of-day header
-- Bottom Nav: morphing pill indicator, icon bounce
-- Camera: futuristic scan overlay, particle burst, floating nutrients
-- Progress: count-up stats, staggered calendar, animated bars
-- Meal Planner: orbital loader, ken-burns images, sliding tab indicator
-- `PageTransition.tsx` component created but **not wired** into `App.tsx`
+## Root Causes Identified
 
-## What Remains (from your research)
+### 1. Blank Screen (Critical Bug)
+The "Failed to fetch dynamically imported module" errors for Dashboard.tsx and Profile.tsx are causing a **white screen**. This is a Vite HMR cache mismatch — the browser has a stale module URL with an old timestamp query param. The `lazyWithRetry` mechanism should handle this, but may be stuck in a reload loop or the retry is not firing correctly.
 
-### Phase A: Wire Page Transitions + Global Polish
-**Files: `src/App.tsx`, `src/index.css`**
+### 2. Render-Blocking Font Loads (High Impact)
+`index.css` lines 1-3 import **three Google Font families** via `@import url(...)` — this blocks the entire CSS parse and first paint:
+- Plus Jakarta Sans (8 weights)
+- Playfair Display (5 weights)
+- JetBrains Mono (4 weights)
 
-- Wrap each `<Route>` element content with `<PageTransition>` for slide+fade between pages
-- Add ambient gradient mesh background (fixed, behind all content) using 2-3 soft radial gradients with slow `ambient-shift` animation
-- Dark mode polish: ensure all glassmorphism cards use deep navy tones (not pure black), add rim highlights (0.5px top/left border with `white/5`)
-- Add global skeleton shimmer utility class for loading states
+Each is a separate network round-trip before any content renders. This alone can add 500ms-2s to initial load.
 
-### Phase B: Onboarding Flow Premium
-**Files: `src/pages/Onboarding.tsx`, `src/components/onboarding/WelcomeScreen.tsx`, `src/components/onboarding/CalculatingScreen.tsx`, `src/components/onboarding/CompletionScreen.tsx`**
+### 3. Dashboard Imports 52 Components Eagerly
+`Dashboard.tsx` has **52 import statements** — all loaded synchronously when the dashboard chunk loads. Many of these cards (GymCheckInCard, SkinHealthCard, WeatherNudgeCard, etc.) are conditionally rendered but always bundled.
 
-- **Progress bar**: Replace solid bar with liquid wave fill effect (SVG wave inside the progress track)
-- **Input sliders** (weight, height, age): Add spring-physics feel with `useSpring` — overshoot on release
-- **Option/Chip selection**: Scale-in with spring + subtle haptic-feel bounce on select
-- **CalculatingScreen**: Multi-ring orbital animation (matching meal planner style) instead of plain spinner
-- **CompletionScreen**: Particle confetti burst + badge fly-in animation on completion
-- **WelcomeScreen**: Parallax depth — background elements move slower than foreground on scroll/swipe
+### 4. Continuous CSS Animations on Every Page
+The `ambient-mesh` div runs `animate-ambient` (8s infinite) with `blur-3xl` on multiple elements — `backdrop-blur` and `filter: blur()` are GPU-expensive, especially on mobile. These run on **every page** since they're in AppLayout.
 
-### Phase C: Logging Flow — Celebrations & Micro-interactions
-**Files: `src/pages/LogFood.tsx`, `src/components/AddFoodSheet.tsx`, `src/components/QuickLogSheet.tsx`**
+### 5. Framer Motion Overhead
+Every route is wrapped in `PageTransition` with spring animations. Combined with stagger animations inside Dashboard (60ms per child across ~20 cards), this creates a cascade of layout recalculations on every navigation.
 
-- **Success state**: When meal is logged, "Log" button morphs into a checkmark with spring animation, then triggers a particle confetti burst
-- **Food item cards**: `whileHover={{ scale: 1.02 }}`, `whileTap={{ scale: 0.97 }}` with spring physics
-- **Quantity adjusters** (+/- buttons): Bounce on tap, number rolls up/down with count animation
-- **Search results**: Staggered entrance (each result slides in with 50ms delay)
-- **Streak indicator**: If user has a logging streak, show animated flame icon with breathing glow
+---
 
-### Phase D: Profile Page Polish
-**Files: `src/pages/Profile.tsx`**
+## Fix Plan
 
-- **Profile avatar**: Glassmorphism card with breathing ring animation (like dashboard header)
-- **Settings rows**: Staggered cascade entrance, `whileTap={{ scale: 0.98 }}` micro-interaction
-- **Plan/subscription badge**: Shimmer highlight sweep animation
-- **Section headers**: Fade-in with slight y-translate on mount
+### Fix A: Resolve Blank Screen
+**File: `src/App.tsx`**
+- The current `lazyWithRetry` clears all caches and reloads on import failure. If this happens during HMR, it creates a reload loop. Add a **max retry counter** (max 2) using sessionStorage to prevent infinite reload loops.
+- Add a fallback error UI in the `Suspense` boundary so users see a "Tap to reload" button instead of a white screen.
 
-### Phase E: Shared Celebration System
-**New file: `src/components/CelebrationBurst.tsx`**
+### Fix B: Switch Fonts to `<link>` with `display=swap`
+**File: `index.html`**
+- Move all three Google Font `@import` statements from `index.css` to `<link rel="preconnect">` + `<link rel="stylesheet">` tags in `index.html` with `&display=swap`.
+- This makes fonts non-render-blocking — content appears immediately with fallback fonts, then swaps.
 
-- Reusable confetti/particle burst component using `canvas-confetti` or pure Framer Motion
-- Triggers: meal logged, streak milestone, badge earned, onboarding complete, plan generated
-- Configurable: intensity (light sparkle vs full confetti), color palette, duration
-- Integrated via a global context or simple function call
+**File: `src/index.css`**
+- Remove the three `@import url(...)` lines (lines 1-3).
+
+### Fix C: Reduce Dashboard Bundle Size
+**File: `src/pages/Dashboard.tsx`**
+- Wrap conditionally-rendered heavy cards in `lazy()` imports:
+  - GymCheckInCard, GymConsistencyCard, GymUpsellCard (only for gym users)
+  - SkinHealthCard (only for skin concern users)
+  - WeatherNudgeCard (only when weather data exists)
+  - PostWorkoutCard, PreWorkoutCard (only on workout days)
+- This can cut the dashboard chunk by ~30-40%.
+
+### Fix D: Reduce Ambient Animation Cost
+**File: `src/App.tsx`**
+- Add `will-change: opacity, transform` to ambient mesh divs (they likely already have this via Tailwind but verify).
+- Reduce `blur-3xl` (72px blur) to `blur-2xl` (40px) — visually similar, half the GPU cost.
+- Consider using CSS `content-visibility: auto` on off-screen dashboard cards.
+
+**File: `src/index.css`**
+- Change `animate-ambient` duration from 8s to 15s — slower animation = fewer repaints.
+
+### Fix E: Optimize PageTransition
+**File: `src/components/PageTransition.tsx`**
+- Add `layout={false}` to prevent layout recalculations.
+- Reduce spring stiffness from 300 to 200 for lighter animation.
+- Use `willChange="opacity, transform"` on the motion.div.
+
+---
 
 ## File Summary
 
 | File | Action |
 |------|--------|
-| `src/App.tsx` | Edit — wrap routes with PageTransition |
-| `src/index.css` | Edit — ambient mesh bg, skeleton shimmer, dark mode rim highlights |
-| `src/pages/Onboarding.tsx` | Edit — liquid progress, spring sliders, enhanced animations |
-| `src/components/onboarding/WelcomeScreen.tsx` | Edit — parallax depth effect |
-| `src/components/onboarding/CalculatingScreen.tsx` | Edit — orbital animation |
-| `src/components/onboarding/CompletionScreen.tsx` | Edit — confetti + badge fly-in |
-| `src/pages/LogFood.tsx` | Edit — button morph, staggered search, celebrations |
-| `src/pages/Profile.tsx` | Edit — glassmorphism avatar, staggered settings, shimmer badge |
-| `src/components/CelebrationBurst.tsx` | Create — reusable confetti/particle component |
+| `src/App.tsx` | Fix retry loop, add error fallback UI |
+| `index.html` | Add font `<link>` tags with preconnect |
+| `src/index.css` | Remove `@import` fonts, slow ambient animation |
+| `src/pages/Dashboard.tsx` | Lazy-load conditional cards |
+| `src/components/PageTransition.tsx` | Add willChange, reduce spring cost |
 
-## Design Principles
-- Spring physics (stiffness 200-400, damping 20-35) for all motion
-- Glassmorphism with `backdrop-blur-md` + transparent white borders in both themes
-- Stagger delays 50-80ms per element
-- No animation >600ms perceived duration
-- Celebration system is lightweight — no heavy canvas unless user triggers it
+## Expected Impact
+- **First paint**: ~1-2s faster (font blocking removal)
+- **Dashboard load**: ~30-40% smaller chunk (lazy conditional cards)
+- **Runtime smoothness**: Reduced GPU load from blur/animation simplification
+- **No more white screens**: Retry loop fix + error fallback UI
 
