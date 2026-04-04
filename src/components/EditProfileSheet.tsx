@@ -73,6 +73,13 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
   const [gymDuration, setGymDuration] = useState(45);
   const [gymIntensity, setGymIntensity] = useState<'light' | 'moderate' | 'intense'>('moderate');
   const [gymGoal, setGymGoal] = useState<'fat_loss' | 'muscle_gain' | 'general'>('general');
+  const [gymTimeOfDay, setGymTimeOfDay] = useState<string>('');
+  const [gymSpecificHour, setGymSpecificHour] = useState(7);
+  const [workStart, setWorkStart] = useState('09:00');
+  const [workEnd, setWorkEnd] = useState('18:00');
+  const [sleepStart, setSleepStart] = useState('22:00');
+  const [sleepEnd, setSleepEnd] = useState('06:00');
+  const [shiftType, setShiftType] = useState<string>('day');
 
   useEffect(() => {
     if (profile && open) {

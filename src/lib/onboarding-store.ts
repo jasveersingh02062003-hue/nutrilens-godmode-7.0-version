@@ -160,6 +160,13 @@ export function saveOnboardingData(data: OnboardingData) {
       goal: (data.activity.gym.goal as 'fat_loss' | 'muscle_gain' | 'general') || 'general',
       schedule: inferSchedule(data.activity.gym.daysPerWeek),
       stats: { totalWorkouts: 0, totalCaloriesBurned: 0, currentStreak: 0, bestStreak: 0, consistencyPercent: 0 },
+      timeOfDay: (data.activity.gym.timeOfDay as 'morning' | 'afternoon' | 'evening' | 'night') || undefined,
+      specificHour: data.activity.gym.specificHour,
+      workStart: data.activity.gym.workStart,
+      workEnd: data.activity.gym.workEnd,
+      sleepStart: data.activity.gym.sleepStart,
+      sleepEnd: data.activity.gym.sleepEnd,
+      shiftType: (data.activity.gym.shiftType as 'day' | 'night' | 'rotating') || undefined,
     } : undefined,
   };
   saveProfile(profile);
