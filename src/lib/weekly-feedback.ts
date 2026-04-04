@@ -22,6 +22,13 @@ export interface WeeklySummary {
   insight: string;
   dominantMetric: 'protein' | 'budget' | 'meals' | 'weight';
   autoFixApplied: boolean;
+  // Gym intelligence fields
+  gymWorkouts?: number;
+  gymPlanned?: number;
+  gymCaloriesBurned?: number;
+  gymConsistencyPct?: number;
+  gymInsight?: string;
+  strengthGains?: Array<{ exercise: string; change: number }>;
 }
 
 const SUMMARIES_KEY = 'nutrilens_weekly_summaries';
