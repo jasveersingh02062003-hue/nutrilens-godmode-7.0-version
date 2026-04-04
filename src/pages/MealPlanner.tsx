@@ -490,9 +490,9 @@ export default function MealPlanner() {
     mealPlanContent = (
       <div className="space-y-5 animate-fade-in">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-center py-4">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+          <motion.div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 animate-float">
             <ChefHat className="w-8 h-8 text-primary" />
-          </div>
+          </motion.div>
           <h2 className="text-base font-bold text-foreground">No Meal Plan Yet</h2>
           <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
             {premium ? 'Create a personalized plan tailored to your goals and preferences' : 'Create a basic meal plan to get started'}

@@ -376,6 +376,7 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
 
               return (
                 <motion.div key={meal.recipeId} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.08 }}
+                  whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}
                   className="card-elevated overflow-hidden">
                   {/* Recipe image */}
                   <div className="relative h-36 overflow-hidden">
