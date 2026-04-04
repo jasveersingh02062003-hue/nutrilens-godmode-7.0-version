@@ -203,6 +203,10 @@ export default function CameraHome() {
   const captureAndAnalyze = async () => {
     if (!videoRef.current || !canvasRef.current) return;
     if (!canUseCameraScan()) { setShowUpgradePrompt(true); return; }
+    if (!cameraReady || !videoRef.current.videoWidth || !videoRef.current.videoHeight) {
+      toast.error('Camera is still getting ready. Please wait a moment and try again.');
+      return;
+    }
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
