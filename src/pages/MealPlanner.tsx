@@ -398,8 +398,20 @@ export default function MealPlanner() {
               <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" />
               <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
                 className="relative bg-card rounded-3xl p-6 w-full max-w-sm text-center shadow-lg" onClick={e => e.stopPropagation()}>
+                {/* Animated checkmark */}
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <Check className="w-8 h-8 text-primary" />
+                  <motion.svg width="32" height="32" viewBox="0 0 32 32" fill="none" className="text-primary">
+                    <motion.path
+                      d="M8 16L14 22L24 10"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 0.5, delay: 0.2, type: 'spring', stiffness: 200, damping: 20 }}
+                    />
+                  </motion.svg>
                 </div>
                 <h3 className="text-lg font-bold text-foreground">Meal plan successfully saved</h3>
                 <p className="text-sm text-muted-foreground mt-2">All ingredients have been added to your groceries</p>
