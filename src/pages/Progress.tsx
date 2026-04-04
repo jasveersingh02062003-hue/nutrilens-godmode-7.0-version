@@ -32,6 +32,7 @@ import BloodReportCard from '@/components/BloodReportCard';
 import BloodReportSheet from '@/components/BloodReportSheet';
 import IdentityBadgesCard from '@/components/IdentityBadgesCard';
 import GymProgressSection from '@/components/GymProgressSection';
+import GymPDFExport from '@/components/GymPDFExport';
 import SupplementConsistencySection from '@/components/SupplementConsistencySection';
 import EnergyTrendCard from '@/components/EnergyTrendCard';
 import { getMonthlySavings } from '@/lib/budget-impact';
