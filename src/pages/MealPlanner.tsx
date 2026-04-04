@@ -260,16 +260,40 @@ export default function MealPlanner() {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6">
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center">
-          <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ repeat: Infinity, duration: 2 }}
-            className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
-            <ChefHat className="w-10 h-10 text-primary" />
-          </motion.div>
+          {/* Multi-ring orbital animation */}
+          <div className="relative w-28 h-28 mx-auto mb-6">
+            <motion.div className="absolute inset-0 rounded-full border-2 border-dashed border-primary/40"
+              animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 4, ease: 'linear' }} />
+            <motion.div className="absolute inset-3 rounded-full border-2 border-dashed border-primary/60"
+              animate={{ rotate: -360 }} transition={{ repeat: Infinity, duration: 3, ease: 'linear' }} />
+            <motion.div className="absolute inset-6 rounded-full border-2 border-dashed border-primary/80"
+              animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: 'linear' }} />
+            {/* Orbiting recipe icons */}
+            {['🍳', '🥗', '🍛'].map((emoji, i) => (
+              <motion.div key={i} className="absolute top-1/2 left-1/2 text-lg"
+                style={{ marginTop: -12, marginLeft: -12 }}
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 3 + i, ease: 'linear', delay: i * 0.5 }}>
+                <motion.span style={{ display: 'inline-block', transform: `translateX(${32 + i * 8}px)` }}
+                  animate={{ rotate: -360 }}
+                  transition={{ repeat: Infinity, duration: 3 + i, ease: 'linear', delay: i * 0.5 }}>
+                  {emoji}
+                </motion.span>
+              </motion.div>
+            ))}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <ChefHat className="w-8 h-8 text-primary" />
+            </div>
+          </div>
           <h2 className="text-lg font-bold text-foreground">Cooking up your personalized plan...</h2>
           <div className="mt-4 space-y-2">
             {['Analyzing your profile...', 'Selecting recipes...', 'Balancing nutrients...'].map((msg, i) => (
               <motion.p key={msg} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.6 }}
                 className="text-sm text-muted-foreground flex items-center justify-center gap-2">
-                <Sparkles className="w-3 h-3 text-primary" /> {msg}
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: i * 0.6 + 0.4, type: 'spring', stiffness: 400, damping: 15 }}>
+                  <Sparkles className="w-3 h-3 text-primary" />
+                </motion.div>
+                {msg}
               </motion.p>
             ))}
           </div>
@@ -310,21 +334,27 @@ export default function MealPlanner() {
 
           <p className="text-sm text-muted-foreground">Here are the recipes we've chosen for your meal plan. Feel free to swap out any you don't like!</p>
 
-          <div className="space-y-3">
+          <motion.div className="space-y-3" initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}>
             {plan.days.map(day => (
-              <div key={day.date} className="card-subtle overflow-hidden">
+              <motion.div key={day.date} className="card-subtle overflow-hidden"
+                variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}>
                 <div className="px-4 py-2.5 bg-muted/50 border-b border-border">
                   <p className="text-xs font-bold text-foreground">{formatDate(day.date)}</p>
                 </div>
                 <div className="divide-y divide-border">
-                  {day.meals.map(meal => {
+                  {day.meals.map((meal, mealIdx) => {
                     const recipe = getRecipeById(meal.recipeId);
                     if (!recipe) return null;
                     const mealLabel = meal.mealType.charAt(0).toUpperCase() + meal.mealType.slice(1);
                     return (
-                      <div key={meal.recipeId} className="px-4 py-3 flex items-center gap-3">
+                      <motion.div key={meal.recipeId}
+                        className="px-4 py-3 flex items-center gap-3"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                      >
                         <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
-                          <img src={getRecipeImage(recipe.id, meal.mealType)} alt={recipe.name} className="w-full h-full object-cover" loading="lazy" />
+                          <img src={getRecipeImage(recipe.id, meal.mealType)} alt={recipe.name} className="w-full h-full object-cover animate-ken-burns" loading="lazy" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{mealLabel}</p>
@@ -335,13 +365,13 @@ export default function MealPlanner() {
                           className="px-2.5 py-1.5 rounded-lg bg-muted text-muted-foreground text-[10px] font-semibold flex items-center gap-1 hover:bg-primary/10 hover:text-primary transition-colors">
                           <Zap className="w-3 h-3" /> Try Swap
                         </button>
-                      </div>
+                      </motion.div>
                     );
                   })}
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
 
           <button onClick={handleSavePlan}
             className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 shadow-fab active:scale-[0.98] transition-transform">
@@ -368,8 +398,20 @@ export default function MealPlanner() {
               <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" />
               <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
                 className="relative bg-card rounded-3xl p-6 w-full max-w-sm text-center shadow-lg" onClick={e => e.stopPropagation()}>
+                {/* Animated checkmark */}
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <Check className="w-8 h-8 text-primary" />
+                  <motion.svg width="32" height="32" viewBox="0 0 32 32" fill="none" className="text-primary">
+                    <motion.path
+                      d="M8 16L14 22L24 10"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 0.5, delay: 0.2, type: 'spring', stiffness: 200, damping: 20 }}
+                    />
+                  </motion.svg>
                 </div>
                 <h3 className="text-lg font-bold text-foreground">Meal plan successfully saved</h3>
                 <p className="text-sm text-muted-foreground mt-2">All ingredients have been added to your groceries</p>
@@ -448,9 +490,9 @@ export default function MealPlanner() {
     mealPlanContent = (
       <div className="space-y-5 animate-fade-in">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-center py-4">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+          <motion.div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 animate-float">
             <ChefHat className="w-8 h-8 text-primary" />
-          </div>
+          </motion.div>
           <h2 className="text-base font-bold text-foreground">No Meal Plan Yet</h2>
           <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
             {premium ? 'Create a personalized plan tailored to your goals and preferences' : 'Create a basic meal plan to get started'}

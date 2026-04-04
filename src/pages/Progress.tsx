@@ -325,8 +325,13 @@ export default function ProgressPage() {
   return (
     <div className="min-h-screen pb-24 bg-background">
       <ConfettiCelebration show={showConfetti} />
-      <div className="max-w-lg mx-auto px-4 pt-5 space-y-4 animate-fade-in">
-        <div className="flex items-center justify-between">
+      <motion.div
+        className="max-w-lg mx-auto px-4 pt-5 space-y-4"
+        initial="hidden"
+        animate="show"
+        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
+      >
+        <motion.div variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }} className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-foreground">Progress</h1>
             <SubscriptionBadge />
@@ -337,7 +342,7 @@ export default function ProgressPage() {
           >
             <Share2 className="w-3.5 h-3.5" /> Share Report
           </button>
-        </div>
+        </motion.div>
 
         {/* Plan Progress Card */}
         {(() => {
@@ -521,7 +526,12 @@ export default function ProgressPage() {
                   return (
                     <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
                       <span className="text-[9px] text-muted-foreground font-medium">{d.calories > 0 ? d.calories : ''}</span>
-                      <div className={`w-full rounded-lg transition-all duration-500 ${isToday ? 'bg-primary' : 'bg-primary/20'}`} style={{ height: `${pct}%` }} />
+                      <motion.div
+                        className={`w-full rounded-lg ${isToday ? 'bg-primary' : 'bg-primary/20'}`}
+                        initial={{ height: 0 }}
+                        animate={{ height: `${pct}%` }}
+                        transition={{ type: 'spring', stiffness: 200, damping: 25, delay: i * 0.04 }}
+                      />
                       <span className="text-[9px] text-muted-foreground font-medium">{d.date}</span>
                     </div>
                   );
@@ -586,7 +596,7 @@ export default function ProgressPage() {
             </div>
           </>
         )}
-      </div>
+      </motion.div>
 
       <WeightLogSheet
         open={showWeightSheet}

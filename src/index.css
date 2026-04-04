@@ -216,8 +216,46 @@
   50% { transform: scale(1.8); opacity: 0; }
 }
 
+@keyframes ken-burns {
+  0% { transform: scale(1) translate(0, 0); }
+  50% { transform: scale(1.08) translate(-1%, -1%); }
+  100% { transform: scale(1) translate(0, 0); }
+}
+
+@keyframes scan-sweep {
+  0% { top: 0%; opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { top: 100%; opacity: 1; }
+}
+
+@keyframes particle-burst {
+  0% { transform: scale(0); opacity: 1; }
+  60% { transform: scale(1.2); opacity: 0.8; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+@keyframes corner-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@keyframes float-up {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes orbit {
+  from { transform: rotate(0deg) translateX(40px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(40px) rotate(-360deg); }
+}
+
 .animate-breathe { animation: breathe 3s ease-in-out infinite; }
 .animate-shimmer-bar { animation: shimmer-bar 2s ease-in-out infinite; }
 .animate-wave { animation: wave-motion 3s linear infinite; }
 .animate-ambient { animation: ambient-shift 8s ease-in-out infinite; }
 .animate-notification-pulse { animation: notification-pulse 2s ease-in-out infinite; }
+.animate-ken-burns { animation: ken-burns 15s ease-in-out infinite; }
+.animate-scan-sweep { animation: scan-sweep 2s ease-in-out infinite; }
+.animate-corner-pulse { animation: corner-pulse 2s ease-in-out infinite; }
+.animate-float { animation: float-up 3s ease-in-out infinite; }
+.animate-orbit { animation: orbit 3s linear infinite; }

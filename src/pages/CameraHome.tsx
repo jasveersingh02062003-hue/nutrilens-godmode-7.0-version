@@ -557,20 +557,71 @@ export default function CameraHome() {
           <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
         </div>
 
+        {/* Animated scan corners */}
+        {cameraReady && !analyzing && !isListening && (
+          <div className="absolute inset-0 z-[5] pointer-events-none flex items-center justify-center">
+            <div className="relative w-64 h-64">
+              {/* Top-left corner */}
+              <motion.div className="absolute top-0 left-0 w-10 h-10 border-t-2 border-l-2 border-primary rounded-tl-lg animate-corner-pulse" 
+                initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} style={{ boxShadow: '0 0 12px hsl(var(--primary) / 0.3)' }} />
+              {/* Top-right corner */}
+              <motion.div className="absolute top-0 right-0 w-10 h-10 border-t-2 border-r-2 border-primary rounded-tr-lg animate-corner-pulse"
+                initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }} style={{ boxShadow: '0 0 12px hsl(var(--primary) / 0.3)' }} />
+              {/* Bottom-left corner */}
+              <motion.div className="absolute bottom-0 left-0 w-10 h-10 border-b-2 border-l-2 border-primary rounded-bl-lg animate-corner-pulse"
+                initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }} style={{ boxShadow: '0 0 12px hsl(var(--primary) / 0.3)' }} />
+              {/* Bottom-right corner */}
+              <motion.div className="absolute bottom-0 right-0 w-10 h-10 border-b-2 border-r-2 border-primary rounded-br-lg animate-corner-pulse"
+                initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }} style={{ boxShadow: '0 0 12px hsl(var(--primary) / 0.3)' }} />
+              {/* Scan line */}
+              <motion.div
+                className="absolute left-1 right-1 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent"
+                animate={{ top: ['0%', '100%', '0%'] }}
+                transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
+                style={{ boxShadow: '0 0 8px hsl(var(--primary) / 0.5)' }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Gradient overlays */}
         <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-foreground/60 to-transparent pointer-events-none" />
         <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-foreground/80 to-transparent pointer-events-none" />
 
-        {/* Analyzing overlay */}
+        {/* Futuristic analyzing overlay */}
         <AnimatePresence>
           {analyzing && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-foreground/60 backdrop-blur-sm flex flex-col items-center justify-center z-30">
-              <motion.div animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}>
-                <Loader2 className="w-12 h-12 text-primary animate-spin" />
-              </motion.div>
-              <p className="text-primary-foreground font-semibold text-sm mt-4">AI is analyzing...</p>
-              <p className="text-primary-foreground/60 text-xs mt-1">Identifying food & nutrition</p>
+              className="absolute inset-0 bg-foreground/70 backdrop-blur-md flex flex-col items-center justify-center z-30">
+              {/* Rotating dashed circles */}
+              <div className="relative w-28 h-28">
+                <motion.div className="absolute inset-0 rounded-full border-2 border-dashed border-primary/60"
+                  animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 3, ease: 'linear' }} />
+                <motion.div className="absolute inset-3 rounded-full border-2 border-dashed border-primary/40"
+                  animate={{ rotate: -360 }} transition={{ repeat: Infinity, duration: 4, ease: 'linear' }} />
+                <motion.div className="absolute inset-6 rounded-full border border-dashed border-primary/30"
+                  animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 5, ease: 'linear' }} />
+                {/* Pulsing center dot */}
+                <motion.div className="absolute inset-0 flex items-center justify-center">
+                  <motion.div className="w-4 h-4 rounded-full bg-primary" animate={{ scale: [1, 1.3, 1], opacity: [1, 0.6, 1] }}
+                    transition={{ repeat: Infinity, duration: 1.5 }} style={{ boxShadow: '0 0 20px hsl(var(--primary) / 0.5)' }} />
+                </motion.div>
+                {/* Floating particles */}
+                {[...Array(6)].map((_, i) => (
+                  <motion.div key={i}
+                    className="absolute w-1.5 h-1.5 rounded-full bg-primary/60"
+                    style={{ top: '50%', left: '50%' }}
+                    animate={{
+                      x: [0, Math.cos(i * 60 * Math.PI / 180) * 50],
+                      y: [0, Math.sin(i * 60 * Math.PI / 180) * 50],
+                      opacity: [0, 1, 0],
+                    }}
+                    transition={{ repeat: Infinity, duration: 2, delay: i * 0.3, ease: 'easeOut' }}
+                  />
+                ))}
+              </div>
+              <p className="text-primary-foreground font-semibold text-sm mt-6">Scanning food...</p>
+              <p className="text-primary-foreground/50 text-xs mt-1">Identifying nutrients & portions</p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -616,35 +667,39 @@ export default function CameraHome() {
           <div className="absolute bottom-0 inset-x-0 z-10 pb-20 px-6">
             {/* Remaining calories chip */}
             <div className="flex justify-center mb-4">
-              <div className="px-4 py-2 rounded-2xl bg-primary-foreground/10 backdrop-blur-md">
+              <motion.div
+                className="px-4 py-2 rounded-2xl bg-primary-foreground/10 backdrop-blur-md border border-primary-foreground/10"
+                animate={remaining < 300 ? { boxShadow: ['0 0 0 0 hsl(var(--primary) / 0)', '0 0 12px 2px hsl(var(--primary) / 0.3)', '0 0 0 0 hsl(var(--primary) / 0)'] } : {}}
+                transition={remaining < 300 ? { repeat: Infinity, duration: 2 } : {}}
+              >
                 <span className="text-primary-foreground/80 text-xs font-medium">
                   {remaining > 0 ? `${remaining} kcal remaining today` : 'Goal reached! 🎉'}
                 </span>
-              </div>
+              </motion.div>
             </div>
 
             {/* Controls row */}
             <div className="flex items-center justify-between">
               {/* Gallery */}
-              <button onClick={() => galleryInputRef.current?.click()}
-                className="w-12 h-12 rounded-xl bg-primary-foreground/10 backdrop-blur-md flex items-center justify-center active:scale-90 transition-transform">
+              <motion.button onClick={() => galleryInputRef.current?.click()} whileTap={{ scale: 0.85 }}
+                className="w-12 h-12 rounded-xl bg-primary-foreground/10 backdrop-blur-md flex items-center justify-center">
                 <ImageIcon className="w-5 h-5 text-primary-foreground" />
-              </button>
+              </motion.button>
 
               {/* Capture button */}
-              <button onClick={captureAndAnalyze}
-                className="relative w-[72px] h-[72px] rounded-full border-4 border-primary-foreground/40 flex items-center justify-center active:scale-90 transition-transform">
+              <motion.button onClick={captureAndAnalyze} whileTap={{ scale: 0.9 }}
+                className="relative w-[72px] h-[72px] rounded-full border-4 border-primary-foreground/40 flex items-center justify-center">
                 <motion.div className="absolute inset-[-6px] rounded-full border-2 border-primary/50"
                   animate={{ scale: [1, 1.15, 1], opacity: [0.6, 0, 0.6] }}
                   transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }} />
                 <div className="w-[58px] h-[58px] rounded-full bg-primary-foreground" />
-              </button>
+              </motion.button>
 
               {/* Voice */}
-              <button onClick={startVoice}
-                className="w-12 h-12 rounded-xl bg-primary-foreground/10 backdrop-blur-md flex items-center justify-center active:scale-90 transition-transform">
+              <motion.button onClick={startVoice} whileTap={{ scale: 0.85 }}
+                className="w-12 h-12 rounded-xl bg-primary-foreground/10 backdrop-blur-md flex items-center justify-center">
                 <Mic className="w-5 h-5 text-primary-foreground" />
-              </button>
+              </motion.button>
             </div>
 
             {/* Mode chips: Scan Food | Manual Entry */}
