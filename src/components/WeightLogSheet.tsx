@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Scale, X, ArrowUpDown, Camera, Image as ImageIcon, AlertTriangle, StickyNote } from 'lucide-react';
 import { logWeight, getTodayKey } from '@/lib/store';
@@ -6,6 +7,7 @@ import { addWeightEntry, getWeekStart, type WeightEntry } from '@/lib/weight-his
 import { watermarkImage } from '@/lib/photo-watermark';
 import { fileToDataUrl } from '@/lib/photo-store';
 import { toast } from 'sonner';
+import { mobileOverlayMotion, mobileOverlayTransition, mobileSheetMotion, mobileSheetTransition, useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 
 interface Props {
   open: boolean;
@@ -107,24 +109,25 @@ export default function WeightLogSheet({ open, onClose, onSaved, defaultWeight }
     handleClose();
   };
 
-  return (
+  useBodyScrollLock(open);
+
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          {...mobileOverlayMotion}
+          transition={mobileOverlayTransition}
           className="fixed inset-0 z-50 flex items-end justify-center"
           onClick={handleClose}
         >
-          <div className="absolute inset-0 bg-foreground/10 backdrop-blur-sm" />
+          <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" />
           <motion.div
-            initial={{ y: 500 }}
-            animate={{ y: 0 }}
-            exit={{ y: 500 }}
-            className="relative w-full max-w-lg bg-card rounded-t-3xl shadow-lg"
+            {...mobileSheetMotion}
+            transition={mobileSheetTransition}
+            className="relative w-full max-w-lg max-h-[92dvh] overflow-hidden rounded-t-3xl bg-card shadow-lg"
             onClick={e => e.stopPropagation()}
-            style={{ maxHeight: '90vh' }}
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -139,7 +142,7 @@ export default function WeightLogSheet({ open, onClose, onSaved, defaultWeight }
               </button>
             </div>
 
-            <div className="px-5 py-5 overflow-y-auto" style={{ maxHeight: '75vh' }}>
+            <div className="max-h-[calc(92dvh-64px)] overflow-y-auto overscroll-contain px-5 py-5 pb-[calc(2rem+env(safe-area-inset-bottom,0px))]">
               <AnimatePresence mode="wait">
                 {/* STEP 1: Photo Capture */}
                 {step === 'photo' && (
@@ -356,5 +359,6 @@ export default function WeightLogSheet({ open, onClose, onSaved, defaultWeight }
         </motion.div>
       )}
     </AnimatePresence>
+    , document.body
   );
 }

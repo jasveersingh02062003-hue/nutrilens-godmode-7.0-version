@@ -1,5 +1,6 @@
 import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Camera, User, Ruler, Scale, Target, Activity, Heart, Apple, ChefHat, Save, Shield, Briefcase, ChevronDown, ChevronUp, Dumbbell } from 'lucide-react';
 import type { UserProfile } from '@/lib/store';
@@ -10,6 +11,7 @@ import { determineGoalAndTargets } from '@/lib/goal-engine';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
 import { fileToDataUrl } from '@/lib/photo-store';
+import { mobileOverlayMotion, mobileOverlayTransition, mobileSheetMotion, mobileSheetTransition, useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 
 const PHOTO_KEY = 'nutrilens_profile_photo';
 
@@ -222,25 +224,26 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
   const toggleArrayItem = (arr: string[], item: string): string[] =>
     arr.includes(item) ? arr.filter(i => i !== item) : [...arr, item];
 
-  if (!open) return null;
+  useBodyScrollLock(open);
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-foreground/50 backdrop-blur-sm"
-        onClick={onClose}
-      >
+      {open && (
         <motion.div
-          initial={{ y: '100%' }}
-          animate={{ y: 0 }}
-          exit={{ y: '100%' }}
-          transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-          onClick={e => e.stopPropagation()}
-          className="absolute bottom-0 left-0 right-0 max-h-[92vh] bg-background rounded-t-3xl overflow-hidden"
+          {...mobileOverlayMotion}
+          transition={mobileOverlayTransition}
+          className="fixed inset-0 z-50"
+          onClick={onClose}
         >
+          <div className="absolute inset-0 bg-foreground/30 backdrop-blur-sm" />
+          <motion.div
+            {...mobileSheetMotion}
+            transition={mobileSheetTransition}
+            onClick={e => e.stopPropagation()}
+            className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-lg max-h-[92dvh] overflow-hidden rounded-t-3xl bg-background shadow-lg"
+          >
           {/* Header */}
           <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-3 flex items-center justify-between">
             <h2 className="text-base font-bold text-foreground">Edit Profile</h2>
@@ -254,7 +257,7 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
             </div>
           </div>
 
-          <div className="overflow-y-auto max-h-[calc(92vh-56px)] px-4 py-4 space-y-5">
+          <div className="overflow-y-auto overscroll-contain max-h-[calc(92dvh-56px)] px-4 py-4 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] space-y-5">
             {/* Photo */}
             <div className="flex flex-col items-center gap-3">
               <div className="relative">
@@ -502,9 +505,11 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
             {/* Bottom spacer */}
             <div className="h-8" />
           </div>
+          </motion.div>
         </motion.div>
-      </motion.div>
+      )}
     </AnimatePresence>
+    , document.body
   );
 }
 

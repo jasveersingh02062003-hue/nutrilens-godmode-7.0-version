@@ -1,10 +1,12 @@
 import { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Search, Plus, Minus, Clock, Utensils } from 'lucide-react';
 import { SUPPLEMENTS_DB, SUPPLEMENT_CATEGORIES, SUPPLEMENT_UNITS, SupplementDef } from '@/lib/supplements';
 import { SupplementEntry, addSupplement, addSupplementForDate, addMealToLog, addMealToLogForDate, MealEntry, FoodItem } from '@/lib/store';
 import { getCurrentMealType, getMealTypeForTime } from '@/lib/supplement-meal-assignment';
 import MealSlotPicker from './MealSlotPicker';
+import { mobileOverlayMotion, mobileOverlayTransition, mobileSheetMotion, mobileSheetTransition, useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 
 interface Props {
   open: boolean;
@@ -163,31 +165,31 @@ export default function SupplementLogSheet({ open, onClose, onSaved, editEntry, 
     onClose();
   };
 
-  if (!open) return null;
+  useBodyScrollLock(open);
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  const overlay = createPortal(
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50"
-        onClick={handleClose}
-      >
-        <div className="absolute inset-0 bg-foreground/30 backdrop-blur-sm" />
+      {open && (
         <motion.div
-          initial={{ y: '100%' }}
-          animate={{ y: 0 }}
-          exit={{ y: '100%' }}
-          transition={{ type: 'spring', stiffness: 200, damping: 25 }}
-          className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto bg-background rounded-t-3xl"
-          onClick={e => e.stopPropagation()}
+          {...mobileOverlayMotion}
+          transition={mobileOverlayTransition}
+          className="fixed inset-0 z-50"
+          onClick={handleClose}
         >
-          <div className="flex justify-center pt-3 pb-1">
-            <div className="w-10 h-1 rounded-full bg-muted-foreground/20" />
-          </div>
+          <div className="absolute inset-0 bg-foreground/30 backdrop-blur-sm" />
+          <motion.div
+            {...mobileSheetMotion}
+            transition={mobileSheetTransition}
+            className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-lg max-h-[92dvh] overflow-y-auto overscroll-contain rounded-t-3xl bg-background shadow-lg"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full bg-muted-foreground/20" />
+            </div>
 
-          <div className="px-5 pb-8 space-y-4">
+            <div className="px-5 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] space-y-4">
             {/* Header */}
             <div className="flex items-center justify-between">
               <h2 className="text-base font-bold text-foreground">
@@ -397,9 +399,17 @@ export default function SupplementLogSheet({ open, onClose, onSaved, editEntry, 
                 </div>
               </div>
             )}
-          </div>
+            </div>
+          </motion.div>
         </motion.div>
-      </motion.div>
+      )}
+    </AnimatePresence>
+    , document.body
+  );
+
+  return (
+    <>
+      {overlay}
       <MealSlotPicker
         open={mealPickerOpen}
         onOpenChange={setMealPickerOpen}
@@ -409,6 +419,6 @@ export default function SupplementLogSheet({ open, onClose, onSaved, editEntry, 
           setMealPickerOpen(false);
         }}
       />
-    </AnimatePresence>
+    </>
   );
 }

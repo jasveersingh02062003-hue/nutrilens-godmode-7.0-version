@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { X, ChevronRight, BarChart3, CalendarDays, User, Droplets, Plus, Flame, Wheat } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getProfile, getDailyLog, getDailyTotals, addWater, DailyLog } from '@/lib/store';
 import { getGreeting } from '@/lib/nutrition';
+import { mobileOverlayMotion, mobileOverlayTransition, mobileSheetMotion, mobileSheetTransition, useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 
 const mealEmojis: Record<string, string> = { breakfast: '🌅', lunch: '☀️', dinner: '🌙', snack: '🍪' };
 
@@ -13,33 +15,33 @@ export default function DashboardPanel({ onClose }: { onClose: () => void }) {
   const [log, setLog] = useState<DailyLog>(getDailyLog());
   const totals = getDailyTotals(log);
 
+  useBodyScrollLock(true);
+
   useEffect(() => {
     const interval = setInterval(() => setLog(getDailyLog()), 2000);
     return () => clearInterval(interval);
   }, []);
 
   if (!profile) return null;
+  if (typeof document === 'undefined') return null;
 
   const remaining = Math.max(0, profile.dailyCalories - totals.eaten);
   const progress = Math.min(1, totals.eaten / profile.dailyCalories);
   const handleAddWater = () => setLog(addWater());
   const goalCups = Math.round(profile.waterGoal / 250);
 
-  return (
+  return createPortal(
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      {...mobileOverlayMotion}
+      transition={mobileOverlayTransition}
       className="fixed inset-0 z-40"
       onClick={onClose}
     >
       <div className="absolute inset-0 bg-foreground/30 backdrop-blur-sm" />
       <motion.div
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        transition={{ type: 'spring', stiffness: 300, damping: 35 }}
-        className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto bg-background rounded-t-3xl"
+        {...mobileSheetMotion}
+        transition={mobileSheetTransition}
+        className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-lg max-h-[92dvh] overflow-y-auto overscroll-contain rounded-t-3xl bg-background shadow-lg"
         onClick={e => e.stopPropagation()}
       >
         {/* Handle */}
@@ -47,7 +49,7 @@ export default function DashboardPanel({ onClose }: { onClose: () => void }) {
           <div className="w-10 h-1 rounded-full bg-muted-foreground/20" />
         </div>
 
-        <div className="px-5 pb-8 space-y-4">
+        <div className="px-5 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] space-y-4">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
@@ -184,5 +186,6 @@ export default function DashboardPanel({ onClose }: { onClose: () => void }) {
         </div>
       </motion.div>
     </motion.div>
+    , document.body
   );
 }
