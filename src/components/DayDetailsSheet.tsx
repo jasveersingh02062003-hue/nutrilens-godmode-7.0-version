@@ -505,6 +505,7 @@ export default function DayDetailsSheet({ open, date, onClose, onChanged }: Prop
           </div>
         </motion.div>
       </motion.div>
+      )}
 
       {/* Sub-sheets */}
       <ActivityLogSheet
