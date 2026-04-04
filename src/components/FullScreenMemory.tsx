@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Edit3, Share2, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import { MealEntry, getDailyLog, saveDailyLog } from '@/lib/store';
 import { getSourceEmoji, getSourceLabel } from '@/lib/context-learning';
 
