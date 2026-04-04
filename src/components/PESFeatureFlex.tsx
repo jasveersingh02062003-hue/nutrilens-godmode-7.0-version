@@ -1,5 +1,6 @@
 import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const EXAMPLES = [
@@ -29,10 +30,11 @@ export default function PESFeatureFlex({ onDismiss }: Props) {
   const normalized = Math.min(current.pes / 5, 1);
 
   return (
-    <motion.div
+    createPortal(<motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
       className="fixed inset-0 z-[100] flex flex-col items-center justify-center"
       style={{ background: 'linear-gradient(135deg, hsl(220, 20%, 8%) 0%, hsl(240, 15%, 14%) 50%, hsl(260, 12%, 10%) 100%)' }}
     >
@@ -155,6 +157,6 @@ export default function PESFeatureFlex({ onDismiss }: Props) {
       >
         Experience Food Value Intelligence
       </motion.button>
-    </motion.div>
+    </motion.div>, document.body)
   );
 }

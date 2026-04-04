@@ -252,12 +252,12 @@ export default function ProgressPhotosSection({ refreshKey, onChanged }: Props) 
           >
             <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" />
             <motion.div
-              initial={{ y: 400 }}
-              animate={{ y: 0 }}
-              exit={{ y: 400 }}
-              className="relative w-full max-w-lg bg-card rounded-t-3xl shadow-lg"
+              initial={{ y: '8%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '8%', opacity: 0 }}
+              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              className="relative w-full max-w-lg max-h-[92dvh] overflow-hidden rounded-t-3xl bg-card shadow-lg"
               onClick={e => e.stopPropagation()}
-              style={{ maxHeight: '85vh' }}
             >
               <div className="flex items-center justify-between px-5 py-4 border-b border-border">
                 <h3 className="font-bold text-sm text-foreground">Add Progress Photo</h3>
@@ -266,7 +266,7 @@ export default function ProgressPhotosSection({ refreshKey, onChanged }: Props) 
                 </button>
               </div>
 
-              <div className="px-5 py-4 space-y-4 overflow-y-auto" style={{ maxHeight: '70vh' }}>
+              <div className="px-5 py-4 space-y-4 overflow-y-auto overscroll-contain max-h-[calc(92dvh-64px)]">
                 {/* Preview with watermark */}
                 <div className="rounded-2xl overflow-hidden aspect-[3/4] max-h-48 mx-auto relative">
                   <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />

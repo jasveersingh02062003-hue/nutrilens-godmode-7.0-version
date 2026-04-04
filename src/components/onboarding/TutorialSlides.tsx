@@ -38,9 +38,9 @@ const SLIDES = [
 ];
 
 const slideVariants = {
-  enter: (dir: number) => ({ x: dir > 0 ? 150 : -150, opacity: 0, scale: 0.9 }),
-  center: { x: 0, opacity: 1, scale: 1, transition: { type: 'spring' as const, stiffness: 300, damping: 30 } },
-  exit: (dir: number) => ({ x: dir < 0 ? 150 : -150, opacity: 0, scale: 0.9, transition: { duration: 0.25 } }),
+  enter: (dir: number) => ({ x: dir > 0 ? 40 : -40, opacity: 0 }),
+  center: { x: 0, opacity: 1, transition: { duration: 0.22, ease: 'easeOut' as const } },
+  exit: (dir: number) => ({ x: dir < 0 ? 40 : -40, opacity: 0, transition: { duration: 0.15 } }),
 };
 
 function FloatingParticle({ emoji, delay, x, y }: { emoji: string; delay: number; x: number; y: number }) {

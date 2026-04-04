@@ -154,10 +154,10 @@ export default function MealBreakdownScreen({ calories, protein, carbs, fat, onC
             onClick={() => setEditing(false)}
           >
             <motion.div
-              initial={{ y: 300 }}
-              animate={{ y: 0 }}
-              exit={{ y: 300 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              initial={{ y: '8%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '8%', opacity: 0 }}
+              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
               onClick={e => e.stopPropagation()}
               className="w-full max-w-lg bg-card rounded-t-3xl p-6 pb-8 border-t border-border"
             >

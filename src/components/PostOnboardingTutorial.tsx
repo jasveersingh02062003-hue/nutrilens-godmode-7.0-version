@@ -4,8 +4,10 @@ import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 // ============================================
 
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, UtensilsCrossed, TrendingUp, X, ArrowRight, Sparkles } from 'lucide-react';
+import { mobileOverlayMotion, mobileOverlayTransition, mobileSheetMotion, mobileSheetTransition, useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 
 interface PostOnboardingTutorialProps {
   onDismiss: () => void;
@@ -41,6 +43,8 @@ export default function PostOnboardingTutorial({ onDismiss }: PostOnboardingTuto
   const Icon = step.icon;
   const isLast = currentStep === STEPS.length - 1;
 
+  useBodyScrollLock(true);
+
   const handleNext = () => {
     if (isLast) {
       scopedSet('tutorial_seen', 'true');
@@ -50,19 +54,19 @@ export default function PostOnboardingTutorial({ onDismiss }: PostOnboardingTuto
     }
   };
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 backdrop-blur-sm"
+      {...mobileOverlayMotion}
+      transition={mobileOverlayTransition}
+      className="fixed inset-0 z-[60] flex items-end justify-center"
     >
+      <div className="absolute inset-0 bg-foreground/50 backdrop-blur-sm" />
       <motion.div
-        initial={{ y: 100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 100, opacity: 0 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className="w-full max-w-lg mx-auto bg-card rounded-t-3xl p-6 pb-10 shadow-2xl"
+        {...mobileSheetMotion}
+        transition={mobileSheetTransition}
+        className="relative w-full max-w-lg mx-auto max-h-[92dvh] overflow-y-auto overscroll-contain rounded-t-3xl bg-card p-6 pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))] shadow-2xl"
       >
         {/* Progress & Close */}
         <div className="flex justify-between items-center mb-6">
@@ -124,5 +128,6 @@ export default function PostOnboardingTutorial({ onDismiss }: PostOnboardingTuto
         </motion.button>
       </motion.div>
     </motion.div>
+    , document.body
   );
 }
