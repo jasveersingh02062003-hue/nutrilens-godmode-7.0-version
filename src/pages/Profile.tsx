@@ -261,21 +261,31 @@ export default function Profile() {
         })()}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-3 gap-2">
-          {statCards.map(s => (
-            <div key={s.label} className="card-subtle p-3 text-center">
+        <motion.div variants={fadeUp} className="grid grid-cols-3 gap-2">
+          {statCards.map((s, i) => (
+            <motion.div
+              key={s.label}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 + i * 0.05, type: 'spring', stiffness: 350, damping: 30 }}
+              className="card-subtle p-3 text-center"
+            >
               <p className="text-lg font-bold text-foreground">{s.value}</p>
               <p className="text-[9px] text-muted-foreground font-medium">{s.unit}</p>
               <p className="text-[10px] text-muted-foreground mt-0.5">{s.label}</p>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
 
-        {/* Settings */}
-        <div className="card-elevated overflow-hidden">
+        {/* Settings — staggered cascade */}
+        <motion.div variants={fadeUp} className="card-elevated overflow-hidden">
           {settings.map((s, i) => (
-            <button
+            <motion.button
               key={s.label}
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 + i * 0.04, type: 'spring', stiffness: 300, damping: 28 }}
+              whileTap={{ scale: 0.98 }}
               onClick={s.action}
               className={`w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-muted/50 transition-colors ${i < settings.length - 1 ? 'border-b border-border' : ''}`}
             >
@@ -287,9 +297,9 @@ export default function Profile() {
                 <p className="text-[10px] text-muted-foreground">{s.sub}</p>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            </button>
+            </motion.button>
           ))}
-        </div>
+        </motion.div>
 
         {/* ── My Plans Section ── */}
         <div className="card-elevated p-4 space-y-4">
