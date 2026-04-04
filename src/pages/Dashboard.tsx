@@ -55,13 +55,6 @@ const PostWorkoutCard = lazy(() => import('@/components/PostWorkoutCard'));
 const WeatherNudgeCard = lazy(() => import('@/components/WeatherNudgeCard'));
 const SkinHealthCard = lazy(() => import('@/components/SkinHealthCard'));
 
-import DashboardHeader from '@/components/dashboard/DashboardHeader';
-import DashboardModals from '@/components/dashboard/DashboardModals';
-import CalorieCorrectionSection from '@/components/dashboard/CalorieCorrectionSection';
-import PlanBannerSection from '@/components/dashboard/PlanBannerSection';
-import { useDashboardInit } from '@/hooks/useDashboardInit';
-import { motion } from 'framer-motion';
-
 const stagger = {
   hidden: {},
   show: { transition: { staggerChildren: 0.06 } },
