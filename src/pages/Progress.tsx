@@ -591,7 +591,7 @@ export default function ProgressPage() {
             </div>
           </>
         )}
-      </motion.div>
+      </div>
 
       <WeightLogSheet
         open={showWeightSheet}
