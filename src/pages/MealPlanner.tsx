@@ -1,8 +1,10 @@
 import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { isGymDay, markRestDay, unmarkRestDay, isRestDay } from '@/lib/gym-service';
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ChefHat, CalendarDays, ArrowLeft, ArrowRight, Check, ShoppingCart, Repeat, X, Search, Target, Scale, Crown, Lock, Zap, Dumbbell } from 'lucide-react';
+import { mobileOverlayMotion, mobileOverlayTransition, mobileSheetMotion, mobileSheetTransition } from '@/hooks/use-body-scroll-lock';
 import { isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
