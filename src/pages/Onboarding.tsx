@@ -1149,6 +1149,102 @@ export default function Onboarding() {
                     <Option key={o.v} value={o.v} current={f.gymGoal} label={o.l} onSelect={v => set('gymGoal', v)} idx={i} />
                   ))}
                 </div>
+
+                {/* NEW: Gym Timing */}
+                <div className="space-y-2.5 border-t border-border pt-4">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">When do you usually go?</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { v: 'morning', l: '🌅 Morning', s: '5 AM – 9 AM' },
+                      { v: 'afternoon', l: '☀️ Afternoon', s: '12 PM – 3 PM' },
+                      { v: 'evening', l: '🌆 Evening', s: '5 PM – 8 PM' },
+                      { v: 'night', l: '🌙 Night', s: '9 PM – 11 PM' },
+                    ].map((o, i) => (
+                      <Option key={o.v} value={o.v} current={f.gymTimeOfDay} label={o.l} sub={o.s} onSelect={v => set('gymTimeOfDay', v)} idx={i} />
+                    ))}
+                  </div>
+                </div>
+
+                {f.gymTimeOfDay && (
+                  <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+                    <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold text-foreground">Exact time</p>
+                        <p className="text-lg font-mono font-bold text-primary">
+                          {f.gymSpecificHour > 12 ? f.gymSpecificHour - 12 : f.gymSpecificHour === 0 ? 12 : f.gymSpecificHour}:00 {f.gymSpecificHour >= 12 ? 'PM' : 'AM'}
+                        </p>
+                      </div>
+                      <input type="range" min={
+                        f.gymTimeOfDay === 'morning' ? 5 : f.gymTimeOfDay === 'afternoon' ? 12 : f.gymTimeOfDay === 'evening' ? 17 : 21
+                      } max={
+                        f.gymTimeOfDay === 'morning' ? 9 : f.gymTimeOfDay === 'afternoon' ? 15 : f.gymTimeOfDay === 'evening' ? 20 : 23
+                      } step={1} value={f.gymSpecificHour}
+                        onChange={e => set('gymSpecificHour', Number(e.target.value))} className="w-full accent-primary" />
+                    </div>
+
+                    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                      className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+                      <p className="text-xs text-foreground leading-relaxed">
+                        💡 We'll suggest a <strong>pre-workout meal</strong> {f.gymTimeOfDay === 'morning' ? '30-60 min before' : '1-2 hours before'} and a <strong>recovery meal</strong> right after your workout. Your daily check-in will appear after your session.
+                      </p>
+                    </motion.div>
+                  </motion.div>
+                )}
+
+                {/* Optional: Work & Sleep Schedule */}
+                {f.gymTimeOfDay && (
+                  <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-3 border-t border-border pt-4">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Work & Sleep (optional)</p>
+                    <p className="text-[10px] text-muted-foreground">Helps us balance your energy across the day</p>
+
+                    <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                      <p className="text-xs font-semibold text-foreground">Work Hours</p>
+                      <div className="flex gap-3 items-center">
+                        <div className="flex-1">
+                          <label className="text-[10px] text-muted-foreground">Start</label>
+                          <input type="time" value={f.workStartTime} onChange={e => set('workStartTime', e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-sm font-medium outline-none" />
+                        </div>
+                        <span className="text-muted-foreground text-xs mt-3">to</span>
+                        <div className="flex-1">
+                          <label className="text-[10px] text-muted-foreground">End</label>
+                          <input type="time" value={f.workEndTime} onChange={e => set('workEndTime', e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-sm font-medium outline-none" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                      <p className="text-xs font-semibold text-foreground">Sleep Schedule</p>
+                      <div className="flex gap-3 items-center">
+                        <div className="flex-1">
+                          <label className="text-[10px] text-muted-foreground">Bedtime</label>
+                          <input type="time" value={f.sleepStartTime} onChange={e => set('sleepStartTime', e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-sm font-medium outline-none" />
+                        </div>
+                        <span className="text-muted-foreground text-xs mt-3">to</span>
+                        <div className="flex-1">
+                          <label className="text-[10px] text-muted-foreground">Wake up</label>
+                          <input type="time" value={f.sleepEndTime} onChange={e => set('sleepEndTime', e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-sm font-medium outline-none" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-foreground">Shift Type</p>
+                      <div className="flex gap-2">
+                        {[
+                          { v: 'day', l: '☀️ Day Shift' },
+                          { v: 'night', l: '🌙 Night Shift' },
+                          { v: 'rotating', l: '🔄 Rotating' },
+                        ].map((o, i) => (
+                          <Option key={o.v} value={o.v} current={f.shiftType} label={o.l} onSelect={v => set('shiftType', v)} idx={i} />
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
               </motion.div>
             )}
           </div>
