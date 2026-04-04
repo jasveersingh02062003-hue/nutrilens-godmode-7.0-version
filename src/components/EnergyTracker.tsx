@@ -20,7 +20,7 @@ export default function EnergyTracker({ onRefresh }: EnergyTrackerProps) {
 
   const handleSelect = (level: 1 | 2 | 3 | 4 | 5) => {
     const updated = { ...log, energyLevel: level };
-    saveDailyLog(today, updated);
+    saveDailyLog(updated);
     setSaved(true);
     onRefresh?.();
   };
