@@ -1,39 +1,58 @@
 
-## Problem
 
-The calendar tap logic is working, but the popup container is not behaving like a true mobile overlay.
+## Fix All Remaining Mobile Popups and Onboarding Animations
 
-`DayDetailsSheet` is a custom `fixed` bottom sheet rendered inside the page, while the Progress page itself is wrapped in `PageTransition` (`framer-motion` transform / will-change). On mobile, that can make the sheet position itself relative to the long scrolling page instead of the real viewport. That is why it feels like it comes from very far below and why you end up needing to scroll down to reach it.
+### Problem
+Several popups and overlays still render inside the `PageTransition` wrapper (which uses CSS transforms), causing `fixed` positioning to break on mobile. The user sees popups appearing far below the viewport, requiring scroll to reach them. The onboarding flow also has animation issues.
 
-## Plan
+### Current State
+Already fixed with portal + scroll lock: `DayDetailsSheet`, `EditProfileSheet`, `DashboardPanel`, `SupplementLogSheet`, `SupplementEditModal`, `PESExplanationCard`, `PESBreakdownModal`, `WeightLogSheet`, `PostOnboardingTutorial`, `SplashScreen`, `PESFeatureFlex`, `MonikaChatScreen`.
 
-### 1. Move `DayDetailsSheet` to a real portal
-- Update `src/components/DayDetailsSheet.tsx` to render with `createPortal(..., document.body)`.
-- Keep all current day logic, projected targets, and popup content exactly the same.
-- This makes the popup attach to the phone screen itself, not the transformed Progress page.
+The shared `dialog.tsx`, `sheet.tsx`, `alert-dialog.tsx` already have faster transitions.
 
-### 2. Lock the background page while the popup is open
-- Add open/close side effects in `DayDetailsSheet` to prevent the Progress page from scrolling underneath.
-- Keep scrolling only inside the popup content.
-- Add overscroll containment so swipe gestures feel controlled on mobile.
+### Remaining Files That Need Portal + Scroll Lock
 
-### 3. Make the sheet fully mobile-safe
-- Keep the newer fast fade + short nudge animation.
-- Replace plain viewport sizing with mobile-safe sizing (`dvh`-based max height) so browser UI on phones does not push the sheet off-screen.
-- Ensure the sheet opens already visible, without needing the user to scroll the page.
+**Custom overlay components (no portal yet):**
 
-### 4. Verify both places that use this sheet
-- Check the Progress calendar flow: tap today / tomorrow / future dates and confirm the popup appears instantly in view.
-- Check Food Archive too, because it uses the same `DayDetailsSheet`.
-- Confirm nested flows still work: add meal, add supplement, add activity, close sheet.
+1. **`src/components/FullScreenMemory.tsx`** — full-screen photo viewer rendered inline. Wrap in `createPortal` + add `useBodyScrollLock`.
 
-## Files
+2. **`src/components/WeeklyWeightTimeline.tsx`** — detail modal for weight entry photos. Wrap the `fixed inset-0` modal in `createPortal`.
 
-- Main change: `src/components/DayDetailsSheet.tsx`
-- No calendar business-logic change needed in `src/pages/Progress.tsx`
+3. **`src/components/onboarding/MealBreakdownScreen.tsx`** — "Edit Meal Split" bottom sheet inside onboarding. Wrap in `createPortal` + scroll lock.
 
-## Technical details
+4. **`src/components/ProgressPhotosSection.tsx`** — capture sheet and photo viewer overlays. Wrap both in `createPortal`.
 
-- Root cause is not the calendar data or the selected date logic.
-- Root cause is `position: fixed` being trapped inside a transformed page wrapper.
-- The clean fix is to portal the popup to `document.body`, which matches the existing portal-based pattern already used elsewhere and restores correct mobile behavior without changing the feature itself.
+5. **`src/components/PlansPage.tsx`** — plan promo confirmation modal. Wrap in `createPortal`.
+
+6. **`src/components/CostSuggestionBanner.tsx`** — swap confirmation modal. Wrap in `createPortal`.
+
+7. **`src/pages/MealPlanner.tsx`** — success confirmation overlay. Wrap in `createPortal`.
+
+8. **`src/components/CelebrationBurst.tsx`** and **`src/components/ConfettiCelebration.tsx`** — decorative particle effects. Wrap in `createPortal` (no scroll lock needed, they're pointer-events-none).
+
+**Components using shared Sheet/Dialog (already fixed via shared primitives):**
+- `GymSettingsPage.tsx` uses `<Sheet>` which is already improved.
+- Other Sheet/Dialog users inherit the updated transitions.
+
+### Onboarding Animation Verification
+The onboarding page variants are already using the fast `0.22s easeOut` tween (line 27-29). The `SplashScreen`, `PESFeatureFlex`, and `CalculatingScreen` are already portaled or full-screen without transform issues. No additional onboarding changes needed — the current code is correct.
+
+### Pattern for Each Fix
+Each file gets:
+- `import { createPortal } from 'react-dom'`
+- `import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock'` (for interactive overlays)
+- Wrap the `fixed inset-0` JSX in `createPortal(..., document.body)`
+- Use the standardized `mobileSheetMotion` / `mobileOverlayMotion` where applicable
+- Add `max-h-[92dvh]`, `overscroll-contain` for scrollable sheets
+
+### Files Changed
+1. `src/components/FullScreenMemory.tsx`
+2. `src/components/WeeklyWeightTimeline.tsx`
+3. `src/components/onboarding/MealBreakdownScreen.tsx`
+4. `src/components/ProgressPhotosSection.tsx`
+5. `src/components/PlansPage.tsx`
+6. `src/components/CostSuggestionBanner.tsx`
+7. `src/pages/MealPlanner.tsx`
+8. `src/components/CelebrationBurst.tsx`
+9. `src/components/ConfettiCelebration.tsx`
+
