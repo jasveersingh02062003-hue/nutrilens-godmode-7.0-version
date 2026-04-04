@@ -353,6 +353,7 @@ export default function MealPlanner() {
             <span className="text-lg">{planMeta.emoji}</span>
           </motion.div>
         )}
+        <RestDayToggle />
         <MealPlanDashboard plan={plan} profile={profile} onRegenerate={handleRegenerate} onSwapMeal={handleSwapMeal} onMarkCooked={handleMarkCooked} />
       </>
     );
