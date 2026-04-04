@@ -110,22 +110,21 @@ export default function WeeklyWeightTimeline({ refreshKey, onLogWeight }: Props)
       </div>
 
       {/* Detail modal */}
-      <AnimatePresence>
-        {selectedEntry && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/80"
-            onClick={() => setSelectedEntry(null)}
-          >
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {selectedEntry && (
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="relative w-full max-w-sm mx-4 bg-card rounded-2xl shadow-lg overflow-hidden"
-              onClick={e => e.stopPropagation()}
+              {...mobileOverlayMotion}
+              transition={mobileOverlayTransition}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/80"
+              onClick={() => setSelectedEntry(null)}
             >
+              <motion.div
+                {...mobileSheetMotion}
+                transition={mobileSheetTransition}
+                className="relative w-full max-w-sm mx-4 max-h-[92dvh] overflow-y-auto overscroll-contain bg-card rounded-2xl shadow-lg overflow-hidden"
+                onClick={e => e.stopPropagation()}
+              >
               {/* Photo */}
               {selectedEntry.photo && (
                 <div className="aspect-[4/3] overflow-hidden">
