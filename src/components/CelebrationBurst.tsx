@@ -107,5 +107,6 @@ export default function CelebrationBurst({
         </div>
       )}
     </AnimatePresence>
+    , document.body
   );
 }

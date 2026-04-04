@@ -166,9 +166,10 @@ export default function WeeklyWeightTimeline({ refreshKey, onLogWeight }: Props)
                 </button>
               </div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      , document.body)}
     </div>
   );
 }

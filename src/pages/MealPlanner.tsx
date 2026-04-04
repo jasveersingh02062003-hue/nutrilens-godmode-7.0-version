@@ -426,10 +426,11 @@ export default function MealPlanner() {
                     <ShoppingCart className="w-3.5 h-3.5" /> View Groceries
                   </button>
                 </div>
+                </motion.div>
               </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            )}
+          </AnimatePresence>
+        , document.body)}
 
         <MonikaFab />
       </div>

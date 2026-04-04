@@ -387,9 +387,10 @@ export default function ProgressPhotosSection({ refreshKey, onChanged }: Props) 
                 <X className="w-4 h-4 text-background" />
               </button>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      , document.body)}
     </div>
   );
 }

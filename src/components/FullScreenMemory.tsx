@@ -205,5 +205,6 @@ export default function FullScreenMemory({ open, date, mealId, onClose, onChange
         </motion.div>
       </motion.div>
     </AnimatePresence>
+    , document.body
   );
 }

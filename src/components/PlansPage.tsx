@@ -529,9 +529,10 @@ export default function PlansPage({ open, onClose, onPlanChanged }: Props) {
                 </button>
               </div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      , document.body)}
     </>
   );
 }

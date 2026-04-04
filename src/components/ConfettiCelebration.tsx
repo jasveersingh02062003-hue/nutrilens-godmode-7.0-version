@@ -69,5 +69,6 @@ export default function ConfettiCelebration({ show }: { show: boolean }) {
         </div>
       )}
     </AnimatePresence>
+    , document.body
   );
 }

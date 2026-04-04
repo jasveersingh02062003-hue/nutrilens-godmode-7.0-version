@@ -207,10 +207,11 @@ export default function MealBreakdownScreen({ calories, protein, carbs, fat, onC
               >
                 <Check className="w-4 h-4" /> Save Split
               </button>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>
+      , document.body)}
 
       {/* Bottom buttons */}
       <motion.div

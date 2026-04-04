@@ -339,9 +339,10 @@ export default function CostSuggestionBanner({ items, onCostConfirm, onFree, dar
                 </button>
               </div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      , document.body)}
     </>
   );
 }
