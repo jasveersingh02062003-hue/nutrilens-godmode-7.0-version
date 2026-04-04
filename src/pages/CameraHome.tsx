@@ -82,7 +82,34 @@ export default function CameraHome() {
   // Camera
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState(false);
+  const [cameraErrorMessage, setCameraErrorMessage] = useState('Allow camera access or use gallery');
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+
+  const getCameraErrorMessage = (error: unknown) => {
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      return 'Camera needs a secure HTTPS connection to work.';
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      return 'This browser does not support camera access.';
+    }
+
+    if (error instanceof DOMException) {
+      switch (error.name) {
+        case 'NotAllowedError':
+        case 'SecurityError':
+          return 'Camera permission is blocked. Please allow camera access in your browser settings.';
+        case 'NotFoundError':
+        case 'OverconstrainedError':
+          return 'No compatible camera was found. Try flipping camera or uploading a photo.';
+        case 'NotReadableError':
+        case 'AbortError':
+          return 'Your camera is busy in another app. Close it there and try again.';
+      }
+    }
+
+    return 'Camera could not start. Try Upload Photo or Manual Entry.';
+  };
 
   // Voice
   const [isListening, setIsListening] = useState(false);
@@ -106,34 +133,69 @@ export default function CameraHome() {
 
   // Start camera
   useEffect(() => {
-    if (step === 'camera') startCamera();
+    if (step === 'camera') void startCamera();
     return () => stopCamera();
   }, [facingMode, step]);
 
-  const startCamera = async () => {
+  async function startCamera() {
+    stopCamera();
     setCameraError(false);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        setCameraReady(true);
-      }
-    } catch {
+    setCameraErrorMessage('Allow camera access or use gallery');
+
+    if (!navigator.mediaDevices?.getUserMedia) {
       setCameraError(true);
       setCameraReady(false);
+      setCameraErrorMessage(getCameraErrorMessage(null));
+      return;
     }
-  };
 
-  const stopCamera = () => {
-    if (videoRef.current?.srcObject) {
-      (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
+    const attempts: MediaStreamConstraints[] = [
+      { video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+      { video: { facingMode }, audio: false },
+      { video: true, audio: false },
+    ];
+
+    let stream: MediaStream | null = null;
+    let lastError: unknown = null;
+
+    for (const constraints of attempts) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        break;
+      } catch (error) {
+        lastError = error;
+      }
     }
-  };
+
+    if (!stream) {
+      setCameraError(true);
+      setCameraReady(false);
+      setCameraErrorMessage(getCameraErrorMessage(lastError));
+      return;
+    }
+
+    if (!videoRef.current) {
+      stream.getTracks().forEach((track) => track.stop());
+      return;
+    }
+
+    videoRef.current.srcObject = stream;
+    await videoRef.current.play().catch(() => undefined);
+    setCameraReady(true);
+  }
+
+  function stopCamera() {
+    const stream = videoRef.current?.srcObject;
+    if (stream instanceof MediaStream) {
+      stream.getTracks().forEach((track) => track.stop());
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setCameraReady(false);
+  }
 
   const flipCamera = () => {
-    stopCamera();
     setFacingMode(f => f === 'environment' ? 'user' : 'environment');
   };
 
@@ -141,6 +203,10 @@ export default function CameraHome() {
   const captureAndAnalyze = async () => {
     if (!videoRef.current || !canvasRef.current) return;
     if (!canUseCameraScan()) { setShowUpgradePrompt(true); return; }
+    if (!cameraReady || !videoRef.current.videoWidth || !videoRef.current.videoHeight) {
+      toast.error('Camera is still getting ready. Please wait a moment and try again.');
+      return;
+    }
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -550,7 +616,7 @@ export default function CameraHome() {
     return (
       <div className="fixed inset-0 bg-foreground overflow-hidden">
         <canvas ref={canvasRef} className="hidden" />
-        <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handleGalleryUpload} />
+        <input ref={galleryInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleGalleryUpload} />
 
         {/* Camera feed */}
         <div className="absolute inset-0">
@@ -729,13 +795,17 @@ export default function CameraHome() {
 
         {/* Camera error fallback */}
         {cameraError && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-foreground">
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-foreground px-6 text-center">
             <Camera className="w-12 h-12 text-primary-foreground/30 mb-4" />
-            <p className="text-primary-foreground/60 text-sm font-medium">Camera access denied</p>
-            <p className="text-primary-foreground/30 text-xs mt-1 mb-4">Allow camera access or use gallery</p>
-            <div className="flex gap-3">
-              <button onClick={() => galleryInputRef.current?.click()}
+            <p className="text-primary-foreground/80 text-sm font-medium">Camera unavailable</p>
+            <p className="text-primary-foreground/50 text-xs mt-1 mb-4 max-w-xs">{cameraErrorMessage}</p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <button onClick={() => void startCamera()}
                 className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold active:scale-95 transition-transform">
+                Retry Camera
+              </button>
+              <button onClick={() => galleryInputRef.current?.click()}
+                className="px-5 py-2.5 rounded-xl bg-primary-foreground/10 text-primary-foreground text-sm font-semibold active:scale-95 transition-transform">
                 Upload Photo
               </button>
               <button onClick={() => navigate('/log?meal=' + selectedMealType)}

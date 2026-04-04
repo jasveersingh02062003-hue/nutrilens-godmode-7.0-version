@@ -12,24 +12,7 @@ import { UserProfileProvider, useUserProfile } from "./contexts/UserProfileConte
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import PageTransition from "./components/PageTransition";
-
-const ROUTE_RETRY_PREFIX = "nutrilens-route-retry:";
-
-async function clearRuntimeCaches() {
-  try {
-    if ("serviceWorker" in navigator) {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(registrations.map((registration) => registration.unregister()));
-    }
-
-    if ("caches" in window) {
-      const cacheKeys = await caches.keys();
-      await Promise.all(cacheKeys.map((key) => caches.delete(key)));
-    }
-  } catch {
-    // Best-effort cleanup before a hard reload.
-  }
-}
+import { attemptModuleImportRecovery, clearModuleImportRecovery, isRecoverableModuleError, preloadRouteSafely } from "./lib/module-recovery";
 
 function lazyWithRetry<T extends React.ComponentType<any>>(
   importer: () => Promise<{ default: T }>,
@@ -38,22 +21,11 @@ function lazyWithRetry<T extends React.ComponentType<any>>(
   return lazy(async () => {
     try {
       const module = await importer();
-      if (typeof window !== "undefined") {
-        sessionStorage.removeItem(`${ROUTE_RETRY_PREFIX}${routeKey}`);
-      }
+      clearModuleImportRecovery(routeKey);
       return module;
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      const isRecoverableImportError = /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(message);
-
-      if (typeof window !== "undefined" && isRecoverableImportError) {
-        const retryKey = `${ROUTE_RETRY_PREFIX}${routeKey}`;
-        if (!sessionStorage.getItem(retryKey)) {
-          sessionStorage.setItem(retryKey, "1");
-          void clearRuntimeCaches().finally(() => window.location.reload());
-          return new Promise<never>(() => {});
-        }
-        sessionStorage.removeItem(retryKey);
+      if (isRecoverableModuleError(error) && attemptModuleImportRecovery(routeKey)) {
+        return new Promise<never>(() => {});
       }
 
       throw error;
@@ -74,7 +46,6 @@ const preloadFoodArchive = () => import("./pages/FoodArchive");
 const preloadQuickLog = () => import("./pages/QuickLog");
 const preloadNotFound = () => import("./pages/NotFound");
 
-// Lazy-loaded pages
 const CameraHome = lazyWithRetry(preloadCameraHome, "camera-home");
 const Dashboard = lazyWithRetry(preloadDashboard, "dashboard");
 const Progress = lazyWithRetry(preloadProgress, "progress");
@@ -131,16 +102,18 @@ function AppLayout() {
   }, []);
 
   useEffect(() => {
+    if (!import.meta.env.PROD) return;
+
     const idleWindow = window as Window & {
       requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
       cancelIdleCallback?: (id: number) => void;
     };
 
     const preloadFrequentlyVisitedRoutes = () => {
-      void preloadProgress();
-      void preloadProfile();
-      void preloadMealPlanner();
-      void preloadDashboard();
+      void preloadRouteSafely(preloadProgress, 'progress');
+      void preloadRouteSafely(preloadProfile, 'profile');
+      void preloadRouteSafely(preloadMealPlanner, 'meal-planner');
+      void preloadRouteSafely(preloadDashboard, 'dashboard');
     };
 
     let timeoutId: number | null = null;
