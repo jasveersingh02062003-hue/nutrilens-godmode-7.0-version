@@ -133,23 +133,50 @@ export default function Profile() {
     return active.length ? `${active.length} concern${active.length > 1 ? 's' : ''} tracked` : 'Set skin concerns for food tips';
   }
 
+  const stagger = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.06 } },
+  };
+  const fadeUp = {
+    hidden: { opacity: 0, y: 12 },
+    visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 350, damping: 30 } },
+  };
+
   return (
     <div className="min-h-screen pb-24 bg-background">
-      <div className="max-w-lg mx-auto px-4 pt-5 space-y-4 animate-fade-in">
-        <div className="flex items-center gap-3">
+      <div className="ambient-mesh" />
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={stagger}
+        className="max-w-lg mx-auto px-4 pt-5 space-y-4"
+      >
+        <motion.div variants={fadeUp} className="flex items-center gap-3">
           <button onClick={() => navigate('/')} className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center"><ArrowLeft className="w-5 h-5" /></button>
           <h1 className="text-lg font-bold text-foreground">Profile</h1>
-        </div>
+        </motion.div>
 
-        {/* Profile Header */}
-        <div className="card-elevated p-5 cursor-pointer" onClick={() => setShowHealthCard(true)}>
+        {/* Profile Header — glassmorphism + breathing ring */}
+        <motion.div variants={fadeUp} className="glass-card p-5 cursor-pointer" onClick={() => setShowHealthCard(true)}>
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center overflow-hidden">
-              {profilePhoto ? (
-                <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-2xl font-bold text-primary">{(profile.name || 'U')[0].toUpperCase()}</span>
-              )}
+            <div className="relative">
+              <motion.div
+                animate={{
+                  boxShadow: [
+                    '0 0 0 3px hsl(var(--primary) / 0.1)',
+                    '0 0 0 6px hsl(var(--primary) / 0.15)',
+                    '0 0 0 3px hsl(var(--primary) / 0.1)',
+                  ],
+                }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center overflow-hidden"
+              >
+                {profilePhoto ? (
+                  <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-2xl font-bold text-primary">{(profile.name || 'U')[0].toUpperCase()}</span>
+                )}
+              </motion.div>
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
