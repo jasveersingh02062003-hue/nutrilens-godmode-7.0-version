@@ -332,27 +332,27 @@ export default function ProgressPhotosSection({ refreshKey, onChanged }: Props) 
                 </button>
               </div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      , document.body)}
 
       {/* Full-screen photo viewer */}
-      <AnimatePresence>
-        {viewPhoto && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/90"
-            onClick={() => setViewPhoto(null)}
-          >
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {viewPhoto && (
             <motion.div
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.9 }}
-              className="relative w-full max-w-lg mx-4"
-              onClick={e => e.stopPropagation()}
+              {...mobileOverlayMotion}
+              transition={mobileOverlayTransition}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/90"
+              onClick={() => setViewPhoto(null)}
             >
+              <motion.div
+                {...mobileSheetMotion}
+                transition={mobileSheetTransition}
+                className="relative w-full max-w-lg mx-4"
+                onClick={e => e.stopPropagation()}
+              >
               <img src={viewPhoto.dataUrl} alt={viewPhoto.caption || viewPhoto.type} className="w-full rounded-2xl" />
               <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-foreground/80 to-transparent rounded-b-2xl">
                 <div className="flex items-end justify-between">
