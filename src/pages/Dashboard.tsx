@@ -50,6 +50,17 @@ import DashboardModals from '@/components/dashboard/DashboardModals';
 import CalorieCorrectionSection from '@/components/dashboard/CalorieCorrectionSection';
 import PlanBannerSection from '@/components/dashboard/PlanBannerSection';
 import { useDashboardInit } from '@/hooks/useDashboardInit';
+import { motion } from 'framer-motion';
+
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.06 } },
+} as const;
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 30 } },
+};
 
 export default function Dashboard() {
   const d = useDashboardInit();
@@ -63,8 +74,19 @@ export default function Dashboard() {
     {d.showPESExplanation && d.profile?.onboardingComplete && !d.showTutorial && (
       <PESExplanationCard onDismiss={() => d.setShowPESExplanation(false)} />
     )}
-    <div className="min-h-screen pb-24 bg-background">
-      <div className="max-w-lg mx-auto px-4 pt-5 space-y-4">
+    <div className="min-h-screen pb-24 bg-background relative">
+      {/* Ambient gradient background */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full bg-primary/[0.03] blur-3xl animate-ambient" />
+        <div className="absolute bottom-1/3 right-0 w-80 h-80 rounded-full bg-accent/[0.03] blur-3xl animate-ambient" style={{ animationDelay: '4s' }} />
+      </div>
+
+      <motion.div
+        variants={stagger}
+        initial="hidden"
+        animate="show"
+        className="max-w-lg mx-auto px-4 pt-5 space-y-4 relative z-10"
+      >
         {/* 1. Header */}
         <DashboardHeader profile={d.profile} weather={d.weather} />
 
@@ -78,7 +100,7 @@ export default function Dashboard() {
           const bv = validateBudgetVsGoals(unified.monthly, d.profile.dailyCalories || 2000, d.profile.dailyProtein || 80);
           if (bv.severity !== 'insufficient') return null;
           return (
-            <div className="animate-fade-in">
+            <motion.div variants={fadeUp}>
               <div className="flex items-center gap-3 rounded-2xl bg-destructive/10 border border-destructive/20 px-4 py-3">
                 <ShieldAlert className="w-5 h-5 text-destructive shrink-0" />
                 <div className="flex-1 min-w-0">
@@ -87,13 +109,13 @@ export default function Dashboard() {
                 </div>
                 <button onClick={() => { setDailyHidden('budget_warning'); }} className="text-muted-foreground"><X className="w-4 h-4" /></button>
               </div>
-            </div>
+            </motion.div>
           );
         })()}
 
         {/* Planner setup banner */}
         {d.showPlannerBanner && (
-          <div className="animate-fade-in">
+          <motion.div variants={fadeUp}>
             <div className="flex items-center gap-3 rounded-2xl bg-primary/10 border border-primary/20 px-4 py-3">
               <ClipboardList className="w-5 h-5 text-primary shrink-0" />
               <div className="flex-1 min-w-0">
@@ -103,17 +125,17 @@ export default function Dashboard() {
                 Set Plan
               </Button>
             </div>
-          </div>
+          </motion.div>
         )}
 
-        <div className="animate-fade-in"><UpgradeBanner /></div>
-        <div className="animate-fade-in"><WeatherNudgeCard /></div>
-        <div className="animate-fade-in"><SymptomReminderCard /></div>
-        <div className="animate-fade-in"><NudgeBanner /></div>
+        <motion.div variants={fadeUp}><UpgradeBanner /></motion.div>
+        <motion.div variants={fadeUp}><WeatherNudgeCard /></motion.div>
+        <motion.div variants={fadeUp}><SymptomReminderCard /></motion.div>
+        <motion.div variants={fadeUp}><NudgeBanner /></motion.div>
 
         {/* Survival / Recovery Mode Banner */}
         {(d.survivalMode || d.recoveryMode) && (
-          <div className="animate-fade-in">
+          <motion.div variants={fadeUp}>
             <div className={`flex items-center gap-3 rounded-2xl px-4 py-3 border ${
               d.survivalMode ? 'bg-destructive/10 border-destructive/20' : 'bg-primary/10 border-primary/20'
             }`}>
@@ -124,7 +146,7 @@ export default function Dashboard() {
                   : '🔄 Recovery mode: budget-friendly meals for the next few days'}
               </p>
             </div>
-          </div>
+          </motion.div>
         )}
 
         <CalorieCorrectionSection
@@ -137,25 +159,25 @@ export default function Dashboard() {
           setCurrentDayType={d.setCurrentDayType}
         />
 
-        <div className="animate-fade-in"><DailyAdjustmentSummary /></div>
-        <div className="animate-fade-in"><RecoveryOptionsCard /></div>
-        <div className="animate-fade-in"><SkinHealthCard /></div>
+        <motion.div variants={fadeUp}><DailyAdjustmentSummary /></motion.div>
+        <motion.div variants={fadeUp}><RecoveryOptionsCard /></motion.div>
+        <motion.div variants={fadeUp}><SkinHealthCard /></motion.div>
 
         {/* Dual-Sync Insight */}
         {d.dualSyncInsight && (
-          <div className="animate-fade-in">
+          <motion.div variants={fadeUp}>
             <div className={`flex items-center gap-3 rounded-2xl px-4 py-3 border ${
               d.dualSyncInsight.type === 'low_efficiency' ? 'bg-accent/10 border-accent/20' : 'bg-primary/10 border-primary/20'
             }`}>
               <span className="text-sm">{d.dualSyncInsight.emoji}</span>
               <p className="text-[11px] font-medium text-foreground">{d.dualSyncInsight.message}</p>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* Protein Priority Card */}
-        <div className="animate-scale-in">
-          <div className="card-elevated p-4 flex items-center gap-3">
+        <motion.div variants={fadeUp}>
+          <div className="glass-card p-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-coral/10 flex items-center justify-center">
               <span className="text-lg">💪</span>
             </div>
@@ -164,14 +186,14 @@ export default function Dashboard() {
               <p className="text-[10px] text-muted-foreground">Target: {Math.round(getProteinTarget(d.profile))}g · Eaten: {Math.round(d.totals.protein)}g</p>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="animate-fade-in"><ProteinRescueCard profile={d.profile} onApplied={d.refreshLog} /></div>
-        <div className="animate-fade-in"><TimeInsightCard /></div>
+        <motion.div variants={fadeUp}><ProteinRescueCard profile={d.profile} onApplied={d.refreshLog} /></motion.div>
+        <motion.div variants={fadeUp}><TimeInsightCard /></motion.div>
 
         {/* Surplus/Deficit Live Indicator */}
         {d.dayState.totalConsumed > 0 && (
-          <div className="animate-fade-in">
+          <motion.div variants={fadeUp}>
             <div className={`flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 border ${
               d.dayState.remaining >= 0
                 ? 'bg-primary/5 border-primary/15'
@@ -182,54 +204,54 @@ export default function Dashboard() {
                 {d.dayState.remaining >= 0 ? `${Math.round(d.dayState.remaining)} kcal remaining` : `+${Math.abs(Math.round(d.dayState.remaining))} kcal over target`}
               </span>
             </div>
-          </div>
+          </motion.div>
         )}
 
         <PlanBannerSection />
 
         {/* 2. Calorie Ring */}
-        <div className="animate-scale-in">
+        <motion.div variants={fadeUp}>
           <CalorieRing dayState={d.dayState} proteinRemaining={Math.round(Math.max(0, getProteinTarget(d.profile) - d.totals.protein))} />
-        </div>
+        </motion.div>
 
         {/* Gym Intelligence Cards */}
         {d.profile?.gym?.goer && (
           <>
-            <div className="animate-fade-in"><PreWorkoutCard /></div>
-            <div className="animate-fade-in"><GymCheckInCard onRefresh={d.refreshLog} /></div>
-            <div className="animate-fade-in"><PostWorkoutCard /></div>
-            <div className="animate-fade-in"><EnergyTracker onRefresh={d.refreshLog} /></div>
-            <div className="animate-fade-in"><GymConsistencyCard /></div>
-            <div className="animate-fade-in"><GymUpsellCard /></div>
+            <motion.div variants={fadeUp}><PreWorkoutCard /></motion.div>
+            <motion.div variants={fadeUp}><GymCheckInCard onRefresh={d.refreshLog} /></motion.div>
+            <motion.div variants={fadeUp}><PostWorkoutCard /></motion.div>
+            <motion.div variants={fadeUp}><EnergyTracker onRefresh={d.refreshLog} /></motion.div>
+            <motion.div variants={fadeUp}><GymConsistencyCard /></motion.div>
+            <motion.div variants={fadeUp}><GymUpsellCard /></motion.div>
           </>
         )}
 
         {/* Supplement Intelligence Cards */}
-        <div className="animate-fade-in"><ProteinGapNudgeCard onApplied={d.refreshLog} /></div>
-        <div className="animate-fade-in"><SupplementUpsellCard /></div>
+        <motion.div variants={fadeUp}><ProteinGapNudgeCard onApplied={d.refreshLog} /></motion.div>
+        <motion.div variants={fadeUp}><SupplementUpsellCard /></motion.div>
 
-        <div className="animate-slide-up" style={{ animationDelay: '0.03s' }}>
+        <motion.div variants={fadeUp}>
           <NextMealCard profile={d.profile} onRefresh={d.refreshLog} />
-        </div>
+        </motion.div>
 
         <ProfileCompletionNudge onOpenProfile={() => d.navigate('/profile')} />
 
-        <div className="animate-slide-up" style={{ animationDelay: '0.035s' }}>
+        <motion.div variants={fadeUp}>
           <ContextualTipsCard weather={d.weather ?? undefined} />
-        </div>
+        </motion.div>
 
         {/* 3. Macros */}
-        <div className="flex gap-2 animate-slide-up">
-          <MacroCard label="Protein" current={Math.round(d.totals.protein)} goal={Math.round(getProteinTarget(d.profile))} variant="coral" icon="protein" />
-          <MacroCard label="Carbs" current={Math.round(d.totals.carbs)} goal={Math.round(getCarbTarget(d.profile))} variant="primary" icon="carbs" />
-          <MacroCard label="Fats" current={Math.round(d.totals.fat)} goal={Math.round(getFatTarget(d.profile))} variant="gold" icon="fat" />
-        </div>
+        <motion.div variants={fadeUp} className="flex gap-2">
+          <MacroCard label="Protein" current={Math.round(d.totals.protein)} goal={Math.round(getProteinTarget(d.profile))} variant="coral" icon="protein" index={0} />
+          <MacroCard label="Carbs" current={Math.round(d.totals.carbs)} goal={Math.round(getCarbTarget(d.profile))} variant="primary" icon="carbs" index={1} />
+          <MacroCard label="Fats" current={Math.round(d.totals.fat)} goal={Math.round(getFatTarget(d.profile))} variant="gold" icon="fat" index={2} />
+        </motion.div>
 
-        <div className="animate-slide-up" style={{ animationDelay: '0.05s' }}><BudgetSummaryCard /></div>
+        <motion.div variants={fadeUp}><BudgetSummaryCard /></motion.div>
 
         {/* Budget Alert Banner */}
         {d.budgetAlert && d.budgetAlert.level !== 'ok' && (
-          <div className="animate-fade-in">
+          <motion.div variants={fadeUp}>
             <div className={`flex items-center gap-3 rounded-2xl px-4 py-3 border ${
               d.budgetAlert.level === 'warning'
                 ? 'bg-accent/10 border-accent/20'
@@ -243,42 +265,42 @@ export default function Dashboard() {
                 <X className="w-3.5 h-3.5 text-muted-foreground" />
               </button>
             </div>
-          </div>
+          </motion.div>
         )}
 
-        <div className="animate-slide-up" style={{ animationDelay: '0.055s' }}><DailyEfficiencyCard /></div>
-        <div className="animate-slide-up" style={{ animationDelay: '0.053s' }}><WeeklyFeedbackCard /></div>
-        <div className="animate-slide-up" style={{ animationDelay: '0.06s' }}><WeeklyReportCard /></div>
-        <div className="animate-slide-up" style={{ animationDelay: '0.07s' }}><CoachCard /></div>
-        <div className="animate-slide-up" style={{ animationDelay: '0.09s' }}><ConsistencyCard /></div>
+        <motion.div variants={fadeUp}><DailyEfficiencyCard /></motion.div>
+        <motion.div variants={fadeUp}><WeeklyFeedbackCard /></motion.div>
+        <motion.div variants={fadeUp}><WeeklyReportCard /></motion.div>
+        <motion.div variants={fadeUp}><CoachCard /></motion.div>
+        <motion.div variants={fadeUp}><ConsistencyCard /></motion.div>
 
         {/* 4. Hydration + Supplements */}
-        <div className="flex gap-2 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+        <motion.div variants={fadeUp} className="flex gap-2">
           <WaterTrackerCompact cups={d.log.waterCups} goal={d.profile.waterGoal + (creatineBoost?.extraCups || 0)} onAdd={d.handleAddWater} />
           <SupplementsCompact
             supplements={d.log.supplements || []}
             onAdd={() => { d.setEditingSupplement(null); d.setSheetOpen(true); }}
             onTap={d.handleSupplementTap}
           />
-        </div>
+        </motion.div>
         {creatineBoost && (
-          <div className="px-1 animate-slide-up" style={{ animationDelay: '0.11s' }}>
+          <motion.div variants={fadeUp} className="px-1">
             <div className="rounded-lg bg-primary/10 border border-primary/20 px-3 py-2 text-xs text-primary flex items-center gap-2">
               💧 {creatineBoost.message}
             </div>
-          </div>
+          </motion.div>
         )}
 
-        <div className="animate-slide-up" style={{ animationDelay: '0.12s' }}>
+        <motion.div variants={fadeUp}>
           <CaloriesBurnedCard log={d.log} weightKg={d.profile.weightKg} onRefresh={d.refreshLog} />
-        </div>
+        </motion.div>
 
-        <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}><TodayMealPlan /></div>
-        <div className="animate-slide-up" style={{ animationDelay: '0.17s' }}><RepeatMealsButton onApplied={d.refreshLog} /></div>
-        <div className="animate-slide-up" style={{ animationDelay: '0.18s' }}>
+        <motion.div variants={fadeUp}><TodayMealPlan /></motion.div>
+        <motion.div variants={fadeUp}><RepeatMealsButton onApplied={d.refreshLog} /></motion.div>
+        <motion.div variants={fadeUp}>
           <TodayMeals log={d.log} onRefresh={d.refreshLog} dayState={d.dayState} />
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       <MonikaFab onDashboardRefresh={d.refreshLog} />
 

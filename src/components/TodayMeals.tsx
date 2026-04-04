@@ -146,9 +146,12 @@ export default function TodayMeals({ log, onRefresh, dayState }: Props) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.05, duration: 0.3 }}
                 onClick={() => handleMealTap(mc.type, mc.label, meals.length > 0)}
-                className={`relative p-3 flex items-center gap-3 w-full text-left group rounded-xl border transition-all duration-300
+                whileHover={{ scale: 1.015 }}
+                whileTap={{ scale: 0.98 }}
+                className={`relative p-3 flex items-center gap-3 w-full text-left group rounded-xl border transition-colors
                   ${stateInfo.state !== 'empty' ? `border-l-[3px] ${stateInfo.borderClass} ${stateInfo.bgClass}` : 'border-border'}
                   ${isMissed && !mealRedistributed ? 'border-status-danger/40' : mealRedistributed ? 'border-primary/30' : ''}
+                  ${meals.length === 0 && !isMissed ? 'animate-pulse' : ''}
                   bg-card hover:shadow-md`}
               >
                 <div className="relative">
