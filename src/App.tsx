@@ -137,7 +137,7 @@ function AppLayout() {
       <Routes>
         <Route path="/onboarding" element={<Suspense fallback={<PageLoader />}><PageTransition><Onboarding /></PageTransition></Suspense>} />
         <Route path="/auth" element={<Suspense fallback={<PageLoader />}><PageTransition><Auth /></PageTransition></Suspense>} />
-        <Route path="/" element={<ProtectedRoute><PageTransition><CameraHome /></PageTransition></ProtectedRoute>} />
+        <Route path="/" element={<ProtectedRoute><CameraHome /></ProtectedRoute>} />
         <Route path="/dashboard" element={<ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><Dashboard /></div></PageTransition></ProtectedRoute>} />
         <Route path="/progress" element={<ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><Progress /></div></PageTransition></ProtectedRoute>} />
         <Route path="/planner" element={<ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><MealPlanner /></div></PageTransition></ProtectedRoute>} />

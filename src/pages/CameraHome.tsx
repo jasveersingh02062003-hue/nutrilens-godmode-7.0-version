@@ -614,7 +614,7 @@ export default function CameraHome() {
   // ═══════════════════════════════════════════
   if (step === 'camera') {
     return (
-      <div className="fixed inset-0 bg-foreground overflow-hidden">
+      <div className="relative min-h-screen min-h-[100dvh] bg-foreground overflow-hidden">
         <canvas ref={canvasRef} className="hidden" />
         <input ref={galleryInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleGalleryUpload} />
 
