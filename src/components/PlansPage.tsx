@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Crown, Check, ChevronDown, ChevronUp, ArrowRight, Star, Zap, Clock, X, Gift } from 'lucide-react';
+import { mobileOverlayMotion, mobileOverlayTransition, mobileSheetMotion, mobileSheetTransition, useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import { getPlan, setPlan, isTrialActive, hasUsedTrial, startFreeTrial, getTrialDaysRemaining, hasTrialExpired, checkAndExpireTrial, type Plan } from '@/lib/subscription-service';
 import { toast } from 'sonner';
 
