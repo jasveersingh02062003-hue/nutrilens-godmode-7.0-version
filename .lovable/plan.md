@@ -1,116 +1,78 @@
 
 
-# Full App UI/UX Premium Upgrade — 4 Areas
+# Next-Phase UI/UX Upgrade — Remaining Areas
 
-Since you want all four areas upgraded, here's a consolidated plan broken into phases. Each phase can be implemented sequentially.
+## What's Already Done
+- Dashboard: glassmorphism, staggered cascade, breathing calorie ring, time-of-day header
+- Bottom Nav: morphing pill indicator, icon bounce
+- Camera: futuristic scan overlay, particle burst, floating nutrients
+- Progress: count-up stats, staggered calendar, animated bars
+- Meal Planner: orbital loader, ken-burns images, sliding tab indicator
+- `PageTransition.tsx` component created but **not wired** into `App.tsx`
 
----
+## What Remains (from your research)
 
-## Phase 1: Bottom Nav + Page Transitions
+### Phase A: Wire Page Transitions + Global Polish
+**Files: `src/App.tsx`, `src/index.css`**
 
-### BottomNav.tsx — Morphing Pill Indicator
-- Add a `motion.div` "pill" behind the active tab that uses `layoutId="nav-pill"` to smoothly slide between tabs
-- Pill has glassmorphism styling: `bg-primary/10 backdrop-blur-sm rounded-xl`
-- Icons get `whileTap={{ scale: 0.85, rotate: -8 }}` bounce animation
-- Active icon animates with a subtle `y: -2` lift via spring
-- Camera center button gets a rotating gradient border animation
+- Wrap each `<Route>` element content with `<PageTransition>` for slide+fade between pages
+- Add ambient gradient mesh background (fixed, behind all content) using 2-3 soft radial gradients with slow `ambient-shift` animation
+- Dark mode polish: ensure all glassmorphism cards use deep navy tones (not pure black), add rim highlights (0.5px top/left border with `white/5`)
+- Add global skeleton shimmer utility class for loading states
 
-### App.tsx — AnimatePresence Page Transitions
-- Wrap `<Routes>` content with `AnimatePresence mode="wait"`
-- Create a `PageTransition` wrapper component using `motion.div` with slide + fade variants
-- Entry: `opacity: 0, x: 20` → `opacity: 1, x: 0` (spring, 300ms feel)
-- Exit: `opacity: 0, x: -20`
+### Phase B: Onboarding Flow Premium
+**Files: `src/pages/Onboarding.tsx`, `src/components/onboarding/WelcomeScreen.tsx`, `src/components/onboarding/CalculatingScreen.tsx`, `src/components/onboarding/CompletionScreen.tsx`**
 
-| File | Action |
-|------|--------|
-| `src/components/BottomNav.tsx` | Edit — morphing pill, icon bounce, spring lift |
-| `src/App.tsx` | Edit — AnimatePresence wrapper, PageTransition component |
+- **Progress bar**: Replace solid bar with liquid wave fill effect (SVG wave inside the progress track)
+- **Input sliders** (weight, height, age): Add spring-physics feel with `useSpring` — overshoot on release
+- **Option/Chip selection**: Scale-in with spring + subtle haptic-feel bounce on select
+- **CalculatingScreen**: Multi-ring orbital animation (matching meal planner style) instead of plain spinner
+- **CompletionScreen**: Particle confetti burst + badge fly-in animation on completion
+- **WelcomeScreen**: Parallax depth — background elements move slower than foreground on scroll/swipe
 
----
+### Phase C: Logging Flow — Celebrations & Micro-interactions
+**Files: `src/pages/LogFood.tsx`, `src/components/AddFoodSheet.tsx`, `src/components/QuickLogSheet.tsx`**
 
-## Phase 2: Camera & Scanner
+- **Success state**: When meal is logged, "Log" button morphs into a checkmark with spring animation, then triggers a particle confetti burst
+- **Food item cards**: `whileHover={{ scale: 1.02 }}`, `whileTap={{ scale: 0.97 }}` with spring physics
+- **Quantity adjusters** (+/- buttons): Bounce on tap, number rolls up/down with count animation
+- **Search results**: Staggered entrance (each result slides in with 50ms delay)
+- **Streak indicator**: If user has a logging streak, show animated flame icon with breathing glow
 
-### CameraHome.tsx — Futuristic Scan Overlay
-- **Scan frame**: Add animated corner brackets (4 `motion.div` L-shaped corners) that pulse and glow on the camera view
-- **Scan line**: Horizontal `motion.div` that sweeps top-to-bottom continuously with primary color glow
-- **Analyzing state**: Replace basic Loader2 spinner with a futuristic circular scan animation — rotating dashed circle + pulsing center dot + floating particle dots
-- **Detection success**: Particle burst animation (8-12 small circles exploding outward from center with spring physics, then fade)
-- **Nutrient labels**: On the confirm step, each detected item enters with `x: 30, opacity: 0` staggered, with a glassmorphism card style
-- **Remaining calories chip**: Gets a breathing glow when calories are low (<300)
+### Phase D: Profile Page Polish
+**Files: `src/pages/Profile.tsx`**
 
-| File | Action |
-|------|--------|
-| `src/pages/CameraHome.tsx` | Edit — scan corners, scan line, particle burst, futuristic analyzer, glassmorphism confirm cards |
+- **Profile avatar**: Glassmorphism card with breathing ring animation (like dashboard header)
+- **Settings rows**: Staggered cascade entrance, `whileTap={{ scale: 0.98 }}` micro-interaction
+- **Plan/subscription badge**: Shimmer highlight sweep animation
+- **Section headers**: Fade-in with slight y-translate on mount
 
----
+### Phase E: Shared Celebration System
+**New file: `src/components/CelebrationBurst.tsx`**
 
-## Phase 3: Progress Page
-
-### Progress.tsx — Animated Stats & Calendar
-- **Header**: Staggered entrance with `motion.div` cascade
-- **Overview stats cards**: Each number uses a count-up animation (0 → actual value) with `useEffect` + `requestAnimationFrame`
-- **Calendar**: Each day cell enters with micro-stagger (2ms per cell). Today's cell gets a breathing ring. Balanced/surplus/deficit dots pulse once on mount
-- **Weekly overview bars**: Bars animate height from 0 with staggered spring, each bar 40ms after the previous
-- **Achievement badges**: Unlocked badges get a subtle shimmer overlay. Grid uses stagger entrance
-- **Weight chart section**: Wrap in `motion.div` with scale-in entrance
-- **Consistency card**: Numbers count up from 0
-
-| File | Action |
-|------|--------|
-| `src/pages/Progress.tsx` | Edit — count-up stats, staggered calendar cells, animated bars, achievement shimmer |
-| `src/components/OverviewStats.tsx` | Edit — count-up numbers, glassmorphism cards, staggered entrance |
-| `src/components/ConsistencyCard.tsx` | Edit — count-up streak number, glassmorphism |
-
----
-
-## Phase 4: Meal Planner
-
-### MealPlanner.tsx — Premium Planner Feel
-- **Generating screen**: Replace basic ChefHat spinner with a multi-ring orbital animation (3 concentric rotating rings with recipe icons orbiting). Progress steps get check marks that spring in
-- **Tab bar** (MealPlannerTabs): Active tab gets a sliding underline indicator using `layoutId`
-- **Preview meal cards**: Each day section enters with stagger. Meal cards get `whileHover={{ scale: 1.02 }}` and `whileTap={{ scale: 0.98 }}`. Recipe images get a subtle ken-burns (slow zoom + pan via CSS animation)
-- **Empty state**: ChefHat icon gets a floating animation. Feature list items stagger in
-- **Success modal**: Checkmark draws in with SVG path animation. Background particles burst
-
-| File | Action |
-|------|--------|
-| `src/pages/MealPlanner.tsx` | Edit — orbital generating screen, staggered preview, ken-burns images, animated success |
-| `src/components/MealPlannerTabs.tsx` | Edit — sliding underline indicator with layoutId |
-| `src/components/MealPlanDashboard.tsx` | Edit — meal card micro-interactions, glassmorphism |
-
----
-
-## Global Additions (index.css)
-
-New utility classes and keyframes:
-- `.animate-ken-burns` — slow 15s zoom + pan for recipe images
-- `.scan-line` — sweeping scan line gradient
-- `.particle-burst` — radial particle explosion
-- Updated `.glass-card` refinements
-
----
-
-## Design Principles (all phases)
-
-- Spring physics everywhere: stiffness 200-400, damping 20-35
-- Stagger children: 40-80ms per item
-- No animation exceeds 600ms perceived duration
-- All glassmorphism works in both light and dark mode
-- Count-up uses `requestAnimationFrame` for 60fps smoothness
-- `layoutId` for shared element transitions (nav pill, tab indicators)
+- Reusable confetti/particle burst component using `canvas-confetti` or pure Framer Motion
+- Triggers: meal logged, streak milestone, badge earned, onboarding complete, plan generated
+- Configurable: intensity (light sparkle vs full confetti), color palette, duration
+- Integrated via a global context or simple function call
 
 ## File Summary
 
-| File | Phase | Action |
-|------|-------|--------|
-| `src/components/BottomNav.tsx` | 1 | Morphing pill, icon bounce |
-| `src/App.tsx` | 1 | AnimatePresence page transitions |
-| `src/pages/CameraHome.tsx` | 2 | Scan overlay, particle burst, futuristic analyzer |
-| `src/pages/Progress.tsx` | 3 | Count-up stats, staggered calendar, animated bars |
-| `src/components/OverviewStats.tsx` | 3 | Count-up numbers, glassmorphism |
-| `src/components/ConsistencyCard.tsx` | 3 | Count-up streak, glassmorphism |
-| `src/pages/MealPlanner.tsx` | 4 | Orbital loader, staggered preview, ken-burns |
-| `src/components/MealPlannerTabs.tsx` | 4 | Sliding tab indicator |
-| `src/components/MealPlanDashboard.tsx` | 4 | Meal card micro-interactions |
-| `src/index.css` | All | New keyframes and utility classes |
+| File | Action |
+|------|--------|
+| `src/App.tsx` | Edit — wrap routes with PageTransition |
+| `src/index.css` | Edit — ambient mesh bg, skeleton shimmer, dark mode rim highlights |
+| `src/pages/Onboarding.tsx` | Edit — liquid progress, spring sliders, enhanced animations |
+| `src/components/onboarding/WelcomeScreen.tsx` | Edit — parallax depth effect |
+| `src/components/onboarding/CalculatingScreen.tsx` | Edit — orbital animation |
+| `src/components/onboarding/CompletionScreen.tsx` | Edit — confetti + badge fly-in |
+| `src/pages/LogFood.tsx` | Edit — button morph, staggered search, celebrations |
+| `src/pages/Profile.tsx` | Edit — glassmorphism avatar, staggered settings, shimmer badge |
+| `src/components/CelebrationBurst.tsx` | Create — reusable confetti/particle component |
+
+## Design Principles
+- Spring physics (stiffness 200-400, damping 20-35) for all motion
+- Glassmorphism with `backdrop-blur-md` + transparent white borders in both themes
+- Stagger delays 50-80ms per element
+- No animation >600ms perceived duration
+- Celebration system is lightweight — no heavy canvas unless user triggers it
 
