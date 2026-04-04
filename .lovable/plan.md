@@ -2,29 +2,22 @@
 
 ## Problem
 
-The Progress page has **double animations** causing a jarring "slide up from bottom" effect, especially noticeable on mobile:
+The `DayDetailsSheet` popup uses a heavy spring animation (`y: '100%'` → `y: 0`) that slides the entire sheet from the very bottom of the screen. On mobile, this feels sluggish and requires the user to wait for the animation to complete. Combined with the spring physics (`stiffness: 200, damping: 25`), it creates a bouncy, slow entrance.
 
-1. **PageTransition wrapper** (in App.tsx): slides content horizontally (`x: 12` → `x: 0`)
-2. **Internal stagger animation** (in Progress.tsx): every section animates from below (`y: 16` → `y: 0`) with staggered delays
+## Fix
 
-Together, these create a slow, distracting entrance — the entire page slides in from the right while each card also rises from below.
+### Change DayDetailsSheet animation to a fast, subtle entrance
 
-## Plan
+**File: `src/components/DayDetailsSheet.tsx`** (lines 121-133)
 
-### 1. Remove internal stagger animation from Progress.tsx
+Replace the current heavy spring slide-up with a quick fade + short slide:
 
-Replace the animated `motion.div` container and its child `motion.div` variants with plain `div` elements. This removes the "coming from bottom" effect entirely while keeping the lightweight horizontal page transition from `PageTransition`.
+- **Backdrop**: Keep `opacity: 0 → 1` (fast, 150ms)
+- **Sheet panel**: Change from `y: '100%'` (full slide from bottom) to `y: '8%'` (short 8% nudge) + `opacity: 0 → 1`
+- **Transition**: Replace spring physics with a simple `ease-out` tween, duration `0.2s`
+- **Exit**: Same but reversed — quick fade out + slight downward slide
 
-**Specific changes:**
-- Line ~328: `motion.div` with `staggerChildren` → plain `div`
-- Line ~334: `motion.div` with `y: 16` variant → plain `div`
-- Line ~356: `motion.div` with `y: 10` → plain `div`
-- Line ~529: Keep the bar chart height animation (it's a data visualization, not a page entrance)
-- Line ~599: closing `motion.div` → `div`
+This makes the sheet appear almost instantly with just a subtle upward motion, matching how iOS/Android native bottom sheets feel.
 
-This preserves the subtle horizontal `PageTransition` (which is consistent across all pages) while eliminating the redundant vertical slide-up that causes the "animation from bottom" issue on mobile.
-
-### 2. No other files changed
-
-The `PageTransition` component itself stays as-is — it provides a consistent, lightweight transition across all routes.
+No other files changed.
 
