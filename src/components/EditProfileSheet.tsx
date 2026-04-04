@@ -118,7 +118,9 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
       setSleepStart(profile.gym?.sleepStart || '22:00');
       setSleepEnd(profile.gym?.sleepEnd || '06:00');
       setShiftType(profile.gym?.shiftType || 'day');
-    }
+      setFastedTraining(profile.gym?.fastedTraining || false);
+      setHasWeekendSchedule(!!(profile.gym?.weekendSchedule?.length));
+      setWeekendHour(profile.gym?.weekendHour ?? 9);
   }, [profile, open]);
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
