@@ -507,7 +507,7 @@ export default function Profile() {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
+      </motion.div>
     </div>
   );
 }
