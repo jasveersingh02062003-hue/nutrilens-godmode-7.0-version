@@ -544,12 +544,12 @@ export default function LogFood() {
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search Indian & global foods..." className="w-full pl-10 pr-4 py-3 rounded-xl bg-card border border-border text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-shadow" />
             </div>
 
-            {/* Results */}
+            {/* Results — staggered entrance */}
             <div className="space-y-1.5">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-0.5">
                 {search ? 'Results' : 'Popular Indian Foods'}
               </p>
-              {filtered.map(food => {
+              {filtered.map((food, foodIdx) => {
                 const allergenCheck = checkAllergens(food.name, userAllergens);
                 const conditionWarnings = checkFoodForConditions(food.name, userConditions);
                 const hasAnyWarning = allergenCheck.hasConflict || conditionWarnings.length > 0;
