@@ -160,6 +160,7 @@ function AppLayout() {
 
   return (
     <>
+      <div className="ambient-mesh" />
       <Routes>
         <Route path="/onboarding" element={<Suspense fallback={<PageLoader />}><PageTransition><Onboarding /></PageTransition></Suspense>} />
         <Route path="/auth" element={<Suspense fallback={<PageLoader />}><PageTransition><Auth /></PageTransition></Suspense>} />
