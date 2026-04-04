@@ -132,7 +132,7 @@ export default function Dashboard() {
         )}
 
         <motion.div variants={fadeUp}><UpgradeBanner /></motion.div>
-        <motion.div variants={fadeUp}><WeatherNudgeCard /></motion.div>
+        <motion.div variants={fadeUp}><Suspense fallback={null}><WeatherNudgeCard /></Suspense></motion.div>
         <motion.div variants={fadeUp}><SymptomReminderCard /></motion.div>
         <motion.div variants={fadeUp}><NudgeBanner /></motion.div>
 
