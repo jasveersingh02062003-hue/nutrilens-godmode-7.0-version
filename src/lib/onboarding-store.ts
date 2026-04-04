@@ -167,6 +167,9 @@ export function saveOnboardingData(data: OnboardingData) {
       sleepStart: data.activity.gym.sleepStart,
       sleepEnd: data.activity.gym.sleepEnd,
       shiftType: (data.activity.gym.shiftType as 'day' | 'night' | 'rotating') || undefined,
+      fastedTraining: (data.activity.gym as any).fastedTraining || false,
+      weekendSchedule: (data.activity.gym as any).weekendSchedule || undefined,
+      weekendHour: (data.activity.gym as any).weekendHour || undefined,
     } : undefined,
   };
   saveProfile(profile);
