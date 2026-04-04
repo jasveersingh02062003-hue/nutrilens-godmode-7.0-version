@@ -48,8 +48,9 @@ export default function GymPDFExport({ startDate, endDate }: GymPDFExportProps =
       const energyOffGym: number[] = [];
       const allEnergy: { day: number; level: number }[] = [];
 
-      for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      for (let dt = new Date(rangeStart); dt <= rangeEnd; dt.setDate(dt.getDate() + 1)) {
+        const d = dt.getDate();
+        const dateStr = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
         const log = getDailyLog(dateStr);
         if (log.gym?.attended) {
           workoutDays.push(d);
@@ -57,7 +58,6 @@ export default function GymPDFExport({ startDate, endDate }: GymPDFExportProps =
           totalCals += log.gym.caloriesBurned || 0;
           if (log.energyLevel) energyOnGym.push(log.energyLevel);
         } else {
-          const dt = new Date(dateStr + 'T00:00:00');
           missedDayNames.push(DAY_NAMES[dt.getDay()]);
           if (log.energyLevel) energyOffGym.push(log.energyLevel);
         }
