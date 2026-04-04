@@ -5,7 +5,12 @@ import { toast } from 'sonner';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export default function GymPDFExport() {
+interface GymPDFExportProps {
+  startDate?: string;
+  endDate?: string;
+}
+
+export default function GymPDFExport({ startDate, endDate }: GymPDFExportProps = {}) {
   const [generating, setGenerating] = useState(false);
 
   const handleExport = async () => {
