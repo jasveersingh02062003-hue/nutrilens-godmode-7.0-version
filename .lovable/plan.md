@@ -1,161 +1,138 @@
 
 
-# Complete Gym Intelligence System — Time-Aware, Adaptive, Low-Friction
+# Gym Intelligence System — Missing Features Implementation
 
-## What You're Asking For (Summary)
+## Scope (Prioritized)
 
-You want the app to become a **personal gym coach** that knows exactly when the user works out, what they should eat before/after, adapts to their work schedule and sleep, and adjusts everything in real-time based on whether they actually went to the gym. The system must feel like it was **built specifically for each user's daily rhythm**.
+This is a large feature set. I'll implement the **High** and **Medium** priority items that have real user impact, while deferring Phase 2 items (wearables, progressive overload, social sharing) that require external APIs or major new surfaces.
 
-## Major Changes
+### HIGH PRIORITY (implement now)
 
-### 1. Data Model Extensions
-**Files**: `src/lib/store.ts`, `src/lib/onboarding-store.ts`
+| # | Feature | Files |
+|---|---------|-------|
+| 2 | Actual gym time override in check-in | `GymCheckInCard.tsx` |
+| 5 | Exact pre-workout eat timing with countdown | `PreWorkoutCard.tsx` |
+| 6 | "I already ate" / "Skip" on pre/post cards | `PreWorkoutCard.tsx`, `PostWorkoutCard.tsx` |
+| 7 | One-tap meal log from post-workout card | `PostWorkoutCard.tsx`, wire `addMealToLog` |
+| 10 | Late/manual gym logging after window | `GymCheckInCard.tsx` |
+| 12 | Fasted training toggle | `store.ts`, `EditProfileSheet.tsx`, `PreWorkoutCard.tsx` |
+| 18 | Miss reason (injury/sick/tired/no time) | `GymCheckInCard.tsx`, `store.ts` DailyLog |
 
-Add to `UserProfile.gym`:
-- `timeOfDay`: morning/afternoon/evening/night
-- `specificHour`: 0-23 (e.g. 7 for 7 AM)
-- `workStart`, `workEnd`: work schedule strings
-- `sleepStart`, `sleepEnd`: sleep schedule strings  
-- `shiftType`: day/night/rotating
+### MEDIUM PRIORITY (implement now)
 
-Add to `DailyLog`:
-- `energyLevel?: 1|2|3|4|5`
+| # | Feature | Files |
+|---|---------|-------|
+| 4 | Weekend vs weekday gym schedule | `store.ts`, `gym-service.ts`, `EditProfileSheet.tsx`, `Onboarding.tsx` |
+| 8 | Energy correlation insights after 7 days | `gym-meal-engine.ts`, `EnergyTracker.tsx` |
+| 9 | Sleep-aware intensity reduction | `GymCheckInCard.tsx`, `gym-meal-engine.ts` |
+| 13 | Duration/intensity-scaled post-workout meals | `gym-meal-engine.ts` |
+| 16 | Planned rest day marking | `gym-service.ts`, `store.ts` |
 
-### 2. Onboarding — Progressive Gym Timing Questions (Step 11)
-**File**: `src/pages/Onboarding.tsx`
+### DEFERRED (Phase 2)
 
-After "Yes, I go to the gym" → existing questions (days, duration, intensity, goal) → **NEW questions**:
-- "When do you usually go?" → Morning/Afternoon/Evening/Night selector
-- "What time exactly?" → Time picker (hour selector)
-- These appear conditionally only for gym goers, using the same progressive disclosure pattern
+| # | Feature | Reason |
+|---|---------|--------|
+| 1 | Multiple sessions/day | Adds significant complexity to data model; very few users need this |
+| 3 | Rotating shift weekly template | Complex UI for edge case; manual override suffices |
+| 11 | Wearable sync (Google Fit/Apple Health) | Requires native APIs, Capacitor plugins |
+| 14 | Social sharing of streaks | Nice-to-have, not core |
+| 15 | Actionable PDF insights | Can enhance existing PDF export later |
+| 19 | Progressive overload logger | Full new feature surface |
 
-Also add **optional** work/sleep questions (can be skipped, editable later in Profile):
-- "What are your work hours?" (start/end time pickers)
-- "What is your sleep schedule?" (bedtime/wake-up)
-- "Shift type?" (Day/Night/Rotating)
+---
 
-Wire new fields into `saveOnboardingData()` in `onboarding-store.ts` so they persist to `UserProfile.gym`.
+## Data Model Changes
 
-### 3. New Service: `src/lib/gym-meal-engine.ts`
-Science-backed pre/post workout meal suggestions based on time of day and budget:
+### `src/lib/store.ts` — UserProfile.gym
+```
+fastedTraining?: boolean;          // skip pre-workout suggestions
+weekendSchedule?: string[];        // separate weekend gym days
+weekendHour?: number;              // different hour on weekends
+```
 
-| Time | Pre-Workout | Post-Workout |
-|------|------------|-------------|
-| Morning (5-9 AM) | Banana + black coffee, oatmeal, dates + nuts | Eggs + toast, protein shake, chicken + rice |
-| Afternoon (12-3 PM) | Brown rice + chicken 2-3h before; apple 30 min before | Quinoa + tofu, sweet potato + eggs |
-| Evening (5-8 PM) | PB sandwich, rice cake + honey | Fish + veggies, paneer + salad |
-| Night (9-11 PM) | Small banana, tea | Casein shake, cottage cheese, boiled eggs |
+### `src/lib/store.ts` — DailyLog.gym
+```
+gym?: {
+  attended: boolean;
+  durationMinutes: number;
+  caloriesBurned: number;
+  intensity: string;
+  actualHour?: number;             // override if different from scheduled
+  missReason?: 'tired' | 'injury' | 'sick' | 'no_time' | 'rest_day' | 'other';
+  restDayPlanned?: boolean;        // pre-marked rest day
+};
+```
 
-Budget-conscious alternatives: soya chunks, dal, sattu, curd. Uses `profile.lifestyle.budget` to prioritize cheaper options.
+---
 
-Functions exported:
-- `getPreWorkoutSuggestion(profile)` → meal suggestion + timing info
-- `getPostWorkoutSuggestion(profile)` → recovery meal
-- `shouldShowPreWorkout(profile)` → true if within 30-60 min before gym time
-- `shouldShowPostWorkout(profile, log)` → true if gym attended and within 1h after
-- `getGymMissedAdjustment(profile)` → calorie/carb reduction percentages
+## Implementation Details
 
-### 4. New Components
+### 1. GymCheckInCard — Actual Time Override + Miss Reason + Late Logging + Sleep-Aware
+- When user taps "Yes", show expandable section with **time picker** (pre-filled with `specificHour`) and duration slider
+- Store `actualHour` in `dailyLog.gym`
+- When user taps "No", show a **reason picker** modal: Too tired / Injury / Sick / No time / Other
+- Store `missReason` in `dailyLog.gym`; for Injury/Sick, show recovery tip
+- Remove `shouldShowCheckIn` time gate — always show on gym days if not yet answered (fixes late logging)
+- Add "Log manually" link that appears even after the card is dismissed
+- If `sleepDuration < 6h`, change "Yes" button to "Yes, light session" which pre-selects light intensity
 
-**`src/components/PreWorkoutCard.tsx`**
-- Appears 30-60 min before `specificHour`
-- Shows: "Your pre-workout snack: banana + coffee. Ready to crush it?"
-- Buttons: [Start Workout] / [Not now]
-- Dismissed after gym check-in
+### 2. PreWorkoutCard — Countdown + Skip + Fasted Toggle
+- Add countdown: "Eat this in X minutes" based on `specificHour - 30min - now`
+- Add two buttons: [I already ate] and [Skip] — both dismiss the card
+- If `profile.gym.fastedTraining === true`, skip rendering entirely
+- Show exact recommended eat time: "Eat at 6:30 AM"
 
-**`src/components/PostWorkoutCard.tsx`**
-- Appears after user checks in "Yes" on gym day
-- Shows recovery meal suggestion
-- Button: [Log Meal] → opens meal logging with recipe pre-selected
+### 3. PostWorkoutCard — One-Tap Log + Skip
+- [Log This Meal] button calls a helper that creates a `MealEntry` from the suggestion and saves to today's log via `saveDailyLog`
+- Show toast: "Meal logged! +Xg protein"
+- Add [I already ate] and [Skip] buttons
 
-**`src/components/EnergyTracker.tsx`**
-- Simple 1-5 star rating card on Dashboard
-- "How is your energy today?"
-- Stores in `dailyLog.energyLevel`
+### 4. Weekend Schedule Support
+- `gym-service.ts` `isGymDay()`: check day of week; if Saturday/Sunday and `weekendSchedule` exists, use that instead of `schedule`
+- `getSpecificHour()` helper: returns `weekendHour` on weekends if set
+- `EditProfileSheet.tsx`: add "Different schedule on weekends?" toggle with weekend day/hour pickers
+- `Onboarding.tsx`: after gym schedule, ask "Same times on weekends?" — if No, collect weekend sessions
 
-**`src/components/GymPDFExport.tsx`**
-- Button in Progress tab: "Download Gym Report"
-- PDF includes: monthly attendance calendar, pre/post meal adherence, energy trends, consistency %, total workouts/calories burned
-- Uses jsPDF
+### 5. Duration/Intensity-Scaled Post-Workout Meals
+- `gym-meal-engine.ts` `getPostWorkoutSuggestion()`: accept optional `actualDuration` and `actualIntensity`
+- Scale factor: `(duration / 45) * intensityMultiplier` where light=0.8, moderate=1.0, intense=1.3
+- Apply to calories and protein in suggestion
 
-### 5. Modified Components
+### 6. Fasted Training Toggle
+- Add `fastedTraining` to `UserProfile.gym`
+- Add toggle in `EditProfileSheet.tsx` Gym section
+- `PreWorkoutCard` returns null when enabled
 
-**`src/components/GymCheckInCard.tsx`**
-- Schedule appearance based on `specificHour + durationMinutes + 30min` instead of showing all day
-- Add [Snooze 1h] button alongside Yes/No
-- On "No": reduce remaining carbs by 10-15% for the day (call redistribution engine), reduce total calories by 5-10% for weight loss goals (clamped ≥1200 kcal)
-- On "Yes": show PostWorkoutCard immediately
+### 7. Planned Rest Day
+- Add `restDays` storage: `scopedGet('gym_rest_days')` → array of date strings
+- `isGymDay()` checks against rest days list
+- Add "Mark as Rest Day" button in GymCheckInCard when card is shown (for tomorrow or today)
+- On rest day, reduce base calories by 5% (clamped ≥1200)
 
-**`src/components/EditProfileSheet.tsx`**
-- Add "Gym & Lifestyle" collapsible section with:
-  - Gym timing (time of day picker + specific hour)
-  - Work schedule (start/end time pickers)
-  - Sleep schedule (bedtime/wake-up)
-  - Shift type selector
-- After saving, recalculate meal suggestions and check-in timing
+### 8. Energy Correlation Insights
+- After 7+ energy logs exist, compute average energy on gym days vs non-gym days
+- If gym-day energy is consistently lower, show insight in `EnergyTracker`: "Your energy is 15% lower on workout days — try a bigger pre-workout meal"
+- Simple moving average computation in `gym-meal-engine.ts`
 
-### 6. Dashboard Integration
-**File**: `src/pages/Dashboard.tsx`
+### 9. Wire onboarding-store.ts
+- Map new fields (`fastedTraining`, `weekendSchedule`, `weekendHour`) through `saveOnboardingData()`
 
-For gym goers, conditionally render in order:
-1. **PreWorkoutCard** (if within pre-workout window)
-2. **GymCheckInCard** (if gym time has passed and not yet answered)
-3. **PostWorkoutCard** (if checked in "Yes")
-4. **EnergyTracker** (if not yet logged today)
+---
 
-### 7. Calorie Adjustment on Missed Gym
-**File**: `src/lib/calorie-correction.ts`
-
-When gym is missed (`attended === false`):
-- Weight loss goal: reduce day's target by 5-10% (clamped ≥1200)
-- All goals: reduce carbs by 10-15%, keep protein locked
-- Use existing redistribution engine for remaining meals
-
-### 8. Energy Trends in Progress
-**File**: `src/pages/Progress.tsx`
-
-Add energy trend line chart (last 30 days) correlated with gym attendance. Show insights like "Your energy is higher on workout days" or "Low sleep correlates with low energy."
-
-Add "Download Gym Report" button that triggers `GymPDFExport`.
-
-### 9. Work/Sleep-Aware Adaptations
-**File**: `src/lib/gym-meal-engine.ts`
-
-- Night shift: adjust meal timing, suggest gym before shift
-- Sedentary job: lighter lunches, movement reminders
-- Physical job: +5-10% daily calories
-- Sleep < 6h: show tip "Low sleep increases hunger – prioritise protein", optionally reduce workout intensity recommendation
-
-## Implementation Order
-
-1. Extend data models (`store.ts`, `onboarding-store.ts`)
-2. Update onboarding step 11 with gym timing questions
-3. Create `gym-meal-engine.ts` service
-4. Build `PreWorkoutCard`, `PostWorkoutCard`, `EnergyTracker` components
-5. Modify `GymCheckInCard` with timing + snooze + calorie adjustment
-6. Add gym lifestyle section to `EditProfileSheet`
-7. Integrate all cards into Dashboard
-8. Add energy chart + PDF export to Progress
-9. Wire calorie adjustment on missed gym into `calorie-correction.ts`
-
-## Files Changed/Created
+## Files Summary
 
 | File | Action |
 |------|--------|
-| `src/lib/store.ts` | Extend `UserProfile.gym` + `DailyLog.energyLevel` |
+| `src/lib/store.ts` | Extend gym + DailyLog.gym types |
+| `src/lib/gym-service.ts` | Weekend schedule support, rest day check, getSpecificHour helper |
+| `src/lib/gym-meal-engine.ts` | Duration/intensity scaling, energy correlation, getExactEatTime |
+| `src/components/GymCheckInCard.tsx` | Time override, miss reason, late logging, sleep-aware, rest day button |
+| `src/components/PreWorkoutCard.tsx` | Countdown timer, skip/already ate, fasted check, exact eat time |
+| `src/components/PostWorkoutCard.tsx` | One-tap log meal, skip/already ate |
+| `src/components/EditProfileSheet.tsx` | Fasted toggle, weekend schedule, rest day |
+| `src/components/EnergyTracker.tsx` | Energy correlation insight after 7 days |
 | `src/lib/onboarding-store.ts` | Wire new gym fields |
-| `src/pages/Onboarding.tsx` | Add gym timing + work/sleep questions |
-| `src/lib/gym-meal-engine.ts` | **NEW** — pre/post meal engine |
-| `src/components/PreWorkoutCard.tsx` | **NEW** |
-| `src/components/PostWorkoutCard.tsx` | **NEW** |
-| `src/components/EnergyTracker.tsx` | **NEW** |
-| `src/components/GymPDFExport.tsx` | **NEW** |
-| `src/components/GymCheckInCard.tsx` | Add timing, snooze, calorie adjustment |
-| `src/components/EditProfileSheet.tsx` | Add gym lifestyle section |
-| `src/pages/Dashboard.tsx` | Integrate new cards |
-| `src/pages/Progress.tsx` | Energy chart + PDF button |
-| `src/lib/calorie-correction.ts` | Missed gym adjustment |
-| `src/lib/profile-mapper.ts` | Map new gym fields to cloud |
+| `src/pages/Onboarding.tsx` | Weekend schedule question |
 
-No database migrations needed — all new fields stored in existing JSONB columns.
+No database migrations needed. All data in localStorage JSONB.
 
