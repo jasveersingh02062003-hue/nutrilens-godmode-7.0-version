@@ -15,20 +15,22 @@ import { saveProfile } from '@/lib/store';
 import WelcomeScreen from '@/components/onboarding/WelcomeScreen';
 import SplashScreen from '@/components/onboarding/SplashScreen';
 import ScannerOnboardingScreen from '@/components/onboarding/ScannerOnboardingScreen';
+import CalculatingScreen from '@/components/onboarding/CalculatingScreen';
+import CompletionScreen from '@/components/onboarding/CompletionScreen';
 import TargetWeightStep from '@/components/onboarding/TargetWeightStep';
 import PredictionSummaryStep from '@/components/onboarding/PredictionSummaryStep';
 import FoodIntelligenceStep from '@/components/onboarding/FoodIntelligenceStep';
 import PlansPage from '@/components/PlansPage';
 
-// ── Animation variants ──
+// ── Animation variants (upgraded) ──
 const pageVariants = {
-  enter: (d: number) => ({ x: d > 0 ? 60 : -60, opacity: 0 }),
-  center: { x: 0, opacity: 1, transition: { type: 'spring' as const, stiffness: 400, damping: 35 } },
-  exit: (d: number) => ({ x: d < 0 ? 60 : -60, opacity: 0, transition: { duration: 0.2 } }),
+  enter: (d: number) => ({ x: d > 0 ? 80 : -80, opacity: 0, scale: 0.95 }),
+  center: { x: 0, opacity: 1, scale: 1, transition: { type: 'spring' as const, stiffness: 350, damping: 32 } },
+  exit: (d: number) => ({ x: d < 0 ? 80 : -80, opacity: 0, scale: 0.95, transition: { duration: 0.2 } }),
 };
 const stagger = {
-  hidden: { opacity: 0, y: 12 },
-  visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.05, type: 'spring' as const, stiffness: 500, damping: 35 } }),
+  hidden: { opacity: 0, y: 16, scale: 0.97 },
+  visible: (i: number) => ({ opacity: 1, y: 0, scale: 1, transition: { delay: i * 0.06, type: 'spring' as const, stiffness: 400, damping: 30 } }),
 };
 
 // ── Reusable UI ──
@@ -1838,48 +1840,16 @@ export default function Onboarding() {
     return <ScannerOnboardingScreen onBack={() => setPhase('welcome')} onContinue={() => { setPhase('wizard'); setStep(0); }} />;
   }
   if (phase === 'calculating') {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-6">
-        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center space-y-8 max-w-sm">
-          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}>
-            <Sparkles className="w-12 h-12 text-primary mx-auto" />
-          </motion.div>
-          <div className="space-y-2">
-            <h2 className="text-xl font-display font-bold text-foreground">Calculating your plan…</h2>
-            <p className="text-sm text-muted-foreground">Analyzing your body stats, activity level, and goals.</p>
-          </div>
-          <div className="flex justify-center gap-1.5">
-            {[0, 1, 2].map(i => (
-              <motion.div key={i} className="w-2 h-2 rounded-full bg-primary"
-                animate={{ scale: [1, 1.4, 1], opacity: [0.4, 1, 0.4] }}
-                transition={{ repeat: Infinity, duration: 1.2, delay: i * 0.2 }} />
-            ))}
-          </div>
-        </motion.div>
-      </div>
-    );
+    return <CalculatingScreen onComplete={() => { setPhase('wizard'); setStep(16); }} />;
   }
   if (phase === 'success') {
     return (
       <>
-        <div className="min-h-screen bg-background flex items-center justify-center px-6">
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center space-y-6 max-w-sm">
-            <motion.p initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.2 }} className="text-6xl">✅</motion.p>
-            <h1 className="text-2xl font-display font-bold text-foreground">Onboarding complete!</h1>
-            <p className="text-sm text-muted-foreground">Your personalized plan has been saved. Let's get started!</p>
-            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
-              className="text-xs text-muted-foreground">Next step: Log your first meal</motion.p>
-            <div className="space-y-3">
-              <button onClick={() => navigate('/')}
-                className="w-full py-4 rounded-full bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2">
-                <UtensilsCrossed className="w-4 h-4" /> Log Breakfast
-              </button>
-              <button onClick={() => navigate('/dashboard')}
-                className="w-full py-3 rounded-full bg-card border border-border text-foreground font-semibold text-sm hover:bg-muted transition-colors">
-                Go to Dashboard
-              </button>
-            </div>
-          </motion.div>
+        <div className="min-h-screen bg-background">
+          <CompletionScreen
+            name={f.name || 'Friend'}
+            onGoHome={() => navigate('/dashboard')}
+          />
         </div>
         <PlansPage open={showPlansAfterOnboarding} onClose={() => setShowPlansAfterOnboarding(false)} onPlanChanged={() => {}} />
       </>
@@ -1901,16 +1871,42 @@ export default function Onboarding() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="px-6 pt-4 pb-2">
-        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-          <motion.div className="h-full bg-primary rounded-full" animate={{ width: `${progress}%` }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }} />
+    <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
+      {/* Animated ambient background for the wizard */}
+      <motion.div
+        className="absolute inset-0 pointer-events-none"
+        animate={{
+          background: [
+            'radial-gradient(ellipse 50% 30% at 20% 20%, hsl(var(--primary) / 0.04) 0%, transparent 70%)',
+            'radial-gradient(ellipse 50% 30% at 80% 80%, hsl(var(--primary) / 0.04) 0%, transparent 70%)',
+            'radial-gradient(ellipse 50% 30% at 20% 20%, hsl(var(--primary) / 0.04) 0%, transparent 70%)',
+          ],
+        }}
+        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+      />
+
+      {/* Premium progress bar */}
+      <div className="px-6 pt-4 pb-2 relative z-10">
+        <div className="relative h-[4px] rounded-full bg-muted overflow-hidden">
+          <motion.div
+            className="h-full rounded-full"
+            style={{ background: 'linear-gradient(90deg, hsl(var(--primary)), hsl(var(--secondary)))' }}
+            animate={{ width: `${progress}%` }}
+            transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+          />
+          <motion.div
+            animate={{ x: ['-100%', '300%'] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', repeatDelay: 1.5 }}
+            className="absolute top-0 h-full w-1/4 bg-gradient-to-r from-transparent via-primary-foreground/15 to-transparent"
+          />
         </div>
-        <p className="text-[10px] text-muted-foreground mt-1.5 text-right font-mono">{Math.round(progress)}%</p>
+        <div className="flex justify-between items-center mt-2">
+          <p className="text-[10px] text-muted-foreground font-medium">Step {currentVisibleIdx + 1} of {visibleSteps.length}</p>
+          <p className="text-[10px] text-muted-foreground font-mono font-medium">{Math.round(progress)}%</p>
+        </div>
       </div>
 
-      <div className="flex-1 max-w-lg mx-auto w-full px-6 py-4 overflow-y-auto">
+      <div className="flex-1 max-w-lg mx-auto w-full px-6 py-4 overflow-y-auto relative z-10">
         {(() => {
           const STEP_MONIKA_KEY: Record<number, string> = {
             0: 'name', 1: 'gender', 2: 'dob', 3: 'measurements', 4: 'measurements',
@@ -1932,26 +1928,34 @@ export default function Onboarding() {
         </AnimatePresence>
       </div>
 
+      {/* Bottom action bar with glassmorphism */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-        className="max-w-lg mx-auto w-full px-6 pb-6 flex gap-3">
+        className="max-w-lg mx-auto w-full px-6 pb-6 flex gap-3 relative z-10">
         {currentVisibleIdx > 0 && editReturnStep === null && (
-          <motion.button whileTap={{ scale: 0.95 }} onClick={goBack}
-            className="px-4 py-3.5 rounded-full bg-card border border-border font-semibold text-sm hover:bg-muted transition-colors">
+          <motion.button whileTap={{ scale: 0.93 }} onClick={goBack}
+            className="px-4 py-3.5 rounded-full bg-card border border-border font-semibold text-sm hover:bg-muted transition-all active:scale-95">
             <ArrowLeft className="w-5 h-5" />
           </motion.button>
         )}
         {editReturnStep !== null && (
-          <motion.button whileTap={{ scale: 0.95 }} onClick={handleEditDone}
-            className="px-4 py-3.5 rounded-full bg-card border border-border font-semibold text-sm hover:bg-muted transition-colors">
+          <motion.button whileTap={{ scale: 0.93 }} onClick={handleEditDone}
+            className="px-4 py-3.5 rounded-full bg-card border border-border font-semibold text-sm hover:bg-muted transition-all active:scale-95">
             <ArrowLeft className="w-5 h-5" />
           </motion.button>
         )}
-        <motion.button whileTap={{ scale: 0.98 }}
+        <motion.button whileTap={{ scale: 0.97 }}
           onClick={isFinishStep ? handleFinish : goNext}
           disabled={!canContinue()}
-          className={`flex-1 py-3.5 rounded-full font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200 ${
-            canContinue() ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground cursor-not-allowed'
+          className={`flex-1 py-3.5 rounded-full font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200 relative overflow-hidden ${
+            canContinue() ? 'bg-primary text-primary-foreground shadow-fab' : 'bg-muted text-muted-foreground cursor-not-allowed'
           }`}>
+          {canContinue() && (
+            <motion.div
+              animate={{ x: ['-100%', '200%'] }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', repeatDelay: 2 }}
+              className="absolute inset-0 w-1/3 bg-gradient-to-r from-transparent via-primary-foreground/10 to-transparent skew-x-12"
+            />
+          )}
           {buttonLabel}
         </motion.button>
       </motion.div>

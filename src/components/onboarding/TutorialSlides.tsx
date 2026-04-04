@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, Mic, BarChart3, ArrowRight } from 'lucide-react';
+import { Camera, Mic, BarChart3, ArrowRight, Sparkles } from 'lucide-react';
 import MonikaGuide from './MonikaGuide';
 
 interface TutorialSlidesProps {
@@ -12,30 +12,55 @@ const SLIDES = [
     icon: Camera,
     emoji: '📸',
     title: 'Snap a Photo',
-    description: 'Take a photo of any meal — I\'ll identify every item and log the calories, macros, and more.',
-    iconBg: 'bg-muted',
+    description: 'Point your camera at any meal — our AI identifies every item and logs nutrition instantly.',
+    gradient: 'from-primary/20 to-secondary/10',
+    accentColor: 'hsl(var(--primary))',
+    particles: ['🍛', '🥗', '🍳'],
   },
   {
     icon: Mic,
     emoji: '🎙️',
     title: 'Log with Voice',
-    description: 'Just tell me what you ate — "I had 2 rotis and dal" — and I\'ll handle the rest.',
-    iconBg: 'bg-muted',
+    description: 'Just say "I had 2 rotis and dal" — the AI handles portions, calories, and macros.',
+    gradient: 'from-accent/20 to-gold/10',
+    accentColor: 'hsl(var(--accent))',
+    particles: ['💬', '🗣️', '✨'],
   },
   {
     icon: BarChart3,
     emoji: '📊',
     title: 'Track Everything',
-    description: 'Calories, macros, budget, weight, water — I track it all and give you smart insights.',
-    iconBg: 'bg-muted',
+    description: 'Calories, macros, budget, weight, water — smart insights that adapt to your habits.',
+    gradient: 'from-secondary/20 to-mint/10',
+    accentColor: 'hsl(var(--secondary))',
+    particles: ['📈', '🎯', '⚡'],
   },
 ];
 
 const slideVariants = {
-  enter: (dir: number) => ({ x: dir > 0 ? 120 : -120, opacity: 0 }),
-  center: { x: 0, opacity: 1, transition: { type: 'spring' as const, stiffness: 400, damping: 35 } },
-  exit: (dir: number) => ({ x: dir < 0 ? 120 : -120, opacity: 0, transition: { duration: 0.2 } }),
+  enter: (dir: number) => ({ x: dir > 0 ? 150 : -150, opacity: 0, scale: 0.9 }),
+  center: { x: 0, opacity: 1, scale: 1, transition: { type: 'spring' as const, stiffness: 300, damping: 30 } },
+  exit: (dir: number) => ({ x: dir < 0 ? 150 : -150, opacity: 0, scale: 0.9, transition: { duration: 0.25 } }),
 };
+
+function FloatingParticle({ emoji, delay, x, y }: { emoji: string; delay: number; x: number; y: number }) {
+  return (
+    <motion.span
+      initial={{ opacity: 0, scale: 0 }}
+      animate={{
+        opacity: [0, 1, 0],
+        scale: [0.5, 1.2, 0.5],
+        y: [0, -20, -40],
+        x: [0, x * 0.5, x],
+      }}
+      transition={{ duration: 3, delay, repeat: Infinity, ease: 'easeInOut' }}
+      className="absolute text-xl pointer-events-none"
+      style={{ left: `${50 + y}%`, top: '40%' }}
+    >
+      {emoji}
+    </motion.span>
+  );
+}
 
 export default function TutorialSlides({ onComplete }: TutorialSlidesProps) {
   const [current, setCurrent] = useState(0);
@@ -53,7 +78,20 @@ export default function TutorialSlides({ onComplete }: TutorialSlidesProps) {
   const slide = SLIDES[current];
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[80vh] px-6">
+    <div className="flex flex-col items-center justify-center min-h-[80vh] px-6 relative overflow-hidden">
+      {/* Animated background gradient */}
+      <motion.div
+        key={`bg-${current}`}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.5 }}
+        className="absolute inset-0"
+        style={{
+          background: `radial-gradient(circle 300px at 50% 35%, ${slide.accentColor.replace(')', ' / 0.06)')}, transparent)`,
+        }}
+      />
+
       <MonikaGuide
         message={
           current === 0
@@ -73,29 +111,59 @@ export default function TutorialSlides({ onComplete }: TutorialSlidesProps) {
           initial="enter"
           animate="center"
           exit="exit"
-          className="w-full max-w-sm"
+          className="w-full max-w-sm relative"
         >
-          {/* Minimal illustration */}
+          {/* Animated illustration container */}
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.05, type: 'spring', stiffness: 300 }}
-            className={`w-28 h-28 mx-auto rounded-full ${slide.iconBg} flex items-center justify-center mb-8`}
+            className={`relative w-36 h-36 mx-auto rounded-3xl bg-gradient-to-br ${slide.gradient} flex items-center justify-center mb-8 overflow-visible`}
           >
+            {/* Pulsing ring */}
+            <motion.div
+              animate={{
+                scale: [1, 1.15, 1],
+                opacity: [0.3, 0, 0.3],
+              }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="absolute inset-0 rounded-3xl border-2 border-primary/20"
+            />
+
+            {/* Floating particles around the icon */}
+            {slide.particles.map((p, i) => (
+              <FloatingParticle
+                key={`${current}-${i}`}
+                emoji={p}
+                delay={i * 0.6}
+                x={[-30, 30, -20][i]}
+                y={[-15, 15, 0][i]}
+              />
+            ))}
+
+            {/* Main emoji with bounce */}
             <motion.span
-              animate={{ scale: [1, 1.05, 1] }}
-              transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
-              className="text-5xl"
+              initial={{ scale: 0, rotate: -30 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 15, delay: 0.1 }}
+              className="text-6xl relative z-10"
             >
               {slide.emoji}
             </motion.span>
+
+            {/* Decorative dots */}
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
+              className="absolute inset-[-8px]"
+            >
+              <div className="absolute top-0 left-1/2 w-1.5 h-1.5 rounded-full bg-primary/40" />
+              <div className="absolute bottom-0 right-0 w-1 h-1 rounded-full bg-accent/40" />
+            </motion.div>
           </motion.div>
 
           {/* Text */}
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
+            transition={{ delay: 0.15 }}
             className="text-center mb-10"
           >
             <h2 className="text-2xl font-display font-bold text-foreground mb-3 tracking-tight">{slide.title}</h2>
@@ -106,31 +174,37 @@ export default function TutorialSlides({ onComplete }: TutorialSlidesProps) {
         </motion.div>
       </AnimatePresence>
 
-      {/* Minimal dots */}
-      <div className="flex gap-2 mb-10">
+      {/* Animated dots */}
+      <div className="flex gap-2.5 mb-10">
         {SLIDES.map((_, i) => (
           <motion.div
             key={i}
             animate={{
-              width: i === current ? 20 : 6,
+              width: i === current ? 28 : 8,
+              height: 8,
               backgroundColor: i === current ? 'hsl(var(--primary))' : 'hsl(var(--muted))',
+              borderRadius: 4,
             }}
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            className="h-1.5 rounded-full"
           />
         ))}
       </div>
 
-      {/* Single CTA */}
+      {/* CTA button with shimmer */}
       <motion.button
-        whileTap={{ scale: 0.98 }}
+        whileTap={{ scale: 0.97 }}
         onClick={goNext}
-        className="w-full max-w-sm py-4 rounded-full bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center gap-2 transition-all active:opacity-90"
+        className="w-full max-w-sm py-4 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 relative overflow-hidden shadow-fab"
       >
+        <motion.div
+          animate={{ x: ['-100%', '200%'] }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', repeatDelay: 1 }}
+          className="absolute inset-0 w-1/3 bg-gradient-to-r from-transparent via-primary-foreground/10 to-transparent skew-x-12"
+        />
         {current === SLIDES.length - 1 ? (
           <>Get Started <ArrowRight className="w-4 h-4" /></>
         ) : (
-          'Continue'
+          <>Continue <Sparkles className="w-3.5 h-3.5" /></>
         )}
       </motion.button>
 
@@ -138,7 +212,7 @@ export default function TutorialSlides({ onComplete }: TutorialSlidesProps) {
       <motion.button
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.3 }}
+        transition={{ delay: 0.4 }}
         onClick={onComplete}
         className="mt-4 text-xs text-muted-foreground font-medium hover:text-foreground transition-colors"
       >

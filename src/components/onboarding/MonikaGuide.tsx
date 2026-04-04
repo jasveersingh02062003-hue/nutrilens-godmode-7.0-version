@@ -15,43 +15,62 @@ const MOOD_EMOJI: Record<string, string> = {
   waving: '👋',
 };
 
+const MOOD_GLOW: Record<string, string> = {
+  happy: 'hsl(var(--primary) / 0.1)',
+  thinking: 'hsl(var(--accent) / 0.1)',
+  excited: 'hsl(var(--gold) / 0.1)',
+  concerned: 'hsl(var(--coral) / 0.1)',
+  celebrating: 'hsl(var(--accent) / 0.15)',
+  waving: 'hsl(var(--primary) / 0.1)',
+};
+
 export default function MonikaGuide({ message, mood = 'happy', compact = false }: MonikaGuideProps) {
   const emoji = MOOD_EMOJI[mood];
+  const glow = MOOD_GLOW[mood];
 
   return (
     <AnimatePresence mode="wait">
       <motion.div
         key={message}
-        initial={{ opacity: 0, y: -6 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 6 }}
-        transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+        initial={{ opacity: 0, y: -8, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 8, scale: 0.97 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
         className={`flex items-start gap-3.5 ${compact ? 'mb-3' : 'mb-6'}`}
       >
-        {/* Premium Avatar */}
+        {/* Premium Avatar with mood glow */}
         <motion.div
           animate={
             mood === 'celebrating'
-              ? { rotate: [0, -8, 8, -8, 0], scale: [1, 1.08, 1] }
+              ? { rotate: [0, -8, 8, -8, 0], scale: [1, 1.12, 1] }
               : mood === 'waving'
-              ? { rotate: [0, 12, -4, 12, 0] }
-              : { scale: [1, 1.02, 1] }
+              ? { rotate: [0, 14, -6, 14, 0] }
+              : { scale: [1, 1.04, 1] }
           }
           transition={{
             repeat: mood === 'celebrating' || mood === 'waving' ? 2 : Infinity,
             duration: mood === 'celebrating' ? 0.5 : 3,
             ease: 'easeInOut',
           }}
-          className="shrink-0 w-11 h-11 rounded-full bg-card flex items-center justify-center text-lg border border-border shadow-sm"
+          className="shrink-0 w-11 h-11 rounded-full bg-card flex items-center justify-center text-lg border border-border relative"
+          style={{
+            boxShadow: `0 0 12px 2px ${glow}, var(--shadow-sm)`,
+          }}
         >
           {emoji}
+          {/* Online indicator */}
+          <motion.div
+            animate={{ scale: [1, 1.3, 1] }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-status-ontrack border-2 border-background"
+          />
         </motion.div>
 
-        {/* Clean Speech Bubble */}
+        {/* Speech Bubble with gradient border */}
         <motion.div
-          initial={{ opacity: 0, x: -4 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.08 }}
+          initial={{ opacity: 0, x: -6, scale: 0.95 }}
+          animate={{ opacity: 1, x: 0, scale: 1 }}
+          transition={{ delay: 0.1, type: 'spring', stiffness: 400, damping: 30 }}
           className="relative flex-1 bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3.5 shadow-sm"
         >
           <p className="text-[13px] text-foreground leading-relaxed relative z-10">
