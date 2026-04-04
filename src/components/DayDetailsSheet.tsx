@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -71,6 +72,15 @@ export default function DayDetailsSheet({ open, date, onClose, onChanged }: Prop
     };
   }, [open, reload]);
 
+  // Lock body scroll when sheet is open
+  useEffect(() => {
+    if (open) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [open]);
+
   if (!open || !log) return null;
 
   const totals = getDailyTotals(log);
@@ -116,24 +126,26 @@ export default function DayDetailsSheet({ open, date, onClose, onChanged }: Prop
     }
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.15 }}
-        className="fixed inset-0 z-50"
-        onClick={onClose}
-      >
-        <div className="absolute inset-0 bg-foreground/30 backdrop-blur-sm" />
+      {open && (
         <motion.div
-          initial={{ y: '8%', opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: '8%', opacity: 0 }}
-          transition={{ type: 'tween', ease: 'easeOut', duration: 0.2 }}
-          className="absolute inset-x-0 bottom-0 max-h-[92vh] overflow-y-auto bg-background rounded-t-3xl"
-          onClick={e => e.stopPropagation()}
+          key="day-details-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+          className="fixed inset-0 z-[9999]"
+          onClick={onClose}
+        >
+          <div className="absolute inset-0 bg-foreground/30 backdrop-blur-sm" />
+          <motion.div
+            initial={{ y: '8%', opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: '8%', opacity: 0 }}
+            transition={{ type: 'tween', ease: 'easeOut', duration: 0.2 }}
+            className="absolute inset-x-0 bottom-0 max-h-[92dvh] overflow-y-auto overscroll-contain bg-background rounded-t-3xl"
+            onClick={e => e.stopPropagation()}
         >
           <div className="flex justify-center pt-3 pb-1">
             <div className="w-10 h-1 rounded-full bg-muted-foreground/20" />
@@ -493,6 +505,7 @@ export default function DayDetailsSheet({ open, date, onClose, onChanged }: Prop
           </div>
         </motion.div>
       </motion.div>
+      )}
 
       {/* Sub-sheets */}
       <ActivityLogSheet
@@ -515,7 +528,8 @@ export default function DayDetailsSheet({ open, date, onClose, onChanged }: Prop
         onClose={() => setFullScreenMealId(null)}
         onChanged={() => { reload(); onChanged(); }}
       />
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
 
