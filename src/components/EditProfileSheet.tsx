@@ -80,6 +80,9 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
   const [sleepStart, setSleepStart] = useState('22:00');
   const [sleepEnd, setSleepEnd] = useState('06:00');
   const [shiftType, setShiftType] = useState<string>('day');
+  const [fastedTraining, setFastedTraining] = useState(false);
+  const [hasWeekendSchedule, setHasWeekendSchedule] = useState(false);
+  const [weekendHour, setWeekendHour] = useState(9);
 
   useEffect(() => {
     if (profile && open) {
@@ -115,6 +118,9 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
       setSleepStart(profile.gym?.sleepStart || '22:00');
       setSleepEnd(profile.gym?.sleepEnd || '06:00');
       setShiftType(profile.gym?.shiftType || 'day');
+      setFastedTraining(profile.gym?.fastedTraining || false);
+      setHasWeekendSchedule(!!(profile.gym?.weekendSchedule?.length));
+      setWeekendHour(profile.gym?.weekendHour ?? 9);
     }
   }, [profile, open]);
 
@@ -193,6 +199,9 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
         specificHour: gymSpecificHour,
         workStart, workEnd, sleepStart, sleepEnd,
         shiftType: shiftType as any || undefined,
+        fastedTraining,
+        weekendSchedule: hasWeekendSchedule ? ['saturday', 'sunday'].filter(d => inferSchedule(gymDays).includes(d) || hasWeekendSchedule) : undefined,
+        weekendHour: hasWeekendSchedule ? weekendHour : undefined,
       } : { goer: false, daysPerWeek: 0, durationMinutes: 0, intensity: 'moderate' as const, goal: 'general' as const, schedule: [], stats: { totalWorkouts: 0, totalCaloriesBurned: 0, currentStreak: 0, bestStreak: 0, consistencyPercent: 0 } },
     });
 
@@ -580,6 +589,32 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
                             ))}
                           </div>
                         </Field>
+
+                        {/* Fasted Training Toggle */}
+                        <Field label="Training Style">
+                          <button
+                            onClick={() => setFastedTraining(!fastedTraining)}
+                            className={`w-full px-4 py-2.5 rounded-xl text-xs font-semibold transition-colors border ${fastedTraining ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted text-muted-foreground border-border'}`}
+                          >
+                            {fastedTraining ? '🥊 Fasted Training (no pre-workout meal)' : '🍌 Regular (pre-workout meal suggested)'}
+                          </button>
+                        </Field>
+
+                        {/* Weekend Schedule */}
+                        <Field label="Different schedule on weekends?">
+                          <button
+                            onClick={() => setHasWeekendSchedule(!hasWeekendSchedule)}
+                            className={`w-full px-4 py-2.5 rounded-xl text-xs font-semibold transition-colors border ${hasWeekendSchedule ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted text-muted-foreground border-border'}`}
+                          >
+                            {hasWeekendSchedule ? '✅ Yes, different weekend time' : '📅 Same as weekdays'}
+                          </button>
+                        </Field>
+                        {hasWeekendSchedule && (
+                          <Field label={`Weekend gym time: ${weekendHour > 12 ? weekendHour - 12 : weekendHour === 0 ? 12 : weekendHour}:00 ${weekendHour >= 12 ? 'PM' : 'AM'}`}>
+                            <input type="range" min={0} max={23} step={1} value={weekendHour}
+                              onChange={e => setWeekendHour(Number(e.target.value))} className="w-full accent-primary" />
+                          </Field>
+                        )}
                       </>
                     )}
                   </motion.div>

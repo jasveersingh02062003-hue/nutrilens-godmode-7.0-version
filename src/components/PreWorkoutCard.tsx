@@ -1,26 +1,37 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Zap, X, Dumbbell } from 'lucide-react';
+import { Zap, X, Dumbbell, Timer, UtensilsCrossed } from 'lucide-react';
 import { getProfile, toLocalDateKey, getDailyLog } from '@/lib/store';
-import { isGymDay } from '@/lib/gym-service';
-import { shouldShowPreWorkout, getPreWorkoutSuggestion } from '@/lib/gym-meal-engine';
+import { isGymDay, getSpecificHourForDate } from '@/lib/gym-service';
+import { shouldShowPreWorkout, getPreWorkoutSuggestion, getPreWorkoutCountdown, getExactEatTime } from '@/lib/gym-meal-engine';
 
 export default function PreWorkoutCard() {
   const profile = getProfile();
   const today = toLocalDateKey(new Date());
   const log = getDailyLog(today);
   const [dismissed, setDismissed] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   const suggestion = useMemo(() => getPreWorkoutSuggestion(profile), [profile]);
 
+  // Update countdown every minute
+  useEffect(() => {
+    const update = () => setCountdown(getPreWorkoutCountdown(profile));
+    update();
+    const interval = setInterval(update, 60000);
+    return () => clearInterval(interval);
+  }, [profile]);
+
   if (!profile?.gym?.goer || !isGymDay(profile, today) || dismissed) return null;
+  if (profile.gym.fastedTraining) return null; // fasted training - skip pre-workout
   if (!shouldShowPreWorkout(profile)) return null;
   if (log.gym?.attended != null) return null; // already checked in
   if (!suggestion) return null;
 
-  const gymHour = profile.gym.specificHour ?? 7;
+  const gymHour = getSpecificHourForDate(profile, today) ?? profile.gym.specificHour ?? 7;
   const period = gymHour < 12 ? 'AM' : 'PM';
   const displayHour = gymHour > 12 ? gymHour - 12 : gymHour === 0 ? 12 : gymHour;
+  const exactEatTime = getExactEatTime(profile);
 
   return (
     <motion.div
@@ -43,6 +54,17 @@ export default function PreWorkoutCard() {
         </button>
       </div>
 
+      {/* Countdown timer */}
+      {countdown != null && countdown > 0 && (
+        <div className="flex items-center gap-2 bg-primary/5 border border-primary/15 rounded-xl px-3 py-2">
+          <Timer className="w-3.5 h-3.5 text-primary" />
+          <p className="text-[11px] text-foreground font-medium">
+            {exactEatTime ? `Eat at ${exactEatTime}` : `Eat in ${countdown} min`}
+            {countdown > 0 && ` · ${countdown} min left`}
+          </p>
+        </div>
+      )}
+
       <div className="bg-primary/5 border border-primary/15 rounded-xl px-4 py-3">
         <p className="text-xs font-semibold text-foreground mb-1.5">{suggestion.title}</p>
         <div className="flex flex-wrap gap-1.5">
@@ -62,12 +84,21 @@ export default function PreWorkoutCard() {
         <p className="text-[10px] text-muted-foreground italic">💡 {suggestion.tip}</p>
       )}
 
-      <button
-        onClick={() => setDismissed(true)}
-        className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center gap-2"
-      >
-        <Dumbbell className="w-4 h-4" /> Ready to Crush It! 💪
-      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={() => setDismissed(true)}
+          className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center gap-2"
+        >
+          <Dumbbell className="w-4 h-4" /> Ready! 💪
+        </button>
+        <button
+          onClick={() => setDismissed(true)}
+          className="py-2.5 px-4 rounded-xl bg-muted text-muted-foreground text-xs font-semibold"
+        >
+          <UtensilsCrossed className="w-3.5 h-3.5 inline mr-1" />
+          Already ate
+        </button>
+      </div>
     </motion.div>
   );
 }

@@ -79,6 +79,10 @@ export interface UserProfile {
     sleepStart?: string;   // "22:00"
     sleepEnd?: string;     // "06:00"
     shiftType?: 'day' | 'night' | 'rotating';
+    // Missing features additions
+    fastedTraining?: boolean;          // skip pre-workout suggestions
+    weekendSchedule?: string[];        // separate weekend gym days
+    weekendHour?: number;              // different hour on weekends
   };
   supplementPrefs?: {
     items: Array<{
@@ -208,6 +212,9 @@ export interface DailyLog {
     durationMinutes: number;
     caloriesBurned: number;
     intensity: string;
+    actualHour?: number;             // override if different from scheduled
+    missReason?: 'tired' | 'injury' | 'sick' | 'no_time' | 'rest_day' | 'other';
+    restDayPlanned?: boolean;        // pre-marked rest day
   };
   energyLevel?: 1 | 2 | 3 | 4 | 5;
 }
