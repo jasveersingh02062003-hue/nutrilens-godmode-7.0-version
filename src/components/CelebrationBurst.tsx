@@ -66,7 +66,9 @@ export default function CelebrationBurst({
     }
   }, [show, intensity, duration, colors]);
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
       {visible && (
         <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
