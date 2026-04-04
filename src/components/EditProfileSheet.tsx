@@ -108,6 +108,13 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
       setGymDuration(profile.gym?.durationMinutes || 45);
       setGymIntensity(profile.gym?.intensity || 'moderate');
       setGymGoal(profile.gym?.goal || 'general');
+      setGymTimeOfDay(profile.gym?.timeOfDay || '');
+      setGymSpecificHour(profile.gym?.specificHour ?? 7);
+      setWorkStart(profile.gym?.workStart || '09:00');
+      setWorkEnd(profile.gym?.workEnd || '18:00');
+      setSleepStart(profile.gym?.sleepStart || '22:00');
+      setSleepEnd(profile.gym?.sleepEnd || '06:00');
+      setShiftType(profile.gym?.shiftType || 'day');
     }
   }, [profile, open]);
 
