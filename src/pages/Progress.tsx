@@ -326,7 +326,7 @@ export default function ProgressPage() {
     <div className="min-h-screen pb-24 bg-background">
       <ConfettiCelebration show={showConfetti} />
       <div className="max-w-lg mx-auto px-4 pt-5 space-y-4">
-        <motion.div variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }} className="flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-foreground">Progress</h1>
             <SubscriptionBadge />
@@ -337,7 +337,7 @@ export default function ProgressPage() {
           >
             <Share2 className="w-3.5 h-3.5" /> Share Report
           </button>
-        </motion.div>
+        </div>
 
         {/* Plan Progress Card */}
         {(() => {
