@@ -39,7 +39,7 @@ const SLIDES = [
 
 const slideVariants = {
   enter: (dir: number) => ({ x: dir > 0 ? 40 : -40, opacity: 0 }),
-  center: { x: 0, opacity: 1, transition: { duration: 0.22, ease: 'easeOut' } },
+  center: { x: 0, opacity: 1, transition: { duration: 0.22, ease: 'easeOut' as const } },
   exit: (dir: number) => ({ x: dir < 0 ? 40 : -40, opacity: 0, transition: { duration: 0.15 } }),
 };
 

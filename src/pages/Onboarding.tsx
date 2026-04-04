@@ -25,12 +25,12 @@ import PlansPage from '@/components/PlansPage';
 // ── Animation variants (upgraded) ──
 const pageVariants = {
   enter: (d: number) => ({ x: d > 0 ? 30 : -30, opacity: 0 }),
-  center: { x: 0, opacity: 1, transition: { duration: 0.22, ease: 'easeOut' } },
+  center: { x: 0, opacity: 1, transition: { duration: 0.22, ease: 'easeOut' as const } },
   exit: (d: number) => ({ x: d < 0 ? 30 : -30, opacity: 0, transition: { duration: 0.15 } }),
 };
 const stagger = {
   hidden: { opacity: 0, y: 10 },
-  visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.04, duration: 0.2, ease: 'easeOut' } }),
+  visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.04, duration: 0.2, ease: 'easeOut' as const } }),
 };
 
 // ── Reusable UI ──
