@@ -26,10 +26,18 @@ export default function GymPDFExport({ startDate, endDate }: GymPDFExportProps =
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
       const pw = doc.internal.pageSize.getWidth();
       const today = new Date();
-      const year = today.getFullYear();
-      const month = today.getMonth();
+
+      // Determine date range
+      const rangeStart = startDate ? new Date(startDate + 'T00:00:00') : new Date(today.getFullYear(), today.getMonth(), 1);
+      const rangeEnd = endDate ? new Date(endDate + 'T00:00:00') : today;
+      const year = rangeStart.getFullYear();
+      const month = rangeStart.getMonth();
+      const totalDaysInRange = Math.ceil((rangeEnd.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       const daysInMonth = new Date(year, month + 1, 0).getDate();
-      const monthName = today.toLocaleString('default', { month: 'long', year: 'numeric' });
+      const periodLabel = startDate && endDate
+        ? `${rangeStart.toLocaleDateString('default', { month: 'short', day: 'numeric' })} – ${rangeEnd.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}`
+        : today.toLocaleString('default', { month: 'long', year: 'numeric' });
+      const monthName = periodLabel;
 
       // Gather data
       const workoutDays: number[] = [];
