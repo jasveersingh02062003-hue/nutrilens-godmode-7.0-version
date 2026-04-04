@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import PostOnboardingTutorial from '@/components/PostOnboardingTutorial';
 import { ClipboardList, X, ShieldAlert } from 'lucide-react';
 import MonikaFab from '@/components/MonikaFab';
@@ -18,10 +19,8 @@ import WeeklyReportCard from '@/components/WeeklyReportCard';
 import BudgetSummaryCard from '@/components/BudgetSummaryCard';
 import DailyEfficiencyCard from '@/components/DailyEfficiencyCard';
 import NudgeBanner from '@/components/NudgeBanner';
-import WeatherNudgeCard from '@/components/WeatherNudgeCard';
 import SymptomReminderCard from '@/components/SymptomReminderCard';
 import DailyAdjustmentSummary from '@/components/DailyAdjustmentSummary';
-import SkinHealthCard from '@/components/SkinHealthCard';
 import RecoveryOptionsCard from '@/components/RecoveryOptionsCard';
 import NextMealCard from '@/components/NextMealCard';
 import UpgradeBanner from '@/components/UpgradeBanner';
@@ -35,11 +34,6 @@ import { getProteinTarget, getCarbTarget, getFatTarget } from '@/lib/calorie-cor
 import { clearLatestBudgetAlert } from '@/lib/budget-service';
 import ProfileCompletionNudge from '@/components/ProfileCompletionNudge';
 import ContextualTipsCard from '@/components/ContextualTipsCard';
-import GymCheckInCard from '@/components/GymCheckInCard';
-import GymConsistencyCard from '@/components/GymConsistencyCard';
-import GymUpsellCard from '@/components/GymUpsellCard';
-import PreWorkoutCard from '@/components/PreWorkoutCard';
-import PostWorkoutCard from '@/components/PostWorkoutCard';
 import EnergyTracker from '@/components/EnergyTracker';
 import ProteinGapNudgeCard from '@/components/ProteinGapNudgeCard';
 import SupplementUpsellCard from '@/components/SupplementUpsellCard';
@@ -52,14 +46,23 @@ import PlanBannerSection from '@/components/dashboard/PlanBannerSection';
 import { useDashboardInit } from '@/hooks/useDashboardInit';
 import { motion } from 'framer-motion';
 
+// Lazy-loaded conditional cards — only fetched when needed
+const GymCheckInCard = lazy(() => import('@/components/GymCheckInCard'));
+const GymConsistencyCard = lazy(() => import('@/components/GymConsistencyCard'));
+const GymUpsellCard = lazy(() => import('@/components/GymUpsellCard'));
+const PreWorkoutCard = lazy(() => import('@/components/PreWorkoutCard'));
+const PostWorkoutCard = lazy(() => import('@/components/PostWorkoutCard'));
+const WeatherNudgeCard = lazy(() => import('@/components/WeatherNudgeCard'));
+const SkinHealthCard = lazy(() => import('@/components/SkinHealthCard'));
+
 const stagger = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.06 } },
+  show: { transition: { staggerChildren: 0.04 } },
 } as const;
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 30 } },
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 220, damping: 28 } },
 };
 
 export default function Dashboard() {
@@ -75,10 +78,10 @@ export default function Dashboard() {
       <PESExplanationCard onDismiss={() => d.setShowPESExplanation(false)} />
     )}
     <div className="min-h-screen pb-24 bg-background relative">
-      {/* Ambient gradient background */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full bg-primary/[0.03] blur-3xl animate-ambient" />
-        <div className="absolute bottom-1/3 right-0 w-80 h-80 rounded-full bg-accent/[0.03] blur-3xl animate-ambient" style={{ animationDelay: '4s' }} />
+      {/* Ambient gradient background — reduced blur for GPU savings */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ willChange: 'opacity' }}>
+        <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full bg-primary/[0.03] blur-2xl animate-ambient" />
+        <div className="absolute bottom-1/3 right-0 w-80 h-80 rounded-full bg-accent/[0.03] blur-2xl animate-ambient" style={{ animationDelay: '4s' }} />
       </div>
 
       <motion.div
@@ -129,7 +132,7 @@ export default function Dashboard() {
         )}
 
         <motion.div variants={fadeUp}><UpgradeBanner /></motion.div>
-        <motion.div variants={fadeUp}><WeatherNudgeCard /></motion.div>
+        <motion.div variants={fadeUp}><Suspense fallback={null}><WeatherNudgeCard /></Suspense></motion.div>
         <motion.div variants={fadeUp}><SymptomReminderCard /></motion.div>
         <motion.div variants={fadeUp}><NudgeBanner /></motion.div>
 
@@ -161,7 +164,7 @@ export default function Dashboard() {
 
         <motion.div variants={fadeUp}><DailyAdjustmentSummary /></motion.div>
         <motion.div variants={fadeUp}><RecoveryOptionsCard /></motion.div>
-        <motion.div variants={fadeUp}><SkinHealthCard /></motion.div>
+        <motion.div variants={fadeUp}><Suspense fallback={null}><SkinHealthCard /></Suspense></motion.div>
 
         {/* Dual-Sync Insight */}
         {d.dualSyncInsight && (
@@ -216,14 +219,14 @@ export default function Dashboard() {
 
         {/* Gym Intelligence Cards */}
         {d.profile?.gym?.goer && (
-          <>
+          <Suspense fallback={null}>
             <motion.div variants={fadeUp}><PreWorkoutCard /></motion.div>
             <motion.div variants={fadeUp}><GymCheckInCard onRefresh={d.refreshLog} /></motion.div>
             <motion.div variants={fadeUp}><PostWorkoutCard /></motion.div>
             <motion.div variants={fadeUp}><EnergyTracker onRefresh={d.refreshLog} /></motion.div>
             <motion.div variants={fadeUp}><GymConsistencyCard /></motion.div>
             <motion.div variants={fadeUp}><GymUpsellCard /></motion.div>
-          </>
+          </Suspense>
         )}
 
         {/* Supplement Intelligence Cards */}

@@ -1,6 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+/* Fonts loaded via <link> in index.html for non-blocking rendering */
 
 @tailwind base;
 @tailwind components;
@@ -157,7 +155,8 @@
     radial-gradient(ellipse 600px 400px at 20% 30%, hsl(var(--primary) / 0.04) 0%, transparent 70%),
     radial-gradient(ellipse 500px 350px at 80% 60%, hsl(var(--secondary) / 0.03) 0%, transparent 70%),
     radial-gradient(ellipse 400px 300px at 50% 80%, hsl(var(--accent) / 0.03) 0%, transparent 70%);
-  animation: ambient-shift 12s ease-in-out infinite alternate;
+  animation: ambient-shift 20s ease-in-out infinite alternate;
+  will-change: opacity;
 }
 
 .dark .ambient-mesh {
@@ -309,7 +308,7 @@
 .animate-breathe { animation: breathe 3s ease-in-out infinite; }
 .animate-shimmer-bar { animation: shimmer-bar 2s ease-in-out infinite; }
 .animate-wave { animation: wave-motion 3s linear infinite; }
-.animate-ambient { animation: ambient-shift 8s ease-in-out infinite; }
+.animate-ambient { animation: ambient-shift 15s ease-in-out infinite; }
 .animate-notification-pulse { animation: notification-pulse 2s ease-in-out infinite; }
 .animate-ken-burns { animation: ken-burns 15s ease-in-out infinite; }
 .animate-scan-sweep { animation: scan-sweep 2s ease-in-out infinite; }
