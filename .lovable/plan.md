@@ -1,58 +1,33 @@
 
 
-## Fix All Remaining Mobile Popups and Onboarding Animations
+## Fix Bottom Nav Button Alignment and Mobile-Friendly Buttons
 
 ### Problem
-Several popups and overlays still render inside the `PageTransition` wrapper (which uses CSS transforms), causing `fixed` positioning to break on mobile. The user sees popups appearing far below the viewport, requiring scroll to reach them. The onboarding flow also has animation issues.
+From the screenshots, the bottom navigation bar has alignment issues:
+1. The active tab pill indicator (`layoutId="nav-pill"`) makes buttons visually uneven — the pill background stretches the entire button area causing inconsistent sizing
+2. Tab items are not equally sized, so Home/Progress look compressed while Planner/Profile shift around when active
+3. The center Camera button's `-mt-5` offset creates vertical misalignment with the label row of other tabs
+4. The nav lacks `safe-area-inset-bottom` padding, so on phones with gesture bars, buttons sit too low
 
-### Current State
-Already fixed with portal + scroll lock: `DayDetailsSheet`, `EditProfileSheet`, `DashboardPanel`, `SupplementLogSheet`, `SupplementEditModal`, `PESExplanationCard`, `PESBreakdownModal`, `WeightLogSheet`, `PostOnboardingTutorial`, `SplashScreen`, `PESFeatureFlex`, `MonikaChatScreen`.
+### Plan
 
-The shared `dialog.tsx`, `sheet.tsx`, `alert-dialog.tsx` already have faster transitions.
+#### 1. Fix BottomNav alignment (`src/components/BottomNav.tsx`)
+- Give each non-center tab a fixed width (`w-16`) so all tabs occupy equal space regardless of active state
+- Replace the `layoutId="nav-pill"` absolute pill with a simpler dot indicator below the icon — the full-area pill causes layout shift
+- Remove `whileTap={{ rotate: -8 }}` which feels janky on mobile
+- Add `pb-[env(safe-area-inset-bottom,0px)]` to the nav container for phones with gesture bars
+- Ensure all labels are consistently positioned with `items-center` and fixed gap
 
-### Remaining Files That Need Portal + Scroll Lock
-
-**Custom overlay components (no portal yet):**
-
-1. **`src/components/FullScreenMemory.tsx`** — full-screen photo viewer rendered inline. Wrap in `createPortal` + add `useBodyScrollLock`.
-
-2. **`src/components/WeeklyWeightTimeline.tsx`** — detail modal for weight entry photos. Wrap the `fixed inset-0` modal in `createPortal`.
-
-3. **`src/components/onboarding/MealBreakdownScreen.tsx`** — "Edit Meal Split" bottom sheet inside onboarding. Wrap in `createPortal` + scroll lock.
-
-4. **`src/components/ProgressPhotosSection.tsx`** — capture sheet and photo viewer overlays. Wrap both in `createPortal`.
-
-5. **`src/components/PlansPage.tsx`** — plan promo confirmation modal. Wrap in `createPortal`.
-
-6. **`src/components/CostSuggestionBanner.tsx`** — swap confirmation modal. Wrap in `createPortal`.
-
-7. **`src/pages/MealPlanner.tsx`** — success confirmation overlay. Wrap in `createPortal`.
-
-8. **`src/components/CelebrationBurst.tsx`** and **`src/components/ConfettiCelebration.tsx`** — decorative particle effects. Wrap in `createPortal` (no scroll lock needed, they're pointer-events-none).
-
-**Components using shared Sheet/Dialog (already fixed via shared primitives):**
-- `GymSettingsPage.tsx` uses `<Sheet>` which is already improved.
-- Other Sheet/Dialog users inherit the updated transitions.
-
-### Onboarding Animation Verification
-The onboarding page variants are already using the fast `0.22s easeOut` tween (line 27-29). The `SplashScreen`, `PESFeatureFlex`, and `CalculatingScreen` are already portaled or full-screen without transform issues. No additional onboarding changes needed — the current code is correct.
-
-### Pattern for Each Fix
-Each file gets:
-- `import { createPortal } from 'react-dom'`
-- `import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock'` (for interactive overlays)
-- Wrap the `fixed inset-0` JSX in `createPortal(..., document.body)`
-- Use the standardized `mobileSheetMotion` / `mobileOverlayMotion` where applicable
-- Add `max-h-[92dvh]`, `overscroll-contain` for scrollable sheets
+#### 2. Ensure all app buttons have proper touch targets
+- Audit the BottomNav tab buttons to have minimum 44px touch targets (current `px-3 py-1.5` is too small)
+- The center Camera button is fine (56px circle)
+- Non-center tabs: increase to `min-h-[48px]` with proper padding
 
 ### Files Changed
-1. `src/components/FullScreenMemory.tsx`
-2. `src/components/WeeklyWeightTimeline.tsx`
-3. `src/components/onboarding/MealBreakdownScreen.tsx`
-4. `src/components/ProgressPhotosSection.tsx`
-5. `src/components/PlansPage.tsx`
-6. `src/components/CostSuggestionBanner.tsx`
-7. `src/pages/MealPlanner.tsx`
-8. `src/components/CelebrationBurst.tsx`
-9. `src/components/ConfettiCelebration.tsx`
+- `src/components/BottomNav.tsx` — primary fix for alignment, spacing, safe area, and touch targets
+
+### Technical Details
+- Root cause: `layoutId="nav-pill"` with `absolute inset-0` creates a framer-motion shared layout animation that shifts surrounding elements during transitions
+- Fix: use a small dot/line indicator instead of a full pill, or constrain the pill within a fixed-size container
+- Safe area: `pb-[env(safe-area-inset-bottom,0px)]` on the nav ensures buttons don't hide behind iPhone/Android gesture bars
 
