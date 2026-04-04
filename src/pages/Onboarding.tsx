@@ -1838,26 +1838,7 @@ export default function Onboarding() {
     return <ScannerOnboardingScreen onBack={() => setPhase('welcome')} onContinue={() => { setPhase('wizard'); setStep(0); }} />;
   }
   if (phase === 'calculating') {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-6">
-        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center space-y-8 max-w-sm">
-          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}>
-            <Sparkles className="w-12 h-12 text-primary mx-auto" />
-          </motion.div>
-          <div className="space-y-2">
-            <h2 className="text-xl font-display font-bold text-foreground">Calculating your plan…</h2>
-            <p className="text-sm text-muted-foreground">Analyzing your body stats, activity level, and goals.</p>
-          </div>
-          <div className="flex justify-center gap-1.5">
-            {[0, 1, 2].map(i => (
-              <motion.div key={i} className="w-2 h-2 rounded-full bg-primary"
-                animate={{ scale: [1, 1.4, 1], opacity: [0.4, 1, 0.4] }}
-                transition={{ repeat: Infinity, duration: 1.2, delay: i * 0.2 }} />
-            ))}
-          </div>
-        </motion.div>
-      </div>
-    );
+    return <CalculatingScreen onComplete={() => { setPhase('wizard'); setStep(16); }} />;
   }
   if (phase === 'success') {
     return (
