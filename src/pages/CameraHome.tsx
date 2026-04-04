@@ -146,7 +146,7 @@ export default function CameraHome() {
         resolve();
       };
 
-      timeoutId = window.setTimeout(handleReady, 1200);
+      timeoutId = window.setTimeout(handleReady, 2500);
       video.addEventListener('loadedmetadata', handleReady);
       video.addEventListener('canplay', handleReady);
     });
@@ -216,6 +216,7 @@ export default function CameraHome() {
     }
 
     if (cameraMountRef.current) {
+      setCameraStarting(false);
       setCameraReady(false);
     }
   }, []);
@@ -282,11 +283,12 @@ export default function CameraHome() {
     videoElement.setAttribute('autoplay', '');
     videoElement.setAttribute('muted', '');
     videoElement.setAttribute('playsinline', 'true');
+    videoElement.muted = true;
     videoElement.srcObject = stream;
 
     try {
       await waitForVideoReady(videoElement);
-      await videoElement.play();
+      await videoElement.play().catch(() => undefined);
 
       if (!cameraMountRef.current || requestId !== cameraRequestRef.current || currentStepRef.current !== 'camera') {
         stream.getTracks().forEach((track) => track.stop());
@@ -765,17 +767,13 @@ export default function CameraHome() {
           <div className="absolute inset-0 z-[5] pointer-events-none flex items-center justify-center">
             <div className="relative w-64 h-64">
               {/* Top-left corner */}
-              <motion.div className="absolute top-0 left-0 w-10 h-10 border-t-2 border-l-2 border-primary rounded-tl-lg animate-corner-pulse" 
-                initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} style={{ boxShadow: '0 0 12px hsl(var(--primary) / 0.3)' }} />
+              <div className="absolute top-0 left-0 w-10 h-10 border-t-2 border-l-2 border-primary rounded-tl-lg" style={{ boxShadow: '0 0 12px hsl(var(--primary) / 0.3)' }} />
               {/* Top-right corner */}
-              <motion.div className="absolute top-0 right-0 w-10 h-10 border-t-2 border-r-2 border-primary rounded-tr-lg animate-corner-pulse"
-                initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }} style={{ boxShadow: '0 0 12px hsl(var(--primary) / 0.3)' }} />
+              <div className="absolute top-0 right-0 w-10 h-10 border-t-2 border-r-2 border-primary rounded-tr-lg" style={{ boxShadow: '0 0 12px hsl(var(--primary) / 0.3)' }} />
               {/* Bottom-left corner */}
-              <motion.div className="absolute bottom-0 left-0 w-10 h-10 border-b-2 border-l-2 border-primary rounded-bl-lg animate-corner-pulse"
-                initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }} style={{ boxShadow: '0 0 12px hsl(var(--primary) / 0.3)' }} />
+              <div className="absolute bottom-0 left-0 w-10 h-10 border-b-2 border-l-2 border-primary rounded-bl-lg" style={{ boxShadow: '0 0 12px hsl(var(--primary) / 0.3)' }} />
               {/* Bottom-right corner */}
-              <motion.div className="absolute bottom-0 right-0 w-10 h-10 border-b-2 border-r-2 border-primary rounded-br-lg animate-corner-pulse"
-                initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }} style={{ boxShadow: '0 0 12px hsl(var(--primary) / 0.3)' }} />
+              <div className="absolute bottom-0 right-0 w-10 h-10 border-b-2 border-r-2 border-primary rounded-br-lg" style={{ boxShadow: '0 0 12px hsl(var(--primary) / 0.3)' }} />
               {/* Scan line */}
               {prefersReducedMotion ? (
                 <div className="absolute left-1 right-1 top-1/2 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent" style={{ boxShadow: '0 0 8px hsl(var(--primary) / 0.5)' }} />
@@ -877,8 +875,8 @@ export default function CameraHome() {
             <div className="flex justify-center mb-4">
               <motion.div
                 className="px-4 py-2 rounded-2xl bg-primary-foreground/10 backdrop-blur-md border border-primary-foreground/10"
-                animate={remaining < 300 ? { boxShadow: ['0 0 0 0 hsl(var(--primary) / 0)', '0 0 12px 2px hsl(var(--primary) / 0.3)', '0 0 0 0 hsl(var(--primary) / 0)'] } : {}}
-                transition={remaining < 300 ? { repeat: Infinity, duration: 2 } : {}}
+                animate={remaining < 300 && !prefersReducedMotion ? { boxShadow: ['0 0 0 0 hsl(var(--primary) / 0)', '0 0 12px 2px hsl(var(--primary) / 0.3)', '0 0 0 0 hsl(var(--primary) / 0)'] } : {}}
+                transition={remaining < 300 && !prefersReducedMotion ? { repeat: Infinity, duration: 2 } : {}}
               >
                 <span className="text-primary-foreground/80 text-xs font-medium">
                   {cameraStarting ? 'Starting camera…' : remaining > 0 ? `${remaining} kcal remaining today` : 'Goal reached! 🎉'}

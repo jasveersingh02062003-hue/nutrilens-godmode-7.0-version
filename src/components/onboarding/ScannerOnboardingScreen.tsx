@@ -48,6 +48,7 @@ export default function ScannerOnboardingScreen({ onBack, onContinue }: ScannerO
   const startCamera = useCallback(async () => {
     stopCamera();
     setCameraError('');
+    setCameraReady(false);
     setCameraOpen(true);
 
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -56,10 +57,27 @@ export default function ScannerOnboardingScreen({ onBack, onContinue }: ScannerO
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } },
-        audio: false,
-      });
+      const attempts: MediaStreamConstraints[] = [
+        { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+        { video: { facingMode: 'environment' }, audio: false },
+        { video: true, audio: false },
+      ];
+
+      let stream: MediaStream | null = null;
+      let lastError: unknown = null;
+
+      for (const constraints of attempts) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          break;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+
+      if (!stream) {
+        throw lastError ?? new Error('Camera unavailable');
+      }
 
       const video = videoRef.current;
       if (!video) {
@@ -71,8 +89,9 @@ export default function ScannerOnboardingScreen({ onBack, onContinue }: ScannerO
       video.setAttribute('autoplay', '');
       video.setAttribute('muted', '');
       video.setAttribute('playsinline', 'true');
+      video.muted = true;
       video.srcObject = stream;
-      await video.play();
+      await video.play().catch(() => undefined);
       setCameraReady(true);
     } catch {
       setCameraError(
@@ -194,26 +213,55 @@ export default function ScannerOnboardingScreen({ onBack, onContinue }: ScannerO
 
                   <canvas ref={canvasRef} className="hidden" />
 
-                  <div className="grid grid-cols-2 gap-3 mt-4">
-                    <motion.button
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => {
-                        stopCamera();
-                        setCameraOpen(false);
-                      }}
-                      className="py-3 rounded-2xl bg-card border border-border font-semibold text-sm text-foreground"
-                    >
-                      Back
-                    </motion.button>
-                    <motion.button
-                      whileTap={{ scale: cameraReady ? 0.98 : 1 }}
-                      onClick={captureFromCamera}
-                      disabled={!cameraReady || !!cameraError}
-                      className="py-3 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm disabled:opacity-50 disabled:pointer-events-none"
-                    >
-                      Capture Photo
-                    </motion.button>
-                  </div>
+                  {cameraError ? (
+                    <div className="grid grid-cols-1 gap-3 mt-4">
+                      <motion.button
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => void startCamera()}
+                        className="py-3 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm"
+                      >
+                        Retry Camera
+                      </motion.button>
+                      <motion.button
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => fileRef.current?.click()}
+                        className="py-3 rounded-2xl bg-card border border-border font-semibold text-sm text-foreground"
+                      >
+                        Upload Photo Instead
+                      </motion.button>
+                      <motion.button
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                          stopCamera();
+                          setCameraOpen(false);
+                        }}
+                        className="py-3 rounded-2xl bg-card border border-border font-semibold text-sm text-foreground"
+                      >
+                        Back
+                      </motion.button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3 mt-4">
+                      <motion.button
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                          stopCamera();
+                          setCameraOpen(false);
+                        }}
+                        className="py-3 rounded-2xl bg-card border border-border font-semibold text-sm text-foreground"
+                      >
+                        Back
+                      </motion.button>
+                      <motion.button
+                        whileTap={{ scale: cameraReady ? 0.98 : 1 }}
+                        onClick={captureFromCamera}
+                        disabled={!cameraReady || !!cameraError}
+                        className="py-3 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm disabled:opacity-50 disabled:pointer-events-none"
+                      >
+                        Capture Photo
+                      </motion.button>
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
