@@ -757,10 +757,10 @@ export default function LogFood() {
                         />
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2 mt-2">
-                        <button onClick={() => updateQty(item.id, -0.5)} className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center active:scale-90 transition-transform"><Minus className="w-3 h-3" /></button>
+                    <div className="flex items-center gap-2 mt-2">
+                        <motion.button whileTap={{ scale: 0.8 }} onClick={() => updateQty(item.id, -0.5)} className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center active:scale-90 transition-transform"><Minus className="w-3 h-3" /></motion.button>
                         <span className="text-sm font-bold min-w-[3.5rem] text-center">{item.quantity} {item.unit}</span>
-                        <button onClick={() => updateQty(item.id, 0.5)} className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center active:scale-90 transition-transform"><Plus className="w-3 h-3 text-primary" /></button>
+                        <motion.button whileTap={{ scale: 0.8 }} onClick={() => updateQty(item.id, 0.5)} className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center active:scale-90 transition-transform"><Plus className="w-3 h-3 text-primary" /></motion.button>
                       </div>
                     )}
                   </div>

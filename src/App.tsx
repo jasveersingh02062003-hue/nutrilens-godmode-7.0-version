@@ -161,20 +161,20 @@ function AppLayout() {
   return (
     <>
       <Routes>
-        <Route path="/onboarding" element={<Suspense fallback={<PageLoader />}><Onboarding /></Suspense>} />
-        <Route path="/auth" element={<Suspense fallback={<PageLoader />}><Auth /></Suspense>} />
-        <Route path="/" element={<ProtectedRoute><CameraHome /></ProtectedRoute>} />
-        <Route path="/dashboard" element={<ProtectedRoute><div className="max-w-lg mx-auto"><Dashboard /></div></ProtectedRoute>} />
-        <Route path="/progress" element={<ProtectedRoute><div className="max-w-lg mx-auto"><Progress /></div></ProtectedRoute>} />
-        <Route path="/planner" element={<ProtectedRoute><div className="max-w-lg mx-auto"><MealPlanner /></div></ProtectedRoute>} />
+        <Route path="/onboarding" element={<Suspense fallback={<PageLoader />}><PageTransition><Onboarding /></PageTransition></Suspense>} />
+        <Route path="/auth" element={<Suspense fallback={<PageLoader />}><PageTransition><Auth /></PageTransition></Suspense>} />
+        <Route path="/" element={<ProtectedRoute><PageTransition><CameraHome /></PageTransition></ProtectedRoute>} />
+        <Route path="/dashboard" element={<ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><Dashboard /></div></PageTransition></ProtectedRoute>} />
+        <Route path="/progress" element={<ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><Progress /></div></PageTransition></ProtectedRoute>} />
+        <Route path="/planner" element={<ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><MealPlanner /></div></PageTransition></ProtectedRoute>} />
         <Route path="/groceries" element={<Navigate to="/planner" replace />} />
-        <Route path="/log" element={<ProtectedRoute><div className="max-w-lg mx-auto"><LogFood /></div></ProtectedRoute>} />
-        <Route path="/food-archive" element={<ProtectedRoute><div className="max-w-lg mx-auto"><FoodArchive /></div></ProtectedRoute>} />
-        <Route path="/pantry" element={<ProtectedRoute><Pantry /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute><div className="max-w-lg mx-auto"><Profile /></div></ProtectedRoute>} />
-        <Route path="/quicklog" element={<ProtectedRoute><QuickLog /></ProtectedRoute>} />
+        <Route path="/log" element={<ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><LogFood /></div></PageTransition></ProtectedRoute>} />
+        <Route path="/food-archive" element={<ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><FoodArchive /></div></PageTransition></ProtectedRoute>} />
+        <Route path="/pantry" element={<ProtectedRoute><PageTransition><Pantry /></PageTransition></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><Profile /></div></PageTransition></ProtectedRoute>} />
+        <Route path="/quicklog" element={<ProtectedRoute><PageTransition><QuickLog /></PageTransition></ProtectedRoute>} />
         <Route path="/camera" element={<Navigate to="/" replace />} />
-        <Route path="*" element={<Suspense fallback={<PageLoader />}><NotFound /></Suspense>} />
+        <Route path="*" element={<Suspense fallback={<PageLoader />}><PageTransition><NotFound /></PageTransition></Suspense>} />
       </Routes>
       {!hideNav && <BottomNav />}
     </>

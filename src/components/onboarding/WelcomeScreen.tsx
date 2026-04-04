@@ -1,5 +1,6 @@
-import { motion } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import { ArrowRight, Sparkles, Smartphone } from 'lucide-react';
+import { useRef } from 'react';
 import heroImg from '@/assets/hero-nutrition.jpg';
 
 interface WelcomeScreenProps {
@@ -8,19 +9,28 @@ interface WelcomeScreenProps {
 }
 
 export default function WelcomeScreen({ onGetStarted, onSignIn }: WelcomeScreenProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { scrollY } = useScroll({ container: containerRef });
+  const heroY = useTransform(scrollY, [0, 300], [0, 80]);
+  const heroScale = useTransform(scrollY, [0, 300], [1, 1.1]);
+
   return (
-    <div className="relative min-h-screen bg-background flex flex-col">
-      {/* Hero image — top half with soft fade */}
+    <div ref={containerRef} className="relative min-h-screen bg-background flex flex-col overflow-y-auto">
+      {/* Ambient mesh */}
+      <div className="ambient-mesh" />
+
+      {/* Hero image — parallax depth */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
         className="relative w-full h-[42vh] flex-shrink-0 overflow-hidden"
       >
-        <img
+        <motion.img
           src={heroImg}
           alt="Fresh vegetables and ingredients"
           className="w-full h-full object-cover"
+          style={{ y: heroY, scale: heroScale }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
       </motion.div>

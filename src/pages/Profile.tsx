@@ -179,9 +179,9 @@ export default function Profile() {
               </motion.div>
             </div>
             <div className="flex-1">
-              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
                 <h2 className="font-bold text-lg text-foreground">{profile.name || 'NutriLens User'}</h2>
-                <SubscriptionBadge />
+                <span className="animate-shimmer-sweep"><SubscriptionBadge /></span>
                 {(() => {
                   const raw = getActivePlanRaw();
                   if (!raw) return null;
