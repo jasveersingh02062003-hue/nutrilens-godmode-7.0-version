@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Camera, Mic, MicOff, RotateCcw, ImageIcon, Check, X, Plus, Minus, Loader2, AlertTriangle, ChevronUp, IndianRupee, Search, Gift, ArrowLeft, Sparkles, Pencil, ShieldAlert } from 'lucide-react';
 import CostSuggestionBanner from '@/components/CostSuggestionBanner';
 import WeatherNudgeCard from '@/components/WeatherNudgeCard';
+import BottomNav from '@/components/BottomNav';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { addMealToLog, deleteMealFromLog, getTodayKey, FoodItem, MealEntry, MealSource, MealCost, getProfile, getDailyLog, getDailyTotals, CookingMethod } from '@/lib/store';
@@ -870,7 +871,7 @@ export default function CameraHome() {
 
         {/* Bottom controls */}
         {!analyzing && !isListening && (
-          <div className="absolute bottom-0 inset-x-0 z-10 pb-20 px-6">
+          <div className="absolute bottom-0 inset-x-0 z-10 px-6 pb-[calc(env(safe-area-inset-bottom)+5.5rem)]">
             {/* Remaining calories chip */}
             <div className="flex justify-center mb-4">
               <motion.div
@@ -958,6 +959,8 @@ export default function CameraHome() {
             </div>
           </div>
         )}
+
+        {!analyzing && !isListening && <BottomNav />}
       </div>
     );
   }
