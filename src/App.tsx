@@ -12,19 +12,80 @@ import { UserProfileProvider, useUserProfile } from "./contexts/UserProfileConte
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 
+const ROUTE_RETRY_PREFIX = "nutrilens-route-retry:";
+
+async function clearRuntimeCaches() {
+  try {
+    if ("serviceWorker" in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((registration) => registration.unregister()));
+    }
+
+    if ("caches" in window) {
+      const cacheKeys = await caches.keys();
+      await Promise.all(cacheKeys.map((key) => caches.delete(key)));
+    }
+  } catch {
+    // Best-effort cleanup before a hard reload.
+  }
+}
+
+function lazyWithRetry<T extends React.ComponentType<any>>(
+  importer: () => Promise<{ default: T }>,
+  routeKey: string,
+) {
+  return lazy(async () => {
+    try {
+      const module = await importer();
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem(`${ROUTE_RETRY_PREFIX}${routeKey}`);
+      }
+      return module;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const isRecoverableImportError = /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(message);
+
+      if (typeof window !== "undefined" && isRecoverableImportError) {
+        const retryKey = `${ROUTE_RETRY_PREFIX}${routeKey}`;
+        if (!sessionStorage.getItem(retryKey)) {
+          sessionStorage.setItem(retryKey, "1");
+          void clearRuntimeCaches().finally(() => window.location.reload());
+          return new Promise<never>(() => {});
+        }
+        sessionStorage.removeItem(retryKey);
+      }
+
+      throw error;
+    }
+  });
+}
+
+const preloadCameraHome = () => import("./pages/CameraHome");
+const preloadDashboard = () => import("./pages/Dashboard");
+const preloadProgress = () => import("./pages/Progress");
+const preloadMealPlanner = () => import("./pages/MealPlanner");
+const preloadLogFood = () => import("./pages/LogFood");
+const preloadPantry = () => import("./pages/Pantry");
+const preloadProfile = () => import("./pages/Profile");
+const preloadOnboarding = () => import("./pages/Onboarding");
+const preloadAuth = () => import("./pages/Auth");
+const preloadFoodArchive = () => import("./pages/FoodArchive");
+const preloadQuickLog = () => import("./pages/QuickLog");
+const preloadNotFound = () => import("./pages/NotFound");
+
 // Lazy-loaded pages
-const CameraHome = lazy(() => import("./pages/CameraHome"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Progress = lazy(() => import("./pages/Progress"));
-const MealPlanner = lazy(() => import("./pages/MealPlanner"));
-const LogFood = lazy(() => import("./pages/LogFood"));
-const Pantry = lazy(() => import("./pages/Pantry"));
-const Profile = lazy(() => import("./pages/Profile"));
-const Onboarding = lazy(() => import("./pages/Onboarding"));
-const Auth = lazy(() => import("./pages/Auth"));
-const FoodArchive = lazy(() => import("./pages/FoodArchive"));
-const QuickLog = lazy(() => import("./pages/QuickLog"));
-const NotFound = lazy(() => import("./pages/NotFound"));
+const CameraHome = lazyWithRetry(preloadCameraHome, "camera-home");
+const Dashboard = lazyWithRetry(preloadDashboard, "dashboard");
+const Progress = lazyWithRetry(preloadProgress, "progress");
+const MealPlanner = lazyWithRetry(preloadMealPlanner, "meal-planner");
+const LogFood = lazyWithRetry(preloadLogFood, "log-food");
+const Pantry = lazyWithRetry(preloadPantry, "pantry");
+const Profile = lazyWithRetry(preloadProfile, "profile");
+const Onboarding = lazyWithRetry(preloadOnboarding, "onboarding");
+const Auth = lazyWithRetry(preloadAuth, "auth");
+const FoodArchive = lazyWithRetry(preloadFoodArchive, "food-archive");
+const QuickLog = lazyWithRetry(preloadQuickLog, "quick-log");
+const NotFound = lazyWithRetry(preloadNotFound, "not-found");
 
 const queryClient = new QueryClient();
 
@@ -66,6 +127,34 @@ function AppLayout() {
       }
     }
     return () => stopNotificationScheduler();
+  }, []);
+
+  useEffect(() => {
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+
+    const preloadFrequentlyVisitedRoutes = () => {
+      void preloadProgress();
+      void preloadProfile();
+      void preloadMealPlanner();
+      void preloadDashboard();
+    };
+
+    let timeoutId: number | null = null;
+    let idleId: number | null = null;
+
+    if (idleWindow.requestIdleCallback) {
+      idleId = idleWindow.requestIdleCallback(preloadFrequentlyVisitedRoutes, { timeout: 1200 });
+    } else {
+      timeoutId = window.setTimeout(preloadFrequentlyVisitedRoutes, 700);
+    }
+
+    return () => {
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+      if (idleId !== null && idleWindow.cancelIdleCallback) idleWindow.cancelIdleCallback(idleId);
+    };
   }, []);
 
   return (
