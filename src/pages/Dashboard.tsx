@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import PostOnboardingTutorial from '@/components/PostOnboardingTutorial';
 import { ClipboardList, X, ShieldAlert } from 'lucide-react';
 import MonikaFab from '@/components/MonikaFab';
@@ -18,10 +19,8 @@ import WeeklyReportCard from '@/components/WeeklyReportCard';
 import BudgetSummaryCard from '@/components/BudgetSummaryCard';
 import DailyEfficiencyCard from '@/components/DailyEfficiencyCard';
 import NudgeBanner from '@/components/NudgeBanner';
-import WeatherNudgeCard from '@/components/WeatherNudgeCard';
 import SymptomReminderCard from '@/components/SymptomReminderCard';
 import DailyAdjustmentSummary from '@/components/DailyAdjustmentSummary';
-import SkinHealthCard from '@/components/SkinHealthCard';
 import RecoveryOptionsCard from '@/components/RecoveryOptionsCard';
 import NextMealCard from '@/components/NextMealCard';
 import UpgradeBanner from '@/components/UpgradeBanner';
@@ -35,15 +34,26 @@ import { getProteinTarget, getCarbTarget, getFatTarget } from '@/lib/calorie-cor
 import { clearLatestBudgetAlert } from '@/lib/budget-service';
 import ProfileCompletionNudge from '@/components/ProfileCompletionNudge';
 import ContextualTipsCard from '@/components/ContextualTipsCard';
-import GymCheckInCard from '@/components/GymCheckInCard';
-import GymConsistencyCard from '@/components/GymConsistencyCard';
-import GymUpsellCard from '@/components/GymUpsellCard';
-import PreWorkoutCard from '@/components/PreWorkoutCard';
-import PostWorkoutCard from '@/components/PostWorkoutCard';
 import EnergyTracker from '@/components/EnergyTracker';
 import ProteinGapNudgeCard from '@/components/ProteinGapNudgeCard';
 import SupplementUpsellCard from '@/components/SupplementUpsellCard';
 import { shouldBoostWater } from '@/lib/supplement-service';
+
+import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import DashboardModals from '@/components/dashboard/DashboardModals';
+import CalorieCorrectionSection from '@/components/dashboard/CalorieCorrectionSection';
+import PlanBannerSection from '@/components/dashboard/PlanBannerSection';
+import { useDashboardInit } from '@/hooks/useDashboardInit';
+import { motion } from 'framer-motion';
+
+// Lazy-loaded conditional cards — only fetched when needed
+const GymCheckInCard = lazy(() => import('@/components/GymCheckInCard'));
+const GymConsistencyCard = lazy(() => import('@/components/GymConsistencyCard'));
+const GymUpsellCard = lazy(() => import('@/components/GymUpsellCard'));
+const PreWorkoutCard = lazy(() => import('@/components/PreWorkoutCard'));
+const PostWorkoutCard = lazy(() => import('@/components/PostWorkoutCard'));
+const WeatherNudgeCard = lazy(() => import('@/components/WeatherNudgeCard'));
+const SkinHealthCard = lazy(() => import('@/components/SkinHealthCard'));
 
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import DashboardModals from '@/components/dashboard/DashboardModals';
