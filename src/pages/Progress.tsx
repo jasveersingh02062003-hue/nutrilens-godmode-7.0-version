@@ -526,7 +526,12 @@ export default function ProgressPage() {
                   return (
                     <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
                       <span className="text-[9px] text-muted-foreground font-medium">{d.calories > 0 ? d.calories : ''}</span>
-                      <div className={`w-full rounded-lg transition-all duration-500 ${isToday ? 'bg-primary' : 'bg-primary/20'}`} style={{ height: `${pct}%` }} />
+                      <motion.div
+                        className={`w-full rounded-lg ${isToday ? 'bg-primary' : 'bg-primary/20'}`}
+                        initial={{ height: 0 }}
+                        animate={{ height: `${pct}%` }}
+                        transition={{ type: 'spring', stiffness: 200, damping: 25, delay: i * 0.04 }}
+                      />
                       <span className="text-[9px] text-muted-foreground font-medium">{d.date}</span>
                     </div>
                   );
