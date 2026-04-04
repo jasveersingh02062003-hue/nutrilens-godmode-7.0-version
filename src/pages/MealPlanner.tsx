@@ -45,6 +45,61 @@ function formatDate(dateStr: string): string {
   return `${dayName}, ${monthDay}`;
 }
 
+function RestDayToggle() {
+  const profile = getUserProfile();
+  const [, forceUpdate] = useState(0);
+
+  if (!profile?.gym?.goer) return null;
+
+  // Show toggle for tomorrow if it's a scheduled gym day
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+  const dayName = tomorrow.toLocaleDateString('en-US', { weekday: 'long' });
+
+  // Check if tomorrow is a gym day (ignoring rest day override to show toggle)
+  const schedule = profile.gym.schedule || [];
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const tomorrowDayName = dayNames[tomorrow.getDay()];
+  const isWeekend = tomorrow.getDay() === 0 || tomorrow.getDay() === 6;
+  const weekendSchedule = profile.gym.weekendSchedule;
+  const isScheduled = (isWeekend && weekendSchedule?.length) ? weekendSchedule.includes(tomorrowDayName) : schedule.includes(tomorrowDayName);
+
+  if (!isScheduled) return null;
+
+  const isRest = isRestDay(tomorrowStr);
+
+  const handleToggle = () => {
+    if (isRest) {
+      unmarkRestDay(tomorrowStr);
+    } else {
+      markRestDay(tomorrowStr);
+    }
+    forceUpdate(k => k + 1);
+  };
+
+  return (
+    <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border mb-3">
+      <div className="flex items-center gap-2">
+        <Dumbbell className="w-3.5 h-3.5 text-muted-foreground" />
+        <span className="text-xs text-foreground">
+          {dayName}: {isRest ? 'Rest day' : 'Gym day'}
+        </span>
+      </div>
+      <button
+        onClick={handleToggle}
+        className={`px-3 py-1 rounded-lg text-[10px] font-semibold transition-colors ${
+          isRest
+            ? 'bg-muted text-muted-foreground'
+            : 'bg-destructive/10 text-destructive'
+        }`}
+      >
+        {isRest ? 'Undo Rest Day' : 'Mark Rest Day'}
+      </button>
+    </div>
+  );
+}
+
 export default function MealPlanner() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
