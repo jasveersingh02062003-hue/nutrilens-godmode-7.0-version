@@ -334,21 +334,27 @@ export default function MealPlanner() {
 
           <p className="text-sm text-muted-foreground">Here are the recipes we've chosen for your meal plan. Feel free to swap out any you don't like!</p>
 
-          <div className="space-y-3">
+          <motion.div className="space-y-3" initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}>
             {plan.days.map(day => (
-              <div key={day.date} className="card-subtle overflow-hidden">
+              <motion.div key={day.date} className="card-subtle overflow-hidden"
+                variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}>
                 <div className="px-4 py-2.5 bg-muted/50 border-b border-border">
                   <p className="text-xs font-bold text-foreground">{formatDate(day.date)}</p>
                 </div>
                 <div className="divide-y divide-border">
-                  {day.meals.map(meal => {
+                  {day.meals.map((meal, mealIdx) => {
                     const recipe = getRecipeById(meal.recipeId);
                     if (!recipe) return null;
                     const mealLabel = meal.mealType.charAt(0).toUpperCase() + meal.mealType.slice(1);
                     return (
-                      <div key={meal.recipeId} className="px-4 py-3 flex items-center gap-3">
+                      <motion.div key={meal.recipeId}
+                        className="px-4 py-3 flex items-center gap-3"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                      >
                         <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
-                          <img src={getRecipeImage(recipe.id, meal.mealType)} alt={recipe.name} className="w-full h-full object-cover" loading="lazy" />
+                          <img src={getRecipeImage(recipe.id, meal.mealType)} alt={recipe.name} className="w-full h-full object-cover animate-ken-burns" loading="lazy" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{mealLabel}</p>
@@ -359,13 +365,13 @@ export default function MealPlanner() {
                           className="px-2.5 py-1.5 rounded-lg bg-muted text-muted-foreground text-[10px] font-semibold flex items-center gap-1 hover:bg-primary/10 hover:text-primary transition-colors">
                           <Zap className="w-3 h-3" /> Try Swap
                         </button>
-                      </div>
+                      </motion.div>
                     );
                   })}
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
 
           <button onClick={handleSavePlan}
             className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 shadow-fab active:scale-[0.98] transition-transform">
