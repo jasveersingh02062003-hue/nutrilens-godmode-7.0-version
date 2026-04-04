@@ -22,6 +22,13 @@ export interface WeeklySummary {
   insight: string;
   dominantMetric: 'protein' | 'budget' | 'meals' | 'weight';
   autoFixApplied: boolean;
+  // Gym intelligence fields
+  gymWorkouts?: number;
+  gymPlanned?: number;
+  gymCaloriesBurned?: number;
+  gymConsistencyPct?: number;
+  gymInsight?: string;
+  strengthGains?: Array<{ exercise: string; change: number }>;
 }
 
 const SUMMARIES_KEY = 'nutrilens_weekly_summaries';
@@ -123,6 +130,54 @@ export function generateWeeklySummary(): WeeklySummary {
     weightChange = Number((weekWeights[weekWeights.length - 1].weight - weekWeights[0].weight).toFixed(1));
   }
 
+  // Gym
+  let gymWorkouts = 0;
+  let gymCaloriesBurned = 0;
+  const workoutsByExercise: Record<string, { first: number; last: number }> = {};
+
+  for (const log of logs) {
+    if (log.gym?.attended) {
+      gymWorkouts++;
+      gymCaloriesBurned += log.gym.caloriesBurned || 0;
+    }
+    if (log.gym?.workouts) {
+      for (const w of log.gym.workouts) {
+        if (!workoutsByExercise[w.exercise]) {
+          workoutsByExercise[w.exercise] = { first: w.weight, last: w.weight };
+        } else {
+          workoutsByExercise[w.exercise].last = w.weight;
+        }
+      }
+    }
+  }
+
+  const gymPlanned = profile?.gym?.goer ? (profile.gym.daysPerWeek || 0) : 0;
+  const gymConsistencyPct = gymPlanned > 0 ? Math.round((gymWorkouts / gymPlanned) * 100) : 0;
+  const strengthGains = Object.entries(workoutsByExercise)
+    .map(([exercise, { first, last }]) => ({ exercise, change: last - first }))
+    .filter(g => g.change !== 0);
+
+  // Gym insight generation
+  let gymInsight: string | undefined;
+  if (profile?.gym?.goer) {
+    const avgDailyProtein = proteinConsumed / 7;
+    const proteinPctOfTarget = dailyProtein > 0 ? (avgDailyProtein / dailyProtein) * 100 : 100;
+    const gainers = strengthGains.filter(g => g.change > 0);
+    const losers = strengthGains.filter(g => g.change < 0);
+
+    if (gainers.length > 0 && proteinPctOfTarget >= 90) {
+      gymInsight = `💪 Strength up on ${gainers.map(g => g.exercise).join(', ')} — your protein intake (${Math.round(proteinPctOfTarget)}% of target) is fueling gains!`;
+    } else if (losers.length > 0 && proteinPctOfTarget < 80) {
+      gymInsight = `⚠️ Strength dropped on ${losers.map(g => g.exercise).join(', ')}. Your protein is at ${Math.round(proteinPctOfTarget)}% — try adding ${Math.ceil(dailyProtein - avgDailyProtein)}g/day.`;
+    } else if (gymWorkouts === 0 && gymPlanned > 0) {
+      gymInsight = `You skipped all ${gymPlanned} planned workouts. Try scheduling at a consistent time.`;
+    } else if (gymConsistencyPct < 70 && gymPlanned > 0) {
+      gymInsight = `${gymWorkouts}/${gymPlanned} workouts done (${gymConsistencyPct}%). Aim for at least ${Math.ceil(gymPlanned * 0.8)} sessions next week.`;
+    } else if (gymConsistencyPct >= 80) {
+      gymInsight = `Great gym consistency at ${gymConsistencyPct}%! ${gymCaloriesBurned > 0 ? `You burned ~${gymCaloriesBurned} kcal.` : ''}`;
+    }
+  }
+
   // Adherence components
   const mealAdherence = Math.min(100, mealsPlanned > 0 ? (mealsLogged / mealsPlanned) * 100 : 100);
   const proteinAdherence = Math.min(100, proteinTarget > 0 ? (proteinConsumed / proteinTarget) * 100 : 100);
@@ -174,6 +229,12 @@ export function generateWeeklySummary(): WeeklySummary {
     insight,
     dominantMetric,
     autoFixApplied: false,
+    gymWorkouts,
+    gymPlanned,
+    gymCaloriesBurned,
+    gymConsistencyPct,
+    gymInsight,
+    strengthGains: strengthGains.length > 0 ? strengthGains : undefined,
   };
 
   saveWeeklySummary(summary);
