@@ -14,6 +14,7 @@ import ExportDataSheet from '@/components/ExportDataSheet';
 import HelpSupportSheet from '@/components/HelpSupportSheet';
 import NotificationSettingsPanel from '@/components/NotificationSettingsPanel';
 import SkinConcernsSheet from '@/components/SkinConcernsSheet';
+import GymSettingsPage from '@/components/GymSettingsPage';
 import { getTrackingMode, setTrackingMode, type TrackingMode } from '@/lib/smart-adjustment';
 import { getCorrections } from '@/lib/corrections';
 import { getAutoAdjust, setAutoAdjust, getCorrectionMode, setCorrectionMode, getModeImpactPreview, type CorrectionMode } from '@/lib/calorie-correction';
