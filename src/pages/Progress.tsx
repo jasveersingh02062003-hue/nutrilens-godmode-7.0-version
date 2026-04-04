@@ -370,7 +370,17 @@ export default function ProgressPage() {
         <MonthlySavingsCard />
 
         {/* Gym Progress */}
-        {profile?.gym?.goer && <GymProgressSection />}
+        {profile?.gym?.goer && (
+          <>
+            <GymProgressSection />
+            <div className="flex justify-end">
+              <GymPDFExport />
+            </div>
+          </>
+        )}
+
+        {/* Strength Progress */}
+        {profile?.gym?.goer && <StrengthProgressChart />}
 
         {/* Energy Trends */}
         <EnergyTrendCard refreshKey={refreshKey} />
