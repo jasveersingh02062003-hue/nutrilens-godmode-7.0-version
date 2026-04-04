@@ -307,7 +307,7 @@
 .animate-breathe { animation: breathe 3s ease-in-out infinite; }
 .animate-shimmer-bar { animation: shimmer-bar 2s ease-in-out infinite; }
 .animate-wave { animation: wave-motion 3s linear infinite; }
-.animate-ambient { animation: ambient-shift 8s ease-in-out infinite; }
+.animate-ambient { animation: ambient-shift 15s ease-in-out infinite; }
 .animate-notification-pulse { animation: notification-pulse 2s ease-in-out infinite; }
 .animate-ken-burns { animation: ken-burns 15s ease-in-out infinite; }
 .animate-scan-sweep { animation: scan-sweep 2s ease-in-out infinite; }

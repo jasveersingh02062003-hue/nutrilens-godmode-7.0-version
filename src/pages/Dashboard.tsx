@@ -75,10 +75,10 @@ export default function Dashboard() {
       <PESExplanationCard onDismiss={() => d.setShowPESExplanation(false)} />
     )}
     <div className="min-h-screen pb-24 bg-background relative">
-      {/* Ambient gradient background */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full bg-primary/[0.03] blur-3xl animate-ambient" />
-        <div className="absolute bottom-1/3 right-0 w-80 h-80 rounded-full bg-accent/[0.03] blur-3xl animate-ambient" style={{ animationDelay: '4s' }} />
+      {/* Ambient gradient background — reduced blur for GPU savings */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ willChange: 'opacity' }}>
+        <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full bg-primary/[0.03] blur-2xl animate-ambient" />
+        <div className="absolute bottom-1/3 right-0 w-80 h-80 rounded-full bg-accent/[0.03] blur-2xl animate-ambient" style={{ animationDelay: '4s' }} />
       </div>
 
       <motion.div
