@@ -371,6 +371,9 @@ export default function ProgressPage() {
         {/* Gym Progress */}
         {profile?.gym?.goer && <GymProgressSection />}
 
+        {/* Energy Trends */}
+        <EnergyTrendCard refreshKey={refreshKey} />
+
         {/* Supplement Consistency */}
         <SupplementConsistencySection refreshKey={refreshKey} />
 
