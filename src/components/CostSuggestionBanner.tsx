@@ -238,22 +238,21 @@ export default function CostSuggestionBanner({ items, onCostConfirm, onFree, dar
       </div>
 
       {/* ─── Edit Price Modal ─── */}
-      <AnimatePresence>
-        {showEditModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-sm px-4"
-            onClick={() => setShowEditModal(false)}
-          >
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showEditModal && (
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={e => e.stopPropagation()}
-              className="w-full max-w-sm bg-card rounded-2xl border border-border shadow-xl p-5 space-y-4"
+              {...mobileOverlayMotion}
+              transition={mobileOverlayTransition}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-sm px-4"
+              onClick={() => setShowEditModal(false)}
             >
+              <motion.div
+                {...mobileSheetMotion}
+                transition={mobileSheetTransition}
+                onClick={e => e.stopPropagation()}
+                className="w-full max-w-sm max-h-[92dvh] overflow-y-auto overscroll-contain bg-card rounded-2xl border border-border shadow-xl p-5 space-y-4"
+              >
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-bold text-foreground">Edit Price</h3>
                 <button onClick={() => setShowEditModal(false)} className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center">
