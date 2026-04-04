@@ -24,13 +24,13 @@ import PlansPage from '@/components/PlansPage';
 
 // ── Animation variants (upgraded) ──
 const pageVariants = {
-  enter: (d: number) => ({ x: d > 0 ? 80 : -80, opacity: 0, scale: 0.95 }),
-  center: { x: 0, opacity: 1, scale: 1, transition: { type: 'spring' as const, stiffness: 350, damping: 32 } },
-  exit: (d: number) => ({ x: d < 0 ? 80 : -80, opacity: 0, scale: 0.95, transition: { duration: 0.2 } }),
+  enter: (d: number) => ({ x: d > 0 ? 30 : -30, opacity: 0 }),
+  center: { x: 0, opacity: 1, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] as readonly number[] } },
+  exit: (d: number) => ({ x: d < 0 ? 30 : -30, opacity: 0, transition: { duration: 0.15 } }),
 };
 const stagger = {
-  hidden: { opacity: 0, y: 16, scale: 0.97 },
-  visible: (i: number) => ({ opacity: 1, y: 0, scale: 1, transition: { delay: i * 0.06, type: 'spring' as const, stiffness: 400, damping: 30 } }),
+  hidden: { opacity: 0, y: 10 },
+  visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.04, duration: 0.2, ease: [0.22, 1, 0.36, 1] as readonly number[] } }),
 };
 
 // ── Reusable UI ──
@@ -1892,7 +1892,7 @@ export default function Onboarding() {
             className="h-full rounded-full"
             style={{ background: 'linear-gradient(90deg, hsl(var(--primary)), hsl(var(--secondary)))' }}
             animate={{ width: `${progress}%` }}
-            transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
           />
           <motion.div
             animate={{ x: ['-100%', '300%'] }}

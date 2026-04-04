@@ -1,5 +1,6 @@
 import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 
@@ -60,14 +61,14 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
     return () => clearTimeout(timer);
   }, [duration]);
 
-  return (
+  return createPortal(
     <AnimatePresence onExitComplete={onComplete}>
       {visible && (
         <motion.div
           key="splash"
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.4 }}
+          transition={{ duration: 0.3 }}
           className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background overflow-hidden"
         >
           {/* Animated gradient mesh background */}
@@ -205,5 +206,6 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
         </motion.div>
       )}
     </AnimatePresence>
+    , document.body
   );
 }
