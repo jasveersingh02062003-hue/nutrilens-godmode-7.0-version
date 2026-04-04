@@ -555,7 +555,14 @@ export default function LogFood() {
                 const hasAnyWarning = allergenCheck.hasConflict || conditionWarnings.length > 0;
                 const isCompareSelected = compareSelection.some(c => c.id === food.id);
                 return (
-                  <div key={food.id} className={`card-subtle p-3 flex items-center gap-3 w-full text-left hover:shadow-md transition-shadow ${isCompareSelected ? 'ring-2 ring-primary/50' : ''}`}>
+                  <motion.div
+                    key={food.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: foodIdx * 0.04, type: 'spring', stiffness: 350, damping: 30 }}
+                    whileTap={{ scale: 0.97 }}
+                    className={`card-subtle p-3 flex items-center gap-3 w-full text-left hover:shadow-md transition-shadow ${isCompareSelected ? 'ring-2 ring-primary/50' : ''}`}
+                  >
                     <button onClick={() => addFood(food)} className="flex items-center gap-3 flex-1 min-w-0 active:scale-[0.99]">
                       <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
                         <span className="text-xs font-bold text-muted-foreground">{food.calories}</span>
