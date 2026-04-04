@@ -126,16 +126,7 @@ export default function DayDetailsSheet({ open, date, onClose, onChanged }: Prop
     }
   };
 
-  // Lock body scroll when sheet is open
-  useEffect(() => {
-    if (open) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => { document.body.style.overflow = prev; };
-    }
-  }, [open]);
-
-  const sheetContent = (
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
