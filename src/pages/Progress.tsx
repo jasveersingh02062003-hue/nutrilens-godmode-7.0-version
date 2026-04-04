@@ -375,7 +375,7 @@ export default function ProgressPage() {
                   </div>
                 ))}
               </div>
-            </motion.div>
+            </div>
           );
         })()}
 
