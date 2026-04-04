@@ -527,7 +527,8 @@ export default function DayDetailsSheet({ open, date, onClose, onChanged }: Prop
         onClose={() => setFullScreenMealId(null)}
         onChanged={() => { reload(); onChanged(); }}
       />
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
 
