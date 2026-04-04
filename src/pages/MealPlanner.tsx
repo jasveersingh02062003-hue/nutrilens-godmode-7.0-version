@@ -1,4 +1,5 @@
 import { scopedGet, scopedSet } from '@/lib/scoped-storage';
+import { isGymDay, markRestDay, unmarkRestDay, isRestDay } from '@/lib/gym-service';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ChefHat, CalendarDays, ArrowLeft, ArrowRight, Check, ShoppingCart, Repeat, X, Search, Target, Scale, Crown, Lock, Zap } from 'lucide-react';
