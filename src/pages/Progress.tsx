@@ -33,6 +33,7 @@ import BloodReportSheet from '@/components/BloodReportSheet';
 import IdentityBadgesCard from '@/components/IdentityBadgesCard';
 import GymProgressSection from '@/components/GymProgressSection';
 import SupplementConsistencySection from '@/components/SupplementConsistencySection';
+import EnergyTrendCard from '@/components/EnergyTrendCard';
 import { getMonthlySavings } from '@/lib/budget-impact';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { getPlan, isPremium } from '@/lib/subscription-service';
@@ -369,6 +370,9 @@ export default function ProgressPage() {
 
         {/* Gym Progress */}
         {profile?.gym?.goer && <GymProgressSection />}
+
+        {/* Energy Trends */}
+        <EnergyTrendCard refreshKey={refreshKey} />
 
         {/* Supplement Consistency */}
         <SupplementConsistencySection refreshKey={refreshKey} />

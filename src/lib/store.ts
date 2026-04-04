@@ -71,6 +71,14 @@ export interface UserProfile {
       bestStreak: number;
       consistencyPercent: number;
     };
+    // Time-aware gym fields
+    timeOfDay?: 'morning' | 'afternoon' | 'evening' | 'night';
+    specificHour?: number; // 0-23
+    workStart?: string;    // "09:00"
+    workEnd?: string;      // "18:00"
+    sleepStart?: string;   // "22:00"
+    sleepEnd?: string;     // "06:00"
+    shiftType?: 'day' | 'night' | 'rotating';
   };
   supplementPrefs?: {
     items: Array<{
@@ -201,6 +209,7 @@ export interface DailyLog {
     caloriesBurned: number;
     intensity: string;
   };
+  energyLevel?: 1 | 2 | 3 | 4 | 5;
 }
 
 import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON, scopedRemove, getScopedUserId } from '@/lib/scoped-storage';

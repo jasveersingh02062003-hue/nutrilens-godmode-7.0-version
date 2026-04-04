@@ -73,6 +73,13 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
   const [gymDuration, setGymDuration] = useState(45);
   const [gymIntensity, setGymIntensity] = useState<'light' | 'moderate' | 'intense'>('moderate');
   const [gymGoal, setGymGoal] = useState<'fat_loss' | 'muscle_gain' | 'general'>('general');
+  const [gymTimeOfDay, setGymTimeOfDay] = useState<string>('');
+  const [gymSpecificHour, setGymSpecificHour] = useState(7);
+  const [workStart, setWorkStart] = useState('09:00');
+  const [workEnd, setWorkEnd] = useState('18:00');
+  const [sleepStart, setSleepStart] = useState('22:00');
+  const [sleepEnd, setSleepEnd] = useState('06:00');
+  const [shiftType, setShiftType] = useState<string>('day');
 
   useEffect(() => {
     if (profile && open) {
@@ -101,6 +108,13 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
       setGymDuration(profile.gym?.durationMinutes || 45);
       setGymIntensity(profile.gym?.intensity || 'moderate');
       setGymGoal(profile.gym?.goal || 'general');
+      setGymTimeOfDay(profile.gym?.timeOfDay || '');
+      setGymSpecificHour(profile.gym?.specificHour ?? 7);
+      setWorkStart(profile.gym?.workStart || '09:00');
+      setWorkEnd(profile.gym?.workEnd || '18:00');
+      setSleepStart(profile.gym?.sleepStart || '22:00');
+      setSleepEnd(profile.gym?.sleepEnd || '06:00');
+      setShiftType(profile.gym?.shiftType || 'day');
     }
   }, [profile, open]);
 
@@ -175,6 +189,10 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
         goal: gymGoal,
         schedule: inferSchedule(gymDays),
         stats: profile?.gym?.stats || { totalWorkouts: 0, totalCaloriesBurned: 0, currentStreak: 0, bestStreak: 0, consistencyPercent: 0 },
+        timeOfDay: gymTimeOfDay as any || undefined,
+        specificHour: gymSpecificHour,
+        workStart, workEnd, sleepStart, sleepEnd,
+        shiftType: shiftType as any || undefined,
       } : { goer: false, daysPerWeek: 0, durationMinutes: 0, intensity: 'moderate' as const, goal: 'general' as const, schedule: [], stats: { totalWorkouts: 0, totalCaloriesBurned: 0, currentStreak: 0, bestStreak: 0, consistencyPercent: 0 } },
     });
 
@@ -499,6 +517,64 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
                             {([['fat_loss', '🔥 Fat Loss'], ['muscle_gain', '💪 Muscle'], ['general', '🏃 General']] as const).map(([v, l]) => (
                               <button key={v} onClick={() => setGymGoal(v as any)}
                                 className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${gymGoal === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                                {l}
+                              </button>
+                            ))}
+                          </div>
+                        </Field>
+
+                        {/* Gym Timing */}
+                        <Field label="When do you go?">
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              { v: 'morning', l: '🌅 Morning' },
+                              { v: 'afternoon', l: '☀️ Afternoon' },
+                              { v: 'evening', l: '🌆 Evening' },
+                              { v: 'night', l: '🌙 Night' },
+                            ].map(o => (
+                              <button key={o.v} onClick={() => setGymTimeOfDay(o.v)}
+                                className={`py-2 rounded-xl text-xs font-semibold transition-colors ${gymTimeOfDay === o.v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                                {o.l}
+                              </button>
+                            ))}
+                          </div>
+                        </Field>
+
+                        {gymTimeOfDay && (
+                          <Field label={`Exact time: ${gymSpecificHour > 12 ? gymSpecificHour - 12 : gymSpecificHour === 0 ? 12 : gymSpecificHour}:00 ${gymSpecificHour >= 12 ? 'PM' : 'AM'}`}>
+                            <input type="range" min={0} max={23} step={1} value={gymSpecificHour}
+                              onChange={e => setGymSpecificHour(Number(e.target.value))} className="w-full accent-primary" />
+                          </Field>
+                        )}
+
+                        {/* Work Schedule */}
+                        <Field label="Work Hours">
+                          <div className="flex gap-2 items-center">
+                            <input type="time" value={workStart} onChange={e => setWorkStart(e.target.value)}
+                              className="flex-1 px-3 py-2 rounded-xl bg-muted border border-border text-xs font-medium outline-none" />
+                            <span className="text-muted-foreground text-xs">to</span>
+                            <input type="time" value={workEnd} onChange={e => setWorkEnd(e.target.value)}
+                              className="flex-1 px-3 py-2 rounded-xl bg-muted border border-border text-xs font-medium outline-none" />
+                          </div>
+                        </Field>
+
+                        {/* Sleep Schedule */}
+                        <Field label="Sleep Schedule">
+                          <div className="flex gap-2 items-center">
+                            <input type="time" value={sleepStart} onChange={e => setSleepStart(e.target.value)}
+                              className="flex-1 px-3 py-2 rounded-xl bg-muted border border-border text-xs font-medium outline-none" />
+                            <span className="text-muted-foreground text-xs">to</span>
+                            <input type="time" value={sleepEnd} onChange={e => setSleepEnd(e.target.value)}
+                              className="flex-1 px-3 py-2 rounded-xl bg-muted border border-border text-xs font-medium outline-none" />
+                          </div>
+                        </Field>
+
+                        {/* Shift Type */}
+                        <Field label="Shift Type">
+                          <div className="flex gap-2">
+                            {[['day', '☀️ Day'], ['night', '🌙 Night'], ['rotating', '🔄 Rotating']].map(([v, l]) => (
+                              <button key={v} onClick={() => setShiftType(v)}
+                                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${shiftType === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
                                 {l}
                               </button>
                             ))}

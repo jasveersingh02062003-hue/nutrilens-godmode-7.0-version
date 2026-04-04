@@ -38,6 +38,9 @@ import ContextualTipsCard from '@/components/ContextualTipsCard';
 import GymCheckInCard from '@/components/GymCheckInCard';
 import GymConsistencyCard from '@/components/GymConsistencyCard';
 import GymUpsellCard from '@/components/GymUpsellCard';
+import PreWorkoutCard from '@/components/PreWorkoutCard';
+import PostWorkoutCard from '@/components/PostWorkoutCard';
+import EnergyTracker from '@/components/EnergyTracker';
 import ProteinGapNudgeCard from '@/components/ProteinGapNudgeCard';
 import SupplementUpsellCard from '@/components/SupplementUpsellCard';
 import { shouldBoostWater } from '@/lib/supplement-service';
@@ -189,10 +192,13 @@ export default function Dashboard() {
           <CalorieRing dayState={d.dayState} proteinRemaining={Math.round(Math.max(0, getProteinTarget(d.profile) - d.totals.protein))} />
         </div>
 
-        {/* Gym Cards */}
+        {/* Gym Intelligence Cards */}
         {d.profile?.gym?.goer && (
           <>
-            <div className="animate-fade-in"><GymCheckInCard /></div>
+            <div className="animate-fade-in"><PreWorkoutCard /></div>
+            <div className="animate-fade-in"><GymCheckInCard onRefresh={d.refreshLog} /></div>
+            <div className="animate-fade-in"><PostWorkoutCard /></div>
+            <div className="animate-fade-in"><EnergyTracker onRefresh={d.refreshLog} /></div>
             <div className="animate-fade-in"><GymConsistencyCard /></div>
             <div className="animate-fade-in"><GymUpsellCard /></div>
           </>
