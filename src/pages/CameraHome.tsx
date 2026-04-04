@@ -616,7 +616,7 @@ export default function CameraHome() {
     return (
       <div className="fixed inset-0 bg-foreground overflow-hidden">
         <canvas ref={canvasRef} className="hidden" />
-        <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handleGalleryUpload} />
+        <input ref={galleryInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleGalleryUpload} />
 
         {/* Camera feed */}
         <div className="absolute inset-0">
