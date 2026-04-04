@@ -348,7 +348,7 @@ export default function ProgressPage() {
           if (!prog) return null;
           const startWeight = activePlan.targetWeight ? (profile?.weightKg || 0) : 0;
           return (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card-elevated p-4 space-y-3 border-l-4 border-l-primary">
+            <div className="card-elevated p-4 space-y-3 border-l-4 border-l-primary">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Target className="w-4 h-4 text-primary" />
