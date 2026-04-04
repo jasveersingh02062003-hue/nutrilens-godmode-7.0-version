@@ -219,14 +219,14 @@ export default function Dashboard() {
 
         {/* Gym Intelligence Cards */}
         {d.profile?.gym?.goer && (
-          <>
+          <Suspense fallback={null}>
             <motion.div variants={fadeUp}><PreWorkoutCard /></motion.div>
             <motion.div variants={fadeUp}><GymCheckInCard onRefresh={d.refreshLog} /></motion.div>
             <motion.div variants={fadeUp}><PostWorkoutCard /></motion.div>
             <motion.div variants={fadeUp}><EnergyTracker onRefresh={d.refreshLog} /></motion.div>
             <motion.div variants={fadeUp}><GymConsistencyCard /></motion.div>
             <motion.div variants={fadeUp}><GymUpsellCard /></motion.div>
-          </>
+          </Suspense>
         )}
 
         {/* Supplement Intelligence Cards */}
