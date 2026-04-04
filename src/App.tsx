@@ -83,7 +83,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<PageLoader />}>{children}</Suspense>;
 }
 
-const HIDE_NAV_ROUTES = ['/', '/onboarding', '/quicklog'];
+const HIDE_NAV_ROUTES = ['/onboarding', '/quicklog'];
 
 function AppLayout() {
   const location = useLocation();
