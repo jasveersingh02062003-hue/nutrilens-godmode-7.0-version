@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Camera, Upload, Sparkles, Flame, Wheat, Droplets } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Camera, Upload, Sparkles, Flame, Wheat, Droplets, Loader2, AlertTriangle } from 'lucide-react';
 
 interface ScannerOnboardingScreenProps {
   onBack: () => void;
@@ -22,12 +22,86 @@ export default function ScannerOnboardingScreen({ onBack, onContinue }: ScannerO
   const [state, setState] = useState<ScanState>('idle');
   const [preview, setPreview] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [cameraError, setCameraError] = useState('');
+
+  const stopCamera = useCallback(() => {
+    const stream = streamRef.current;
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+    }
+
+    streamRef.current = null;
+
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.srcObject = null;
+    }
+
+    setCameraReady(false);
+  }, []);
+
+  const startCamera = useCallback(async () => {
+    stopCamera();
+    setCameraError('');
+    setCameraOpen(true);
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError('Live camera is not supported here. Uploading a photo still works.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
+      });
+
+      const video = videoRef.current;
+      if (!video) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      streamRef.current = stream;
+      video.setAttribute('autoplay', '');
+      video.setAttribute('muted', '');
+      video.setAttribute('playsinline', 'true');
+      video.srcObject = stream;
+      await video.play();
+      setCameraReady(true);
+    } catch {
+      setCameraError(
+        window.isSecureContext
+          ? 'Camera permission was blocked. Please allow camera access or upload a photo instead.'
+          : 'Live camera needs HTTPS to open. Uploading still works.',
+      );
+    }
+  }, [stopCamera]);
+
+  const replacePreview = useCallback((nextPreview: string | null) => {
+    setPreview((current) => {
+      if (current?.startsWith('blob:')) {
+        URL.revokeObjectURL(current);
+      }
+
+      return nextPreview;
+    });
+  }, []);
 
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    stopCamera();
+    setCameraOpen(false);
+
     const url = URL.createObjectURL(file);
-    setPreview(url);
+    replacePreview(url);
     runScan();
   };
 
@@ -37,9 +111,38 @@ export default function ScannerOnboardingScreen({ onBack, onContinue }: ScannerO
   };
 
   const handleDemoScan = () => {
-    setPreview(null);
+    stopCamera();
+    setCameraOpen(false);
+    replacePreview(null);
     runScan();
   };
+
+  const captureFromCamera = () => {
+    if (!videoRef.current || !canvasRef.current || !cameraReady) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d')?.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    replacePreview(canvas.toDataURL('image/jpeg', 0.88));
+    stopCamera();
+    setCameraOpen(false);
+    runScan();
+  };
+
+  useEffect(() => {
+    return () => stopCamera();
+  }, [stopCamera]);
+
+  useEffect(() => {
+    return () => {
+      if (preview?.startsWith('blob:')) {
+        URL.revokeObjectURL(preview);
+      }
+    };
+  }, [preview]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -68,46 +171,104 @@ export default function ScannerOnboardingScreen({ onBack, onContinue }: ScannerO
               exit={{ opacity: 0, y: -12 }}
               className="flex-1 flex flex-col"
             >
-              {/* Upload area */}
-              <motion.div
-                whileTap={{ scale: 0.99 }}
-                onClick={() => fileRef.current?.click()}
-                className="relative border-2 border-dashed border-border rounded-2xl bg-card flex flex-col items-center justify-center py-16 px-6 cursor-pointer hover:border-primary/30 transition-colors"
-              >
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-                  <Camera className="w-7 h-7 text-primary" />
-                </div>
-                <p className="text-sm font-semibold text-foreground">Drop a meal photo or tap to upload</p>
-                <p className="text-xs text-muted-foreground mt-1">JPG, PNG — we'll identify every item</p>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleUpload}
-                  className="hidden"
-                />
-              </motion.div>
+              {cameraOpen ? (
+                <>
+                  <div className="relative overflow-hidden rounded-2xl border border-border bg-card aspect-[3/4] flex items-center justify-center">
+                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
 
-              {/* Divider */}
-              <div className="flex items-center gap-3 my-5">
-                <div className="flex-1 h-px bg-border" />
-                <span className="text-xs text-muted-foreground font-medium">or</span>
-                <div className="flex-1 h-px bg-border" />
-              </div>
+                    {!cameraReady && !cameraError && (
+                      <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center gap-3">
+                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                        <p className="text-sm font-semibold text-foreground">Starting camera…</p>
+                      </div>
+                    )}
 
-              {/* Demo scan button */}
-              <motion.button
-                whileTap={{ scale: 0.98 }}
-                onClick={handleDemoScan}
-                className="w-full py-4 rounded-2xl bg-card border border-border font-semibold text-sm flex items-center justify-center gap-2 hover:bg-muted transition-colors"
-              >
-                <Sparkles className="w-4 h-4 text-primary" />
-                Try Demo Scan
-              </motion.button>
+                    {cameraError && (
+                      <div className="absolute inset-0 bg-background/90 flex flex-col items-center justify-center px-6 text-center">
+                        <AlertTriangle className="w-8 h-8 text-primary mb-3" />
+                        <p className="text-sm font-semibold text-foreground">Camera unavailable</p>
+                        <p className="text-xs text-muted-foreground mt-1 max-w-xs">{cameraError}</p>
+                      </div>
+                    )}
+                  </div>
 
-              <p className="text-[11px] text-muted-foreground text-center mt-3">
-                No camera? The demo uses a sample meal to show you the magic.
-              </p>
+                  <canvas ref={canvasRef} className="hidden" />
+
+                  <div className="grid grid-cols-2 gap-3 mt-4">
+                    <motion.button
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        stopCamera();
+                        setCameraOpen(false);
+                      }}
+                      className="py-3 rounded-2xl bg-card border border-border font-semibold text-sm text-foreground"
+                    >
+                      Back
+                    </motion.button>
+                    <motion.button
+                      whileTap={{ scale: cameraReady ? 0.98 : 1 }}
+                      onClick={captureFromCamera}
+                      disabled={!cameraReady || !!cameraError}
+                      className="py-3 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm disabled:opacity-50 disabled:pointer-events-none"
+                    >
+                      Capture Photo
+                    </motion.button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => void startCamera()}
+                    className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2 mb-4"
+                  >
+                    <Camera className="w-4 h-4" />
+                    Open Live Camera
+                  </motion.button>
+
+                  {/* Upload area */}
+                  <motion.div
+                    whileTap={{ scale: 0.99 }}
+                    onClick={() => fileRef.current?.click()}
+                    className="relative border-2 border-dashed border-border rounded-2xl bg-card flex flex-col items-center justify-center py-16 px-6 cursor-pointer hover:border-primary/30 transition-colors"
+                  >
+                    <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                      <Upload className="w-7 h-7 text-primary" />
+                    </div>
+                    <p className="text-sm font-semibold text-foreground">Tap to take or upload a meal photo</p>
+                    <p className="text-xs text-muted-foreground mt-1">JPG, PNG — we'll identify every item</p>
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleUpload}
+                      className="hidden"
+                    />
+                  </motion.div>
+
+                  {/* Divider */}
+                  <div className="flex items-center gap-3 my-5">
+                    <div className="flex-1 h-px bg-border" />
+                    <span className="text-xs text-muted-foreground font-medium">or</span>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
+
+                  {/* Demo scan button */}
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleDemoScan}
+                    className="w-full py-4 rounded-2xl bg-card border border-border font-semibold text-sm flex items-center justify-center gap-2 hover:bg-muted transition-colors"
+                  >
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    Try Demo Scan
+                  </motion.button>
+
+                  <p className="text-[11px] text-muted-foreground text-center mt-3">
+                    No camera? You can upload a photo or run the sample demo.
+                  </p>
+                </>
+              )}
             </motion.div>
           )}
 
