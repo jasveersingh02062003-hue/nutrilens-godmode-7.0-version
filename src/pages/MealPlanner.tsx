@@ -393,13 +393,14 @@ export default function MealPlanner() {
         )}
 
         {/* Success modal */}
-        <AnimatePresence>
-          {showSuccess && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center px-6" onClick={handleConfirmSave}>
-              <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" />
-              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-                className="relative bg-card rounded-3xl p-6 w-full max-w-sm text-center shadow-lg" onClick={e => e.stopPropagation()}>
+        {typeof document !== 'undefined' && createPortal(
+          <AnimatePresence>
+            {showSuccess && (
+              <motion.div {...mobileOverlayMotion} transition={mobileOverlayTransition}
+                className="fixed inset-0 z-50 flex items-center justify-center px-6" onClick={handleConfirmSave}>
+                <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" />
+                <motion.div {...mobileSheetMotion} transition={mobileSheetTransition}
+                  className="relative bg-card rounded-3xl p-6 w-full max-w-sm text-center shadow-lg" onClick={e => e.stopPropagation()}>
                 {/* Animated checkmark */}
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                   <motion.svg width="32" height="32" viewBox="0 0 32 32" fill="none" className="text-primary">
