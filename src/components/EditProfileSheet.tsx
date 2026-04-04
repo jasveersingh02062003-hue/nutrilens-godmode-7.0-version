@@ -199,6 +199,9 @@ export default function EditProfileSheet({ open, onClose }: EditProfileSheetProp
         specificHour: gymSpecificHour,
         workStart, workEnd, sleepStart, sleepEnd,
         shiftType: shiftType as any || undefined,
+        fastedTraining,
+        weekendSchedule: hasWeekendSchedule ? ['saturday', 'sunday'].filter(d => inferSchedule(gymDays).includes(d) || hasWeekendSchedule) : undefined,
+        weekendHour: hasWeekendSchedule ? weekendHour : undefined,
       } : { goer: false, daysPerWeek: 0, durationMinutes: 0, intensity: 'moderate' as const, goal: 'general' as const, schedule: [], stats: { totalWorkouts: 0, totalCaloriesBurned: 0, currentStreak: 0, bestStreak: 0, consistencyPercent: 0 } },
     });
 
