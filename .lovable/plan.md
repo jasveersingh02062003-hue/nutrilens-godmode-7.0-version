@@ -1,71 +1,76 @@
 
 
-# Add Missing Gym Intelligence Features
+# Dedicated Gym Settings Page
 
-## What's Already Done (No Changes Needed)
-The following are **fully implemented** and working:
-- Data model extensions (timeOfDay, specificHour, work/sleep, fastedTraining, weekendSchedule, missReason, actualHour)
-- `gym-meal-engine.ts` with pre/post suggestions, countdown, duration/intensity scaling, energy correlation, sleep/work tips
-- `PreWorkoutCard` with countdown timer, fasted training check, "Already ate" button
-- `PostWorkoutCard` with one-tap meal logging, skip button, duration scaling
-- `GymCheckInCard` with time override, miss reason picker, snooze, sleep-aware intensity
-- `EnergyTracker` with 1-5 emoji rating and energy insight
-- `EnergyTrendCard` in Progress page
-- Rest day marking in `gym-service.ts`
-- Weekend schedule support in `isGymDay()` and `getSpecificHourForDate()`
+## What We're Building
 
-## What's Actually Missing (To Build Now)
+A full-screen Gym Settings sheet accessible from **Profile → Gym Settings** (new row), with 3 tabs: **Summary**, **Settings**, and **Reports**. This centralizes all gym configuration and analytics in one place, replacing the scattered gym fields currently buried inside EditProfileSheet.
 
-### 1. Gym PDF Export (`src/components/GymPDFExport.tsx`)
-**New component** — button in Progress tab that generates a downloadable PDF report.
+## User Flow
 
-Contents:
-- Monthly attendance calendar (highlighted workout days)
-- Consistency %, current/best streak, total workouts, total calories burned
-- Energy trend (last 30 days) as a simple bar visualization
-- Pre/post meal adherence summary
-- Actionable insights: "You missed 3 workouts this month — most on Tuesdays" and "Energy is X% higher on workout days"
+```text
+Profile page
+  └─ "Gym Settings" row (Dumbbell icon, dynamic subtitle)
+       └─ GymSettingsPage (full-screen sheet, 3 tabs)
+            ├─ Summary tab
+            │    ├─ Stats cards (workouts, calories, streak, best streak, consistency %)
+            │    ├─ Monthly attendance calendar (heatmap with intensity colors)
+            │    ├─ 12-week consistency bars
+            │    └─ Energy trend (gym days vs rest days comparison)
+            ├─ Settings tab
+            │    ├─ Gym goer toggle
+            │    ├─ Days/week slider
+            │    ├─ Duration (30/45/60 min)
+            │    ├─ Intensity (light/moderate/intense)
+            │    ├─ Goal (fat loss/muscle/general)
+            │    ├─ Time of day + specific hour
+            │    ├─ Work hours, sleep schedule, shift type
+            │    ├─ Fasted training toggle
+            │    └─ Weekend schedule + weekend hour
+            └─ Reports tab
+                 ├─ Period filter (This Month / Last 30 / 60 / 90 days)
+                 ├─ Filtered stats summary
+                 └─ Download PDF button
+```
 
-Uses `jsPDF` (already available as a dependency pattern in the codebase).
+## File Changes
 
-Add a "Download Gym Report" button to `src/pages/Progress.tsx` near the GymProgressSection.
+| File | Action | What |
+|------|--------|------|
+| `src/components/GymSettingsPage.tsx` | **NEW** | Full sheet with 3 tabs (Summary, Settings, Reports) |
+| `src/pages/Profile.tsx` | Edit | Add `showGymSettings` state, new "Gym Settings" row with Dumbbell icon and dynamic subtitle (e.g. "3 days/week · 12 day streak"), render `<GymSettingsPage>` |
+| `src/components/EditProfileSheet.tsx` | Edit | Remove all detailed gym fields (lines 501-621), replace with a "Manage in Gym Settings →" link button. Keep only the gym goer toggle for quick access |
+| `src/components/GymPDFExport.tsx` | Edit | Accept `startDate` and `endDate` props, filter data within range, add period label to PDF title |
 
-### 2. Progressive Overload Tracker (`src/components/WorkoutLogger.tsx`)
-**New component** — simple modal workout logger.
+## Implementation Details
 
-- Fields: Exercise name (with common presets like Bench Press, Squat, Deadlift, etc.), Sets, Reps, Weight (kg)
-- Store in `dailyLog.gym.workouts` as `Array<{ exercise: string; sets: number; reps: number; weight: number }>`
-- Extend `DailyLog.gym` type in `store.ts` to include `workouts` field
-- Trigger from GymCheckInCard after logging "Yes" — "Log your lifts?" link
-- Show strength progress chart in Progress tab (simple per-exercise line chart)
+### GymSettingsPage.tsx
 
-### 3. Share Gym Streak (`src/components/GymConsistencyCard.tsx`)
-- Add a share button to the existing `GymConsistencyCard`
-- Capture the card as an image using `html2canvas`
-- Share via Web Share API (fallback: copy to clipboard)
+- Uses `Sheet` component (same pattern as PlansPage/SkinConcernsSheet)
+- `Tabs` component with Summary / Settings / Reports
+- **Summary tab**: Reuses computation logic from `GymProgressSection` (monthly calendar, weekly bars) plus `EnergyTrendCard` data (gym vs rest energy). Stats cards show totalWorkouts, totalCaloriesBurned, currentStreak, bestStreak, consistencyPercent from `profile.gym.stats`
+- **Settings tab**: All gym preference fields moved from EditProfileSheet. Local state for each field, single "Save" button that calls `saveProfile()` with updated gym object
+- **Reports tab**: Period picker (pills: "This Month", "30 Days", "60 Days", "90 Days"), filtered stats display, and `<GymPDFExport startDate={...} endDate={...} />` button
 
-### 4. Rest Day Toggle in Meal Planner
-- In `src/pages/MealPlanner.tsx`, for future scheduled gym days, show a small "Rest Day" toggle
-- Uses existing `markRestDay()` / `unmarkRestDay()` from `gym-service.ts`
+### Profile.tsx Changes
 
----
+- Add import for `Dumbbell` icon and `GymSettingsPage`
+- Add `showGymSettings` state
+- Insert new settings row after "Skin Health":
+  - Icon: Dumbbell
+  - Label: "Gym Settings"
+  - Sub: dynamic — if gym goer, show "X days/week · Y day streak"; else "Set up gym tracking"
+  - Action: `() => setShowGymSettings(true)`
 
-## Files Summary
+### EditProfileSheet Cleanup
 
-| File | Action |
-|------|--------|
-| `src/lib/store.ts` | Extend `DailyLog.gym` with `workouts` array type |
-| `src/components/GymPDFExport.tsx` | **NEW** — PDF report generator |
-| `src/components/WorkoutLogger.tsx` | **NEW** — exercise logger modal |
-| `src/components/GymConsistencyCard.tsx` | Add share button |
-| `src/pages/Progress.tsx` | Add PDF export button + strength chart |
-| `src/pages/MealPlanner.tsx` | Add rest day toggle for future gym days |
-| `src/components/GymCheckInCard.tsx` | Add "Log your lifts" link after check-in |
+- Keep the "Gym Goer" toggle (line 498-500)
+- Remove lines 501-621 (all detailed gym settings)
+- Add a simple link: "Open Gym Settings for full configuration →"
 
-## Implementation Order
-1. Extend data model for workouts
-2. Build GymPDFExport + wire into Progress
-3. Build WorkoutLogger + wire into GymCheckInCard and Progress
-4. Add share to GymConsistencyCard
-5. Add rest day toggle to MealPlanner
+### GymPDFExport Enhancement
+
+- New optional props: `startDate?: string`, `endDate?: string`
+- When provided, filter the day loop to only include days within range
+- Update PDF title to show the period (e.g. "Gym Report — Last 60 Days")
 
