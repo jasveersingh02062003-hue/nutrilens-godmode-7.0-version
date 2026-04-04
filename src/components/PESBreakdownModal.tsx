@@ -1,7 +1,9 @@
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getPESColor, getDynamicThreshold, findBetterAlternatives, type PESColor } from '@/lib/pes-engine';
 import { getBudgetSettings } from '@/lib/expense-store';
 import { getProfile } from '@/lib/store';
+import { mobileOverlayMotion, mobileOverlayTransition, mobileSheetMotion, mobileSheetTransition, useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 
 interface FoodData {
   name: string;
@@ -27,7 +29,11 @@ const COLOR_MAP: Record<PESColor, { bg: string; text: string; dot: string; label
 };
 
 export default function PESBreakdownModal({ open, food, mealLabel, onConfirm, onEdit }: Props) {
-  if (!open || food.cost <= 0) return null;
+  const isVisible = open && food.cost > 0;
+
+  useBodyScrollLock(isVisible);
+
+  if (typeof document === 'undefined') return null;
 
   const profile = getProfile();
   const budget = getBudgetSettings();
@@ -47,21 +53,19 @@ export default function PESBreakdownModal({ open, food, mealLabel, onConfirm, on
   );
   const alt = alternatives[0];
 
-  return (
+  return createPortal(
     <AnimatePresence>
-      {open && (
+      {isVisible && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 backdrop-blur-sm"
+          {...mobileOverlayMotion}
+          transition={mobileOverlayTransition}
+          className="fixed inset-0 z-[80] flex items-end justify-center"
         >
+          <div className="absolute inset-0 bg-foreground/30 backdrop-blur-sm" />
           <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 26, stiffness: 280 }}
-            className="w-full max-w-lg rounded-t-3xl bg-card/95 backdrop-blur-xl border-t border-border p-5 pb-8 shadow-2xl"
+            {...mobileSheetMotion}
+            transition={mobileSheetTransition}
+            className="relative w-full max-w-lg max-h-[92dvh] overflow-y-auto overscroll-contain rounded-t-3xl border-t border-border bg-card/95 p-5 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] shadow-2xl backdrop-blur-xl"
           >
             {/* Header */}
             <div className="flex items-center gap-3 mb-4">
@@ -158,5 +162,6 @@ export default function PESBreakdownModal({ open, food, mealLabel, onConfirm, on
         </motion.div>
       )}
     </AnimatePresence>
+    , document.body
   );
 }

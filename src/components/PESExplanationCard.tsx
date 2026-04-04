@@ -1,7 +1,9 @@
-import { scopedGet, scopedSet } from '@/lib/scoped-storage';
+import { scopedSet } from '@/lib/scoped-storage';
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
+import { mobileOverlayMotion, mobileOverlayTransition, mobileSheetMotion, mobileSheetTransition, useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 
 const CAROUSEL = [
   { name: 'Soya Chunks', price: 6, protein: 26, pes: 4.33, color: 'hsl(var(--primary))' },
@@ -17,6 +19,8 @@ interface Props {
 export default function PESExplanationCard({ onDismiss }: Props) {
   const [carouselIdx, setCarouselIdx] = useState(0);
 
+  useBodyScrollLock(true);
+
   useEffect(() => {
     const t = setInterval(() => setCarouselIdx(p => (p + 1) % CAROUSEL.length), 2500);
     return () => clearInterval(t);
@@ -29,21 +33,21 @@ export default function PESExplanationCard({ onDismiss }: Props) {
     onDismiss();
   };
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[90] flex items-end justify-center bg-black/40 backdrop-blur-sm"
+      {...mobileOverlayMotion}
+      transition={mobileOverlayTransition}
+      className="fixed inset-0 z-[90] flex items-end justify-center"
       onClick={handleDismiss}
     >
+      <div className="absolute inset-0 bg-foreground/30 backdrop-blur-sm" />
       <motion.div
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+        {...mobileSheetMotion}
+        transition={mobileSheetTransition}
         onClick={e => e.stopPropagation()}
-        className="w-full max-w-lg rounded-t-3xl bg-card/95 backdrop-blur-xl border-t border-border p-6 pb-8 shadow-2xl"
+        className="relative w-full max-w-lg max-h-[92dvh] overflow-y-auto overscroll-contain rounded-t-3xl border-t border-border bg-card/95 p-6 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] shadow-2xl backdrop-blur-xl"
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-bold text-foreground">Food Value Intelligence</h3>
@@ -119,5 +123,6 @@ export default function PESExplanationCard({ onDismiss }: Props) {
         </motion.button>
       </motion.div>
     </motion.div>
+    , document.body
   );
 }

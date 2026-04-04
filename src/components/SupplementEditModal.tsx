@@ -1,6 +1,8 @@
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Pencil, Trash2 } from 'lucide-react';
 import { SupplementEntry, deleteSupplement } from '@/lib/store';
+import { mobileOverlayMotion, mobileOverlayTransition, mobileSheetMotion, mobileSheetTransition, useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 
 interface Props {
   open: boolean;
@@ -11,37 +13,40 @@ interface Props {
 }
 
 export default function SupplementEditModal({ open, supplement, onClose, onEdit, onDeleted }: Props) {
-  if (!open || !supplement) return null;
+  const isVisible = open && !!supplement;
+
+  useBodyScrollLock(isVisible);
+
+  if (typeof document === 'undefined') return null;
 
   const handleDelete = () => {
+    if (!supplement) return;
     deleteSupplement(supplement.id);
     onDeleted();
     onClose();
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50"
-        onClick={onClose}
-      >
-        <div className="absolute inset-0 bg-foreground/30 backdrop-blur-sm" />
+      {isVisible && supplement && (
         <motion.div
-          initial={{ y: '100%' }}
-          animate={{ y: 0 }}
-          exit={{ y: '100%' }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="absolute inset-x-0 bottom-0 bg-background rounded-t-3xl"
-          onClick={e => e.stopPropagation()}
+          {...mobileOverlayMotion}
+          transition={mobileOverlayTransition}
+          className="fixed inset-0 z-50"
+          onClick={onClose}
         >
+          <div className="absolute inset-0 bg-foreground/30 backdrop-blur-sm" />
+          <motion.div
+            {...mobileSheetMotion}
+            transition={mobileSheetTransition}
+            className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-lg max-h-[92dvh] overflow-y-auto overscroll-contain rounded-t-3xl bg-background shadow-lg"
+            onClick={e => e.stopPropagation()}
+          >
           <div className="flex justify-center pt-3 pb-1">
             <div className="w-10 h-1 rounded-full bg-muted-foreground/20" />
           </div>
 
-          <div className="px-5 pb-8 space-y-4">
+          <div className="px-5 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-bold text-foreground">Supplement Details</h2>
               <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center">
@@ -93,8 +98,10 @@ export default function SupplementEditModal({ open, supplement, onClose, onEdit,
               </button>
             </div>
           </div>
+          </motion.div>
         </motion.div>
-      </motion.div>
+      )}
     </AnimatePresence>
+    , document.body
   );
 }
