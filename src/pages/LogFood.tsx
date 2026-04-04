@@ -806,10 +806,19 @@ export default function LogFood() {
               </div>
             )}
 
-            <button onClick={saveMeal} disabled={validationResult.hasBlocks}
-              className="btn-primary w-full py-3.5 flex items-center justify-center gap-2 disabled:opacity-40">
+            <motion.button
+              onClick={saveMeal}
+              disabled={validationResult.hasBlocks}
+              whileTap={{ scale: 0.95 }}
+              className="btn-primary w-full py-3.5 flex items-center justify-center gap-2 disabled:opacity-40 relative overflow-hidden"
+            >
+              <motion.div
+                animate={{ x: ['-100%', '200%'] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', repeatDelay: 3 }}
+                className="absolute inset-0 w-1/3 bg-gradient-to-r from-transparent via-primary-foreground/10 to-transparent skew-x-12"
+              />
               <Check className="w-4 h-4" /> {validationResult.hasBlocks ? '⚠️ Fix issues first' : 'Save Meal'}
-            </button>
+            </motion.button>
           </>
         )}
       </div>
