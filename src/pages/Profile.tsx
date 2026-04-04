@@ -204,7 +204,7 @@ export default function Profile() {
             <Heart className="w-5 h-5 text-destructive/50" />
           </div>
           <p className="text-[9px] text-muted-foreground mt-2 text-center">Tap to view your Health Card</p>
-        </div>
+        </motion.div>
 
         {/* Active Plan Quick Card */}
         {(() => {
