@@ -32,6 +32,7 @@ export default function GymCheckInCard({ onRefresh }: GymCheckInCardProps) {
   const [intensity, setIntensity] = useState(profile?.gym?.intensity || 'moderate');
   const [actualHour, setActualHour] = useState(getSpecificHourForDate(profile, today) ?? profile?.gym?.specificHour ?? 7);
   const [logged, setLogged] = useState(status.attended !== null);
+  const [showWorkoutLogger, setShowWorkoutLogger] = useState(false);
 
   const estimatedCals = useMemo(
     () => estimateCaloriesBurned(profile?.weightKg || 70, duration, intensity),
