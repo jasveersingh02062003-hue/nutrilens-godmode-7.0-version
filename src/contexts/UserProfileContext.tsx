@@ -49,8 +49,14 @@ const UserProfileContext = createContext<UserProfileContextValue>({
 // Debounced cloud sync
 let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 
+let syncFailCount = 0;
+const MAX_SYNC_FAILURES = 3;
+
 function syncToCloud(profile: UserProfile) {
   if (syncTimeout) clearTimeout(syncTimeout);
+  // Stop retrying after repeated FK / auth failures
+  if (syncFailCount >= MAX_SYNC_FAILURES) return;
+
   syncTimeout = setTimeout(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return;
@@ -58,7 +64,14 @@ function syncToCloud(profile: UserProfile) {
     const row = profileToDbRow(profile, session.user.id);
     const { error } = await supabase.from('profiles').upsert(row as any);
     if (error) {
-      console.error('Profile sync failed:', error);
+      syncFailCount++;
+      if (syncFailCount < MAX_SYNC_FAILURES) {
+        console.warn('Profile sync failed (attempt ' + syncFailCount + '):', error.message);
+      } else {
+        console.error('Profile sync failed permanently after ' + MAX_SYNC_FAILURES + ' attempts. Will stop retrying until next login.');
+      }
+    } else {
+      syncFailCount = 0; // Reset on success
     }
   }, 2000);
 }

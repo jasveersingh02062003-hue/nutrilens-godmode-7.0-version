@@ -9,22 +9,31 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+  recovering: boolean;
 }
 
 export default class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, recovering: false };
   }
 
-  static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
+  static getDerivedStateFromError(error: Error): Partial<State> {
+    // If it's a recoverable module error, mark as recovering (don't show error UI yet)
+    if (isRecoverableModuleError(error)) {
+      return { hasError: true, error, recovering: true };
+    }
+    return { hasError: true, error, recovering: false };
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     if (isRecoverableModuleError(error)) {
-      console.warn('[ErrorBoundary] Recoverable module load error detected, attempting recovery.');
-      if (attemptModuleImportRecovery('error-boundary')) return;
+      console.warn('[ErrorBoundary] Recoverable module load error, attempting auto-recovery.');
+      const recovered = attemptModuleImportRecovery('error-boundary');
+      if (recovered) return; // Page will reload
+      // Max retries exhausted — show error UI
+      this.setState({ recovering: false });
+      return;
     }
 
     console.error('[ErrorBoundary] Uncaught error:', error, info.componentStack);
@@ -36,7 +45,17 @@ export default class ErrorBoundary extends Component<Props, State> {
   };
 
   render() {
-    const isModuleLoadError = this.state.error ? isRecoverableModuleError(this.state.error) : false;
+    // While recovering (auto-reload in progress), show a spinner, not the error
+    if (this.state.recovering) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="text-center space-y-3">
+            <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-sm text-muted-foreground">Updating app files…</p>
+          </div>
+        </div>
+      );
+    }
 
     if (this.state.hasError) {
       return (
@@ -45,13 +64,9 @@ export default class ErrorBoundary extends Component<Props, State> {
             <div className="w-14 h-14 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto">
               <AlertTriangle className="w-7 h-7 text-destructive" />
             </div>
-            <h1 className="text-lg font-bold text-foreground">
-              {isModuleLoadError ? 'Refreshing app files' : 'Something went wrong'}
-            </h1>
+            <h1 className="text-lg font-bold text-foreground">Something went wrong</h1>
             <p className="text-sm text-muted-foreground">
-              {isModuleLoadError
-                ? 'The app detected stale files after an update. It will auto-recover, or you can reload now.'
-                : 'An unexpected error occurred. Please reload the app.'}
+              An unexpected error occurred. Please reload the app.
             </p>
             {this.state.error && (
               <p className="text-xs text-muted-foreground/60 font-mono bg-muted/30 rounded-lg p-2 break-all">
