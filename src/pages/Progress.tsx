@@ -953,7 +953,7 @@ function WeeklySummariesSection() {
                         ))}
                       </div>
                     </div>
-                  )
+                  )}
 
                   {/* Insight */}
                   <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/10">
