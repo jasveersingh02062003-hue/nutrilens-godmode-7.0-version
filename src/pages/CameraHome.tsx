@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Camera, Mic, MicOff, RotateCcw, ImageIcon, Check, X, Plus, Minus, Loader2, AlertTriangle, ChevronUp, IndianRupee, Search, Gift, ArrowLeft, Sparkles, Pencil, ShieldAlert } from 'lucide-react';
 import CostSuggestionBanner from '@/components/CostSuggestionBanner';
 import WeatherNudgeCard from '@/components/WeatherNudgeCard';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { addMealToLog, deleteMealFromLog, getTodayKey, FoodItem, MealEntry, MealSource, MealCost, getProfile, getDailyLog, getDailyTotals, CookingMethod } from '@/lib/store';
 import type { MealSourceCategory } from '@/lib/store';
@@ -69,6 +69,10 @@ export default function CameraHome() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const recognitionRef = useRef<any>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const cameraMountRef = useRef(true);
+  const currentStepRef = useRef<Step>('camera');
+  const cameraRequestRef = useRef(0);
 
   // Core step state
   const [step, setStep] = useState<Step>('camera');
@@ -84,8 +88,11 @@ export default function CameraHome() {
   const [cameraError, setCameraError] = useState(false);
   const [cameraErrorMessage, setCameraErrorMessage] = useState('Allow camera access or use gallery');
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [cameraStarting, setCameraStarting] = useState(false);
+  const [availableCameras, setAvailableCameras] = useState(0);
+  const prefersReducedMotion = useReducedMotion();
 
-  const getCameraErrorMessage = (error: unknown) => {
+  const getCameraErrorMessage = useCallback((error: unknown) => {
     if (typeof window !== 'undefined' && !window.isSecureContext) {
       return 'Camera needs a secure HTTPS connection to work.';
     }
@@ -109,7 +116,41 @@ export default function CameraHome() {
     }
 
     return 'Camera could not start. Try Upload Photo or Manual Entry.';
-  };
+  }, []);
+
+  const refreshAvailableCameras = useCallback(async () => {
+    if (!navigator.mediaDevices?.enumerateDevices) return;
+
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      if (cameraMountRef.current) {
+        setAvailableCameras(devices.filter((device) => device.kind === 'videoinput').length);
+      }
+    } catch {
+      // Device enumeration is best-effort only.
+    }
+  }, []);
+
+  const waitForVideoReady = useCallback((video: HTMLVideoElement) => {
+    return new Promise<void>((resolve) => {
+      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0) {
+        resolve();
+        return;
+      }
+
+      let timeoutId = 0;
+      const handleReady = () => {
+        window.clearTimeout(timeoutId);
+        video.removeEventListener('loadedmetadata', handleReady);
+        video.removeEventListener('canplay', handleReady);
+        resolve();
+      };
+
+      timeoutId = window.setTimeout(handleReady, 2500);
+      video.addEventListener('loadedmetadata', handleReady);
+      video.addEventListener('canplay', handleReady);
+    });
+  }, []);
 
   // Voice
   const [isListening, setIsListening] = useState(false);
@@ -131,27 +172,76 @@ export default function CameraHome() {
     if (urlMeal) setSelectedMealType(urlMeal);
   }, [params]);
 
-  // Start camera
   useEffect(() => {
-    if (step === 'camera') void startCamera();
-    return () => stopCamera();
-  }, [facingMode, step]);
+    currentStepRef.current = step;
+  }, [step]);
 
-  async function startCamera() {
+  useEffect(() => {
+    cameraMountRef.current = true;
+    return () => {
+      cameraMountRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    void refreshAvailableCameras();
+
+    if (!navigator.mediaDevices?.addEventListener) return;
+
+    const handleDeviceChange = () => {
+      void refreshAvailableCameras();
+    };
+
+    navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
+
+    return () => {
+      navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+    };
+  }, [refreshAvailableCameras]);
+
+  // Start camera
+  const stopCamera = useCallback(() => {
+    cameraRequestRef.current += 1;
+
+    const stream = streamRef.current ?? (videoRef.current?.srcObject instanceof MediaStream ? videoRef.current.srcObject : null);
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+    }
+
+    streamRef.current = null;
+
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.srcObject = null;
+    }
+
+    if (cameraMountRef.current) {
+      setCameraStarting(false);
+      setCameraReady(false);
+    }
+  }, []);
+
+  const startCamera = useCallback(async () => {
     stopCamera();
+    const requestId = cameraRequestRef.current;
+
+    setCameraStarting(true);
     setCameraError(false);
     setCameraErrorMessage('Allow camera access or use gallery');
 
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraError(true);
       setCameraReady(false);
+      setCameraStarting(false);
       setCameraErrorMessage(getCameraErrorMessage(null));
       return;
     }
 
+    await refreshAvailableCameras();
+
     const attempts: MediaStreamConstraints[] = [
       { video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
-      { video: { facingMode }, audio: false },
+      { video: { facingMode: { ideal: facingMode } }, audio: false },
       { video: true, audio: false },
     ];
 
@@ -167,35 +257,75 @@ export default function CameraHome() {
       }
     }
 
+    const shouldAbort = !cameraMountRef.current || requestId !== cameraRequestRef.current || currentStepRef.current !== 'camera';
+    if (shouldAbort) {
+      stream?.getTracks().forEach((track) => track.stop());
+      setCameraStarting(false);
+      return;
+    }
+
     if (!stream) {
       setCameraError(true);
       setCameraReady(false);
+      setCameraStarting(false);
       setCameraErrorMessage(getCameraErrorMessage(lastError));
       return;
     }
 
-    if (!videoRef.current) {
+    const videoElement = videoRef.current;
+    if (!videoElement) {
       stream.getTracks().forEach((track) => track.stop());
+      setCameraStarting(false);
       return;
     }
 
-    videoRef.current.srcObject = stream;
-    await videoRef.current.play().catch(() => undefined);
-    setCameraReady(true);
-  }
+    streamRef.current = stream;
+    videoElement.setAttribute('autoplay', '');
+    videoElement.setAttribute('muted', '');
+    videoElement.setAttribute('playsinline', 'true');
+    videoElement.muted = true;
+    videoElement.srcObject = stream;
 
-  function stopCamera() {
-    const stream = videoRef.current?.srcObject;
-    if (stream instanceof MediaStream) {
+    try {
+      await waitForVideoReady(videoElement);
+      await videoElement.play().catch(() => undefined);
+
+      if (!cameraMountRef.current || requestId !== cameraRequestRef.current || currentStepRef.current !== 'camera') {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      if (!videoElement.videoWidth || !videoElement.videoHeight) {
+        stream.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        setCameraError(true);
+        setCameraReady(false);
+        setCameraErrorMessage('Camera started, but preview did not load. Please retry or upload a photo.');
+        return;
+      }
+
+      setCameraError(false);
+      setCameraReady(true);
+    } catch (error) {
       stream.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      setCameraError(true);
+      setCameraReady(false);
+      setCameraErrorMessage(getCameraErrorMessage(error));
+    } finally {
+      if (cameraMountRef.current && requestId === cameraRequestRef.current) {
+        setCameraStarting(false);
+      }
     }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    setCameraReady(false);
-  }
+  }, [facingMode, getCameraErrorMessage, refreshAvailableCameras, stopCamera, waitForVideoReady]);
+
+  useEffect(() => {
+    if (step === 'camera') void startCamera();
+    return () => stopCamera();
+  }, [startCamera, step, stopCamera]);
 
   const flipCamera = () => {
+    if (cameraStarting || availableCameras === 1) return;
     setFacingMode(f => f === 'environment' ? 'user' : 'environment');
   };
 
@@ -623,29 +753,38 @@ export default function CameraHome() {
           <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
         </div>
 
+        {cameraStarting && !cameraError && (
+          <div className="absolute inset-0 z-[4] flex items-center justify-center pointer-events-none">
+            <div className="px-4 py-2 rounded-2xl bg-foreground/50 backdrop-blur-md border border-primary-foreground/10 flex items-center gap-2">
+              <Loader2 className="w-4 h-4 text-primary-foreground animate-spin" />
+              <span className="text-primary-foreground text-sm font-medium">Starting camera…</span>
+            </div>
+          </div>
+        )}
+
         {/* Animated scan corners */}
-        {cameraReady && !analyzing && !isListening && (
+        {cameraReady && !cameraStarting && !analyzing && !isListening && (
           <div className="absolute inset-0 z-[5] pointer-events-none flex items-center justify-center">
             <div className="relative w-64 h-64">
               {/* Top-left corner */}
-              <motion.div className="absolute top-0 left-0 w-10 h-10 border-t-2 border-l-2 border-primary rounded-tl-lg animate-corner-pulse" 
-                initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} style={{ boxShadow: '0 0 12px hsl(var(--primary) / 0.3)' }} />
+              <div className="absolute top-0 left-0 w-10 h-10 border-t-2 border-l-2 border-primary rounded-tl-lg" style={{ boxShadow: '0 0 12px hsl(var(--primary) / 0.3)' }} />
               {/* Top-right corner */}
-              <motion.div className="absolute top-0 right-0 w-10 h-10 border-t-2 border-r-2 border-primary rounded-tr-lg animate-corner-pulse"
-                initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }} style={{ boxShadow: '0 0 12px hsl(var(--primary) / 0.3)' }} />
+              <div className="absolute top-0 right-0 w-10 h-10 border-t-2 border-r-2 border-primary rounded-tr-lg" style={{ boxShadow: '0 0 12px hsl(var(--primary) / 0.3)' }} />
               {/* Bottom-left corner */}
-              <motion.div className="absolute bottom-0 left-0 w-10 h-10 border-b-2 border-l-2 border-primary rounded-bl-lg animate-corner-pulse"
-                initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }} style={{ boxShadow: '0 0 12px hsl(var(--primary) / 0.3)' }} />
+              <div className="absolute bottom-0 left-0 w-10 h-10 border-b-2 border-l-2 border-primary rounded-bl-lg" style={{ boxShadow: '0 0 12px hsl(var(--primary) / 0.3)' }} />
               {/* Bottom-right corner */}
-              <motion.div className="absolute bottom-0 right-0 w-10 h-10 border-b-2 border-r-2 border-primary rounded-br-lg animate-corner-pulse"
-                initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }} style={{ boxShadow: '0 0 12px hsl(var(--primary) / 0.3)' }} />
+              <div className="absolute bottom-0 right-0 w-10 h-10 border-b-2 border-r-2 border-primary rounded-br-lg" style={{ boxShadow: '0 0 12px hsl(var(--primary) / 0.3)' }} />
               {/* Scan line */}
-              <motion.div
-                className="absolute left-1 right-1 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent"
-                animate={{ top: ['0%', '100%', '0%'] }}
-                transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
-                style={{ boxShadow: '0 0 8px hsl(var(--primary) / 0.5)' }}
-              />
+              {prefersReducedMotion ? (
+                <div className="absolute left-1 right-1 top-1/2 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent" style={{ boxShadow: '0 0 8px hsl(var(--primary) / 0.5)' }} />
+              ) : (
+                <motion.div
+                  className="absolute left-1 right-1 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent"
+                  animate={{ top: ['0%', '100%', '0%'] }}
+                  transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
+                  style={{ boxShadow: '0 0 8px hsl(var(--primary) / 0.5)' }}
+                />
+              )}
             </div>
           </div>
         )}
@@ -715,7 +854,8 @@ export default function CameraHome() {
               <span className="text-sm font-bold text-primary-foreground">{(profile?.name || 'U')[0].toUpperCase()}</span>
             </button>
             <button onClick={flipCamera}
-              className="w-10 h-10 rounded-xl bg-primary-foreground/10 backdrop-blur-md flex items-center justify-center active:scale-90 transition-transform">
+              disabled={cameraStarting || availableCameras === 1}
+              className="w-10 h-10 rounded-xl bg-primary-foreground/10 backdrop-blur-md flex items-center justify-center active:scale-90 transition-transform disabled:opacity-40 disabled:pointer-events-none">
               <RotateCcw className="w-4 h-4 text-primary-foreground" />
             </button>
           </div>
@@ -735,11 +875,11 @@ export default function CameraHome() {
             <div className="flex justify-center mb-4">
               <motion.div
                 className="px-4 py-2 rounded-2xl bg-primary-foreground/10 backdrop-blur-md border border-primary-foreground/10"
-                animate={remaining < 300 ? { boxShadow: ['0 0 0 0 hsl(var(--primary) / 0)', '0 0 12px 2px hsl(var(--primary) / 0.3)', '0 0 0 0 hsl(var(--primary) / 0)'] } : {}}
-                transition={remaining < 300 ? { repeat: Infinity, duration: 2 } : {}}
+                animate={remaining < 300 && !prefersReducedMotion ? { boxShadow: ['0 0 0 0 hsl(var(--primary) / 0)', '0 0 12px 2px hsl(var(--primary) / 0.3)', '0 0 0 0 hsl(var(--primary) / 0)'] } : {}}
+                transition={remaining < 300 && !prefersReducedMotion ? { repeat: Infinity, duration: 2 } : {}}
               >
                 <span className="text-primary-foreground/80 text-xs font-medium">
-                  {remaining > 0 ? `${remaining} kcal remaining today` : 'Goal reached! 🎉'}
+                  {cameraStarting ? 'Starting camera…' : remaining > 0 ? `${remaining} kcal remaining today` : 'Goal reached! 🎉'}
                 </span>
               </motion.div>
             </div>
@@ -753,11 +893,14 @@ export default function CameraHome() {
               </motion.button>
 
               {/* Capture button */}
-              <motion.button onClick={captureAndAnalyze} whileTap={{ scale: 0.9 }}
-                className="relative w-[72px] h-[72px] rounded-full border-4 border-primary-foreground/40 flex items-center justify-center">
-                <motion.div className="absolute inset-[-6px] rounded-full border-2 border-primary/50"
-                  animate={{ scale: [1, 1.15, 1], opacity: [0.6, 0, 0.6] }}
-                  transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }} />
+              <motion.button onClick={captureAndAnalyze} whileTap={cameraReady && !cameraStarting ? { scale: 0.9 } : undefined}
+                disabled={!cameraReady || cameraStarting}
+                className="relative w-[72px] h-[72px] rounded-full border-4 border-primary-foreground/40 flex items-center justify-center disabled:opacity-60 disabled:pointer-events-none">
+                {!prefersReducedMotion && cameraReady && !cameraStarting && (
+                  <motion.div className="absolute inset-[-6px] rounded-full border-2 border-primary/50"
+                    animate={{ scale: [1, 1.15, 1], opacity: [0.6, 0, 0.6] }}
+                    transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }} />
+                )}
                 <div className="w-[58px] h-[58px] rounded-full bg-primary-foreground" />
               </motion.button>
 
