@@ -1,7 +1,8 @@
 import { scopedGet, scopedSet } from '@/lib/scoped-storage';
+import { isGymDay, markRestDay, unmarkRestDay, isRestDay } from '@/lib/gym-service';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ChefHat, CalendarDays, ArrowLeft, ArrowRight, Check, ShoppingCart, Repeat, X, Search, Target, Scale, Crown, Lock, Zap } from 'lucide-react';
+import { Sparkles, ChefHat, CalendarDays, ArrowLeft, ArrowRight, Check, ShoppingCart, Repeat, X, Search, Target, Scale, Crown, Lock, Zap, Dumbbell } from 'lucide-react';
 import { isPremium } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
@@ -42,6 +43,61 @@ function formatDate(dateStr: string): string {
   if (dateStr === today) return `Today, ${monthDay}`;
   if (dateStr === tomorrow) return `Tomorrow, ${monthDay}`;
   return `${dayName}, ${monthDay}`;
+}
+
+function RestDayToggle() {
+  const profile = getUserProfile();
+  const [, forceUpdate] = useState(0);
+
+  if (!profile?.gym?.goer) return null;
+
+  // Show toggle for tomorrow if it's a scheduled gym day
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+  const dayName = tomorrow.toLocaleDateString('en-US', { weekday: 'long' });
+
+  // Check if tomorrow is a gym day (ignoring rest day override to show toggle)
+  const schedule = profile.gym.schedule || [];
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const tomorrowDayName = dayNames[tomorrow.getDay()];
+  const isWeekend = tomorrow.getDay() === 0 || tomorrow.getDay() === 6;
+  const weekendSchedule = profile.gym.weekendSchedule;
+  const isScheduled = (isWeekend && weekendSchedule?.length) ? weekendSchedule.includes(tomorrowDayName) : schedule.includes(tomorrowDayName);
+
+  if (!isScheduled) return null;
+
+  const isRest = isRestDay(tomorrowStr);
+
+  const handleToggle = () => {
+    if (isRest) {
+      unmarkRestDay(tomorrowStr);
+    } else {
+      markRestDay(tomorrowStr);
+    }
+    forceUpdate(k => k + 1);
+  };
+
+  return (
+    <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border mb-3">
+      <div className="flex items-center gap-2">
+        <Dumbbell className="w-3.5 h-3.5 text-muted-foreground" />
+        <span className="text-xs text-foreground">
+          {dayName}: {isRest ? 'Rest day' : 'Gym day'}
+        </span>
+      </div>
+      <button
+        onClick={handleToggle}
+        className={`px-3 py-1 rounded-lg text-[10px] font-semibold transition-colors ${
+          isRest
+            ? 'bg-muted text-muted-foreground'
+            : 'bg-destructive/10 text-destructive'
+        }`}
+      >
+        {isRest ? 'Undo Rest Day' : 'Mark Rest Day'}
+      </button>
+    </div>
+  );
 }
 
 export default function MealPlanner() {
@@ -352,6 +408,7 @@ export default function MealPlanner() {
             <span className="text-lg">{planMeta.emoji}</span>
           </motion.div>
         )}
+        <RestDayToggle />
         <MealPlanDashboard plan={plan} profile={profile} onRegenerate={handleRegenerate} onSwapMeal={handleSwapMeal} onMarkCooked={handleMarkCooked} />
       </>
     );

@@ -6,6 +6,7 @@ import { isGymDay, getGymCheckInStatus, saveGymCheckIn, estimateCaloriesBurned, 
 import { shouldShowCheckIn, getGymMissedAdjustment, getLowSleepTip, getSleepDuration } from '@/lib/gym-meal-engine';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
+import WorkoutLogger from '@/components/WorkoutLogger';
 
 interface GymCheckInCardProps {
   onRefresh?: () => void;
@@ -31,6 +32,7 @@ export default function GymCheckInCard({ onRefresh }: GymCheckInCardProps) {
   const [intensity, setIntensity] = useState(profile?.gym?.intensity || 'moderate');
   const [actualHour, setActualHour] = useState(getSpecificHourForDate(profile, today) ?? profile?.gym?.specificHour ?? 7);
   const [logged, setLogged] = useState(status.attended !== null);
+  const [showWorkoutLogger, setShowWorkoutLogger] = useState(false);
 
   const estimatedCals = useMemo(
     () => estimateCaloriesBurned(profile?.weightKg || 70, duration, intensity),
@@ -41,7 +43,29 @@ export default function GymCheckInCard({ onRefresh }: GymCheckInCardProps) {
   const sleepHours = useMemo(() => getSleepDuration(profile), [profile]);
   const isLowSleep = sleepHours != null && sleepHours < 6;
 
-  if (!profile?.gym?.goer || !isGymDay(profile, today) || logged || dismissed) return null;
+  if (!profile?.gym?.goer || !isGymDay(profile, today) || dismissed) return null;
+  if (logged && !showWorkoutLogger) {
+    // Show "Log your lifts" prompt after check-in
+    const gymLog = getDailyLog(today).gym;
+    if (gymLog?.attended && !gymLog?.workouts?.length) {
+      return (
+        <>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="card-elevated p-3 flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">🏋️ Want to log your lifts?</p>
+            <div className="flex gap-2">
+              <button onClick={() => setShowWorkoutLogger(true)} className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-semibold">Log Lifts</button>
+              <button onClick={() => setDismissed(true)} className="text-muted-foreground"><X className="w-3.5 h-3.5" /></button>
+            </div>
+          </motion.div>
+          <WorkoutLogger open={false} onClose={() => {}} />
+        </>
+      );
+    }
+    return null;
+  }
+  if (logged) {
+    return <WorkoutLogger open={showWorkoutLogger} onClose={() => { setShowWorkoutLogger(false); setDismissed(true); }} />;
+  }
   if (snoozed) return null;
 
   const handleYes = () => {

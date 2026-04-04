@@ -32,6 +32,7 @@ import BloodReportCard from '@/components/BloodReportCard';
 import BloodReportSheet from '@/components/BloodReportSheet';
 import IdentityBadgesCard from '@/components/IdentityBadgesCard';
 import GymProgressSection from '@/components/GymProgressSection';
+import GymPDFExport from '@/components/GymPDFExport';
 import SupplementConsistencySection from '@/components/SupplementConsistencySection';
 import EnergyTrendCard from '@/components/EnergyTrendCard';
 import { getMonthlySavings } from '@/lib/budget-impact';
@@ -88,6 +89,70 @@ const balanceCellColors: Record<DayBalance, string> = {
   'future-reduced': 'bg-muted/50 text-muted-foreground border-border',
   'future-recovery': 'bg-muted/50 text-muted-foreground border-border',
 };
+
+function StrengthProgressChart() {
+  const data = useMemo(() => {
+    const today = new Date();
+    const exerciseMap: Record<string, { date: string; maxWeight: number }[]> = {};
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = toLocalDateKey(d);
+      const log = getDailyLog(dateStr);
+      if (log.gym?.workouts?.length) {
+        for (const w of log.gym.workouts) {
+          if (!exerciseMap[w.exercise]) exerciseMap[w.exercise] = [];
+          exerciseMap[w.exercise].push({ date: dateStr, maxWeight: w.weight });
+        }
+      }
+    }
+    return exerciseMap;
+  }, []);
+
+  const exercises = Object.keys(data);
+  if (exercises.length === 0) return null;
+
+  return (
+    <div className="card-elevated p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <TrendingUp className="w-4 h-4 text-primary" />
+        <h3 className="font-semibold text-sm text-foreground">Strength Progress</h3>
+      </div>
+      {exercises.slice(0, 5).map(exercise => {
+        const points = data[exercise];
+        if (points.length < 2) return null;
+        const maxW = Math.max(...points.map(p => p.maxWeight));
+        const minW = Math.min(...points.map(p => p.maxWeight));
+        const range = maxW - minW || 1;
+        const change = points[points.length - 1].maxWeight - points[0].maxWeight;
+
+        return (
+          <div key={exercise} className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-foreground">{exercise}</span>
+              <span className={`text-[10px] font-bold ${change > 0 ? 'text-primary' : change < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {change > 0 ? '+' : ''}{change}kg
+              </span>
+            </div>
+            <div className="flex items-end gap-px h-8">
+              {points.map((p, i) => {
+                const h = ((p.maxWeight - minW) / range) * 100 || 20;
+                return (
+                  <div
+                    key={i}
+                    className="flex-1 bg-primary/60 rounded-t-sm min-h-[2px]"
+                    style={{ height: `${Math.max(10, h)}%` }}
+                    title={`${p.date}: ${p.maxWeight}kg`}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function ProgressPage() {
   const [monthOffset, setMonthOffset] = useState(0);
@@ -369,7 +434,17 @@ export default function ProgressPage() {
         <MonthlySavingsCard />
 
         {/* Gym Progress */}
-        {profile?.gym?.goer && <GymProgressSection />}
+        {profile?.gym?.goer && (
+          <>
+            <GymProgressSection />
+            <div className="flex justify-end">
+              <GymPDFExport />
+            </div>
+          </>
+        )}
+
+        {/* Strength Progress */}
+        {profile?.gym?.goer && <StrengthProgressChart />}
 
         {/* Energy Trends */}
         <EnergyTrendCard refreshKey={refreshKey} />

@@ -1,7 +1,9 @@
-import React, { useMemo } from 'react';
-import { Dumbbell, Flame } from 'lucide-react';
+import React, { useMemo, useRef, useState } from 'react';
+import { Dumbbell, Flame, Share2 } from 'lucide-react';
 import { getProfile, toLocalDateKey, getDailyLog } from '@/lib/store';
 import { getWeeklyConsistency } from '@/lib/gym-service';
+import html2canvas from 'html2canvas';
+import { toast } from 'sonner';
 
 interface GymConsistencyCardProps {
   onLogWorkout?: () => void;
@@ -9,6 +11,8 @@ interface GymConsistencyCardProps {
 
 const GymConsistencyCard = React.memo(function GymConsistencyCard({ onLogWorkout }: GymConsistencyCardProps) {
   const profile = getProfile();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [sharing, setSharing] = useState(false);
 
   const stats = useMemo(() => {
     if (!profile?.gym?.goer) return null;
@@ -17,7 +21,6 @@ const GymConsistencyCard = React.memo(function GymConsistencyCard({ onLogWorkout
     const todayStr = toLocalDateKey(today);
     const planned = profile.gym.daysPerWeek || 3;
     
-    // Count attended this week (last 7 days)
     let attended = 0;
     for (let i = 0; i < 7; i++) {
       const d = new Date(today);
@@ -43,8 +46,35 @@ const GymConsistencyCard = React.memo(function GymConsistencyCard({ onLogWorkout
 
   const ringPct = Math.min(100, (stats.attended / stats.planned) * 100);
 
+  const handleShare = async () => {
+    if (!cardRef.current) return;
+    setSharing(true);
+    try {
+      const canvas = await html2canvas(cardRef.current, { backgroundColor: null, scale: 2 });
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
+      if (!blob) throw new Error('Failed to capture');
+
+      if (navigator.share && navigator.canShare?.({ files: [new File([blob], 'gym-streak.png', { type: 'image/png' })] })) {
+        await navigator.share({
+          title: 'My Gym Streak 💪',
+          text: `${stats.currentStreak} day streak! ${stats.consistencyPct}% consistent this week.`,
+          files: [new File([blob], 'gym-streak.png', { type: 'image/png' })],
+        });
+      } else {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        toast.success('📋 Streak image copied to clipboard!');
+      }
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        toast.error('Could not share');
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
+
   return (
-    <div className="card-elevated p-4">
+    <div ref={cardRef} className="card-elevated p-4">
       <div className="flex items-center gap-3">
         {/* Mini progress ring */}
         <div className="relative w-12 h-12 shrink-0">
@@ -78,14 +108,25 @@ const GymConsistencyCard = React.memo(function GymConsistencyCard({ onLogWorkout
           </div>
         </div>
 
-        {onLogWorkout && (
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
-            onClick={onLogWorkout}
-            className="shrink-0 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-semibold"
+            onClick={handleShare}
+            disabled={sharing}
+            className="p-1.5 rounded-lg bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            title="Share streak"
           >
-            Log
+            <Share2 className="w-3.5 h-3.5" />
           </button>
-        )}
+
+          {onLogWorkout && (
+            <button
+              onClick={onLogWorkout}
+              className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-semibold"
+            >
+              Log
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
