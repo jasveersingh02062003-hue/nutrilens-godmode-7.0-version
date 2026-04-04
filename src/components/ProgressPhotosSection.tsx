@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, Image as ImageIcon, X, Plus, Trash2, AlertTriangle, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { mobileOverlayMotion, mobileOverlayTransition, mobileSheetMotion, mobileSheetTransition, useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import { addProgressPhoto, getProgressPhotos, deleteProgressPhoto, fileToDataUrl } from '@/lib/photo-store';
 import { watermarkImage } from '@/lib/photo-watermark';
 import { getTodayKey } from '@/lib/store';
