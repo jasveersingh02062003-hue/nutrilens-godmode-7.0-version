@@ -43,6 +43,7 @@ export default function Profile() {
   const [showHelp, setShowHelp] = useState(false);
   const [showHealthCard, setShowHealthCard] = useState(false);
   const [showSkinConcerns, setShowSkinConcerns] = useState(false);
+  const [showGymSettings, setShowGymSettings] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [trackingModeState, setTrackingModeState] = useState<TrackingMode>(getTrackingMode());
   const [currentPlan, setCurrentPlan] = useState<Plan>(() => { checkAndExpireTrial(); return getPlan(); });
