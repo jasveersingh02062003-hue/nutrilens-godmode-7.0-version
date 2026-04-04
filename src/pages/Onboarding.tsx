@@ -1871,16 +1871,42 @@ export default function Onboarding() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="px-6 pt-4 pb-2">
-        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-          <motion.div className="h-full bg-primary rounded-full" animate={{ width: `${progress}%` }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }} />
+    <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
+      {/* Animated ambient background for the wizard */}
+      <motion.div
+        className="absolute inset-0 pointer-events-none"
+        animate={{
+          background: [
+            'radial-gradient(ellipse 50% 30% at 20% 20%, hsl(var(--primary) / 0.04) 0%, transparent 70%)',
+            'radial-gradient(ellipse 50% 30% at 80% 80%, hsl(var(--primary) / 0.04) 0%, transparent 70%)',
+            'radial-gradient(ellipse 50% 30% at 20% 20%, hsl(var(--primary) / 0.04) 0%, transparent 70%)',
+          ],
+        }}
+        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+      />
+
+      {/* Premium progress bar */}
+      <div className="px-6 pt-4 pb-2 relative z-10">
+        <div className="relative h-[4px] rounded-full bg-muted overflow-hidden">
+          <motion.div
+            className="h-full rounded-full"
+            style={{ background: 'linear-gradient(90deg, hsl(var(--primary)), hsl(var(--secondary)))' }}
+            animate={{ width: `${progress}%` }}
+            transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+          />
+          <motion.div
+            animate={{ x: ['-100%', '300%'] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', repeatDelay: 1.5 }}
+            className="absolute top-0 h-full w-1/4 bg-gradient-to-r from-transparent via-primary-foreground/15 to-transparent"
+          />
         </div>
-        <p className="text-[10px] text-muted-foreground mt-1.5 text-right font-mono">{Math.round(progress)}%</p>
+        <div className="flex justify-between items-center mt-2">
+          <p className="text-[10px] text-muted-foreground font-medium">Step {currentVisibleIdx + 1} of {visibleSteps.length}</p>
+          <p className="text-[10px] text-muted-foreground font-mono font-medium">{Math.round(progress)}%</p>
+        </div>
       </div>
 
-      <div className="flex-1 max-w-lg mx-auto w-full px-6 py-4 overflow-y-auto">
+      <div className="flex-1 max-w-lg mx-auto w-full px-6 py-4 overflow-y-auto relative z-10">
         {(() => {
           const STEP_MONIKA_KEY: Record<number, string> = {
             0: 'name', 1: 'gender', 2: 'dob', 3: 'measurements', 4: 'measurements',
@@ -1902,26 +1928,34 @@ export default function Onboarding() {
         </AnimatePresence>
       </div>
 
+      {/* Bottom action bar with glassmorphism */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-        className="max-w-lg mx-auto w-full px-6 pb-6 flex gap-3">
+        className="max-w-lg mx-auto w-full px-6 pb-6 flex gap-3 relative z-10">
         {currentVisibleIdx > 0 && editReturnStep === null && (
-          <motion.button whileTap={{ scale: 0.95 }} onClick={goBack}
-            className="px-4 py-3.5 rounded-full bg-card border border-border font-semibold text-sm hover:bg-muted transition-colors">
+          <motion.button whileTap={{ scale: 0.93 }} onClick={goBack}
+            className="px-4 py-3.5 rounded-full bg-card border border-border font-semibold text-sm hover:bg-muted transition-all active:scale-95">
             <ArrowLeft className="w-5 h-5" />
           </motion.button>
         )}
         {editReturnStep !== null && (
-          <motion.button whileTap={{ scale: 0.95 }} onClick={handleEditDone}
-            className="px-4 py-3.5 rounded-full bg-card border border-border font-semibold text-sm hover:bg-muted transition-colors">
+          <motion.button whileTap={{ scale: 0.93 }} onClick={handleEditDone}
+            className="px-4 py-3.5 rounded-full bg-card border border-border font-semibold text-sm hover:bg-muted transition-all active:scale-95">
             <ArrowLeft className="w-5 h-5" />
           </motion.button>
         )}
-        <motion.button whileTap={{ scale: 0.98 }}
+        <motion.button whileTap={{ scale: 0.97 }}
           onClick={isFinishStep ? handleFinish : goNext}
           disabled={!canContinue()}
-          className={`flex-1 py-3.5 rounded-full font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200 ${
-            canContinue() ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground cursor-not-allowed'
+          className={`flex-1 py-3.5 rounded-full font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200 relative overflow-hidden ${
+            canContinue() ? 'bg-primary text-primary-foreground shadow-fab' : 'bg-muted text-muted-foreground cursor-not-allowed'
           }`}>
+          {canContinue() && (
+            <motion.div
+              animate={{ x: ['-100%', '200%'] }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', repeatDelay: 2 }}
+              className="absolute inset-0 w-1/3 bg-gradient-to-r from-transparent via-primary-foreground/10 to-transparent skew-x-12"
+            />
+          )}
           {buttonLabel}
         </motion.button>
       </motion.div>
