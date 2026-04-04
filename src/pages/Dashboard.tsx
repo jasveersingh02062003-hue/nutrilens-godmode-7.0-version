@@ -192,10 +192,13 @@ export default function Dashboard() {
           <CalorieRing dayState={d.dayState} proteinRemaining={Math.round(Math.max(0, getProteinTarget(d.profile) - d.totals.protein))} />
         </div>
 
-        {/* Gym Cards */}
+        {/* Gym Intelligence Cards */}
         {d.profile?.gym?.goer && (
           <>
-            <div className="animate-fade-in"><GymCheckInCard /></div>
+            <div className="animate-fade-in"><PreWorkoutCard /></div>
+            <div className="animate-fade-in"><GymCheckInCard onRefresh={d.refreshLog} /></div>
+            <div className="animate-fade-in"><PostWorkoutCard /></div>
+            <div className="animate-fade-in"><EnergyTracker onRefresh={d.refreshLog} /></div>
             <div className="animate-fade-in"><GymConsistencyCard /></div>
             <div className="animate-fade-in"><GymUpsellCard /></div>
           </>
