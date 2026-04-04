@@ -23,7 +23,10 @@ export default function FullScreenMemory({ open, date, mealId, onClose, onChange
   const [editingCaption, setEditingCaption] = useState(false);
   const [captionDraft, setCaptionDraft] = useState('');
 
+  useBodyScrollLock(open);
+
   if (!open) return null;
+  if (typeof document === 'undefined') return null;
 
   const log = getDailyLog(date);
   const mealsWithPhotos = log.meals.filter(m => m.photo);
