@@ -35,7 +35,7 @@ export default function MarketHeroSection({ bestValue, biggestDrop, city, onTap 
 
   // Slide 1: Best Value Today
   if (bestValue) {
-    slides.push({
+    s.push({
       id: 'best-value',
       content: (
         <motion.button
@@ -72,7 +72,7 @@ export default function MarketHeroSection({ bestValue, biggestDrop, city, onTap 
 
   // Slide 2: Price Drop Alert
   if (biggestDrop && biggestDrop.priceChange && biggestDrop.priceChange < 0) {
-    slides.push({
+    s.push({
       id: 'price-drop',
       content: (
         <motion.button
@@ -103,7 +103,7 @@ export default function MarketHeroSection({ bestValue, biggestDrop, city, onTap 
 
   // Slide 3: Budget Challenge
   if (bestValue) {
-    slides.push({
+    s.push({
       id: 'budget-challenge',
       content: (
         <motion.button
@@ -124,6 +124,8 @@ export default function MarketHeroSection({ bestValue, biggestDrop, city, onTap 
         </motion.button>
       ),
     });
+  }
+
   return s;
   }, [bestValue, biggestDrop, city, onTap]);
 
