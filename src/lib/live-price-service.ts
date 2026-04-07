@@ -1,6 +1,6 @@
 import { scopedGet, scopedSet } from "./scoped-storage";
 // ─── Live Price Service ───
-// Hybrid price resolution: crowdsource → firecrawl cache → static fallback
+// Hybrid price resolution: crowdsource → firecrawl cache → static fallback → stale fallback
 
 import { supabase } from '@/integrations/supabase/client';
 import { findPrice } from './price-database';
@@ -8,10 +8,11 @@ import { findPrice } from './price-database';
 export interface LivePrice {
   price: number;
   unit: string;
-  source: 'community' | 'firecrawl' | 'static';
+  source: 'community' | 'firecrawl' | 'static' | 'stale';
   reportCount?: number;
   city?: string;
   updatedAt?: string;
+  isStale?: boolean;
 }
 
 const PRICE_CACHE = new Map<string, { data: LivePrice; ts: number }>();
@@ -29,30 +30,42 @@ export async function getLivePrice(itemName: string, city?: string): Promise<Liv
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-  // Step 1: Check community reports (today, this city, 3+ reports = reliable)
+  // Step 1: Check community reports (today, this city, 3+ reports from 3+ distinct users)
   try {
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const { data: reports } = await supabase
       .from('price_reports')
-      .select('price_per_unit')
+      .select('price_per_unit, user_id')
       .eq('city', userCity)
       .ilike('item_name', `%${itemName}%`)
-      .gte('reported_at', `${today}T00:00:00`)
+      .gte('reported_at', sevenDaysAgo)
       .order('reported_at', { ascending: false })
-      .limit(20);
+      .limit(50);
 
     if (reports && reports.length >= 3) {
-      const prices = reports.map(r => Number(r.price_per_unit)).sort((a, b) => a - b);
-      const median = prices[Math.floor(prices.length / 2)];
-      const result: LivePrice = {
-        price: median,
-        unit: 'kg',
-        source: 'community',
-        reportCount: reports.length,
-        city: userCity,
-        updatedAt: today,
-      };
-      PRICE_CACHE.set(cacheKey, { data: result, ts: Date.now() });
-      return result;
+      // Require 3+ distinct users
+      const distinctUsers = new Set(reports.map(r => r.user_id));
+      if (distinctUsers.size >= 3) {
+        const prices = reports.map(r => Number(r.price_per_unit)).sort((a, b) => a - b);
+        const median = prices[Math.floor(prices.length / 2)];
+        
+        // Outlier rejection: exclude reports >50% away from median
+        const validPrices = prices.filter(p => Math.abs(p - median) / median <= 0.5);
+        const finalMedian = validPrices.length > 0
+          ? validPrices[Math.floor(validPrices.length / 2)]
+          : median;
+
+        const result: LivePrice = {
+          price: finalMedian,
+          unit: 'kg',
+          source: 'community',
+          reportCount: validPrices.length,
+          city: userCity,
+          updatedAt: now.toISOString(),
+        };
+        PRICE_CACHE.set(cacheKey, { data: result, ts: Date.now() });
+        return result;
+      }
     }
   } catch (e) {
     console.warn('Community price check failed:', e);
@@ -87,7 +100,38 @@ export async function getLivePrice(itemName: string, city?: string): Promise<Liv
   }
 
   // Step 3: Static fallback
-  return getStaticPrice(itemName);
+  const staticPrice = getStaticPrice(itemName);
+  if (staticPrice) return staticPrice;
+
+  // Step 4: Stale fallback — last known price regardless of date
+  try {
+    const { data: stalePrice } = await supabase
+      .from('city_prices')
+      .select('*')
+      .eq('city', userCity)
+      .ilike('item_name', `%${itemName}%`)
+      .order('price_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (stalePrice) {
+      const result: LivePrice = {
+        price: Number(stalePrice.avg_price),
+        unit: 'kg',
+        source: 'stale',
+        reportCount: stalePrice.report_count || 0,
+        city: userCity,
+        updatedAt: stalePrice.updated_at,
+        isStale: true,
+      };
+      PRICE_CACHE.set(cacheKey, { data: result, ts: Date.now() });
+      return result;
+    }
+  } catch (e) {
+    console.warn('Stale price fallback failed:', e);
+  }
+
+  return null;
 }
 
 function getStaticPrice(itemName: string): LivePrice | null {
