@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Camera, Mic, MicOff, RotateCcw, ImageIcon, Check, X, Plus, Minus, Loader2, AlertTriangle, ChevronUp, IndianRupee, Search, Gift, ArrowLeft, Sparkles, Pencil, ShieldAlert } from 'lucide-react';
+import { Camera, Mic, MicOff, RotateCcw, ImageIcon, Check, X, Plus, Minus, Loader2, AlertTriangle, ChevronUp, IndianRupee, Search, Gift, ArrowLeft, Sparkles, Pencil, ShieldAlert, TrendingDown } from 'lucide-react';
 import CostSuggestionBanner from '@/components/CostSuggestionBanner';
 import WeatherNudgeCard from '@/components/WeatherNudgeCard';
 import BottomNav from '@/components/BottomNav';
