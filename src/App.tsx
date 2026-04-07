@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import BottomNav from "./components/BottomNav";
+import MarketBottomNav from "./components/MarketBottomNav";
 import { getProfile } from "./lib/store";
 import { getNotificationSettings, startNotificationScheduler, stopNotificationScheduler } from "./lib/notifications";
 import { UserProfileProvider, useUserProfile } from "./contexts/UserProfileContext";
@@ -46,6 +47,10 @@ const preloadFoodArchive = () => import("./pages/FoodArchive");
 const preloadQuickLog = () => import("./pages/QuickLog");
 const preloadNotFound = () => import("./pages/NotFound");
 const preloadMarket = () => import("./pages/Market");
+const preloadMarketCategories = () => import("./pages/MarketCategories");
+const preloadMarketDeals = () => import("./pages/MarketDeals");
+const preloadMarketCompare = () => import("./pages/MarketCompare");
+const preloadMarketList = () => import("./pages/MarketList");
 
 const CameraHome = lazyWithRetry(preloadCameraHome, "camera-home");
 const Dashboard = lazyWithRetry(preloadDashboard, "dashboard");
@@ -60,6 +65,10 @@ const FoodArchive = lazyWithRetry(preloadFoodArchive, "food-archive");
 const QuickLog = lazyWithRetry(preloadQuickLog, "quick-log");
 const NotFound = lazyWithRetry(preloadNotFound, "not-found");
 const Market = lazyWithRetry(preloadMarket, "market");
+const MarketCategories = lazyWithRetry(preloadMarketCategories, "market-categories");
+const MarketDeals = lazyWithRetry(preloadMarketDeals, "market-deals");
+const MarketCompare = lazyWithRetry(preloadMarketCompare, "market-compare");
+const MarketList = lazyWithRetry(preloadMarketList, "market-list");
 
 const queryClient = new QueryClient();
 
@@ -149,11 +158,16 @@ function AppLayout() {
         <Route path="/pantry" element={<ProtectedRoute><PageTransition><Pantry /></PageTransition></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><Profile /></div></PageTransition></ProtectedRoute>} />
         <Route path="/market" element={<ProtectedRoute><PageTransition><Market /></PageTransition></ProtectedRoute>} />
+        <Route path="/market/categories" element={<ProtectedRoute><PageTransition><MarketCategories /></PageTransition></ProtectedRoute>} />
+        <Route path="/market/deals" element={<ProtectedRoute><PageTransition><MarketDeals /></PageTransition></ProtectedRoute>} />
+        <Route path="/market/compare" element={<ProtectedRoute><PageTransition><MarketCompare /></PageTransition></ProtectedRoute>} />
+        <Route path="/market/list" element={<ProtectedRoute><PageTransition><MarketList /></PageTransition></ProtectedRoute>} />
         <Route path="/quicklog" element={<ProtectedRoute><PageTransition><QuickLog /></PageTransition></ProtectedRoute>} />
         <Route path="/camera" element={<Navigate to="/" replace />} />
         <Route path="*" element={<Suspense fallback={<PageLoader />}><PageTransition><NotFound /></PageTransition></Suspense>} />
       </Routes>
       {!hideNav && <BottomNav />}
+      <MarketBottomNav />
     </>
   );
 }
