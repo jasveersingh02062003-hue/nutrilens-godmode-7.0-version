@@ -1,202 +1,94 @@
 
 
-# Smart Market — Full UI/UX Overhaul Implementation Plan
+# Smart Market — Gap Analysis Fix Plan
 
-## What We're Building
+## Current State Assessment
 
-A complete visual and functional transformation of all 5 Smart Market tabs — inspired by Amazon/Flipkart's category-first design, but focused on **nutrition intelligence** (not shopping). Every page gets proper sections, animations, education, and visual hierarchy.
+After reviewing all 5 market pages, the codebase already handles several items from the gap list:
+- **Auto-location**: Already implemented in `Market.tsx` using `detectCity()` (GPS → IP → fallback), persists to profile + localStorage
+- **City selector**: Already in `MarketPageHeader` with dropdown
+- **Price alerts table**: Already exists (`price_alerts` table in DB)
+- **Compare custom item add**: Already works — search bar + checkbox selection + max 4 items
+- **MarketList with market item matching**: Already matches typed items to `MARKET_ITEMS` for price/protein
 
-**Key principle:** This is NOT a marketplace. It's a **nutrition intelligence tool** that looks as polished as Amazon.
-
----
-
-## Phase Breakdown (5 Phases)
-
-### Phase 1: Foundation — MarketBottomNav polish + MarketPageHeader upgrade + Item Card redesign
-
-**Files changed:**
-- `src/components/MarketBottomNav.tsx` — Add entrance animation, active tab glow effect, haptic-style spring animations
-- `src/components/MarketPageHeader.tsx` — Add city selector dropdown, search with animation, compare icon, better visual hierarchy
-- `src/components/MarketItemCard.tsx` — Complete redesign: larger emoji area, PES badge overlay, price trend arrow, cost-per-gram protein highlight, "Why eat this" tooltip, improved CTAs
-
-**Animations (Phase 1):**
-| Element | Animation | Spec |
-|---------|-----------|------|
-| MarketBottomNav tabs | Spring bounce on tap | `stiffness: 300, damping: 25` |
-| Active tab indicator | `layoutId` sliding dot | Framer Motion shared layout |
-| Item card entrance | Stagger fade + slide up | `delay: index * 0.03, y: 12 → 0` |
-| PES badge | Scale-in on mount | `scale: 0.8 → 1, duration: 0.2` |
-| Price trend arrow | Pulse animation for drops | CSS `animate-pulse` on green arrows |
+**Actual gaps remaining:**
+1. Auto-location only runs on Shop tab — Categories, Deals, Compare, My List each read `profile.city` independently (no shared context)
+2. Emojis used everywhere instead of real food images
+3. No global market context (city/prices/compare list not shared across tabs)
+4. Price Alert sheet not wired (just shows toast "coming soon")
+5. My List has no "auto-generate from meal plan" logic
+6. No loading skeletons or error states
+7. No "Why eat this" tooltips with data
 
 ---
 
-### Phase 2: Shop Homepage (`/market`) — Complete section-by-section redesign
+## Implementation Plan (3 Phases)
 
-**File changed:** `src/pages/Market.tsx`
+### Phase 1: Shared Market Context + Auto-Location Sync
+Create a `MarketContext` provider that wraps all `/market` routes, providing:
+- `city` (auto-detected once, shared across all tabs)
+- `processedItems` (computed once, reused everywhere — eliminates duplicate `useMemo` in every page)
+- `compareItems` + `toggleCompare()` (global compare state persists across tab switches)
+- `myListItems` (shared with My List tab)
 
-**New section layout (top to bottom):**
+**Files:**
+- **New**: `src/contexts/MarketContext.tsx` — context with city, processedItems, compare state
+- **Edit**: `src/App.tsx` — wrap market routes with `<MarketProvider>`
+- **Edit**: `src/pages/Market.tsx` — remove local city/processedItems state, consume from context
+- **Edit**: `src/pages/MarketCategories.tsx` — consume city + processedItems from context
+- **Edit**: `src/pages/MarketDeals.tsx` — consume from context
+- **Edit**: `src/pages/MarketCompare.tsx` — consume compareItems from context
+- **Edit**: `src/pages/MarketList.tsx` — consume city from context
 
-```text
-┌─ MarketPageHeader (sticky, with city + search) ─┐
-│                                                   │
-│ 1. Hero Banner (rotating — best value today)      │
-│ 2. Quick Actions Row (horizontal scroll pills)    │
-│    [🥚 Eggs ₹7] [🍗 Chicken ₹220] [🥛 Milk ₹28]  │
-│ 3. Today's Best Value (top 3 PES cards, 3-col)    │
-│ 4. Browse by Category (2x3 grid with gradients)   │
-│ 5. "Did You Know?" Education Card (swipeable)     │
-│ 6. Budget Hero Picks (horizontal scroll)          │
-│ 7. Compare & Save (VS card)                       │
-│ 8. Price Drops This Week (horizontal scroll)      │
-│ 9. City Prices Banner                             │
-│ 10. Price Trends (expandable chart)               │
-│ 11. Savings Tracker                               │
-│ 12. Report a Price                                │
-└───────────────────────────────────────────────────┘
-```
+### Phase 2: Real Food Images + "Why Eat This" Tips
+Replace emoji placeholders with real Unsplash/static food images using a mapping. Add nutrition tips per item.
 
-**New sub-components:**
-- `src/components/market/QuickActionsRow.tsx` — Top 6 items as pill buttons with live prices
-- `src/components/market/TopValueCards.tsx` — 3-column PES-ranked cards with emoji, price, protein, trend
-- `src/components/market/CategoryGridHome.tsx` — 2x3 visual grid (large emoji + gradient bg + label + item count)
-- `src/components/market/EducationCard.tsx` — Swipeable nutrition facts ("100g paneer = 2 eggs protein but 3x cost")
-- `src/components/market/PriceDropsRow.tsx` — Horizontal scroll of items with price drop % badges
+**Files:**
+- **New**: `src/lib/food-images.ts` — mapping of `itemId → imageUrl` using free Unsplash CDN URLs (e.g., `https://images.unsplash.com/photo-xxxxx?w=200&h=200&fit=crop`)
+- **New**: `src/lib/nutrition-tips.ts` — static mapping of `itemId|category → tip string` (e.g., "Eggs: complete protein with all 9 amino acids at ₹1/g protein")
+- **Edit**: `src/components/MarketItemCard.tsx` — replace emoji with `<img>` using food-images map, fallback to emoji if no image
+- **Edit**: `src/components/market/TopValueCards.tsx` — use real images
+- **Edit**: `src/components/market/QuickActionsRow.tsx` — use real images in pills
+- **Edit**: `src/components/market/CategoryGridHome.tsx` — use category hero images
+- **Edit**: `src/pages/MarketCategories.tsx` — use images in top items list
+- **Edit**: `src/pages/MarketDeals.tsx` — use images in price drops and grid cards
 
-**Animations (Phase 2):**
-| Element | Animation |
-|---------|-----------|
-| Hero banner | Auto-rotate every 5s with fade transition |
-| Quick actions pills | Horizontal scroll with snap + scale on tap |
-| Best Value cards | Stagger scale-in (0.95 → 1) |
-| Category grid tiles | Stagger fade-in with 40ms delay |
-| Education card | Swipe gesture (drag horizontal) |
-| Price drop badges | Subtle pulse on red/green % |
+### Phase 3: Price Alert Sheet + My List Meal Plan Auto-Generate + Loading States
+Wire up the price alert functionality and meal plan integration.
 
----
-
-### Phase 3: Categories Page (`/market/categories`) — Flipkart-style sidebar + content
-
-**File changed:** `src/pages/MarketCategories.tsx` (complete rewrite)
-
-**Layout:**
-```text
-┌──────────┬─────────────────────────────┐
-│ Sidebar  │ Content Area               │
-│ (80px)   │                            │
-│ fixed    │ Hero insight banner        │
-│          │ Subcategory 3-col grid     │
-│ 🥩 Meat  │ Popular Comparisons        │
-│ 🥚 Eggs  │ Smart Insight card         │
-│ 🥬 Veg   │ Items list (scrollable)    │
-│ 🫘 Dals  │                            │
-│ 🥛 Dairy │                            │
-│ 🌾 Grain │                            │
-│ 🍌 Fruit │                            │
-│ 📦 Pack  │                            │
-└──────────┴─────────────────────────────┘
-```
-
-**How it works:**
-- Left sidebar: 80px fixed, vertical scroll, emoji + label per category
-- Active category: primary left border + primary/10 background
-- Right area changes dynamically per category selection
-- Each category shows: hero insight → subcategory grid → popular comparisons → smart nutrition fact
-- Tapping subcategory navigates to `/market?category=X&sub=Y`
-
-**Animations (Phase 3):**
-| Element | Animation |
-|---------|-----------|
-| Sidebar categories | Fade in stagger on mount |
-| Active indicator | `layoutId` left border slide |
-| Content area swap | Fade + slide right (exit left, enter right) |
-| Subcategory grid | Scale-in stagger |
+**Files:**
+- **Edit**: `src/pages/MarketDeals.tsx` — open `PriceAlertSheet` on CTA tap (component already exists at `src/components/PriceAlertSheet.tsx`)
+- **Edit**: `src/pages/MarketList.tsx` — add "Auto-generate from Meal Plan" button that reads `meal-planner-store` from localStorage, aggregates ingredients, matches to MARKET_ITEMS
+- **New**: `src/components/market/MarketSkeleton.tsx` — skeleton loaders for item cards, category sidebar, deals sections
+- **Edit**: `src/pages/Market.tsx` — show skeleton while location detecting
+- **Edit**: `src/pages/MarketCategories.tsx` — show skeleton on category switch
+- **Edit**: `src/pages/MarketDeals.tsx` — show skeleton on initial load
 
 ---
 
-### Phase 4: Deals Page (`/market/deals`) — Rich sections + visual urgency
+## Animation Plan
 
-**File changed:** `src/pages/MarketDeals.tsx` (complete rewrite)
-
-**New sections:**
-1. **Price Drops banner** — Horizontal scroll of items with red/green % badges
-2. **Budget Protein Combos** — "Get 100g protein under ₹150/day" with combo card (Eggs + Chicken + Milk)
-3. **Best PES This Week** — Ranked list with PES badges, rank numbers, medals for top 3
-4. **High Protein Low Cost** — 2-column grid cards
-5. **Price Forecast** — "Chicken likely to drop next week" insight card
-6. **Set Price Alert CTA** — Button to open price alert sheet
-
-**Animations (Phase 4):**
-| Element | Animation |
-|---------|-----------|
-| Price drop badges | Entrance: slide-in from right |
-| Combo card | Scale-in with spring |
-| Rank list items | Stagger slide-up |
-| Forecast card | Fade-in with delay |
+| Component | Animation | Already Done? |
+|-----------|-----------|---------------|
+| MarketBottomNav tabs | Spring bounce + layoutId dot | Yes |
+| Item cards stagger | fade+slide up | Yes |
+| Category sidebar active bar | layoutId slide | Yes |
+| Content area swap | AnimatePresence fade+slide | Yes |
+| **NEW: Image load** | Fade-in on load (`opacity 0→1`) | No — add |
+| **NEW: Skeleton shimmer** | CSS shimmer animation | No — add |
+| **NEW: Price alert success** | Scale bounce on save | No — add |
 
 ---
 
-### Phase 5: Compare (`/market/compare`) + My List (`/market/list`) — Polish
-
-**Files changed:**
-- `src/pages/MarketCompare.tsx` — Add category filter tabs, pre-built comparison pairs ("Eggs vs Paneer"), AI verdict text, side-by-side nutrition matrix
-- `src/pages/MarketList.tsx` — Add auto-generated list from meal plan, estimated total cost, protein coverage %, export/share buttons, "Buy on BigBasket" CTA
-
-**New in Compare:**
-- Pre-built comparison suggestions at top: "🥚 Eggs vs 🧀 Paneer", "🍗 Chicken vs 🐟 Fish"
-- Category filter pills to narrow item list
-- Selected items show mini nutrition preview before full compare
-
-**New in My List:**
-- "Auto-generate from meal plan" button that reads weekly planner data
-- Each item shows estimated price + protein contribution
-- Summary bar: Total ₹, Protein coverage %
-- Share as text / Export as image
-
-**Animations (Phase 5):**
-| Element | Animation |
-|---------|-----------|
-| Comparison pairs | Horizontal scroll with snap |
-| Item selection | Checkbox scale bounce |
-| List items | Slide-in from left on add, slide-out on remove |
-| Summary bar | Sticky with fade-in |
-
----
-
-## Animation Summary (All Phases)
-
-| Animation Type | Where Used | Implementation |
-|----------------|-----------|----------------|
-| **Stagger fade-in** | Item lists, grids, cards | Framer `initial/animate` with `delay: i * 0.03` |
-| **Spring bounce** | Tab taps, button presses | `type: 'spring', stiffness: 300, damping: 25` |
-| **Layout animation** | Active indicators (nav dot, sidebar border) | Framer `layoutId` |
-| **Slide transitions** | Category content swap, list add/remove | `AnimatePresence` + `x` or `y` transform |
-| **Scale-in** | PES badges, cards on mount | `scale: 0.9 → 1, opacity: 0 → 1` |
-| **Auto-rotate** | Hero banner, education cards | `useEffect` + `setInterval` + fade transition |
-| **Pulse** | Price drop indicators, alerts | Tailwind `animate-pulse` |
-
----
-
-## Data Flow (No Backend Changes)
-
-All data comes from existing sources:
-- `MARKET_ITEMS` from `src/lib/market-data.ts` — item database
-- `getCityPrice()` — city-specific pricing
-- `calculateMarketPES()` — PES scoring
-- `scopedStorage` — My List persistence
-- `UserProfileContext` — city preference
-- Meal planner data — for auto-generating grocery lists
-
----
-
-## Files Created/Modified Summary
+## Files Summary
 
 | Phase | New Files | Modified Files |
 |-------|-----------|----------------|
-| 1 | — | `MarketBottomNav.tsx`, `MarketPageHeader.tsx`, `MarketItemCard.tsx` |
-| 2 | `market/QuickActionsRow.tsx`, `market/TopValueCards.tsx`, `market/CategoryGridHome.tsx`, `market/EducationCard.tsx`, `market/PriceDropsRow.tsx` | `Market.tsx`, `MarketHeroSection.tsx` |
-| 3 | — | `MarketCategories.tsx` (rewrite) |
-| 4 | — | `MarketDeals.tsx` (rewrite) |
-| 5 | — | `MarketCompare.tsx`, `MarketList.tsx` |
+| 1 | `contexts/MarketContext.tsx` | `App.tsx`, `Market.tsx`, `MarketCategories.tsx`, `MarketDeals.tsx`, `MarketCompare.tsx`, `MarketList.tsx` |
+| 2 | `lib/food-images.ts`, `lib/nutrition-tips.ts` | `MarketItemCard.tsx`, `TopValueCards.tsx`, `QuickActionsRow.tsx`, `CategoryGridHome.tsx`, `MarketCategories.tsx`, `MarketDeals.tsx` |
+| 3 | `market/MarketSkeleton.tsx` | `MarketDeals.tsx`, `MarketList.tsx`, `Market.tsx`, `MarketCategories.tsx` |
 
-**Total: 5 new sub-components, 9 modified files, 0 backend changes**
+**Total: 4 new files, ~12 modified files, 0 backend changes**
+
+Work will be divided across 3 implementation messages, one per phase.
 
