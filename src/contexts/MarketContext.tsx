@@ -30,6 +30,8 @@ interface MarketContextValue {
   setCompareItems: React.Dispatch<React.SetStateAction<LegacyMarketItem[]>>;
   compareData: any[];
   toMarketItem: (item: RawMarketItem, priceChange?: number) => LegacyMarketItem;
+  vegOnly: boolean;
+  setVegOnly: (v: boolean) => void;
 }
 
 const MarketContext = createContext<MarketContextValue | null>(null);
@@ -52,6 +54,8 @@ function convertToMarketItem(item: RawMarketItem, city: string, priceChange?: nu
   };
 }
 
+const VEG_STORAGE_KEY = 'nutrilens_veg_only';
+
 export function MarketProvider({ children }: { children: ReactNode }) {
   const { profile, updateProfile } = useUserProfile();
   const { user } = useAuth();
@@ -61,6 +65,15 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   const [isAutoDetected, setIsAutoDetected] = useState(false);
   const [locationLoading, setLocationLoading] = useState(true);
   const [compareItems, setCompareItems] = useState<LegacyMarketItem[]>([]);
+  const [vegOnly, setVegOnlyState] = useState<boolean>(() => {
+    try { return localStorage.getItem(VEG_STORAGE_KEY) === 'true'; }
+    catch { return false; }
+  });
+
+  const setVegOnly = useCallback((v: boolean) => {
+    setVegOnlyState(v);
+    try { localStorage.setItem(VEG_STORAGE_KEY, String(v)); } catch {}
+  }, []);
 
   // Auto-detect city once
   useEffect(() => {
@@ -125,6 +138,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     <MarketContext.Provider value={{
       city, cityLabel, detectedCity, isAutoDetected, locationLoading, setCity, handleCitySelect,
       processedItems, compareItems, toggleCompare, setCompareItems, compareData, toMarketItem,
+      vegOnly, setVegOnly,
     }}>
       {children}
     </MarketContext.Provider>

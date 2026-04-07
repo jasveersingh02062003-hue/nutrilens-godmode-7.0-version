@@ -114,3 +114,22 @@ export function getFoodImage(itemId: string): string | null {
 export function getCategoryImage(category: string): string | null {
   return CATEGORY_IMAGES[category] || null;
 }
+
+// Small circular thumbnails for category sidebar (80x80 crop)
+export const CATEGORY_THUMBNAILS: Record<string, string> = {
+  meat_seafood: 'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=80&h=80&fit=crop',
+  eggs: 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=80&h=80&fit=crop',
+  vegetables: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=80&h=80&fit=crop',
+  dals_pulses: 'https://images.unsplash.com/photo-1585996048043-1ac2bff8feeb?w=80&h=80&fit=crop',
+  dairy: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=80&h=80&fit=crop',
+  grains_millets: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=80&h=80&fit=crop',
+  fruits: 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=80&h=80&fit=crop',
+  dry_fruits: 'https://images.unsplash.com/photo-1508061253366-f7da158b6d46?w=80&h=80&fit=crop',
+  superfoods: 'https://images.unsplash.com/photo-1622597467836-f3285f2131b8?w=80&h=80&fit=crop',
+  packed_foods: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=80&h=80&fit=crop',
+  supplements: 'https://images.unsplash.com/photo-1550572017-edd951aa8f72?w=80&h=80&fit=crop',
+};
+
+export function getCategoryThumbnail(category: string): string | null {
+  return CATEGORY_THUMBNAILS[category] || null;
+}
