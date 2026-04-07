@@ -1417,9 +1417,12 @@ export default function BudgetPlannerTab({ onOnboardingComplete }: { onOnboardin
     (async () => {
       try {
         const { estimateLiveCost } = await import('@/lib/live-price-service');
-        const { getProfile } = await import('@/lib/store');
-        const profile = getProfile();
-        const city = profile?.city || undefined;
+        const { scopedGet } = await import('@/lib/scoped-storage');
+        let city: string | undefined;
+        try {
+          const raw = scopedGet('nutrilens_profile');
+          if (raw) { const p = JSON.parse(raw); city = p.city || undefined; }
+        } catch {}
         // Estimate cost for common daily staples
         const staples = [
           { name: 'Rice', quantity: 100, unit: 'g' },
