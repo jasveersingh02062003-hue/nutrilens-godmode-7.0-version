@@ -52,6 +52,7 @@ const preloadMarketCategories = () => import("./pages/MarketCategories");
 const preloadMarketDeals = () => import("./pages/MarketDeals");
 const preloadMarketCompare = () => import("./pages/MarketCompare");
 const preloadMarketList = () => import("./pages/MarketList");
+const preloadAdAdmin = () => import("./pages/AdAdmin");
 
 const CameraHome = lazyWithRetry(preloadCameraHome, "camera-home");
 const Dashboard = lazyWithRetry(preloadDashboard, "dashboard");
@@ -70,6 +71,7 @@ const MarketCategories = lazyWithRetry(preloadMarketCategories, "market-categori
 const MarketDeals = lazyWithRetry(preloadMarketDeals, "market-deals");
 const MarketCompare = lazyWithRetry(preloadMarketCompare, "market-compare");
 const MarketList = lazyWithRetry(preloadMarketList, "market-list");
+const AdAdmin = lazyWithRetry(preloadAdAdmin, "ad-admin");
 
 const queryClient = new QueryClient();
 
