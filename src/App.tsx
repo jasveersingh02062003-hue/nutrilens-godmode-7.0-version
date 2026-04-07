@@ -45,6 +45,7 @@ const preloadAuth = () => import("./pages/Auth");
 const preloadFoodArchive = () => import("./pages/FoodArchive");
 const preloadQuickLog = () => import("./pages/QuickLog");
 const preloadNotFound = () => import("./pages/NotFound");
+const preloadMarket = () => import("./pages/Market");
 
 const CameraHome = lazyWithRetry(preloadCameraHome, "camera-home");
 const Dashboard = lazyWithRetry(preloadDashboard, "dashboard");
@@ -58,6 +59,7 @@ const Auth = lazyWithRetry(preloadAuth, "auth");
 const FoodArchive = lazyWithRetry(preloadFoodArchive, "food-archive");
 const QuickLog = lazyWithRetry(preloadQuickLog, "quick-log");
 const NotFound = lazyWithRetry(preloadNotFound, "not-found");
+const Market = lazyWithRetry(preloadMarket, "market");
 
 const queryClient = new QueryClient();
 
@@ -146,6 +148,7 @@ function AppLayout() {
         <Route path="/food-archive" element={<ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><FoodArchive /></div></PageTransition></ProtectedRoute>} />
         <Route path="/pantry" element={<ProtectedRoute><PageTransition><Pantry /></PageTransition></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><Profile /></div></PageTransition></ProtectedRoute>} />
+        <Route path="/market" element={<ProtectedRoute><PageTransition><Market /></PageTransition></ProtectedRoute>} />
         <Route path="/quicklog" element={<ProtectedRoute><PageTransition><QuickLog /></PageTransition></ProtectedRoute>} />
         <Route path="/camera" element={<Navigate to="/" replace />} />
         <Route path="*" element={<Suspense fallback={<PageLoader />}><PageTransition><NotFound /></PageTransition></Suspense>} />
