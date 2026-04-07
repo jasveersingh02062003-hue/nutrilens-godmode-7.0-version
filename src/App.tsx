@@ -158,11 +158,16 @@ function AppLayout() {
         <Route path="/pantry" element={<ProtectedRoute><PageTransition><Pantry /></PageTransition></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><Profile /></div></PageTransition></ProtectedRoute>} />
         <Route path="/market" element={<ProtectedRoute><PageTransition><Market /></PageTransition></ProtectedRoute>} />
+        <Route path="/market/categories" element={<ProtectedRoute><PageTransition><MarketCategories /></PageTransition></ProtectedRoute>} />
+        <Route path="/market/deals" element={<ProtectedRoute><PageTransition><MarketDeals /></PageTransition></ProtectedRoute>} />
+        <Route path="/market/compare" element={<ProtectedRoute><PageTransition><MarketCompare /></PageTransition></ProtectedRoute>} />
+        <Route path="/market/list" element={<ProtectedRoute><PageTransition><MarketList /></PageTransition></ProtectedRoute>} />
         <Route path="/quicklog" element={<ProtectedRoute><PageTransition><QuickLog /></PageTransition></ProtectedRoute>} />
         <Route path="/camera" element={<Navigate to="/" replace />} />
         <Route path="*" element={<Suspense fallback={<PageLoader />}><PageTransition><NotFound /></PageTransition></Suspense>} />
       </Routes>
       {!hideNav && <BottomNav />}
+      <MarketBottomNav />
     </>
   );
 }
