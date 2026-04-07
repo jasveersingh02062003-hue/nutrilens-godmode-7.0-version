@@ -1400,6 +1400,7 @@ export default function BudgetPlannerTab({ onOnboardingComplete }: { onOnboardin
   const [detailPeriod, setDetailPeriod] = useState<'week' | 'month'>('week');
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [deleteConfirmExpense, setDeleteConfirmExpense] = useState<Expense | null>(null);
+  const [livePriceEstimate, setLivePriceEstimate] = useState<{ total: number; source: string } | null>(null);
 
   const refresh = useCallback(() => setRefreshKey(k => k + 1), []);
   const [survivalOn, setSurvivalOn] = useState(isSurvivalModeManual);
@@ -1409,6 +1410,34 @@ export default function BudgetPlannerTab({ onOnboardingComplete }: { onOnboardin
   const weeklySummary = useMemo(() => getBudgetSummary('week'), [refreshKey]);
   const monthlySummary = useMemo(() => getBudgetSummary('month'), [refreshKey]);
   const alerts = useMemo(() => checkBudgetAlerts(), [refreshKey]);
+
+  // FIRECRAWL_HOOK: Live price estimate for today's planned meals
+  // When Firecrawl is enabled, this will use real-time scraped prices
+  useEffect(() => {
+    (async () => {
+      try {
+        const { estimateLiveCost } = await import('@/lib/live-price-service');
+        const { scopedGet } = await import('@/lib/scoped-storage');
+        let city: string | undefined;
+        try {
+          const raw = scopedGet('nutrilens_profile');
+          if (raw) { const p = JSON.parse(raw); city = p.city || undefined; }
+        } catch {}
+        // Estimate cost for common daily staples
+        const staples = [
+          { name: 'Rice', quantity: 100, unit: 'g' },
+          { name: 'Dal', quantity: 50, unit: 'g' },
+          { name: 'Vegetables', quantity: 200, unit: 'g' },
+          { name: 'Oil', quantity: 15, unit: 'ml' },
+        ];
+        const result = await estimateLiveCost(staples, city);
+        if (result) {
+          const primarySource = result.itemPrices.length > 0 ? result.itemPrices[0].source : 'static';
+          setLivePriceEstimate({ total: result.total, source: primarySource });
+        }
+      } catch {}
+    })();
+  }, [refreshKey]);
 
   // Check if onboarding is needed
   const needsOnboarding = !enhanced.onboardingDone && budgetSettings.weeklyBudget === 2000 && budgetSettings.monthlyBudget === 8000;
@@ -1534,6 +1563,19 @@ export default function BudgetPlannerTab({ onOnboardingComplete }: { onOnboardin
 
       {/* Alerts */}
       <AlertsInline alerts={alerts} />
+
+      {/* Live Price Estimate */}
+      {livePriceEstimate && (
+        <div className="card-elevated p-3 flex items-center gap-3">
+          <span className="text-lg">📡</span>
+          <div className="flex-1">
+            <p className="text-[11px] font-bold text-foreground">Live Price Estimate (Daily Staples)</p>
+            <p className="text-xs text-muted-foreground">
+              ~₹{livePriceEstimate.total}/day · Source: {livePriceEstimate.source}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* This Week Card */}
       <BudgetCard label="This Week" icon="📅" summary={weeklySummary} onClick={() => openDetails('week')} />
