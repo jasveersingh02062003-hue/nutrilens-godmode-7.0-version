@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ExternalLink, ShieldCheck, AlertTriangle, Clock, TrendingUp } from 'lucide-react';
 import { getMarketItemDetail, type MarketItem, type MarketItemDetail } from '@/lib/market-service';
 import PESBadge from './PESBadge';
+import { toast } from 'sonner';
 import PriceTrendChart from './PriceTrendChart';
 import type { PESColor } from '@/lib/pes-engine';
 import { formatDistanceToNow } from 'date-fns';
@@ -17,6 +19,7 @@ interface MarketItemDetailSheetProps {
 }
 
 export default function MarketItemDetailSheet({ open, onOpenChange, item, city, onReportPrice }: MarketItemDetailSheetProps) {
+  const navigate = useNavigate();
   const [detail, setDetail] = useState<MarketItemDetail | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -173,7 +176,14 @@ export default function MarketItemDetailSheet({ open, onOpenChange, item, city, 
             >
               Report Price
             </Button>
-            <Button className="flex-1 text-xs">
+            <Button
+              className="flex-1 text-xs"
+              onClick={() => {
+                toast.success(`${item.name} noted! Open Meal Planner to add it.`, { icon: '✅' });
+                onOpenChange(false);
+                navigate('/planner');
+              }}
+            >
               Add to Meal Plan
             </Button>
           </div>
