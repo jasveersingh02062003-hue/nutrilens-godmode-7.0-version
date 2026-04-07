@@ -11,6 +11,7 @@ import { getScaledMealInfo } from '@/lib/meal-scale';
 import { saveManualExpense } from '@/lib/expense-store';
 import { deductRecipeFromPantry } from '@/lib/pantry-deduction';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import SwapNudgeCard from '@/components/SwapNudgeCard';
 import { toast } from 'sonner';
 
 const MEAL_EMOJI: Record<string, string> = {
@@ -241,6 +242,25 @@ export default function TodayMealPlan() {
                     )}
                   </div>
                 </div>
+              );
+            })}
+
+            {/* Swap Nudges */}
+            {todayPlan.meals.map(meal => {
+              const scaled = getScaledMealInfo(meal);
+              if (!scaled) return null;
+              const recipe = scaled.recipe;
+              const cost = scaled.cost;
+              const isLogged = meal.cooked || loggedMeals.has(meal.recipeId);
+
+              if (isLogged || cost <= 0 || scaled.protein <= 0) return null;
+              return (
+                <SwapNudgeCard
+                  key={`swap-${meal.recipeId}`}
+                  mealName={recipe.name}
+                  mealCost={cost}
+                  mealProtein={scaled.protein}
+                />
               );
             })}
 

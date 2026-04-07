@@ -1,10 +1,12 @@
 import { useState, useMemo, useRef, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Check, Plus, Search, Clock, Flame, Zap, X } from 'lucide-react';
+import { ShoppingCart, Check, Plus, Search, Clock, Flame, Zap, X, MapPin } from 'lucide-react';
 import { getWeekPlan, getCurrentWeekStart } from '@/lib/meal-planner-store';
 import { generateShoppingList } from '@/lib/meal-plan-generator';
 import { recipes, getRecipeById } from '@/lib/recipes';
 import { getRecipeImage } from '@/lib/recipe-images';
+import { estimateLiveCost } from '@/lib/live-price-service';
+import { useUserProfile } from '@/contexts/UserProfileContext';
 import type { WeekPlan } from '@/lib/meal-planner-store';
 import BudgetPlannerTab from './BudgetPlannerTab';
 import SurvivalKitSheet from './SurvivalKitSheet';
@@ -26,8 +28,11 @@ interface MealPlannerTabsProps {
 
 // ===== Groceries Sub-Tab =====
 function GroceriesTab({ plan }: { plan: WeekPlan }) {
+  const { profile } = useUserProfile();
+  const city = (profile as any)?.city || '';
   const [kitOpen, setKitOpen] = useState(false);
   const [savedKit, setSavedKit] = useState(() => getSavedSurvivalKit());
+  const [costEstimate, setCostEstimate] = useState<{ total: number; itemPrices: { name: string; cost: number; source: string }[] } | null>(null);
 
   const initialList = useMemo(() => {
     const planList = generateShoppingList(plan);
@@ -75,6 +80,18 @@ function GroceriesTab({ plan }: { plan: WeekPlan }) {
   useEffect(() => {
     setGroceryList(initialList);
   }, [initialList]);
+
+  // Estimate live cost for grocery items
+  useEffect(() => {
+    const allItems = groceryList.flatMap((cat: any) =>
+      cat.items.map((item: any) => ({ name: item.name.replace(/^⚡\s*/, ''), quantity: 1 }))
+    );
+    if (allItems.length > 0) {
+      estimateLiveCost(allItems, city || undefined).then(result => {
+        setCostEstimate(result);
+      });
+    }
+  }, [groceryList, city]);
 
   const toggleItem = (catIdx: number, itemIdx: number) => {
     setGroceryList(prev => prev.map((cat, ci) =>
@@ -137,6 +154,21 @@ function GroceriesTab({ plan }: { plan: WeekPlan }) {
       )}
 
       <SurvivalKitSheet open={kitOpen} onOpenChange={(o) => { setKitOpen(o); if (!o) setSavedKit(getSavedSurvivalKit()); }} />
+
+      {/* Live Cost Estimate */}
+      {costEstimate && (
+        <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-3.5 h-3.5 text-primary" />
+            <p className="text-[11px] font-bold text-foreground">
+              Estimated cost: ₹{costEstimate.total}
+            </p>
+            <span className="text-[10px] text-muted-foreground ml-auto">
+              {city || 'avg'} prices
+            </span>
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">Mark items you already have or purchased</p>
