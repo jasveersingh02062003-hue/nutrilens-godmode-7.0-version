@@ -81,6 +81,18 @@ function GroceriesTab({ plan }: { plan: WeekPlan }) {
     setGroceryList(initialList);
   }, [initialList]);
 
+  // Estimate live cost for grocery items
+  useEffect(() => {
+    const allItems = groceryList.flatMap((cat: any) =>
+      cat.items.map((item: any) => ({ name: item.name.replace(/^⚡\s*/, ''), quantity: 1 }))
+    );
+    if (allItems.length > 0) {
+      estimateLiveCost(allItems, city || undefined).then(result => {
+        setCostEstimate(result);
+      });
+    }
+  }, [groceryList, city]);
+
   const toggleItem = (catIdx: number, itemIdx: number) => {
     setGroceryList(prev => prev.map((cat, ci) =>
       ci === catIdx ? {
