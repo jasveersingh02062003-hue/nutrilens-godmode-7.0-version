@@ -10,9 +10,11 @@ import { useNavigate } from 'react-router-dom';
 
 export default function MarketDeals() {
   const navigate = useNavigate();
-  const { city, cityLabel, processedItems, locationLoading } = useMarket();
+  const { city, cityLabel, processedItems, locationLoading, vegOnly } = useMarket();
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertItem, setAlertItem] = useState({ name: '', price: 0 });
+
+  const filteredProcessed = useMemo(() => vegOnly ? processedItems.filter(i => i.isVeg) : processedItems, [processedItems, vegOnly]);
 
   const priceDrops = useMemo(() => {
     const drops = [
@@ -21,25 +23,35 @@ export default function MarketDeals() {
       { id: 'mk_cabbage', drop: 10 }, { id: 'mk_watermelon', drop: 20 },
     ];
     return drops.map(d => {
-      const item = processedItems.find(i => i.id === d.id);
+      const item = filteredProcessed.find(i => i.id === d.id);
       if (!item) return null;
       return { ...item, drop: d.drop };
     }).filter(Boolean) as any[];
-  }, [processedItems]);
+  }, [filteredProcessed]);
 
-  const budgetPicks = useMemo(() => processedItems.filter(i => i.cityPrice <= 100 && i.protein >= 3).sort((a, b) => a.costPerGram - b.costPerGram).slice(0, 8), [processedItems]);
-  const bestPES = useMemo(() => [...processedItems].sort((a, b) => b.pes - a.pes).slice(0, 10), [processedItems]);
-  const highProteinBudget = useMemo(() => processedItems.filter(i => i.protein >= 15).sort((a, b) => a.costPerGram - b.costPerGram).slice(0, 8), [processedItems]);
+  const budgetPicks = useMemo(() => filteredProcessed.filter(i => i.cityPrice <= 100 && i.protein >= 3).sort((a, b) => a.costPerGram - b.costPerGram).slice(0, 8), [filteredProcessed]);
+  const bestPES = useMemo(() => [...filteredProcessed].sort((a, b) => b.pes - a.pes).slice(0, 10), [filteredProcessed]);
+  const highProteinBudget = useMemo(() => filteredProcessed.filter(i => i.protein >= 15).sort((a, b) => a.costPerGram - b.costPerGram).slice(0, 8), [filteredProcessed]);
 
   const combo = useMemo(() => {
-    const eggs = processedItems.find(i => i.id === 'mk_egg_white');
-    const chicken = processedItems.find(i => i.id === 'mk_chicken_breast');
-    const milk = processedItems.find(i => i.id === 'mk_milk_toned');
+    if (vegOnly) {
+      // Veg combo: paneer + soya + milk
+      const paneer = filteredProcessed.find(i => i.id === 'mk_paneer');
+      const soya = filteredProcessed.find(i => i.id === 'mk_soya_chunks');
+      const milk = filteredProcessed.find(i => i.id === 'mk_milk_toned');
+      if (!paneer || !soya || !milk) return null;
+      const totalProtein = (paneer.protein * 1) + (soya.protein * 0.5) + (milk.protein * 5);
+      const totalCost = (paneer.cityPrice * 0.1) + (soya.cityPrice * 0.05) + (milk.cityPrice * 0.5);
+      return { items: [paneer, soya, milk], totalProtein: Math.round(totalProtein), totalCost: Math.round(totalCost) };
+    }
+    const eggs = filteredProcessed.find(i => i.id === 'mk_egg_white');
+    const chicken = filteredProcessed.find(i => i.id === 'mk_chicken_breast');
+    const milk = filteredProcessed.find(i => i.id === 'mk_milk_toned');
     if (!eggs || !chicken || !milk) return null;
     const totalProtein = (eggs.protein * 4) + (chicken.protein * 1.5) + (milk.protein * 5);
     const totalCost = (eggs.cityPrice * 4) + (chicken.cityPrice * 0.15) + (milk.cityPrice * 0.5);
     return { items: [eggs, chicken, milk], totalProtein: Math.round(totalProtein), totalCost: Math.round(totalCost) };
-  }, [processedItems]);
+  }, [filteredProcessed, vegOnly]);
 
   if (locationLoading) {
     return (

@@ -20,7 +20,7 @@ const COMPARE_PAIRS = [
 ];
 
 export default function MarketCompare() {
-  const { cityLabel, processedItems } = useMarket();
+  const { cityLabel, processedItems, vegOnly } = useMarket();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [compareOpen, setCompareOpen] = useState(false);
@@ -28,13 +28,14 @@ export default function MarketCompare() {
 
   const filteredItems = useMemo(() => {
     let result = processedItems;
+    if (vegOnly) result = result.filter(i => i.isVeg);
     if (categoryFilter !== 'all') result = result.filter(i => i.topCategory === categoryFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(i => i.name.toLowerCase().includes(q) || i.tags.some(t => t.includes(q)));
     }
     return result.sort((a, b) => b.pes - a.pes);
-  }, [processedItems, search, categoryFilter]);
+  }, [processedItems, search, categoryFilter, vegOnly]);
 
   const toggleItem = useCallback((id: string) => {
     setSelectedIds(prev => {
