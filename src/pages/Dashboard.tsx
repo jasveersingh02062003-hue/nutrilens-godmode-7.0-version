@@ -3,6 +3,7 @@ import PostOnboardingTutorial from '@/components/PostOnboardingTutorial';
 import { ClipboardList, X, ShieldAlert } from 'lucide-react';
 import MonikaFab from '@/components/MonikaFab';
 import TimeInsightCard from '@/components/TimeInsightCard';
+import SmartMarketBanner from '@/components/SmartMarketBanner';
 import ProteinRescueCard from '@/components/ProteinRescueCard';
 import RepeatMealsButton from '@/components/RepeatMealsButton';
 import CalorieRing from '@/components/CalorieRing';
@@ -211,6 +212,9 @@ export default function Dashboard() {
         )}
 
         <PlanBannerSection />
+
+        {/* Smart Market Banner */}
+        <motion.div variants={fadeUp}><SmartMarketBanner /></motion.div>
 
         {/* 2. Calorie Ring */}
         <motion.div variants={fadeUp}>
