@@ -155,11 +155,27 @@ export default function MarketItemDetailSheet({ open, onOpenChange, item, city, 
 
           {/* Allergens */}
           {item.allergens && item.allergens.length > 0 && (
-            <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/5 border border-destructive/10">
-              <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
-              <div>
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-destructive/5 border border-destructive/10">
+              <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+              <div className="flex-1">
                 <p className="text-[11px] font-bold text-foreground">Allergen Warning</p>
-                <p className="text-[10px] text-muted-foreground">Contains: {item.allergens.join(', ')}</p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {item.allergens.map((a: string) => {
+                    const isSevere = ['gluten', 'peanut', 'tree nuts', 'shellfish', 'fish'].includes(a.toLowerCase());
+                    return (
+                      <span
+                        key={a}
+                        className={`px-2 py-0.5 rounded-full text-[9px] font-semibold ${
+                          isSevere
+                            ? 'bg-destructive/15 text-destructive border border-destructive/20'
+                            : 'bg-amber-100 text-amber-700 border border-amber-200'
+                        }`}
+                      >
+                        {isSevere ? '⚠️' : '⚡'} {a}
+                      </span>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
