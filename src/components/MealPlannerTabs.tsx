@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingCart, Check, Plus, Search, Clock, Flame, Zap, X } from 'lucide-react';
 import { getWeekPlan, getCurrentWeekStart } from '@/lib/meal-planner-store';
@@ -11,8 +11,9 @@ import SurvivalKitSheet from './SurvivalKitSheet';
 import CompareTab from './CompareTab';
 import KitchenTab from './KitchenTab';
 import SpecialPlansTab from './SpecialPlansTab';
+import MarketCompactView from './MarketCompactView';
 import { getSavedSurvivalKit, clearSurvivalKit } from '@/lib/grocery-survival';
-const TAB_ITEMS = ['Budget', 'Meal Plan', 'Plans', 'Compare', 'Kitchen'] as const;
+const TAB_ITEMS = ['Budget', 'Meal Plan', 'Plans', 'Compare', 'Kitchen', 'Market'] as const;
 type TabName = typeof TAB_ITEMS[number];
 
 interface MealPlannerTabsProps {
@@ -364,6 +365,7 @@ export default function MealPlannerTabs({ plan, activeTab, onTabChange, mealPlan
                 recipesContent={<RecipesTab />}
               />
             )}
+            {activeTab === 'Market' && <MarketCompactView />}
           </motion.div>
         </AnimatePresence>
       </div>
