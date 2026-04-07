@@ -1,6 +1,6 @@
 import { Store, LayoutGrid, Flame, Scale, ClipboardList } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 
 const marketTabs = [
   { path: '/market', icon: Store, label: 'Shop', exact: true },
@@ -13,6 +13,7 @@ const marketTabs = [
 export default function MarketBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
+  const prefersReducedMotion = useReducedMotion();
 
   if (!location.pathname.startsWith('/market')) return null;
 
@@ -36,9 +37,9 @@ export default function MarketBottomNav() {
               className="relative flex flex-col items-center justify-center gap-0.5 min-h-[48px]"
             >
               <motion.div
-                animate={active ? { y: -3, scale: 1.1 } : { y: 0, scale: 1 }}
+                animate={active && !prefersReducedMotion ? { y: -3, scale: 1.1 } : { y: 0, scale: 1 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                whileTap={{ scale: 0.85 }}
+                whileTap={prefersReducedMotion ? undefined : { scale: 0.85 }}
                 className="relative"
               >
                 <tab.icon className={`w-5 h-5 transition-colors duration-200 ${active ? 'text-primary stroke-[2.5]' : 'text-muted-foreground'}`} />

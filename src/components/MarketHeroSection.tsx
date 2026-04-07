@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { TrendingDown, Trophy, Zap, Target } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { getFoodImage } from '@/lib/food-images';
@@ -39,6 +39,7 @@ interface Slide {
 }
 
 export default function MarketHeroSection({ bestValue, biggestDrop, city, onTap }: MarketHeroSectionProps) {
+  const prefersReducedMotion = useReducedMotion();
   const [activeSlide, setActiveSlide] = useState(0);
 
   const slides: Slide[] = [];
@@ -146,14 +147,15 @@ export default function MarketHeroSection({ bestValue, biggestDrop, city, onTap 
     });
   }
 
-  // Auto-rotate
+  // Auto-rotate (skip if reduced motion preferred)
   useEffect(() => {
-    if (slides.length <= 1) return;
+    if (slides.length <= 1 || prefersReducedMotion) return;
     const interval = setInterval(() => {
       setActiveSlide(prev => (prev + 1) % slides.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, [slides.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slides.length, prefersReducedMotion]);
 
   if (slides.length === 0) return null;
 
