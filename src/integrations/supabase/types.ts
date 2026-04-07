@@ -116,6 +116,108 @@ export type Database = {
         }
         Relationships: []
       }
+      packed_products: {
+        Row: {
+          allergens: Json | null
+          brand: string
+          calories: number | null
+          carbs: number | null
+          category: Database["public"]["Enums"]["packed_product_category"]
+          cost_per_gram_protein: number | null
+          created_at: string
+          fat: number | null
+          fiber: number | null
+          id: string
+          image_url: string | null
+          is_verified: boolean | null
+          mrp: number
+          pes_score: number | null
+          platforms: Json | null
+          product_name: string
+          protein: number | null
+          selling_price: number | null
+          serving_size: string | null
+          sugar: number | null
+          updated_at: string
+        }
+        Insert: {
+          allergens?: Json | null
+          brand: string
+          calories?: number | null
+          carbs?: number | null
+          category: Database["public"]["Enums"]["packed_product_category"]
+          cost_per_gram_protein?: number | null
+          created_at?: string
+          fat?: number | null
+          fiber?: number | null
+          id?: string
+          image_url?: string | null
+          is_verified?: boolean | null
+          mrp: number
+          pes_score?: number | null
+          platforms?: Json | null
+          product_name: string
+          protein?: number | null
+          selling_price?: number | null
+          serving_size?: string | null
+          sugar?: number | null
+          updated_at?: string
+        }
+        Update: {
+          allergens?: Json | null
+          brand?: string
+          calories?: number | null
+          carbs?: number | null
+          category?: Database["public"]["Enums"]["packed_product_category"]
+          cost_per_gram_protein?: number | null
+          created_at?: string
+          fat?: number | null
+          fiber?: number | null
+          id?: string
+          image_url?: string | null
+          is_verified?: boolean | null
+          mrp?: number
+          pes_score?: number | null
+          platforms?: Json | null
+          product_name?: string
+          protein?: number | null
+          selling_price?: number | null
+          serving_size?: string | null
+          sugar?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      price_history: {
+        Row: {
+          avg_price: number
+          city: string
+          created_at: string
+          id: string
+          item_name: string
+          price_date: string
+          source: string
+        }
+        Insert: {
+          avg_price: number
+          city: string
+          created_at?: string
+          id?: string
+          item_name: string
+          price_date?: string
+          source?: string
+        }
+        Update: {
+          avg_price?: number
+          city?: string
+          created_at?: string
+          id?: string
+          item_name?: string
+          price_date?: string
+          source?: string
+        }
+        Relationships: []
+      }
       price_reports: {
         Row: {
           city: string
@@ -400,7 +502,15 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      packed_product_category:
+        | "protein_drink"
+        | "protein_bar"
+        | "ready_to_eat"
+        | "frozen"
+        | "spread"
+        | "supplement"
+        | "beverage"
+        | "snack"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -527,6 +637,17 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      packed_product_category: [
+        "protein_drink",
+        "protein_bar",
+        "ready_to_eat",
+        "frozen",
+        "spread",
+        "supplement",
+        "beverage",
+        "snack",
+      ],
+    },
   },
 } as const
