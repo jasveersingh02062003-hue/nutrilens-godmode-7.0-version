@@ -1,82 +1,111 @@
 
 
-# Smart Market — Phase 1 Implementation Plan
+# Phase 2: Smart Market — Full Experience Upgrade
 
-## What We're Building
-The foundational layer of Smart Market: database tables, a new `/market` page with static data, sidebar entry from dashboard, and a Market pill tab in the Meal Planner. **No API/Firecrawl calls yet** — everything uses the existing static `price-database.ts` and `pes-engine.ts`, with the architecture ready for live data later.
+## Overview
+Transform the current skeleton Market page into a rich, production-quality experience with real product images, geo-aware pricing, price trend charts, "Report Price" flow, proper timestamps, and a polished UI. Firecrawl/API hooks remain as placeholders — everything else works with static + community data.
 
-## Steps
+## What Changes
 
-### Step 1: Create Database Tables
-Two new tables via migration:
+### 1. Update `packed_products` table — Add real image URLs
+Insert real product image URLs (from brand CDNs / public sources) for all 35 seeded products. Also add ~15 more popular products (protein ice cream, frozen items, beverages).
 
-- **`price_history`** — stores daily price snapshots for trend charts
-  - `id`, `city`, `item_name`, `avg_price`, `price_date`, `source`, `created_at`
-  - RLS: authenticated users can read all; edge functions can insert/update
+### 2. Enhance Market Service (`src/lib/market-service.ts`)
+- **Geo-aware pricing**: `getFreshMarketItems()` now checks `city_prices` table first (Supabase), falls back to `live-price-service.ts` resolution chain, then static
+- **Add `imageUrl` field** to `MarketItem` interface — fresh foods get mapped food emoji/icons, packed get real image URLs
+- **Add `lastUpdated` field** — shows when price was last refreshed
+- **Add `priceChange` field** — percentage change vs yesterday (from `price_history` table when available)
+- **Add sub-categories**: `dals`, `grains`, `fruits` to `MarketCategory`
+- **New function**: `getMarketItemDetail(id, city)` — returns full detail with platform links + price history
 
-- **`packed_products`** — branded food products database
-  - `id`, `brand`, `product_name`, `category` (enum: protein_drink, protein_bar, ready_to_eat, frozen, spread, supplement, beverage, snack), `mrp`, `selling_price`, `serving_size`, `calories`, `protein`, `carbs`, `fat`, `fiber`, `sugar`, `pes_score`, `cost_per_gram_protein`, `allergens` (jsonb), `platforms` (jsonb — array of {name, url, price}), `image_url`, `is_verified`, `created_at`, `updated_at`
-  - RLS: authenticated can read; edge functions can insert/update
+### 3. Rebuild Market Page (`src/pages/Market.tsx`) — Full UX Overhaul
+**Header**:
+- City from profile with MapPin icon, tap to change (shows supported cities list)
+- "Last updated" timestamp showing exact time of last price refresh
+- Source indicator badge (Community / Static / Live when Firecrawl enabled later)
 
-### Step 2: Seed Packed Products Data
-Insert ~30-40 popular Indian packed food products (Amul Protein Buttermilk, Yoga Bar, Soya Chunks, MyFitness Peanut Butter, etc.) with real nutrition data and PES scores. This gives the Market page content from day one without needing scrapers.
+**Category pills** — expanded:
+- 🥩 Protein | 🥬 Veggies | 🫘 Dals | 🥛 Dairy | 🌾 Grains | 🍌 Fruits | 📦 Packed | 💊 Supps
 
-### Step 3: Build the `/market` Page
-New file: `src/pages/Market.tsx`
+**Food Cards — redesigned with images**:
+- Product image (real URL for packed, food emoji/icon for fresh)
+- Name + brand (if packed)
+- Price with unit + city label + price change arrow (↑5% / ↓12%)
+- Protein grams + calories
+- ₹/g protein metric
+- PES badge (green/yellow/red)
+- Source badge ("Static" / "Community" / "Live" placeholder)
+- "Last updated: 6:30 AM" timestamp on each card
+- Tap → opens detail sheet
 
-- **Header**: "Smart Market" + city from profile + "Updated" timestamp
-- **Category pills**: Fresh Protein | Veggies | Dals | Dairy | Packed | Supplements
-- **Sort options**: PES Score / Price / Protein
-- **Food cards**: Each shows name, price, protein, ₹/g protein, PES badge (green/yellow/red), [Add to Plan] button
-- **Fresh foods section**: Pulls from existing `price-database.ts` static data + `pes-engine.ts` rankings
-- **Packed foods section**: Pulls from the new `packed_products` table
-- **Price trend placeholder**: Empty chart area with "Price trends coming soon" (space reserved for Phase 2 charts)
-- **Report Price section**: Existing community report flow via `reportPrice()` from `live-price-service.ts`
+**New: Market Item Detail Sheet** (`src/components/MarketItemDetailSheet.tsx`):
+- Large product image
+- Full nutrition breakdown (protein, carbs, fat, fiber, sugar, calories)
+- PES score with explanation
+- Price across platforms (for packed: Amazon ₹X, BigBasket ₹Y — with CTA buttons)
+- 7-day price trend mini chart (from `price_history` — shows "No data yet" if empty, with note "Live trends coming soon with Firecrawl")
+- Allergen warnings
+- "Add to Meal Plan" button
+- "Report Price" button
 
-### Step 4: Add Sidebar/Hamburger to Dashboard Header
-Modify `src/components/dashboard/DashboardHeader.tsx`:
-- Replace the bell icon with a hamburger (Menu icon) button
-- On tap → opens a right-side animated sheet/drawer with:
-  - 🔔 Notifications (placeholder for now)
-  - 🏪 Smart Market → navigates to `/market`
-  - 👤 Profile → navigates to `/profile`
-  - ⚙️ Settings (links to profile settings section)
+**New: Report Price Sheet** (`src/components/ReportPriceSheet.tsx`):
+- Select item from list or type name
+- Enter price + unit
+- Auto-fills city from profile
+- Submit → calls `reportPrice()` from `live-price-service.ts`
+- Success toast: "Thanks! X people confirmed this price in {city}"
 
-### Step 5: Add Route for `/market`
-In `src/App.tsx`:
-- Add lazy import for Market page
-- Add protected route: `/market`
+**New: Price Trend Chart** (`src/components/PriceTrendChart.tsx`):
+- Uses Recharts (already in project)
+- 7-day or 30-day toggle
+- Line chart with price on Y axis, date on X
+- Shows "No trend data yet — prices will be tracked once live scraping is enabled" when `price_history` is empty
+- Space clearly reserved for Firecrawl data
 
-### Step 6: Add "Market" Pill Tab in Meal Planner
-Modify `src/components/MealPlannerTabs.tsx`:
-- Add "Market" to `TAB_ITEMS` array
-- When selected, show a compact version of the market rankings (top 10 PES-ranked items for the user's city)
-- Include "View Full Market →" link to `/market`
+### 4. Seed `price_history` with 7 days of static data
+Insert mock historical prices for top 10 volatile items (Chicken, Eggs, Tomato, Onion, Paneer, Fish, Mutton, Milk, Soya Chunks, Potato) across 3 cities (Hyderabad, Mumbai, Bangalore) so the trend chart has something to show.
 
-### Step 7: Market Service Layer
-New file: `src/lib/market-service.ts`
-- `getMarketItems(city, category, sort)` — fetches from static DB + packed_products table
-- `getPackedProducts(category)` — fetches from Supabase `packed_products` table
-- `calculateCostPerGramProtein(price, protein)` — utility
-- Architecture leaves clear hooks for Firecrawl/API integration later (the function signatures accept `source` param)
+### 5. Geo-Aware City Logic Enhancement
+- Read city from `profile.city` 
+- If no city set → show a "Set your city" prompt card at top of market
+- City selector modal with supported cities: Hyderabad, Bangalore, Mumbai, Delhi, Chennai, Pune, Kolkata, Ahmedabad, Jaipur, Lucknow
+- All prices tagged with city name
+- "Prices for {City}" prominently displayed
+
+### 6. Update `MarketCompactView` (Planner tab)
+- Show product images
+- Show "Updated X mins ago" timestamp
+- Show price change arrows
+- Make cards tappable → navigate to `/market`
+
+### 7. Dashboard Rotating Banner (`src/components/SmartMarketBanner.tsx`)
+- Rotates daily showing market insight:
+  - Day 1: Best protein value today
+  - Day 2: Price drop alert
+  - Day 3: Weekly savings summary
+  - Day 4: Community report prompt
+- Tap → navigate to `/market`
+- Placed in Dashboard below calorie ring, above energy tracker
 
 ## Files Changed
+
 | File | Action |
 |------|--------|
-| `supabase/migrations/xxx_create_market_tables.sql` | New — creates price_history + packed_products tables |
-| `src/lib/market-service.ts` | New — market data service layer |
-| `src/pages/Market.tsx` | New — full market page |
-| `src/components/dashboard/DashboardHeader.tsx` | Modified — bell → hamburger menu with sidebar |
-| `src/components/DashboardSidebar.tsx` | New — sidebar drawer component |
-| `src/components/MealPlannerTabs.tsx` | Modified — add Market pill tab |
-| `src/App.tsx` | Modified — add /market route |
+| `src/lib/market-service.ts` | Modified — geo-aware pricing, image URLs, detail function |
+| `src/pages/Market.tsx` | Rewritten — full UX with images, timestamps, categories |
+| `src/components/MarketItemDetailSheet.tsx` | New — item detail with nutrition, platforms, chart |
+| `src/components/ReportPriceSheet.tsx` | New — crowdsource price reporting UI |
+| `src/components/PriceTrendChart.tsx` | New — Recharts line chart for price history |
+| `src/components/SmartMarketBanner.tsx` | New — rotating dashboard banner |
+| `src/components/MarketCompactView.tsx` | Modified — images, timestamps, tappable |
+| `src/pages/Dashboard.tsx` | Modified — add SmartMarketBanner |
+| DB: `packed_products` | Data update — add image_url for all products + 15 new products |
+| DB: `price_history` | Data insert — 7 days × 10 items × 3 cities seed data |
 
-## What's Left for Phase 2 (Later)
-- Firecrawl scraping edge functions
-- Govt Mandi API integration
-- Price trend charts with real data
-- Dashboard rotating banner
-- Inline swap nudges in planner
-- CTA buy links
-- Savings tracker
+## Technical Notes
+- Real product images use public CDN URLs (Amul, BigBasket product pages, etc.)
+- Fresh food items use high-quality food emoji as placeholder until Firecrawl image scraping is enabled
+- Price source badge clearly shows "Static" with a note "Live prices coming soon" — transparent to user
+- All Firecrawl integration points are clearly marked with `// FIRECRAWL_HOOK:` comments
+- `_source` parameter in service functions ready for `'live'` mode
 
