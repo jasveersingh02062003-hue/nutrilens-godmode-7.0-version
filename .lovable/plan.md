@@ -1,117 +1,155 @@
 
 
-# Smart Market — Category Images, In-Page Navigation & Veg Filter
+# Smart Market Monetization — Full Implementation Plan
 
-## What We're Fixing
+## Overview
 
-1. **Sidebar uses emojis** — The Categories sidebar shows text emojis (🥩, 🥚, etc.) instead of real food images. Need to replace with actual Unsplash images for a professional, Amazon/Flipkart-like feel.
-
-2. **Subcategory navigation breaks flow** — When you tap "View All" or "Chicken" in Categories, `handleSubTap()` navigates to `/market?category=meat_seafood` which leaves the Categories page entirely and goes to Shop. Instead, items should render **inline** within the Categories page itself (like Flipkart's drill-down pattern).
-
-3. **Veg-only filter** — The Shop page already has a `veg` filter (`isVeg` field exists on every `RawMarketItem`), but Categories, Deals, and Compare pages don't have it. Need a global veg toggle that persists across all tabs.
+Build a complete ad/sponsorship system for Smart Market in 6 phases, implemented one at a time. Each phase is self-contained and testable before moving to the next.
 
 ---
 
-## On the Veg Feature — Should We Keep It?
+## Phase 1: Database Foundation (Start Here)
 
-**Yes, absolutely keep it.** Here's why:
-- ~40% of Indians are vegetarian — it's a massive user segment
-- The data already has `isVeg: boolean` on every market item
-- Amazon/Flipkart/Swiggy Instamart all have prominent veg/non-veg toggles
-- It filters out irrelevant items (no one vegetarian wants to scroll past chicken)
-- Implementation cost is low since the data field already exists
+Create the core tables that power the entire ad system.
 
-**Recommendation:** Add a persistent veg toggle in MarketContext so it applies across all 5 tabs consistently.
+**Database tables to create:**
 
----
+1. **`brand_accounts`** — Brand profiles (name, contact, logo, balance, status)
+2. **`ad_campaigns`** — Campaign config (brand_id, budget, pricing model, dates, status, pes_score)
+3. **`ad_creatives`** — Creative assets (campaign_id, image_url, headline, cta_text, cta_url, format)
+4. **`ad_placements`** — Slot definitions (slot_id like P1-P5, location name, format, max_ads)
+5. **`ad_impressions`** — Impression log (campaign_id, creative_id, user_id, placement, timestamp)
+6. **`ad_clicks`** — Click log (impression_id, timestamp, redirect_url)
 
-## Implementation Plan (3 Phases)
+**RLS policies:**
+- `brand_accounts`: Public read for active brands, service-role insert/update
+- `ad_campaigns`: Public read for active campaigns, service-role manage
+- `ad_creatives`: Public read for active creatives, service-role manage
+- `ad_impressions` / `ad_clicks`: Authenticated insert (tracking), service-role read
 
-### Phase 1: Replace Emojis with Real Images in Sidebar
+**PES Quality Gate:** Add a `pes_score` numeric column to `ad_campaigns`. The frontend will only render campaigns where `pes_score >= 30`.
 
-Replace the emoji `<span>` in the Categories sidebar with actual food images using the existing `CATEGORY_IMAGES` from `food-images.ts`. Add small circular thumbnails (32x32) cropped from category hero images.
-
-**Files modified:**
-- `src/lib/food-images.ts` — Add a new `CATEGORY_THUMBNAILS` map with small circular image URLs (reuse existing Unsplash URLs but with `w=80&h=80&fit=crop` params) for all 11 categories
-- `src/pages/MarketCategories.tsx` — Replace `<span className="text-2xl">{cat.emoji}</span>` (line 94) with `<img>` using the new thumbnail URLs, with emoji fallback on error. Also replace emoji in content area header (line 119)
-
-**Animations:**
-- Image fade-in: `opacity 0 -> 1` on load (300ms), consistent with MarketImage pattern
+**Files modified:** 0 frontend files. Only database migration.
 
 ---
 
-### Phase 2: Inline Item List in Categories Page (No Navigation Away)
+## Phase 2: Sponsored Card Component
 
-Instead of navigating to `/market`, show the filtered item list directly inside the Categories right content area. When user taps "View All" or a subcategory, the items render below the subcategory grid within the same page.
+Build a reusable `SponsoredCard` component that renders native-looking sponsored items with a "Sponsored" badge.
 
-**Files modified:**
-- `src/pages/MarketCategories.tsx` — Major changes:
-  - Add `selectedSub` state (currently only used to navigate away)
-  - Replace `handleSubTap` to set local state instead of `navigate()`
-  - When a subcategory is selected, show a filtered item list below the subcategory grid using the existing `MarketItemCard` component
-  - Add sort pills (Best Value / Lowest Price / Most Protein) inline
-  - Add filter chips (All / Veg Only / High Protein) inline
-  - Add `MarketItemDetailSheet` for item tap (reuse from Market.tsx)
-  - Add back button to return from item list to subcategory grid view
-  - Import `MarketItemCard`, `MarketItemDetailSheet`, `useMarket` for processedItems
+**New file:** `src/components/market/SponsoredCard.tsx`
+- Accepts: headline, image_url, cta_text, cta_url, pes_score, placement_id
+- Visual: Matches `MarketItemCard` style with subtle gradient border + small "Sponsored" badge (top-right)
+- PES badge always visible (green/yellow/orange based on score)
+- On render: logs impression to `ad_impressions`
+- On tap: logs click to `ad_clicks`, opens CTA (external link or item detail)
+- Animation: Fade-in consistent with other cards
 
-**Navigation flow after change:**
+**New file:** `src/hooks/useAdServing.ts`
+- Hook that queries active campaigns for a given placement slot
+- Filters by: campaign active, date in range, budget remaining, pes_score >= 30
+- Returns creative data or null
+- Caches with React Query (5 min stale time)
+
+**Files modified:** 0 existing files changed yet. Just new components.
+
+---
+
+## Phase 3: Hero Banner Slot (P1)
+
+Integrate the first ad placement into the Market Shop homepage.
+
+**Modified:** `src/components/MarketHeroSection.tsx`
+- Add a new slide type: "Sponsored" slide
+- Uses `useAdServing('hero_banner')` to check for active campaign
+- If active: adds sponsored slide to carousel with "Sponsored" badge
+- If none: hero works exactly as today (no change)
+- Impression logged when slide is visible (IntersectionObserver)
+
+**Modified:** `src/pages/Market.tsx`
+- Pass sponsored data to MarketHeroSection if available
+
+---
+
+## Phase 4: Category Promoted Pick (P2) + Search Boost (P3)
+
+**Modified:** `src/pages/MarketCategories.tsx`
+- When viewing items in a category, insert a `SponsoredCard` at position 2 if an active campaign targets that category
+- Uses `useAdServing('category_promoted', { category: selectedCategory })`
+
+**Modified:** `src/pages/Market.tsx` (Shop tab)
+- When search is active, insert sponsored result at top of filtered list
+- Uses `useAdServing('search_boost', { query: searchTerm })`
+- Clear "Sponsored" badge differentiates from organic results
+
+---
+
+## Phase 5: Impression/Click Tracking Edge Function
+
+**New file:** `supabase/functions/log-ad-event/index.ts`
+- Receives: `{ event_type: 'impression' | 'click', campaign_id, creative_id, placement, user_id }`
+- Validates campaign is active, deducts from budget (for CPC model)
+- Inserts into `ad_impressions` or `ad_clicks`
+- Rate limits: max 1 impression per user per campaign per 5 minutes
+
+**Modified:** `src/hooks/useAdServing.ts`
+- Add `logImpression()` and `logClick()` functions that call the edge function
+
+---
+
+## Phase 6: Basic Admin Management Page
+
+**New file:** `src/pages/AdAdmin.tsx`
+- Simple table view of all campaigns (status, budget, impressions, clicks)
+- Form to create new campaign (brand, creative upload, placement, dates, budget)
+- PES score input with color indicator
+- Approve/pause/complete campaigns
+- Protected route (admin-only access)
+
+**Modified:** `src/App.tsx` — Add `/admin/ads` route
+
+---
+
+## Technical Details
+
+**Database migration (Phase 1) SQL outline:**
 ```text
-Categories sidebar → Select "Meat" → See subcategories grid
-  → Tap "Chicken" → Items appear below (same page, scrollable)
-  → Tap item → Detail sheet opens (bottom sheet)
-  → Back → Returns to subcategory grid
+brand_accounts: id, brand_name, contact_email, logo_url, balance, status, created_at
+ad_campaigns: id, brand_id FK, campaign_name, placement_slot, budget_total, budget_spent,
+              pricing_model (cpm/cpc/fixed), cpc_rate, cpm_rate, pes_score,
+              target_categories[], target_diet (veg/nonveg/all), start_date, end_date,
+              status (draft/active/paused/completed), created_at
+ad_creatives: id, campaign_id FK, image_url, headline, subtitle, cta_text, cta_url,
+              format (banner/native/nudge), is_active, created_at
+ad_impressions: id, campaign_id, creative_id, placement_slot, user_id, created_at
+ad_clicks: id, impression_id, campaign_id, user_id, created_at
 ```
 
-**Animations:**
-- Item list entrance: `AnimatePresence` with stagger fade+slide (consistent with Shop page)
-- Subcategory -> item list transition: height animation with `motion.div`
-- Back button: slide-in from left
+**Ad serving query logic:**
+```text
+SELECT campaigns + creatives
+WHERE status = 'active'
+  AND now() BETWEEN start_date AND end_date
+  AND budget_spent < budget_total
+  AND pes_score >= 30
+  AND (target_diet = 'all' OR target_diet matches user pref)
+  AND placement_slot = requested_slot
+ORDER BY pes_score DESC, budget_remaining DESC
+LIMIT 1
+```
 
 ---
 
-### Phase 3: Global Veg Toggle Across All Tabs
+## Implementation Order
 
-Add a persistent veg preference to MarketContext so it applies everywhere.
+| Phase | What | Depends On | Effort |
+|-------|------|------------|--------|
+| 1 | Database tables + RLS | Nothing | Low |
+| 2 | SponsoredCard + useAdServing | Phase 1 | Medium |
+| 3 | Hero Banner slot | Phase 2 | Low |
+| 4 | Category + Search slots | Phase 2 | Medium |
+| 5 | Tracking edge function | Phase 1 | Medium |
+| 6 | Admin page | All above | Medium |
 
-**Files modified:**
-- `src/contexts/MarketContext.tsx` — Add `vegOnly: boolean` and `setVegOnly` to context state. Persist in localStorage. When `vegOnly` is true, filter `processedItems` to only `isVeg === true` items
-- `src/pages/Market.tsx` — Read `vegOnly` from context; when toggled on, auto-set filter to 'veg'. Add a small leaf icon toggle in the header area or next to the Fresh/Packed toggle
-- `src/pages/MarketCategories.tsx` — Apply `vegOnly` filter to items shown in the inline list and top value items. Show a "Veg Only" indicator badge when active
-- `src/pages/MarketDeals.tsx` — Filter deals/combos/PES list by `vegOnly`
-- `src/pages/MarketCompare.tsx` — Filter item selection list by `vegOnly`
-- `src/pages/MarketList.tsx` — Filter suggestions by `vegOnly`
-- `src/components/MarketPageHeader.tsx` — Add a small veg toggle (leaf icon) to the header bar that's visible on all market pages
-
-**Design for veg toggle:**
-- Small pill/chip in the header: green leaf icon + "Veg" label
-- Active state: `bg-green-500/15 text-green-600 border-green-500/30`
-- Inactive state: `bg-muted text-muted-foreground`
-- Persists via `localStorage` key `nutrilens_veg_only`
-
-**Animations:**
-- Toggle: spring scale bounce on tap
-- When toggling on: brief green pulse animation on the leaf icon
-
----
-
-## Animation Summary
-
-| Component | Animation | Phase |
-|-----------|-----------|-------|
-| Sidebar category thumbnails | Fade-in 300ms on load | 1 |
-| Inline item list | AnimatePresence stagger fade+slide up | 2 |
-| Sub -> items transition | Height expand with motion.div | 2 |
-| Back to subcategories | Slide transition via AnimatePresence | 2 |
-| Veg toggle | Spring scale bounce + green pulse | 3 |
-
-## Files Summary
-
-| Phase | New Files | Modified Files |
-|-------|-----------|----------------|
-| 1 | -- | `food-images.ts`, `MarketCategories.tsx` |
-| 2 | -- | `MarketCategories.tsx` |
-| 3 | -- | `MarketContext.tsx`, `Market.tsx`, `MarketCategories.tsx`, `MarketDeals.tsx`, `MarketCompare.tsx`, `MarketList.tsx`, `MarketPageHeader.tsx` |
-
-**Total: 0 new files, 8 modified files, 0 backend changes**
+After each phase I will stop and ask you to approve before proceeding to the next.
 
