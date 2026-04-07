@@ -1101,7 +1101,23 @@ export default function CameraHome() {
             ))}
           </div>
 
-          {/* Add missing item */}
+          {/* PES + Price Insight Card (async, non-blocking) */}
+          {scanPriceInsight && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-xl bg-primary/5 border border-primary/20 p-3"
+            >
+              <div className="flex items-center gap-2 text-xs font-semibold text-foreground mb-1">
+                <TrendingDown className="w-3.5 h-3.5 text-primary" />
+                Smart Market Insight
+              </div>
+              <p className="text-[11px] text-foreground">
+                💰 ₹{scanPriceInsight.totalCost} ({scanPriceInsight.city}) · ⭐ PES {scanPriceInsight.pes} — {scanPriceInsight.pesLabel} · ₹{scanPriceInsight.costPerGram}/g protein
+              </p>
+            </motion.div>
+          )}
+
           <button onClick={() => setAddFoodOpen(true)}
             className="w-full py-2.5 rounded-xl border border-dashed border-border text-sm font-medium text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors flex items-center justify-center gap-1.5">
             <Plus className="w-4 h-4" /> Add Missing Item
