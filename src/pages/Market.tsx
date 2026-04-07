@@ -18,12 +18,15 @@ import CategoryGridHome from '@/components/market/CategoryGridHome';
 import EducationCard from '@/components/market/EducationCard';
 import PriceDropsRow from '@/components/market/PriceDropsRow';
 import MarketHeroSection from '@/components/MarketHeroSection';
+import SponsoredCard from '@/components/market/SponsoredCard';
 import { HeroSkeleton, QuickActionsSkeleton, ItemCardSkeleton } from '@/components/market/MarketSkeleton';
 import { scopedGet } from '@/lib/scoped-storage';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
 import MarketImage from '@/components/market/MarketImage';
 import { Clock } from 'lucide-react';
+import { useAdServing } from '@/hooks/useAdServing';
+import { useAuth } from '@/contexts/AuthContext';
 
 function RecentlyViewedRow({ processedItems, onItemTap }: { processedItems: any[]; onItemTap: (name: string) => void }) {
   const recentIds: string[] = useMemo(() => {

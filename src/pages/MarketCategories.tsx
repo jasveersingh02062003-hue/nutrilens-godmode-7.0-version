@@ -9,10 +9,13 @@ import { CategorySidebarSkeleton } from '@/components/market/MarketSkeleton';
 import { getCategoryImage, getCategoryThumbnail } from '@/lib/food-images';
 import { getCategoryTip } from '@/lib/nutrition-tips';
 import MarketImage from '@/components/market/MarketImage';
+import SponsoredCard from '@/components/market/SponsoredCard';
 import { ChevronRight, Sparkles, ArrowLeft, SlidersHorizontal } from 'lucide-react';
 import { type MarketItem as LegacyMarketItem } from '@/lib/market-service';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { useAdServing } from '@/hooks/useAdServing';
+import { useAuth } from '@/contexts/AuthContext';
 
 const CATEGORY_INSIGHTS: Record<string, { insight: string; comparison?: string }> = {
   meat_seafood: { insight: 'Chicken breast gives 31g protein at just ₹3.2/g — leanest and cheapest meat option', comparison: 'Chicken vs Fish' },
