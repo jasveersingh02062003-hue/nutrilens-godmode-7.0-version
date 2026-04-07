@@ -352,35 +352,46 @@ export default function Market() {
                   <button onClick={() => { setFilter('all'); setSelectedCategory(null); setSearch(''); }} className="text-xs text-primary font-semibold mt-2">Clear filters</button>
                 </div>
               ) : (
-                filteredItems.map((item, i) => (
-                  <MarketItemCard
-                    key={item.id}
-                    rank={i + 1}
-                    name={item.name}
-                    emoji={item.emoji}
-                    price={item.cityPrice}
-                    unit={item.unit}
-                    protein={item.protein}
-                    calories={item.calories}
-                    costPerGram={item.costPerGram}
-                    pesColor={item.pesColor}
-                    pes={item.pes}
-                    servingDesc={item.servingDesc}
-                    isVeg={item.isVeg}
-                    isCompareSelected={compareItems.some(c => c.id === item.id)}
-                    badge={badgeMap.get(item.id) || null}
-                    badgeCity={city && city !== 'India' ? city : undefined}
-                    onTap={() => handleOpenDetail(item)}
-                    onAddToPlan={(e) => {
-                      e.stopPropagation();
-                      toast.success(`${item.name} noted! Open Meal Planner to add it.`, { icon: '✅' });
-                      navigate('/planner');
-                    }}
-                    onToggleCompare={(e) => toggleCompare(item, e)}
-                    index={i}
-                    itemId={item.id}
-                  />
-                ))
+                <>
+                  {/* Sponsored search boost — shown at top when browsing */}
+                  {isBrowsing && searchAd && (
+                    <SponsoredCard
+                      ad={searchAd}
+                      onImpression={() => logSearchImpression(user?.id)}
+                      onClick={() => logSearchClick(user?.id)}
+                      variant="native"
+                    />
+                  )}
+                  {filteredItems.map((item, i) => (
+                    <MarketItemCard
+                      key={item.id}
+                      rank={i + 1}
+                      name={item.name}
+                      emoji={item.emoji}
+                      price={item.cityPrice}
+                      unit={item.unit}
+                      protein={item.protein}
+                      calories={item.calories}
+                      costPerGram={item.costPerGram}
+                      pesColor={item.pesColor}
+                      pes={item.pes}
+                      servingDesc={item.servingDesc}
+                      isVeg={item.isVeg}
+                      isCompareSelected={compareItems.some(c => c.id === item.id)}
+                      badge={badgeMap.get(item.id) || null}
+                      badgeCity={city && city !== 'India' ? city : undefined}
+                      onTap={() => handleOpenDetail(item)}
+                      onAddToPlan={(e) => {
+                        e.stopPropagation();
+                        toast.success(`${item.name} noted! Open Meal Planner to add it.`, { icon: '✅' });
+                        navigate('/planner');
+                      }}
+                      onToggleCompare={(e) => toggleCompare(item, e)}
+                      index={i}
+                      itemId={item.id}
+                    />
+                  ))}
+                </>
               )}
             </div>
 
