@@ -1,70 +1,36 @@
 
 
-# Phase 5: Smart Market — Scanner PES Display + Vegetables Expansion + Weekly Report Integration
 
-## Current State Summary
+# Phase 6: Smart Market — Resilience, Data Quality & Infrastructure Hardening ✅ COMPLETED
 
-**Completed (Phases 1-4):**
-- 73 packed products across 8 categories (frozen, RTE, protein_drink, supplement, snack, beverage, spread, protein_bar)
-- Market page: categories (12 pills including Frozen/Drinks/Spreads), search, sort, city picker, hero card, savings tracker, budget filter, compare selection, Buy/Add buttons on cards
-- Detail sheet: nutrition grid, platform links, price trend chart, color-coded allergen badges
-- Swap nudges in TodayMealPlan (SwapNudgeCard)
-- Shopping list cost estimates via estimateLiveCost
-- City alias mapping (resolveCity)
-- PES insight toast after meal log in LogFood.tsx (line 259-267)
-- 45 city_prices rows, 280 price_history rows for 3 cities
-- Dashboard sidebar + profile Smart Market links
-- SmartMarketBanner on dashboard
-- Compare bar (MarketCompareBar) + ComparisonSheet integration
+## What Was Done
 
-## Remaining Gaps
-
-| Gap | Blueprint Section | Priority |
-|-----|------------------|----------|
-| **Scanner (CameraHome) has NO PES/price display after scan** | 6.2 "Scan → show PES + price" | P1 |
-| **LogFood scan result cards don't show price/PES inline** (only toast on commit) | 6.2 visual card | P1 |
-| **No vegetables/fruits in market data** (static DB has some but sparse) | 4.1 Everyday Vegetables | P1 |
-| **Weekly Report doesn't include savings** | 6.3 "₹X saved this week" | P2 |
-| **Monika Chat has no market data** | 6.3 "What's cheapest protein?" | P3 (skip) |
-| **No price alerts** | 7.4 Premium | P3 (skip) |
-| **No multi-city comparison view** | 7.4 Premium | P3 (skip) |
-
-## Plan — 4 Steps
-
-### Step 1: PES + Price Card in CameraHome Scan Results
-After `analyze-food` returns items in the CameraHome confirm step, add a small summary card below the scanned items:
-- For each identified food, call `getLivePrice()` async (non-blocking)
-- Show a compact bar: "💰 ₹{totalCost} ({city}) · PES {score} — {label} · ₹{costPerGram}/g protein"
-- If price lookup fails or no city set, gracefully skip
-
-### Step 2: Inline PES Badge on LogFood Adjust Step
-In LogFood.tsx adjust step (where items are listed with quantity controls), add a small PES/price indicator below each item's nutrition line:
-- After items are selected, async-fetch `getLivePrice()` for each
-- Display: "₹{price} · PES {value}" in a subtle muted line below the calories line
-- Non-blocking: if lookup fails, just don't show it
-
-### Step 3: Expand Vegetables & Fruits in Static Market Data
-Add more fresh food items to the `pes-engine.ts` foodDatabase covering:
-- Everyday vegetables: Tomato, Onion, Potato, Ginger, Garlic, Green Chilli, Coriander, Beetroot, Sweet Potato, Drumstick, Methi
-- Fruits: Banana, Apple, Papaya, Guava, Orange, Mango (seasonal)
-- Ensure they appear under 'vegetable' and 'fruits' category filters in market-service
-
-### Step 4: Add Savings Line to Weekly Report
-In `WeeklyReportCard.tsx` or `weekly-feedback.ts`, read `nutrilens_market_savings` from localStorage and include a "Smart Market savings" line: "₹{weekly} saved through smart swaps this week"
+| # | Gap | Solution Implemented |
+|---|-----|---------------------|
+| 1 | Retry & Circuit Breaker | `fetchWithRetry()` with 3 retries + exponential backoff + module-level circuit breaker (5 failures → 30min cooldown) in `firecrawl-prices/index.ts` |
+| 2 | Data Freshness Indicators | `PriceFreshnessBadge` component — green (<6h), yellow (6-24h), red (>24h), grey (static estimate) |
+| 3 | Crowdsource Verification | 3+ distinct users within 7 days required + outlier rejection (>50% from median excluded) |
+| 4 | Edge Function Scheduling | `pg_cron` + `pg_net` — daily price scrape at 6:30 AM UTC, hourly alert check |
+| 5 | Database Indexing | Composite indexes on `city_prices`, `price_history`, `price_reports` for fast lookups |
+| 6 | Partial Data Handling | "⚠️ Incomplete" badge on market cards when protein=0 AND calories=0 |
+| 7 | Privacy/Moderation | `is_verified` column on `price_reports` for admin moderation |
+| 8 | Tests | Deferred to separate step |
+| 9 | Monitoring | Structured JSON logs in edge functions with event counters |
+| 10 | Deep Linking | App deep links (bigbasket://, amazon://, blinkit://) with 500ms HTTPS fallback |
+| 11 | Price Alerts | `price_alerts` table + `PriceAlertSheet` UI + `check-price-alerts` edge function (hourly via cron) |
+| 12 | Stale Fallback | Last-known price returned with `source: 'stale'` + `isStale: true` when all sources fail |
 
 ## Files Changed
 
 | File | Action |
 |------|--------|
-| `src/pages/CameraHome.tsx` | Modified — add PES+price summary card after scan |
-| `src/pages/LogFood.tsx` | Modified — add inline PES/price below items in adjust step |
-| `src/lib/pes-engine.ts` | Modified — add vegetables & fruits to foodDatabase |
-| `src/lib/market-service.ts` | Modified — improve vegetable/fruit category filtering |
-| `src/components/WeeklyReportCard.tsx` | Modified — add savings line |
-
-## Technical Notes
-- All price lookups are async and non-blocking via `getLivePrice()` from `live-price-service.ts`
-- No Firecrawl/API calls — FIRECRAWL_HOOK comments preserved for future integration
-- PES calculation uses existing `calculatePES()` from `pes-engine.ts`
-- Vegetables have low protein so PES will be low — that's correct behavior; they rank by nutrition density instead
-
+| `supabase/functions/firecrawl-prices/index.ts` | Rewritten — retry + circuit breaker + structured logging |
+| `supabase/functions/check-price-alerts/index.ts` | New — hourly alert checker |
+| `src/components/PriceFreshnessBadge.tsx` | New — color-coded staleness indicator |
+| `src/components/PriceAlertSheet.tsx` | New — UI to create price alerts |
+| `src/lib/live-price-service.ts` | Updated — stale fallback + outlier rejection + distinct user verification |
+| `src/pages/Market.tsx` | Updated — freshness badges, incomplete badges, deep links |
+| `src/components/MarketItemDetailSheet.tsx` | Updated — freshness badge, Set Alert button |
+| DB migration | Indexes + `price_alerts` table + `is_verified` on `price_reports` |
+| DB migration | `pg_cron` + `pg_net` extensions |
+| Cron jobs | Daily scrape + hourly alert check scheduled |
