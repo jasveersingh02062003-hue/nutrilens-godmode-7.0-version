@@ -64,7 +64,6 @@ export default function TopValueCards({ items, onItemTap }: TopValueCardsProps) 
               <div className="mx-auto mb-1.5">
                 <MarketImage itemId={item.itemId} emoji={item.emoji} alt={item.name} size="lg" />
               </div>
-              )}
 
               <p className="text-[11px] font-bold text-foreground truncate">{item.name.split('(')[0].trim()}</p>
               <p className="text-[12px] font-bold text-primary mt-0.5">₹{item.price}<span className="text-[9px] font-normal text-muted-foreground">/{item.unit}</span></p>

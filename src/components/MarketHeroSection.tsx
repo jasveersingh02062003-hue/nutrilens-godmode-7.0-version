@@ -73,7 +73,6 @@ export default function MarketHeroSection({ bestValue, biggestDrop, city, onTap 
 
   // Slide 2: Price Drop Alert
   if (biggestDrop && biggestDrop.priceChange && biggestDrop.priceChange < 0) {
-    const img2 = biggestDrop.itemId ? true : false;
     slides.push({
       id: 'price-drop',
       content: (
@@ -88,7 +87,6 @@ export default function MarketHeroSection({ bestValue, biggestDrop, city, onTap 
           <div className="flex items-center gap-3">
             <div className="w-14 h-14 rounded-2xl bg-green-500/10 flex items-center justify-center overflow-hidden">
               <MarketImage itemId={biggestDrop.itemId} emoji={biggestDrop.emoji} alt={biggestDrop.name} size="lg" />
-            </div>
             </div>
             <div className="flex-1">
               <p className="text-base font-bold text-foreground">
