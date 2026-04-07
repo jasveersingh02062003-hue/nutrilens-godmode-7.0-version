@@ -47,6 +47,10 @@ const preloadFoodArchive = () => import("./pages/FoodArchive");
 const preloadQuickLog = () => import("./pages/QuickLog");
 const preloadNotFound = () => import("./pages/NotFound");
 const preloadMarket = () => import("./pages/Market");
+const preloadMarketCategories = () => import("./pages/MarketCategories");
+const preloadMarketDeals = () => import("./pages/MarketDeals");
+const preloadMarketCompare = () => import("./pages/MarketCompare");
+const preloadMarketList = () => import("./pages/MarketList");
 
 const CameraHome = lazyWithRetry(preloadCameraHome, "camera-home");
 const Dashboard = lazyWithRetry(preloadDashboard, "dashboard");
@@ -61,6 +65,10 @@ const FoodArchive = lazyWithRetry(preloadFoodArchive, "food-archive");
 const QuickLog = lazyWithRetry(preloadQuickLog, "quick-log");
 const NotFound = lazyWithRetry(preloadNotFound, "not-found");
 const Market = lazyWithRetry(preloadMarket, "market");
+const MarketCategories = lazyWithRetry(preloadMarketCategories, "market-categories");
+const MarketDeals = lazyWithRetry(preloadMarketDeals, "market-deals");
+const MarketCompare = lazyWithRetry(preloadMarketCompare, "market-compare");
+const MarketList = lazyWithRetry(preloadMarketList, "market-list");
 
 const queryClient = new QueryClient();
 
