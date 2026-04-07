@@ -1,5 +1,5 @@
 import { useState, useMemo, memo } from 'react';
-import { X, TrendingUp, Droplets, Target, Flame, ChevronDown, ChevronUp, AlertTriangle, Lightbulb, Activity, Utensils } from 'lucide-react';
+import { X, TrendingUp, Droplets, Target, Flame, ChevronDown, ChevronUp, AlertTriangle, Lightbulb, Activity, Utensils, IndianRupee } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateWeeklyReport, WeeklyReport } from '@/lib/coach';
 import { getProfile } from '@/lib/store';
@@ -169,6 +169,21 @@ export default memo(function WeeklyReportCard() {
             ))}
           </div>
         )}
+
+        {/* Smart Market Savings */}
+        {(() => {
+          try {
+            const saved = JSON.parse(localStorage.getItem('nutrilens_market_savings') || '{}');
+            const weekly = saved.weekly || 0;
+            if (weekly <= 0) return null;
+            return (
+              <div className="mb-2.5 flex items-center gap-2 bg-primary/5 rounded-lg px-3 py-2">
+                <IndianRupee className="w-3.5 h-3.5 text-primary" />
+                <p className="text-xs text-foreground font-medium">₹{weekly} saved through smart swaps this week</p>
+              </div>
+            );
+          } catch { return null; }
+        })()}
 
         {/* Recommendations */}
         {report.recommendations.length > 0 && (
