@@ -353,34 +353,48 @@ export default function MarketCategories() {
                         <p className="text-sm text-muted-foreground">No items found</p>
                       </div>
                     ) : (
-                      inlineItems.map((item, i) => (
-                        <MarketItemCard
-                          key={item.id}
-                          rank={i + 1}
-                          name={item.name}
-                          emoji={item.emoji}
-                          price={item.cityPrice}
-                          unit={item.unit}
-                          protein={item.protein}
-                          calories={item.calories}
-                          costPerGram={item.costPerGram}
-                          pesColor={item.pesColor}
-                          pes={item.pes}
-                          servingDesc={item.servingDesc}
-                          isVeg={item.isVeg}
-                          isCompareSelected={false}
-                          badge={null}
-                          onTap={() => handleOpenDetail(item)}
-                          onAddToPlan={(e) => {
-                            e.stopPropagation();
-                            toast.success(`${item.name} noted! Open Meal Planner to add.`, { icon: '✅' });
-                            navigate('/planner');
-                          }}
-                          onToggleCompare={() => {}}
-                          index={i}
-                          itemId={item.id}
-                        />
-                      ))
+                      <>
+                        {inlineItems.map((item, i) => (
+                          <div key={item.id}>
+                            <MarketItemCard
+                              rank={i + 1}
+                              name={item.name}
+                              emoji={item.emoji}
+                              price={item.cityPrice}
+                              unit={item.unit}
+                              protein={item.protein}
+                              calories={item.calories}
+                              costPerGram={item.costPerGram}
+                              pesColor={item.pesColor}
+                              pes={item.pes}
+                              servingDesc={item.servingDesc}
+                              isVeg={item.isVeg}
+                              isCompareSelected={false}
+                              badge={null}
+                              onTap={() => handleOpenDetail(item)}
+                              onAddToPlan={(e) => {
+                                e.stopPropagation();
+                                toast.success(`${item.name} noted! Open Meal Planner to add.`, { icon: '✅' });
+                                navigate('/planner');
+                              }}
+                              onToggleCompare={() => {}}
+                              index={i}
+                              itemId={item.id}
+                            />
+                            {/* Insert sponsored card after 2nd item */}
+                            {i === 1 && categoryAd && (
+                              <div className="mt-2">
+                                <SponsoredCard
+                                  ad={categoryAd}
+                                  onImpression={() => logCatImpression(user?.id)}
+                                  onClick={() => logCatClick(user?.id)}
+                                  variant="native"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </>
                     )}
                   </div>
                 </>
