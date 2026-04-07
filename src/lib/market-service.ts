@@ -49,6 +49,52 @@ export const SUPPORTED_CITIES = [
   'Pune', 'Kolkata', 'Ahmedabad', 'Jaipur', 'Lucknow',
 ];
 
+// City alias mapping for nearest supported city
+const CITY_ALIASES: Record<string, string> = {
+  secunderabad: 'hyderabad',
+  noida: 'delhi',
+  gurgaon: 'delhi',
+  gurugram: 'delhi',
+  faridabad: 'delhi',
+  ghaziabad: 'delhi',
+  thane: 'mumbai',
+  'navi mumbai': 'mumbai',
+  whitefield: 'bangalore',
+  bengaluru: 'bangalore',
+  mysore: 'bangalore',
+  mysuru: 'bangalore',
+};
+
+/** Resolve city to nearest supported city. Returns { resolved, isAlias } */
+export function resolveCity(city: string): { resolved: string; isAlias: boolean; original?: string } {
+  const lower = city.toLowerCase().trim();
+  const exact = SUPPORTED_CITIES.find(c => c.toLowerCase() === lower);
+  if (exact) return { resolved: exact, isAlias: false };
+  const alias = CITY_ALIASES[lower];
+  if (alias) {
+    const match = SUPPORTED_CITIES.find(c => c.toLowerCase() === alias);
+    if (match) return { resolved: match, isAlias: true, original: city };
+  }
+  return { resolved: city, isAlias: false };
+}
+
+/** Get swap suggestions: cheaper items with similar/better protein */
+export function getSwapSuggestions(
+  currentName: string,
+  currentCostPerGram: number,
+  currentProtein: number,
+  allItems: MarketItem[]
+): MarketItem[] {
+  return allItems
+    .filter(item =>
+      item.name.toLowerCase() !== currentName.toLowerCase() &&
+      item.costPerGramProtein < currentCostPerGram * 0.8 &&
+      item.protein >= currentProtein * 0.8
+    )
+    .sort((a, b) => a.costPerGramProtein - b.costPerGramProtein)
+    .slice(0, 3);
+}
+
 const FRESH_FOOD_IMAGES: Record<string, string> = {
   'chicken': '🍗',
   'egg': '🥚',
