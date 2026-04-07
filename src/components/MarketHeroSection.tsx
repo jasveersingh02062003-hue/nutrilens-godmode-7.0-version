@@ -31,6 +31,8 @@ interface Slide {
 export default function MarketHeroSection({ bestValue, biggestDrop, city, onTap }: MarketHeroSectionProps) {
   const prefersReducedMotion = useReducedMotion();
   const [activeSlide, setActiveSlide] = useState(0);
+  const { user } = useAuth();
+  const { ad: sponsoredAd, logImpression, logClick } = useAdServing('hero_banner');
 
   const slides: Slide[] = useMemo(() => {
   const s: Slide[] = [];
