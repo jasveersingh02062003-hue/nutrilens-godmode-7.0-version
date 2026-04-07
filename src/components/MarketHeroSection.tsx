@@ -187,6 +187,13 @@ export default function MarketHeroSection({ bestValue, biggestDrop, city, onTap 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slides.length, prefersReducedMotion]);
 
+  // Log impression when sponsored slide is visible
+  useEffect(() => {
+    if (slides[activeSlide]?.id === 'sponsored' && sponsoredAd) {
+      logImpression(user?.id);
+    }
+  }, [activeSlide, slides, sponsoredAd, logImpression, user?.id]);
+
   if (slides.length === 0) return null;
 
   return (
