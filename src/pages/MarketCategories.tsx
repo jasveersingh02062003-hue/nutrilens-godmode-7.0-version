@@ -73,7 +73,13 @@ export default function MarketCategories() {
   const [selectedItem, setSelectedItem] = useState<LegacyMarketItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  const allCategories = TOP_CATEGORIES;
+  const allCategories = useMemo(() => {
+    if (!vegOnly) return TOP_CATEGORIES;
+    // Filter out categories with zero veg items
+    return TOP_CATEGORIES.filter(cat => {
+      return MARKET_ITEMS.some(i => i.topCategory === cat.key && i.isVeg);
+    });
+  }, [vegOnly]);
   const subs = SUBCATEGORIES[activeCategory] || [];
   const insightData = CATEGORY_INSIGHTS[activeCategory];
 
