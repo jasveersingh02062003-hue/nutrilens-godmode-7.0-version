@@ -77,6 +77,31 @@ export default function LogFood() {
   const [compareSelection, setCompareSelection] = useState<FoodItem[]>([]);
   const [compareSheetOpen, setCompareSheetOpen] = useState(false);
   const [showChewingTimer, setShowChewingTimer] = useState(false);
+  const [itemPrices, setItemPrices] = useState<Map<string, { price: number; pes: number }>>(new Map());
+
+  // Async fetch prices for selected items (non-blocking)
+  useEffect(() => {
+    if (step !== 'adjust' || selected.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { getLivePrice } = await import('@/lib/live-price-service');
+        const newMap = new Map<string, { price: number; pes: number }>();
+        for (const item of selected) {
+          const lp = await getLivePrice(item.name);
+          if (lp && !cancelled) {
+            const weightG = (item.estimatedWeightGrams || 100) * item.quantity;
+            const cost = lp.unit === 'kg' ? (lp.price * weightG) / 1000 : lp.price * item.quantity;
+            const prot = (item.protein || 0) * item.quantity;
+            const pes = prot > 0 && cost > 0 ? prot / cost : 0;
+            newMap.set(item.id, { price: Math.round(cost), pes: Math.round(pes * 100) / 100 });
+          }
+        }
+        if (!cancelled) setItemPrices(newMap);
+      } catch { /* non-blocking */ }
+    })();
+    return () => { cancelled = true; };
+  }, [step, selected]);
 
   // userAllergens moved after profile declaration below
 
@@ -735,6 +760,11 @@ export default function LogFood() {
                         {item.estimatedWeightGrams && (
                           <p className="text-[10px] text-muted-foreground/60">
                             ≈ {Math.round(item.estimatedWeightGrams * item.quantity)}g total
+                          </p>
+                        )}
+                        {itemPrices.has(item.id) && (
+                          <p className="text-[10px] text-primary/80 font-medium mt-0.5">
+                            💰 ₹{itemPrices.get(item.id)!.price} · PES {itemPrices.get(item.id)!.pes}
                           </p>
                         )}
                         {warnings.map((w, wi) => (

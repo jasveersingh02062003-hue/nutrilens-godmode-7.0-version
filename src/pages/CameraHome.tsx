@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Camera, Mic, MicOff, RotateCcw, ImageIcon, Check, X, Plus, Minus, Loader2, AlertTriangle, ChevronUp, IndianRupee, Search, Gift, ArrowLeft, Sparkles, Pencil, ShieldAlert } from 'lucide-react';
+import { Camera, Mic, MicOff, RotateCcw, ImageIcon, Check, X, Plus, Minus, Loader2, AlertTriangle, ChevronUp, IndianRupee, Search, Gift, ArrowLeft, Sparkles, Pencil, ShieldAlert, TrendingDown } from 'lucide-react';
 import CostSuggestionBanner from '@/components/CostSuggestionBanner';
 import WeatherNudgeCard from '@/components/WeatherNudgeCard';
 import BottomNav from '@/components/BottomNav';
@@ -83,8 +83,10 @@ export default function CameraHome() {
   const [sourcePrediction, setSourcePrediction] = useState<SourcePrediction | null>(null);
   const [aiSuggestion, setAiSuggestion] = useState('');
   const [mealName, setMealName] = useState('');
+  const [scanPriceInsight, setScanPriceInsight] = useState<{ totalCost: number; pes: number; pesLabel: string; city: string; costPerGram: number } | null>(null);
 
-  // Camera
+
+
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState(false);
   const [cameraErrorMessage, setCameraErrorMessage] = useState('Allow camera access or use gallery');
@@ -532,6 +534,36 @@ export default function CameraHome() {
 
   // ─── Calculations ───
   const activeItems = detectedItems.filter(i => i.selected !== false);
+
+  // Async PES + price lookup after scan (non-blocking)
+  useEffect(() => {
+    if (step !== 'confirm' || activeItems.length === 0) { setScanPriceInsight(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { getLivePrice } = await import('@/lib/live-price-service');
+        const { scopedGet: sg } = await import('@/lib/scoped-storage');
+        let totalCost = 0;
+        let totalProt = 0;
+        for (const item of activeItems) {
+          const lp = await getLivePrice(item.name);
+          if (lp) {
+            const qty = item.quantity || 1;
+            const weightG = (item.estimatedWeightGrams || 100) * qty;
+            totalCost += lp.unit === 'kg' ? (lp.price * weightG) / 1000 : lp.price * qty;
+          }
+          totalProt += (item.protein || 0) * (item.quantity || 1);
+        }
+        if (cancelled || totalCost <= 0) return;
+        const pes = totalProt / totalCost;
+        const pesLabel = pes >= 0.6 ? 'Excellent value! 🟢' : pes >= 0.3 ? 'Fair value 🟡' : 'Low value 🔴';
+        const costPerGram = totalProt > 0 ? totalCost / totalProt : 0;
+        const cityName = (() => { try { return JSON.parse(sg('nutrilens_profile') || '{}').city || 'India'; } catch { return 'India'; } })();
+        setScanPriceInsight({ totalCost: Math.round(totalCost), pes: Math.round(pes * 100) / 100, pesLabel, city: cityName, costPerGram: Math.round(costPerGram * 100) / 100 });
+      } catch { /* non-blocking */ }
+    })();
+    return () => { cancelled = true; };
+  }, [step, activeItems]);
 
   const totalCal = activeItems.reduce((s, f) => s + f.calories * f.quantity, 0);
   const totalProtein = activeItems.reduce((s, f) => s + f.protein * f.quantity, 0);
@@ -1069,7 +1101,23 @@ export default function CameraHome() {
             ))}
           </div>
 
-          {/* Add missing item */}
+          {/* PES + Price Insight Card (async, non-blocking) */}
+          {scanPriceInsight && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-xl bg-primary/5 border border-primary/20 p-3"
+            >
+              <div className="flex items-center gap-2 text-xs font-semibold text-foreground mb-1">
+                <TrendingDown className="w-3.5 h-3.5 text-primary" />
+                Smart Market Insight
+              </div>
+              <p className="text-[11px] text-foreground">
+                💰 ₹{scanPriceInsight.totalCost} ({scanPriceInsight.city}) · ⭐ PES {scanPriceInsight.pes} — {scanPriceInsight.pesLabel} · ₹{scanPriceInsight.costPerGram}/g protein
+              </p>
+            </motion.div>
+          )}
+
           <button onClick={() => setAddFoodOpen(true)}
             className="w-full py-2.5 rounded-xl border border-dashed border-border text-sm font-medium text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors flex items-center justify-center gap-1.5">
             <Plus className="w-4 h-4" /> Add Missing Item
