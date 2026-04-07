@@ -34,7 +34,6 @@ export default function MarketHeroSection({ bestValue, biggestDrop, city, onTap 
 
   // Slide 1: Best Value Today
   if (bestValue) {
-    const img = bestValue.itemId ? true : false;
     slides.push({
       id: 'best-value',
       content: (
@@ -49,7 +48,6 @@ export default function MarketHeroSection({ bestValue, biggestDrop, city, onTap 
           <div className="flex items-center gap-3">
             <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center overflow-hidden">
               <MarketImage itemId={bestValue.itemId} emoji={bestValue.emoji} alt={bestValue.name} size="lg" />
-            </div>
             </div>
             <div className="flex-1">
               <p className="text-base font-bold text-foreground">{bestValue.name}</p>
