@@ -83,8 +83,39 @@ export default function CameraHome() {
   const [sourcePrediction, setSourcePrediction] = useState<SourcePrediction | null>(null);
   const [aiSuggestion, setAiSuggestion] = useState('');
   const [mealName, setMealName] = useState('');
+  const [scanPriceInsight, setScanPriceInsight] = useState<{ totalCost: number; pes: number; pesLabel: string; city: string; costPerGram: number } | null>(null);
 
-  // Camera
+  // Async PES + price lookup after scan
+  useEffect(() => {
+    if (step !== 'confirm' || activeItems.length === 0) { setScanPriceInsight(null); return; }
+    let cancelled = false;
+    const fetchPriceInsight = async () => {
+      try {
+        const { getLivePrice } = await import('@/lib/live-price-service');
+        const userCity = profile?.city || 'hyderabad';
+        let totalCost = 0;
+        let totalProt = 0;
+        for (const item of activeItems) {
+          const lp = await getLivePrice(item.name, userCity);
+          if (lp) {
+            const qty = item.quantity || 1;
+            const weightG = (item.estimatedWeightGrams || 100) * qty;
+            const cost = lp.unit === 'kg' ? (lp.price * weightG) / 1000 : lp.price * qty;
+            totalCost += cost;
+          }
+          totalProt += (item.protein || 0) * (item.quantity || 1);
+        }
+        if (cancelled || totalCost <= 0) return;
+        const pes = totalProt / totalCost;
+        const pesLabel = pes >= 0.6 ? 'Excellent value! 🟢' : pes >= 0.3 ? 'Fair value 🟡' : 'Low value 🔴';
+        const costPerGram = totalProt > 0 ? totalCost / totalProt : 0;
+        setScanPriceInsight({ totalCost: Math.round(totalCost), pes: Math.round(pes * 100) / 100, pesLabel, city: userCity, costPerGram: Math.round(costPerGram * 100) / 100 });
+      } catch { /* non-blocking */ }
+    };
+    fetchPriceInsight();
+    return () => { cancelled = true; };
+  }, [step, activeItems, profile?.city]);
+
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState(false);
   const [cameraErrorMessage, setCameraErrorMessage] = useState('Allow camera access or use gallery');
