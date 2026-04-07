@@ -103,6 +103,31 @@ export const foodDatabase: PESFood[] = [
   { id: "F48", name: "Dabeli (1)", price: 20, protein: 2, calories: 180, fat: 6, carbs: 28, tags: ["junk"], mealType: ["snack"], proteinPerRupee: 0.10 },
   { id: "F49", name: "Misal Pav", price: 50, protein: 8, calories: 400, fat: 15, carbs: 55, tags: ["vegetarian"], mealType: ["breakfast"], proteinPerRupee: 0.16 },
   { id: "F50", name: "Besan Chilla (2)", price: 20, protein: 10, calories: 200, fat: 4, carbs: 18, tags: ["vegetarian", "budget", "high_protein"], mealType: ["breakfast", "snack"], proteinPerRupee: 0.50 },
+  // ─── Everyday Vegetables ───
+  { id: "V01", name: "Tomato (100g)", price: 4, protein: 0.9, calories: 18, fat: 0.2, carbs: 3.9, tags: ["vegetarian", "budget", "vegetable"], mealType: ["lunch", "dinner"], proteinPerRupee: 0.23 },
+  { id: "V02", name: "Onion (100g)", price: 4, protein: 1.1, calories: 40, fat: 0.1, carbs: 9.3, tags: ["vegetarian", "budget", "vegetable"], mealType: ["lunch", "dinner"], proteinPerRupee: 0.28 },
+  { id: "V03", name: "Potato (100g)", price: 3, protein: 2, calories: 77, fat: 0.1, carbs: 17, tags: ["vegetarian", "budget", "vegetable"], mealType: ["lunch", "dinner"], proteinPerRupee: 0.67 },
+  { id: "V04", name: "Green Chilli (10g)", price: 1, protein: 0.3, calories: 4, fat: 0, carbs: 0.7, tags: ["vegetarian", "budget", "vegetable"], mealType: ["lunch", "dinner"], proteinPerRupee: 0.30 },
+  { id: "V05", name: "Ginger (10g)", price: 2, protein: 0.2, calories: 8, fat: 0.1, carbs: 1.8, tags: ["vegetarian", "budget", "vegetable"], mealType: ["lunch", "dinner"], proteinPerRupee: 0.10 },
+  { id: "V06", name: "Garlic (10g)", price: 3, protein: 0.6, calories: 15, fat: 0, carbs: 3.3, tags: ["vegetarian", "budget", "vegetable"], mealType: ["lunch", "dinner"], proteinPerRupee: 0.20 },
+  { id: "V07", name: "Coriander (25g)", price: 5, protein: 0.5, calories: 6, fat: 0.1, carbs: 0.9, tags: ["vegetarian", "budget", "vegetable"], mealType: ["lunch", "dinner"], proteinPerRupee: 0.10 },
+  { id: "V08", name: "Beetroot (100g)", price: 5, protein: 1.6, calories: 43, fat: 0.2, carbs: 9.6, tags: ["vegetarian", "budget", "vegetable"], mealType: ["lunch", "dinner"], proteinPerRupee: 0.32 },
+  { id: "V09", name: "Sweet Potato (100g)", price: 5, protein: 1.6, calories: 86, fat: 0.1, carbs: 20, tags: ["vegetarian", "budget", "vegetable"], mealType: ["lunch", "dinner", "snack"], proteinPerRupee: 0.32 },
+  { id: "V10", name: "Drumstick (100g)", price: 6, protein: 2.1, calories: 26, fat: 0.2, carbs: 3.7, tags: ["vegetarian", "budget", "vegetable"], mealType: ["lunch", "dinner"], proteinPerRupee: 0.35 },
+  { id: "V11", name: "Methi Leaves (100g)", price: 5, protein: 4.4, calories: 49, fat: 0.9, carbs: 6, tags: ["vegetarian", "budget", "vegetable", "high_iron"], mealType: ["lunch", "dinner"], proteinPerRupee: 0.88 },
+  { id: "V12", name: "Spinach (100g)", price: 5, protein: 2.9, calories: 23, fat: 0.4, carbs: 3.6, tags: ["vegetarian", "budget", "vegetable", "high_iron"], mealType: ["lunch", "dinner"], proteinPerRupee: 0.58 },
+  { id: "V13", name: "Broccoli (100g)", price: 15, protein: 2.8, calories: 34, fat: 0.4, carbs: 6.6, tags: ["vegetarian", "vegetable"], mealType: ["lunch", "dinner"], proteinPerRupee: 0.19 },
+  { id: "V14", name: "Capsicum (100g)", price: 8, protein: 0.9, calories: 20, fat: 0.2, carbs: 4.6, tags: ["vegetarian", "vegetable"], mealType: ["lunch", "dinner"], proteinPerRupee: 0.11 },
+  { id: "V15", name: "Cabbage (100g)", price: 3, protein: 1.3, calories: 25, fat: 0.1, carbs: 5.8, tags: ["vegetarian", "budget", "vegetable"], mealType: ["lunch", "dinner"], proteinPerRupee: 0.43 },
+  { id: "V16", name: "Cauliflower (100g)", price: 4, protein: 1.9, calories: 25, fat: 0.3, carbs: 5, tags: ["vegetarian", "budget", "vegetable"], mealType: ["lunch", "dinner"], proteinPerRupee: 0.48 },
+  { id: "V17", name: "Carrot (100g)", price: 4, protein: 0.9, calories: 41, fat: 0.2, carbs: 9.6, tags: ["vegetarian", "budget", "vegetable"], mealType: ["lunch", "dinner", "snack"], proteinPerRupee: 0.23 },
+  // ─── Fruits ───
+  { id: "FR01", name: "Papaya (100g)", price: 5, protein: 0.5, calories: 43, fat: 0.3, carbs: 11, tags: ["vegetarian", "budget", "fruit"], mealType: ["snack", "breakfast"], proteinPerRupee: 0.10 },
+  { id: "FR02", name: "Guava (100g)", price: 8, protein: 2.6, calories: 68, fat: 1, carbs: 14, tags: ["vegetarian", "fruit"], mealType: ["snack"], proteinPerRupee: 0.33 },
+  { id: "FR03", name: "Mango (100g)", price: 15, protein: 0.8, calories: 60, fat: 0.4, carbs: 15, tags: ["vegetarian", "fruit", "seasonal"], mealType: ["snack"], proteinPerRupee: 0.05 },
+  { id: "FR04", name: "Watermelon (100g)", price: 3, protein: 0.6, calories: 30, fat: 0.2, carbs: 7.6, tags: ["vegetarian", "budget", "fruit"], mealType: ["snack"], proteinPerRupee: 0.20 },
+  { id: "FR05", name: "Pomegranate (100g)", price: 20, protein: 1.7, calories: 83, fat: 1.2, carbs: 19, tags: ["vegetarian", "fruit"], mealType: ["snack"], proteinPerRupee: 0.09 },
+  { id: "FR06", name: "Pineapple (100g)", price: 6, protein: 0.5, calories: 50, fat: 0.1, carbs: 13, tags: ["vegetarian", "fruit"], mealType: ["snack"], proteinPerRupee: 0.08 },
 ];
 
 // ─── Dynamic Thresholds ───

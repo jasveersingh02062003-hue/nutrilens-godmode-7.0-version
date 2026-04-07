@@ -123,6 +123,23 @@ const FRESH_FOOD_IMAGES: Record<string, string> = {
   'rajma': '🫘',
   'chole': '🫘',
   'sweet potato': '🍠',
+  'beetroot': '🟣',
+  'drumstick': '🥬',
+  'methi': '🌿',
+  'capsicum': '🫑',
+  'cabbage': '🥬',
+  'cauliflower': '🥦',
+  'carrot': '🥕',
+  'papaya': '🍈',
+  'guava': '🍐',
+  'mango': '🥭',
+  'watermelon': '🍉',
+  'pomegranate': '🔴',
+  'pineapple': '🍍',
+  'ginger': '🫚',
+  'garlic': '🧄',
+  'chilli': '🌶️',
+  'coriander': '🌿',
 };
 
 function getFreshFoodEmoji(name: string): string {
@@ -196,7 +213,7 @@ async function getFreshMarketItems(city: string, category: MarketCategory): Prom
   } else if (category === 'grain') {
     foods = foods.filter(f => f.tags.includes('vegetarian') && f.carbs > 20);
   } else if (category === 'vegetable') {
-    foods = foods.filter(f => f.calories < 100 && f.carbs < 15);
+    foods = foods.filter(f => f.tags.includes('vegetable') || (f.calories < 100 && f.carbs < 15));
   } else if (category === 'dals') {
     foods = foods.filter(f => {
       const n = f.name.toLowerCase();
@@ -205,7 +222,7 @@ async function getFreshMarketItems(city: string, category: MarketCategory): Prom
   } else if (category === 'fruits') {
     foods = foods.filter(f => {
       const n = f.name.toLowerCase();
-      return n.includes('banana') || n.includes('apple') || n.includes('papaya') || n.includes('guava') || n.includes('orange') || n.includes('mango');
+      return f.tags.includes('fruit') || n.includes('banana') || n.includes('apple') || n.includes('papaya') || n.includes('guava') || n.includes('orange') || n.includes('mango');
     });
   }
 
