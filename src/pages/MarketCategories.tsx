@@ -4,7 +4,7 @@ import { TOP_CATEGORIES, SUBCATEGORIES, MARKET_ITEMS, getCityPrice, calculateMar
 import { useMarket } from '@/contexts/MarketContext';
 import MarketPageHeader from '@/components/MarketPageHeader';
 import { CategorySidebarSkeleton } from '@/components/market/MarketSkeleton';
-import { getFoodImage } from '@/lib/food-images';
+import { getFoodImage, getCategoryImage } from '@/lib/food-images';
 import { getCategoryTip } from '@/lib/nutrition-tips';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Sparkles } from 'lucide-react';
@@ -118,6 +118,21 @@ export default function MarketCategories() {
                 </h2>
                 <p className="text-[10px] text-muted-foreground mt-0.5">{MARKET_ITEMS.filter(i => i.topCategory === activeCategory).length} items available</p>
               </div>
+
+              {/* Category hero image */}
+              {(() => {
+                const catImg = getCategoryImage(activeCategory);
+                return catImg ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="relative h-24 rounded-xl overflow-hidden"
+                  >
+                    <img src={catImg} alt={activeCategory} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
+                  </motion.div>
+                ) : null;
+              })()}
 
               {insightData && (
                 <motion.div
