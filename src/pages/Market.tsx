@@ -117,7 +117,19 @@ export default function Market() {
     const sorted = [...processedItems].sort((a, b) => b.pes - a.pes);
     const top = sorted[0];
     if (!top) return null;
-    return { name: top.name, emoji: top.emoji, price: top.cityPrice, unit: top.unit, protein: top.protein, costPerGram: top.costPerGram };
+    return { name: top.name, emoji: top.emoji, price: top.cityPrice, unit: top.unit, protein: top.protein, costPerGram: top.costPerGram, itemId: top.id };
+  }, [processedItems]);
+
+  const biggestDrop = useMemo(() => {
+    const drops = [
+      { id: 'mk_bangda', change: -15 }, { id: 'mk_egg_white', change: -12 },
+      { id: 'mk_cabbage', change: -10 }, { id: 'mk_tomato', change: -8 },
+    ];
+    for (const d of drops) {
+      const item = processedItems.find(i => i.id === d.id);
+      if (item) return { name: item.name, emoji: item.emoji, price: item.cityPrice, unit: item.unit, protein: item.protein, costPerGram: item.costPerGram, priceChange: d.change, itemId: d.id };
+    }
+    return null;
   }, [processedItems]);
 
   const priceDrops = useMemo(() => {
@@ -189,7 +201,7 @@ export default function Market() {
             {/* HOMEPAGE SECTIONS */}
             {!isBrowsing && viewMode === 'fresh' && (
               <>
-                <MarketHeroSection bestValue={bestValue} biggestDrop={null} city={cityLabel} onTap={handleItemTapByName} />
+                <MarketHeroSection bestValue={bestValue} biggestDrop={biggestDrop} city={cityLabel} onTap={handleItemTapByName} />
                 <QuickActionsRow city={city || 'India'} onItemTap={handleItemTapByName} />
                 <TopValueCards items={topValueItems} onItemTap={handleItemTapByName} />
                 <CategoryGridHome onCategoryTap={handleCategoryNav} />
