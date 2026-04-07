@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, ShieldCheck, AlertTriangle, Clock, TrendingUp } from 'lucide-react';
+import { ExternalLink, ShieldCheck, AlertTriangle, Clock, TrendingUp, Bell } from 'lucide-react';
 import { getMarketItemDetail, type MarketItem, type MarketItemDetail } from '@/lib/market-service';
 import PESBadge from './PESBadge';
 import { toast } from 'sonner';
 import PriceTrendChart from './PriceTrendChart';
 import type { PESColor } from '@/lib/pes-engine';
 import { formatDistanceToNow } from 'date-fns';
+import PriceFreshnessBadge from './PriceFreshnessBadge';
+import PriceAlertSheet from './PriceAlertSheet';
 
 interface MarketItemDetailSheetProps {
   open: boolean;
@@ -22,6 +24,7 @@ export default function MarketItemDetailSheet({ open, onOpenChange, item, city, 
   const navigate = useNavigate();
   const [detail, setDetail] = useState<MarketItemDetail | null>(null);
   const [loading, setLoading] = useState(false);
+  const [alertOpen, setAlertOpen] = useState(false);
 
   useEffect(() => {
     if (item && open) {
@@ -71,9 +74,8 @@ export default function MarketItemDetailSheet({ open, onOpenChange, item, city, 
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground">
-                <Clock className="w-3 h-3" />
-                <span>Updated {lastUpdatedLabel}</span>
+              <div className="flex items-center gap-2 mt-1">
+                <PriceFreshnessBadge lastUpdated={item.lastUpdated} isStale={(item as any).isStale} />
               </div>
             </div>
           </div>
@@ -193,6 +195,13 @@ export default function MarketItemDetailSheet({ open, onOpenChange, item, city, 
               Report Price
             </Button>
             <Button
+              variant="outline"
+              className="text-xs"
+              onClick={() => setAlertOpen(true)}
+            >
+              <Bell className="w-3.5 h-3.5 mr-1" /> Alert
+            </Button>
+            <Button
               className="flex-1 text-xs"
               onClick={() => {
                 toast.success(`${item.name} noted! Open Meal Planner to add it.`, { icon: '✅' });
@@ -204,6 +213,14 @@ export default function MarketItemDetailSheet({ open, onOpenChange, item, city, 
             </Button>
           </div>
         </div>
+
+        <PriceAlertSheet
+          open={alertOpen}
+          onOpenChange={setAlertOpen}
+          itemName={item.name}
+          city={city}
+          currentPrice={item.price}
+        />
       </SheetContent>
     </Sheet>
   );
