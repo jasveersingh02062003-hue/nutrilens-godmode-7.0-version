@@ -1,88 +1,84 @@
 
 
-# Phase 3: Smart Market — Cross-Feature Sync & Smart Features
+# Phase 4: Smart Market — Packed Foods Expansion + Scanner Integration + Category Depth
 
-## Gap Analysis (Blueprint vs Current)
+## Remaining Gaps vs Blueprint
 
-### Already Done (Phase 1 + 2 + 2.5)
-- Database tables: `price_history`, `packed_products`, `city_prices`, `price_reports`
-- Market page with categories, search, sort, city picker, hero card
-- Detail sheet with nutrition, platforms, trend chart, allergens
-- Report Price sheet (crowdsource)
-- Dashboard sidebar with Smart Market entry
-- Profile page Smart Market link
-- Meal Planner "Market" tab with compact view
-- SmartMarketBanner on dashboard (rotating)
-- PriceTrendChart component (Recharts)
-- City picker updates profile in DB
+### What's Done (Phases 1-3)
+- Market page with categories, search, sort, city picker, hero card, savings tracker, budget filter
+- Compare selection + ComparisonSheet integration
+- Detail sheet with nutrition, platforms, trend chart
+- Report Price crowdsource
+- Swap nudges in TodayMealPlan
+- Shopping list cost estimates in Kitchen tab
+- City alias mapping (resolveCity)
+- Dashboard sidebar + profile links
+- SmartMarketBanner rotating on dashboard
+- FIRECRAWL_HOOK placeholders throughout
 
-### Remaining Gaps (What This Phase Fixes)
+### Remaining Gaps (This Phase)
 
-| Gap | Blueprint Section | Priority |
-|-----|------------------|----------|
-| **No savings tracker** on Market page | Section 5.3 "YOUR SAVINGS" | P1 |
-| **No inline swap nudges** in meal planner | Section 5.2 "Inline Swap Nudges" | P1 |
-| **Food scanner doesn't show PES + price** after scan | Section 6.2 "Scan/Log → Price + PES" | P1 |
-| **No "Compare" button on market cards** | Section 5.3 food cards show [Compare] | P1 |
-| **Shopping list no live cost estimate** | Section 6.3 "Show estimated cost using live prices" | P2 |
-| **No multi-city comparison** | Section 7.4 premium feature | P3 (skip for now) |
-| **No price alerts** | Section 7.4 premium feature | P3 (skip for now) |
-| **No affiliate/sponsored** infrastructure | Section 7.2-7.3 | P3 (skip for now) |
+| Gap | Blueprint Section | Status |
+|-----|------------------|--------|
+| **Scanner doesn't show PES + price after scan** | Section 6.2 | Missing |
+| **Packed products catalog too small (~35 items)** | Section 3.3 requires 100+ | Partial |
+| **Missing categories: Frozen, Beverages, Spreads** | Section 4.1 category tree | Missing pills |
+| **No "Buy" CTA buttons on market cards** | Section 5.3 "[Buy]" button | Missing |
+| **Detail sheet missing allergen warnings display** | Section 3.2 "Allergens" | Partial |
+| **No "Add to Plan" on market card list (only in detail)** | Section 5.3 "[Add to Plan]" | Missing from cards |
+| **Quick Log doesn't show PES after logging** | Section 6.3 "you spent ₹X, PES: Y" | Missing |
+| **Missing vegetables & fruits in static food data** | Section 4.1 Everyday Vegetables | Sparse |
 
-## Plan — 7 Steps
+## Plan — 6 Steps
 
-### Step 1: Savings Tracker on Market Page
-Add a "Your Savings" section below price trends on `/market`:
-- Static placeholder showing "This week: ₹0 saved" with a progress bar
-- Reads from localStorage `nutrilens_market_savings` (later wired to real swap tracking)
-- Shows "Start using Smart Market swap suggestions to track savings"
+### Step 1: PES + Price After Food Scan (LogFood.tsx + CameraHome.tsx)
+After `analyze-food` returns food items, enrich each with:
+- Call `getLivePrice()` for each identified food to get city price
+- Calculate PES using `calculatePES()` from pes-engine
+- Show a summary card below scan results: "💰 ₹{cost} ({city}) · ⭐ PES {score}/10 · ₹{costPerGram}/g protein"
+- Non-blocking: if price lookup fails, skip price display gracefully
 
-### Step 2: Inline Swap Nudges in Meal Planner
-New component `SwapNudgeCard.tsx`:
-- Shows on `TodayMealPlan` or `MealPlanDashboard` when a planned meal item has a cheaper alternative with equal/better protein
-- Logic: For each planned food, check `market-service.ts` for items in same category with lower `costPerGramProtein` and similar protein
-- UI: "Smarter swap: Egg Bhurji (₹35, 24g protein) vs Paneer Bhurji (₹105, 22g). Save ₹70 + 2g more protein. [Swap] [Keep]"
-- Tapping "Swap" shows toast and records savings to localStorage
+### Step 2: Expand Packed Products Catalog (DB migration)
+Seed 50+ additional packed products via migration covering:
+- **Frozen foods**: Licious Chicken Breast, FreshToHome Fish, ITC Momos, McCain items
+- **Spreads**: MyFitness Peanut Butter, Sundrop, Pintola Almond Butter
+- **Beverages**: Coconut water brands, Green Tea, ACV
+- **Protein Ice Cream**: Get-A-Whey, HydroFit
+- **More RTE**: Saffola Oats, MTR Upma, Haldiram items
+- All with real nutrition data, image URLs, PES scores, platform links
 
-### Step 3: PES + Price After Food Scan
-Modify the food scan result display to show PES score and city price:
-- In the scan result card (after `analyze-food` returns), look up `getLivePrice()` for each identified food item
-- Show: "₹{cost} ({city} price) · PES {score}/10"
-- Add "📊 Ranking: #{rank} best protein meal today" line
-- Non-blocking: if price lookup fails, just skip the price display
+### Step 3: Add Missing Category Pills (Market.tsx)
+Add category pills for: 🧊 Frozen, 🍹 Drinks, 🥜 Spreads
+Wire them to filter packed_products by their respective categories.
+Update `MarketCategory` type and `getMarketItems` to handle new categories.
 
-### Step 4: Compare Button on Market Cards
-Add a "Compare" action to market food cards:
-- Each card gets a small compare checkbox/icon
-- When 2+ items selected, show a floating "Compare X items" button
-- Tapping opens existing `ComparisonSheet` with selected items mapped to `CompareItem` format
-- Clear selection after comparison closes
+### Step 4: "Buy" CTA + "Add to Plan" on Market Cards
+- Add a small shopping cart icon on each card with platform links (opens external URL)
+- Add "+" button on cards for quick "Add to Plan" (shows toast + navigates to planner)
+- For packed items with platform links, "Buy" opens the cheapest platform URL
+- For fresh items without links, show "Available at local stores"
 
-### Step 5: Shopping List Cost Estimate
-In the existing grocery/shopping list (Kitchen tab), add a cost summary:
-- Call `estimateLiveCost()` from `live-price-service.ts` on the generated shopping list
-- Show total estimated cost at top: "Estimated cost: ₹{total} ({city} prices)"
-- Each item shows individual cost if available
+### Step 5: Quick Log PES Summary
+After user logs a meal via QuickLog or LogFood, show a brief PES insight toast:
+- "🍗 Chicken Salad · ₹43 · PES 8.5 — Excellent value!"
+- Uses `calculatePES()` on the logged meal's cost and protein
 
-### Step 6: Nearest City Mapping
-Add city alias logic to `market-service.ts`:
-- Map: Secunderabad→Hyderabad, Noida/Gurgaon→Delhi, Thane/Navi Mumbai→Mumbai, Whitefield→Bangalore
-- When user types or selects a non-supported city, auto-map and show "Showing prices for {mapped city} (nearest)"
-
-### Step 7: Budget Optimizer Nudge
-Add a "Best protein under ₹{budget}" quick filter on Market page:
-- Small input field or preset buttons (₹100, ₹200, ₹300/day)
-- Filters items to show combinations that maximize protein within budget
-- Simple: just filter items by price ascending and show "You can get {X}g protein for ₹{budget}"
+### Step 6: Enrich Detail Sheet Allergens
+In `MarketItemDetailSheet.tsx`, show allergen tags from the item's allergens array with color-coded badges (red for severe like Gluten/Lactose, yellow for mild).
 
 ## Files Changed
 
 | File | Action |
 |------|--------|
-| `src/pages/Market.tsx` | Modified — add savings tracker, compare selection, budget filter |
-| `src/components/SwapNudgeCard.tsx` | New — inline swap suggestion for meal planner |
-| `src/components/MarketCompareBar.tsx` | New — floating compare bar when items selected |
-| `src/pages/Dashboard.tsx` or scan result component | Modified — show PES + price after scan |
-| `src/components/MealPlannerTabs.tsx` | Modified — add cost estimate to kitchen/grocery tab |
-| `src/lib/market-service.ts` | Modified — add city alias mapping, swap suggestion logic |
+| `src/pages/LogFood.tsx` | Modified — add PES + price card after scan results |
+| `src/pages/CameraHome.tsx` | Modified — same PES enrichment for camera scan |
+| `src/pages/Market.tsx` | Modified — add Frozen/Drinks/Spreads pills, Buy/Add buttons on cards |
+| `src/lib/market-service.ts` | Modified — add new category filters for frozen/drinks/spreads |
+| `src/components/MarketItemDetailSheet.tsx` | Modified — allergen badge display |
+| DB: `packed_products` | Data insert — 50+ new products |
+
+## Technical Notes
+- PES enrichment after scan is async and non-blocking — UI shows food items immediately, PES card appears once price lookup completes
+- "Buy" links use `window.open()` with platform URLs from packed_products.platforms array
+- No Firecrawl or API calls — all static/DB data with FIRECRAWL_HOOK placeholders maintained
 
