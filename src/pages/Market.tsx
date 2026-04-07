@@ -137,7 +137,7 @@ export default function Market() {
 
   const lastUpdatedLabel = lastUpdated
     ? formatDistanceToNow(new Date(lastUpdated), { addSuffix: true })
-    : 'Static prices';
+    : city ? 'Static prices' : 'Average across India';
 
   const handleOpenDetail = (item: MarketItem) => {
     setSelectedItem(item);

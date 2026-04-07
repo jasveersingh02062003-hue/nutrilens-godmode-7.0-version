@@ -383,7 +383,7 @@ export function buildMonikaContext() {
             protein: f.protein,
             proteinPerRupee: f.proteinPerRupee,
           }));
-        const userCity = profile?.city || null;
+        const userCity = (profile as any)?.city || null;
         return {
           city: userCity,
           topProteinValues: topItems,
