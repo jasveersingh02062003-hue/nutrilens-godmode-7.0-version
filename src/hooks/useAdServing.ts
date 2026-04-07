@@ -95,11 +95,14 @@ export function useAdServing(placementSlot: string, options?: UseAdServingOption
   const logImpression = useCallback(async (userId?: string) => {
     if (!ad || !userId) return;
     try {
-      await supabase.from('ad_impressions').insert({
-        campaign_id: ad.campaignId,
-        creative_id: ad.creativeId,
-        placement_slot: ad.placementSlot,
-        user_id: userId,
+      await supabase.functions.invoke('log-ad-event', {
+        body: {
+          event_type: 'impression',
+          campaign_id: ad.campaignId,
+          creative_id: ad.creativeId,
+          placement_slot: ad.placementSlot,
+          user_id: userId,
+        },
       });
     } catch (e) {
       // Silent fail — tracking should never break UX
@@ -109,10 +112,14 @@ export function useAdServing(placementSlot: string, options?: UseAdServingOption
   const logClick = useCallback(async (userId?: string) => {
     if (!ad || !userId) return;
     try {
-      // Log click
-      await supabase.from('ad_clicks').insert({
-        campaign_id: ad.campaignId,
-        user_id: userId,
+      await supabase.functions.invoke('log-ad-event', {
+        body: {
+          event_type: 'click',
+          campaign_id: ad.campaignId,
+          creative_id: ad.creativeId,
+          placement_slot: ad.placementSlot,
+          user_id: userId,
+        },
       });
       // Open CTA URL if available
       if (ad.ctaUrl) {
