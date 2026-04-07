@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Edit2, Bell, Activity, Download, HelpCircle, ChevronRight, Package, LogOut, Loader2, Heart, SlidersHorizontal, Crown, Zap, Star, ArrowRight, Dumbbell } from 'lucide-react';
+import { ArrowLeft, Edit2, Bell, Activity, Download, HelpCircle, ChevronRight, Package, LogOut, Loader2, Heart, SlidersHorizontal, Crown, Zap, Star, ArrowRight, Dumbbell, Store } from 'lucide-react';
 import { getActivePlan, getActivePlanRaw, getPlanProgress, getPlanById } from '@/lib/event-plan-service';
 import { isReverseDietActive, getReverseDietWeek } from '@/lib/reverse-diet-service';
 import { useNavigate } from 'react-router-dom';
@@ -110,6 +110,7 @@ export default function Profile() {
 
   const settings = [
     { icon: Edit2, label: 'Edit Profile', sub: 'Update your personal data', action: () => setShowEditProfile(true) },
+    { icon: Store, label: 'Smart Market', sub: `${(profile as any)?.city ? `Prices for ${(profile as any).city}` : 'Compare food prices & value'}`, action: () => navigate('/market') },
     { icon: Bell, label: 'Notifications', sub: 'Meal and water reminders', action: () => setShowNotifications(true) },
     { icon: Sparkles, label: 'Daily Coach', sub: coachSettings.enabled ? 'Active – giving tips' : 'Disabled', action: () => setShowCoach(true) },
     { icon: Brain, label: 'AI Learning', sub: `${correctionCount} corrections stored`, action: () => setShowAILearning(true) },

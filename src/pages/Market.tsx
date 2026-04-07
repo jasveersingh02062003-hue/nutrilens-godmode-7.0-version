@@ -1,15 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Search, SlidersHorizontal, Store, MapPin, Clock, ChevronDown, Users } from 'lucide-react';
+import { ArrowLeft, Search, SlidersHorizontal, Store, MapPin, Clock, ChevronDown, Users, Trophy, TrendingDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getMarketItems, getLastPriceUpdate, SUPPORTED_CITIES, type MarketItem, type MarketCategory, type MarketSort } from '@/lib/market-service';
 import { useUserProfile } from '@/contexts/UserProfileContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import PESBadge from '@/components/PESBadge';
 import type { PESColor } from '@/lib/pes-engine';
 import MarketItemDetailSheet from '@/components/MarketItemDetailSheet';
 import ReportPriceSheet from '@/components/ReportPriceSheet';
 import PriceTrendChart from '@/components/PriceTrendChart';
 import { formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
 
 const CATEGORIES: { key: MarketCategory; label: string; icon: string }[] = [
   { key: 'all', label: 'All', icon: '🏪' },
@@ -31,7 +34,8 @@ const SORT_OPTIONS: { key: MarketSort; label: string }[] = [
 
 export default function Market() {
   const navigate = useNavigate();
-  const { profile } = useUserProfile();
+  const { profile, updateProfile } = useUserProfile();
+  const { user } = useAuth();
   const [items, setItems] = useState<MarketItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState<MarketCategory>('all');
@@ -47,6 +51,22 @@ export default function Market() {
   const [trendItem, setTrendItem] = useState('Chicken');
 
   const city = (profile as any)?.city || '';
+
+  const handleCitySelect = async (selectedCity: string) => {
+    setCityPickerOpen(false);
+    if (selectedCity.toLowerCase() === city.toLowerCase()) return;
+    
+    // Update profile locally
+    if (updateProfile) {
+      updateProfile({ city: selectedCity } as any);
+    }
+    
+    // Persist to database
+    if (user?.id) {
+      await supabase.from('profiles').update({ city: selectedCity }).eq('id', user.id);
+    }
+    toast.success(`📍 Prices updated for ${selectedCity}`);
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -69,6 +89,8 @@ export default function Market() {
       (item.brand && item.brand.toLowerCase().includes(q))
     );
   }, [items, search]);
+
+  const topItem = filtered.length > 0 ? filtered[0] : null;
 
   const lastUpdatedLabel = lastUpdated
     ? formatDistanceToNow(new Date(lastUpdated), { addSuffix: true })
@@ -121,8 +143,8 @@ export default function Market() {
         {!city && (
           <div className="mx-4 mb-2 p-2.5 rounded-xl bg-accent/10 border border-accent/20">
             <p className="text-[11px] font-semibold text-foreground">📍 Set your city for location-based prices</p>
-            <button onClick={() => navigate('/profile')} className="text-[10px] font-bold text-primary mt-0.5">
-              Go to Profile →
+            <button onClick={() => setCityPickerOpen(true)} className="text-[10px] font-bold text-primary mt-0.5">
+              Choose your city →
             </button>
           </div>
         )}
@@ -137,14 +159,12 @@ export default function Market() {
               className="overflow-hidden"
             >
               <div className="px-4 pb-3">
+                <p className="text-[10px] font-semibold text-muted-foreground mb-2">Select your city</p>
                 <div className="flex flex-wrap gap-1.5">
                   {SUPPORTED_CITIES.map(c => (
                     <button
                       key={c}
-                      onClick={() => {
-                        // Would update profile city here in a real implementation
-                        setCityPickerOpen(false);
-                      }}
+                      onClick={() => handleCitySelect(c)}
                       className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-colors ${
                         city.toLowerCase() === c.toLowerCase()
                           ? 'bg-primary text-primary-foreground'
@@ -208,6 +228,46 @@ export default function Market() {
           </button>
         ))}
       </div>
+
+      {/* Top Protein Value Today Hero */}
+      {!loading && topItem && sort === 'pes' && !search && (
+        <div className="px-4 mb-3">
+          <motion.button
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            onClick={() => handleOpenDetail(topItem)}
+            className="w-full p-4 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 text-left"
+          >
+            <div className="flex items-center gap-1 mb-2">
+              <Trophy className="w-4 h-4 text-primary" />
+              <span className="text-[11px] font-bold text-primary">🏆 TOP PROTEIN VALUE TODAY</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center overflow-hidden shrink-0">
+                {topItem.imageUrl && topItem.imageUrl.length <= 4 ? (
+                  <span className="text-3xl">{topItem.imageUrl}</span>
+                ) : topItem.imageUrl ? (
+                  <img src={topItem.imageUrl} alt={topItem.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-3xl">🥗</span>
+                )}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-foreground">
+                  {topItem.brand ? `${topItem.brand} ` : ''}{topItem.name}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  💪 {topItem.protein}g protein · ₹{topItem.price}{topItem.unit ? `/${topItem.unit}` : ''}
+                </p>
+                <p className="text-[11px] font-semibold text-primary mt-0.5">
+                  ₹{topItem.costPerGramProtein}/g protein · PES {topItem.pes}
+                </p>
+              </div>
+              <PESBadge pes={topItem.pes} color={topItem.pesColor as PESColor} size="sm" />
+            </div>
+          </motion.button>
+        </div>
+      )}
 
       {/* Items List */}
       <div className="px-4 space-y-2">
