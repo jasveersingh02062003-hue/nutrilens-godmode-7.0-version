@@ -1,5 +1,5 @@
 // Auto-location detection for Smart Market
-// Uses browser geolocation + OpenWeatherMap reverse geocoding
+// Uses browser geolocation + OpenWeatherMap reverse geocoding + IP fallback
 // Falls back to profile city or "India" average
 
 import { resolveCity, SUPPORTED_CITIES } from './market-service';
@@ -62,6 +62,18 @@ async function reverseGeocode(lat: number, lon: number): Promise<string | null> 
   }
 }
 
+/** IP-based geolocation fallback using ipapi.co (free, no key needed) */
+async function ipGeolocate(): Promise<string | null> {
+  try {
+    const res = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.city || null;
+  } catch {
+    return null;
+  }
+}
+
 export interface AutoLocationResult {
   city: string;
   resolvedCity: string;
@@ -75,7 +87,8 @@ export interface AutoLocationResult {
  * Resolution order:
  * 1. Check cache (24h TTL)
  * 2. Browser geolocation → OWM reverse geocode → resolveCity()
- * 3. Fall back to profileCity or 'India'
+ * 3. IP geolocation fallback (ipapi.co)
+ * 4. Fall back to profileCity or 'India'
  */
 export async function detectCity(profileCity?: string): Promise<AutoLocationResult> {
   // If profile already has a city set, use it
@@ -125,6 +138,26 @@ export async function detectCity(profileCity?: string): Promise<AutoLocationResu
         isLoading: false,
       };
     }
+  }
+
+  // Layer 2: IP-based geolocation fallback
+  const ipCity = await ipGeolocate();
+  if (ipCity) {
+    const resolved = resolveCity(ipCity);
+    const loc: CachedLocation = {
+      city: ipCity,
+      resolvedCity: resolved.resolved,
+      isAlias: resolved.isAlias,
+      detectedAt: Date.now(),
+    };
+    cacheLocation(loc);
+    return {
+      city: ipCity,
+      resolvedCity: resolved.resolved,
+      isAlias: resolved.isAlias,
+      isAutoDetected: true,
+      isLoading: false,
+    };
   }
 
   // Fallback

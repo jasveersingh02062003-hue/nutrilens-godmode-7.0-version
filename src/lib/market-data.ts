@@ -19,12 +19,21 @@ export type MarketSubcategory =
   | 'rice' | 'flour_atta' | 'millets' | 'oats_cereal'
   // Fruits
   | 'everyday_fruits' | 'seasonal_fruits'
+  // Dry Fruits & Seeds
+  | 'nuts' | 'seeds' | 'dried_fruits'
+  // Superfoods
+  | 'adaptogens' | 'green_powders'
   // Packed
-  | 'protein_drinks' | 'protein_bars' | 'ready_to_eat' | 'snacks' | 'frozen' | 'spreads';
+  | 'protein_drinks' | 'protein_bars' | 'ready_to_eat' | 'snacks' | 'frozen' | 'spreads'
+  // Supplements
+  | 'protein_powders' | 'vitamins' | 'health_supplements';
 
 export type MarketTopCategory =
   | 'meat_seafood' | 'eggs' | 'vegetables' | 'dals_pulses'
-  | 'dairy' | 'grains_millets' | 'fruits' | 'packed_foods' | 'supplements';
+  | 'dairy' | 'grains_millets' | 'fruits' | 'packed_foods' | 'supplements'
+  | 'dry_fruits' | 'superfoods';
+
+export type MarketViewMode = 'fresh' | 'packed';
 
 export interface RawMarketItem {
   id: string;
@@ -64,6 +73,10 @@ export const CITY_MULTIPLIERS: Record<string, number> = {
   lucknow: 0.90,
 };
 
+// Which categories belong to Fresh vs Packed view
+export const FRESH_CATEGORIES: MarketTopCategory[] = ['meat_seafood', 'eggs', 'vegetables', 'dals_pulses', 'dairy', 'grains_millets', 'fruits', 'dry_fruits', 'superfoods'];
+export const PACKED_CATEGORIES: MarketTopCategory[] = ['packed_foods', 'supplements'];
+
 export const TOP_CATEGORIES: { key: MarketTopCategory; label: string; emoji: string; color: string }[] = [
   { key: 'meat_seafood', label: 'Meat & Seafood', emoji: '🥩', color: 'from-red-500/15 to-red-500/5' },
   { key: 'eggs', label: 'Eggs', emoji: '🥚', color: 'from-amber-500/15 to-amber-500/5' },
@@ -72,6 +85,8 @@ export const TOP_CATEGORIES: { key: MarketTopCategory; label: string; emoji: str
   { key: 'dairy', label: 'Dairy', emoji: '🥛', color: 'from-blue-500/15 to-blue-500/5' },
   { key: 'grains_millets', label: 'Grains & Millets', emoji: '🌾', color: 'from-yellow-500/15 to-yellow-500/5' },
   { key: 'fruits', label: 'Fruits', emoji: '🍌', color: 'from-pink-500/15 to-pink-500/5' },
+  { key: 'dry_fruits', label: 'Dry Fruits & Seeds', emoji: '🌰', color: 'from-amber-600/15 to-amber-600/5' },
+  { key: 'superfoods', label: 'Superfoods', emoji: '🌿', color: 'from-emerald-500/15 to-emerald-500/5' },
   { key: 'packed_foods', label: 'Packed Foods', emoji: '📦', color: 'from-purple-500/15 to-purple-500/5' },
   { key: 'supplements', label: 'Supplements', emoji: '💊', color: 'from-teal-500/15 to-teal-500/5' },
 ];
@@ -113,6 +128,15 @@ export const SUBCATEGORIES: Record<MarketTopCategory, { key: MarketSubcategory; 
     { key: 'everyday_fruits', label: 'Everyday' },
     { key: 'seasonal_fruits', label: 'Seasonal' },
   ],
+  dry_fruits: [
+    { key: 'nuts', label: 'Nuts' },
+    { key: 'seeds', label: 'Seeds' },
+    { key: 'dried_fruits', label: 'Dried Fruits' },
+  ],
+  superfoods: [
+    { key: 'adaptogens', label: 'Adaptogens' },
+    { key: 'green_powders', label: 'Green Powders' },
+  ],
   packed_foods: [
     { key: 'protein_drinks', label: 'Protein Drinks' },
     { key: 'protein_bars', label: 'Protein Bars' },
@@ -121,7 +145,11 @@ export const SUBCATEGORIES: Record<MarketTopCategory, { key: MarketSubcategory; 
     { key: 'frozen', label: 'Frozen' },
     { key: 'spreads', label: 'Spreads' },
   ],
-  supplements: [],
+  supplements: [
+    { key: 'protein_powders', label: 'Protein Powders' },
+    { key: 'vitamins', label: 'Vitamins' },
+    { key: 'health_supplements', label: 'Health Supplements' },
+  ],
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -145,6 +173,7 @@ export const MARKET_ITEMS: RawMarketItem[] = [
   { id: 'mk_hilsa', name: 'Hilsa (Ilish)', emoji: '🐟', topCategory: 'meat_seafood', subcategory: 'fish', basePrice: 800, unit: 'kg', protein: 22, calories: 310, carbs: 0, fat: 25, fiber: 0, servingDesc: 'per 100g', isVeg: false, tags: ['non_veg', 'premium', 'omega3'] },
   { id: 'mk_katla', name: 'Katla', emoji: '🐟', topCategory: 'meat_seafood', subcategory: 'fish', basePrice: 250, unit: 'kg', protein: 18, calories: 105, carbs: 0, fat: 2.4, fiber: 0, servingDesc: 'per 100g', isVeg: false, tags: ['high_protein', 'non_veg'] },
   { id: 'mk_bangda', name: 'Bangda (Mackerel)', emoji: '🐟', topCategory: 'meat_seafood', subcategory: 'fish', basePrice: 200, unit: 'kg', protein: 19, calories: 176, carbs: 0, fat: 11, fiber: 0, servingDesc: 'per 100g', isVeg: false, tags: ['high_protein', 'non_veg', 'omega3'] },
+  { id: 'mk_basa', name: 'Basa Fish', emoji: '🐟', topCategory: 'meat_seafood', subcategory: 'fish', basePrice: 280, unit: 'kg', protein: 15, calories: 90, carbs: 0, fat: 2.5, fiber: 0, servingDesc: 'per 100g', isVeg: false, tags: ['non_veg', 'lean'] },
 
   // ─── MUTTON ───
   { id: 'mk_mutton_leg', name: 'Mutton Leg', emoji: '🥩', topCategory: 'meat_seafood', subcategory: 'mutton', basePrice: 750, unit: 'kg', protein: 25, calories: 258, carbs: 0, fat: 18, fiber: 0, servingDesc: 'per 100g', isVeg: false, tags: ['high_protein', 'non_veg', 'premium'] },
@@ -184,6 +213,12 @@ export const MARKET_ITEMS: RawMarketItem[] = [
   { id: 'mk_cabbage', name: 'Cabbage', emoji: '🥬', topCategory: 'vegetables', subcategory: 'everyday_vegs', basePrice: 20, unit: 'kg', protein: 1.3, calories: 25, carbs: 5.8, fat: 0.1, fiber: 2.5, servingDesc: 'per 100g', isVeg: true, tags: ['budget', 'low_calorie'] },
   { id: 'mk_cauliflower', name: 'Cauliflower', emoji: '🥦', topCategory: 'vegetables', subcategory: 'everyday_vegs', basePrice: 30, unit: 'kg', protein: 1.9, calories: 25, carbs: 5, fat: 0.3, fiber: 2, servingDesc: 'per 100g', isVeg: true, tags: ['low_calorie'] },
   { id: 'mk_capsicum', name: 'Capsicum', emoji: '🫑', topCategory: 'vegetables', subcategory: 'everyday_vegs', basePrice: 60, unit: 'kg', protein: 0.9, calories: 20, carbs: 4.6, fat: 0.2, fiber: 1.7, servingDesc: 'per 100g', isVeg: true, tags: ['vitamin_c'] },
+  { id: 'mk_peas', name: 'Green Peas', emoji: '🫛', topCategory: 'vegetables', subcategory: 'everyday_vegs', basePrice: 60, unit: 'kg', protein: 5.4, calories: 81, carbs: 14, fat: 0.4, fiber: 5.1, servingDesc: 'per 100g', isVeg: true, tags: ['high_protein', 'fiber_rich'] },
+  { id: 'mk_bhindi', name: 'Lady Finger (Bhindi)', emoji: '🥒', topCategory: 'vegetables', subcategory: 'everyday_vegs', basePrice: 40, unit: 'kg', protein: 1.9, calories: 33, carbs: 7, fat: 0.2, fiber: 3.2, servingDesc: 'per 100g', isVeg: true, tags: ['fiber_rich'] },
+  { id: 'mk_bitter_gourd', name: 'Bitter Gourd (Karela)', emoji: '🥒', topCategory: 'vegetables', subcategory: 'everyday_vegs', basePrice: 50, unit: 'kg', protein: 1, calories: 17, carbs: 3.7, fat: 0.2, fiber: 2.8, servingDesc: 'per 100g', isVeg: true, tags: ['low_calorie', 'diabetic_friendly'] },
+  { id: 'mk_ridge_gourd', name: 'Ridge Gourd (Turai)', emoji: '🥒', topCategory: 'vegetables', subcategory: 'everyday_vegs', basePrice: 35, unit: 'kg', protein: 0.5, calories: 18, carbs: 3.3, fat: 0.2, fiber: 1.6, servingDesc: 'per 100g', isVeg: true, tags: ['low_calorie', 'budget'] },
+  { id: 'mk_bottle_gourd', name: 'Bottle Gourd (Lauki)', emoji: '🥒', topCategory: 'vegetables', subcategory: 'everyday_vegs', basePrice: 30, unit: 'kg', protein: 0.2, calories: 14, carbs: 3.4, fat: 0.02, fiber: 0.5, servingDesc: 'per 100g', isVeg: true, tags: ['low_calorie', 'budget'] },
+  { id: 'mk_pumpkin', name: 'Pumpkin (Kaddu)', emoji: '🎃', topCategory: 'vegetables', subcategory: 'everyday_vegs', basePrice: 25, unit: 'kg', protein: 1, calories: 26, carbs: 6.5, fat: 0.1, fiber: 0.5, servingDesc: 'per 100g', isVeg: true, tags: ['vitamin_a', 'budget'] },
 
   // ─── EXOTIC VEGETABLES ───
   { id: 'mk_broccoli', name: 'Broccoli', emoji: '🥦', topCategory: 'vegetables', subcategory: 'exotic_vegs', basePrice: 120, unit: 'kg', protein: 2.8, calories: 34, carbs: 7, fat: 0.4, fiber: 2.6, servingDesc: 'per 100g', isVeg: true, tags: ['vitamin_c', 'fiber_rich'] },
@@ -248,6 +283,70 @@ export const MARKET_ITEMS: RawMarketItem[] = [
   { id: 'mk_watermelon', name: 'Watermelon', emoji: '🍉', topCategory: 'fruits', subcategory: 'seasonal_fruits', basePrice: 20, unit: 'kg', protein: 0.6, calories: 30, carbs: 7.6, fat: 0.2, fiber: 0.4, servingDesc: 'per 100g', isVeg: true, tags: ['hydrating', 'budget'] },
   { id: 'mk_pomegranate', name: 'Pomegranate', emoji: '🔴', topCategory: 'fruits', subcategory: 'seasonal_fruits', basePrice: 120, unit: 'kg', protein: 1.7, calories: 83, carbs: 19, fat: 1.2, fiber: 4, servingDesc: 'per 100g', isVeg: true, tags: ['antioxidant'] },
   { id: 'mk_pineapple', name: 'Pineapple', emoji: '🍍', topCategory: 'fruits', subcategory: 'seasonal_fruits', basePrice: 40, unit: 'piece', protein: 0.5, calories: 50, carbs: 13, fat: 0.1, fiber: 1.4, servingDesc: 'per 100g', isVeg: true, tags: ['vitamin_c', 'budget'] },
+
+  // ─── DRY FRUITS — NUTS ───
+  { id: 'mk_almonds', name: 'Almonds (Badam)', emoji: '🌰', topCategory: 'dry_fruits', subcategory: 'nuts', basePrice: 700, unit: 'kg', protein: 21, calories: 579, carbs: 22, fat: 49, fiber: 12, servingDesc: 'per 100g', isVeg: true, tags: ['high_protein', 'premium', 'vitamin_e'] },
+  { id: 'mk_cashews', name: 'Cashews (Kaju)', emoji: '🥜', topCategory: 'dry_fruits', subcategory: 'nuts', basePrice: 900, unit: 'kg', protein: 18, calories: 553, carbs: 30, fat: 44, fiber: 3, servingDesc: 'per 100g', isVeg: true, tags: ['premium'] },
+  { id: 'mk_walnuts', name: 'Walnuts (Akhrot)', emoji: '🌰', topCategory: 'dry_fruits', subcategory: 'nuts', basePrice: 1200, unit: 'kg', protein: 15, calories: 654, carbs: 14, fat: 65, fiber: 7, servingDesc: 'per 100g', isVeg: true, tags: ['omega3', 'premium'] },
+  { id: 'mk_pistachios', name: 'Pistachios (Pista)', emoji: '🥜', topCategory: 'dry_fruits', subcategory: 'nuts', basePrice: 1500, unit: 'kg', protein: 20, calories: 560, carbs: 28, fat: 45, fiber: 10, servingDesc: 'per 100g', isVeg: true, tags: ['high_protein', 'premium'] },
+  { id: 'mk_peanuts', name: 'Peanuts (Moongfali)', emoji: '🥜', topCategory: 'dry_fruits', subcategory: 'nuts', basePrice: 120, unit: 'kg', protein: 26, calories: 567, carbs: 16, fat: 49, fiber: 8, servingDesc: 'per 100g', isVeg: true, tags: ['high_protein', 'budget', 'best_value'] },
+
+  // ─── DRY FRUITS — SEEDS ───
+  { id: 'mk_pumpkin_seeds', name: 'Pumpkin Seeds', emoji: '🌱', topCategory: 'dry_fruits', subcategory: 'seeds', basePrice: 600, unit: 'kg', protein: 30, calories: 559, carbs: 11, fat: 49, fiber: 6, servingDesc: 'per 100g', isVeg: true, tags: ['high_protein', 'zinc_rich'] },
+  { id: 'mk_flax_seeds', name: 'Flax Seeds (Alsi)', emoji: '🌱', topCategory: 'dry_fruits', subcategory: 'seeds', basePrice: 200, unit: 'kg', protein: 18, calories: 534, carbs: 29, fat: 42, fiber: 27, servingDesc: 'per 100g', isVeg: true, tags: ['omega3', 'fiber_rich'] },
+  { id: 'mk_sunflower_seeds', name: 'Sunflower Seeds', emoji: '🌻', topCategory: 'dry_fruits', subcategory: 'seeds', basePrice: 300, unit: 'kg', protein: 21, calories: 584, carbs: 20, fat: 51, fiber: 9, servingDesc: 'per 100g', isVeg: true, tags: ['high_protein', 'vitamin_e'] },
+  { id: 'mk_chia_seeds', name: 'Chia Seeds', emoji: '🌱', topCategory: 'dry_fruits', subcategory: 'seeds', basePrice: 500, unit: 'kg', protein: 17, calories: 486, carbs: 42, fat: 31, fiber: 34, servingDesc: 'per 100g', isVeg: true, tags: ['omega3', 'fiber_rich'] },
+  { id: 'mk_melon_seeds', name: 'Melon Seeds (Magaz)', emoji: '🌱', topCategory: 'dry_fruits', subcategory: 'seeds', basePrice: 400, unit: 'kg', protein: 28, calories: 557, carbs: 15, fat: 47, fiber: 4, servingDesc: 'per 100g', isVeg: true, tags: ['high_protein'] },
+
+  // ─── DRY FRUITS — DRIED FRUITS ───
+  { id: 'mk_dates', name: 'Dates (Khajoor)', emoji: '🌴', topCategory: 'dry_fruits', subcategory: 'dried_fruits', basePrice: 300, unit: 'kg', protein: 2.5, calories: 277, carbs: 75, fat: 0.4, fiber: 7, servingDesc: 'per 100g', isVeg: true, tags: ['energy', 'iron_rich'] },
+  { id: 'mk_figs', name: 'Figs (Anjeer)', emoji: '🫐', topCategory: 'dry_fruits', subcategory: 'dried_fruits', basePrice: 800, unit: 'kg', protein: 3.3, calories: 249, carbs: 64, fat: 1, fiber: 10, servingDesc: 'per 100g', isVeg: true, tags: ['fiber_rich', 'premium'] },
+  { id: 'mk_raisins', name: 'Raisins (Kishmish)', emoji: '🍇', topCategory: 'dry_fruits', subcategory: 'dried_fruits', basePrice: 250, unit: 'kg', protein: 3.1, calories: 299, carbs: 79, fat: 0.5, fiber: 4, servingDesc: 'per 100g', isVeg: true, tags: ['iron_rich'] },
+
+  // ─── SUPERFOODS — ADAPTOGENS ───
+  { id: 'mk_ashwagandha', name: 'Ashwagandha Powder', emoji: '🌿', topCategory: 'superfoods', subcategory: 'adaptogens', basePrice: 300, unit: '100g', protein: 3.9, calories: 245, carbs: 49, fat: 0.3, fiber: 32, servingDesc: 'per 100g', isVeg: true, tags: ['adaptogen', 'stress_relief'] },
+  { id: 'mk_shatavari', name: 'Shatavari Powder', emoji: '🌿', topCategory: 'superfoods', subcategory: 'adaptogens', basePrice: 400, unit: '100g', protein: 5.8, calories: 230, carbs: 42, fat: 1, fiber: 20, servingDesc: 'per 100g', isVeg: true, tags: ['adaptogen', 'women_health'] },
+  { id: 'mk_triphala', name: 'Triphala Powder', emoji: '🌿', topCategory: 'superfoods', subcategory: 'adaptogens', basePrice: 250, unit: '100g', protein: 1, calories: 210, carbs: 50, fat: 0.2, fiber: 15, servingDesc: 'per 100g', isVeg: true, tags: ['digestive', 'detox'] },
+  { id: 'mk_turmeric', name: 'Turmeric Powder (Haldi)', emoji: '🟡', topCategory: 'superfoods', subcategory: 'adaptogens', basePrice: 150, unit: 'kg', protein: 7.8, calories: 354, carbs: 65, fat: 10, fiber: 21, servingDesc: 'per 100g', isVeg: true, tags: ['anti_inflammatory', 'immunity'] },
+
+  // ─── SUPERFOODS — GREEN POWDERS ───
+  { id: 'mk_spirulina', name: 'Spirulina Powder', emoji: '🌊', topCategory: 'superfoods', subcategory: 'green_powders', basePrice: 450, unit: '100g', protein: 57, calories: 290, carbs: 24, fat: 8, fiber: 4, servingDesc: 'per 100g', isVeg: true, tags: ['high_protein', 'superfood', 'iron_rich'] },
+  { id: 'mk_moringa', name: 'Moringa Powder', emoji: '🌿', topCategory: 'superfoods', subcategory: 'green_powders', basePrice: 250, unit: '100g', protein: 27, calories: 205, carbs: 38, fat: 2.3, fiber: 19, servingDesc: 'per 100g', isVeg: true, tags: ['high_protein', 'calcium_rich', 'iron_rich'] },
+  { id: 'mk_wheatgrass', name: 'Wheatgrass Powder', emoji: '🌱', topCategory: 'superfoods', subcategory: 'green_powders', basePrice: 350, unit: '100g', protein: 24, calories: 198, carbs: 33, fat: 2, fiber: 18, servingDesc: 'per 100g', isVeg: true, tags: ['detox', 'iron_rich'] },
+  { id: 'mk_amla_powder', name: 'Amla Powder', emoji: '🟢', topCategory: 'superfoods', subcategory: 'green_powders', basePrice: 200, unit: '100g', protein: 0.9, calories: 44, carbs: 10, fat: 0.6, fiber: 4.3, servingDesc: 'per 100g', isVeg: true, tags: ['vitamin_c', 'immunity'] },
+
+  // ─── PACKED FOODS — PROTEIN DRINKS ───
+  { id: 'mk_amul_protein_bm', name: 'Amul Protein Buttermilk', emoji: '🥤', topCategory: 'packed_foods', subcategory: 'protein_drinks', basePrice: 30, unit: '200ml', protein: 10, calories: 60, carbs: 4, fat: 1, fiber: 0, servingDesc: 'per 200ml pack', isVeg: true, tags: ['high_protein', 'budget'] },
+  { id: 'mk_amul_protein_lassi', name: 'Amul Protein Lassi', emoji: '🥤', topCategory: 'packed_foods', subcategory: 'protein_drinks', basePrice: 45, unit: '200ml', protein: 15, calories: 90, carbs: 6, fat: 1.5, fiber: 0, servingDesc: 'per 200ml pack', isVeg: true, tags: ['high_protein'] },
+
+  // ─── PACKED FOODS — PROTEIN BARS ───
+  { id: 'mk_yoga_bar', name: 'Yoga Bar Protein Bar', emoji: '🍫', topCategory: 'packed_foods', subcategory: 'protein_bars', basePrice: 170, unit: 'bar', protein: 20, calories: 260, carbs: 25, fat: 9, fiber: 4, servingDesc: 'per 60g bar', isVeg: true, tags: ['high_protein', 'snack'] },
+  { id: 'mk_ritebite', name: 'RiteBite Max Protein Bar', emoji: '🍫', topCategory: 'packed_foods', subcategory: 'protein_bars', basePrice: 150, unit: 'bar', protein: 20, calories: 240, carbs: 22, fat: 8, fiber: 3, servingDesc: 'per 60g bar', isVeg: true, tags: ['high_protein', 'snack'] },
+
+  // ─── PACKED FOODS — READY TO EAT ───
+  { id: 'mk_mtr_dal_fry', name: 'MTR Dal Fry (RTE)', emoji: '🍛', topCategory: 'packed_foods', subcategory: 'ready_to_eat', basePrice: 85, unit: '300g', protein: 7, calories: 120, carbs: 16, fat: 3, fiber: 4, servingDesc: 'per 300g pack', isVeg: true, tags: ['convenient'] },
+  { id: 'mk_saffola_oats', name: 'Saffola Masala Oats', emoji: '🥣', topCategory: 'packed_foods', subcategory: 'ready_to_eat', basePrice: 120, unit: '500g', protein: 12, calories: 370, carbs: 64, fat: 8, fiber: 10, servingDesc: 'per 100g', isVeg: true, tags: ['fiber_rich', 'convenient'] },
+
+  // ─── PACKED FOODS — SNACKS ───
+  { id: 'mk_too_yumm', name: 'Too Yumm Protein Chips', emoji: '🍿', topCategory: 'packed_foods', subcategory: 'snacks', basePrice: 40, unit: '30g', protein: 5, calories: 130, carbs: 16, fat: 5, fiber: 2, servingDesc: 'per 30g pack', isVeg: true, tags: ['snack'] },
+  { id: 'mk_makhana', name: 'Roasted Makhana', emoji: '🍿', topCategory: 'packed_foods', subcategory: 'snacks', basePrice: 150, unit: '100g', protein: 9.7, calories: 332, carbs: 76, fat: 0.1, fiber: 14, servingDesc: 'per 100g', isVeg: true, tags: ['low_fat', 'snack'] },
+
+  // ─── PACKED FOODS — SPREADS ───
+  { id: 'mk_myfitness_pb', name: 'MyFitness Peanut Butter', emoji: '🥜', topCategory: 'packed_foods', subcategory: 'spreads', basePrice: 450, unit: '510g', protein: 30, calories: 590, carbs: 18, fat: 47, fiber: 6, servingDesc: 'per 100g', isVeg: true, tags: ['high_protein'] },
+
+  // ─── SUPPLEMENTS — PROTEIN POWDERS ───
+  { id: 'mk_muscleblaze_whey', name: 'MuscleBlaze Whey Protein', emoji: '💪', topCategory: 'supplements', subcategory: 'protein_powders', basePrice: 2200, unit: 'kg', protein: 25, calories: 130, carbs: 4, fat: 2, fiber: 0, servingDesc: 'per 30g scoop', isVeg: true, tags: ['high_protein', 'supplement'] },
+  { id: 'mk_asitis_whey', name: 'AS-IT-IS Raw Whey', emoji: '💪', topCategory: 'supplements', subcategory: 'protein_powders', basePrice: 1400, unit: 'kg', protein: 24, calories: 120, carbs: 3, fat: 2, fiber: 0, servingDesc: 'per 30g scoop', isVeg: true, tags: ['high_protein', 'budget', 'best_value'] },
+  { id: 'mk_oziva_plant', name: 'OZiva Plant Protein', emoji: '🌱', topCategory: 'supplements', subcategory: 'protein_powders', basePrice: 1800, unit: 'kg', protein: 25, calories: 125, carbs: 5, fat: 2, fiber: 3, servingDesc: 'per 35g scoop', isVeg: true, tags: ['high_protein', 'vegan'] },
+  { id: 'mk_myprotein_whey', name: 'MyProtein Impact Whey', emoji: '💪', topCategory: 'supplements', subcategory: 'protein_powders', basePrice: 3000, unit: 'kg', protein: 21, calories: 103, carbs: 1, fat: 1.9, fiber: 0, servingDesc: 'per 25g scoop', isVeg: true, tags: ['high_protein', 'premium'] },
+
+  // ─── SUPPLEMENTS — VITAMINS ───
+  { id: 'mk_fish_oil', name: 'Fish Oil Capsules', emoji: '💊', topCategory: 'supplements', subcategory: 'vitamins', basePrice: 400, unit: '60 caps', protein: 0, calories: 10, carbs: 0, fat: 1, fiber: 0, servingDesc: 'per capsule', isVeg: false, tags: ['omega3', 'supplement'] },
+  { id: 'mk_multivitamin', name: 'Multivitamin Tablets', emoji: '💊', topCategory: 'supplements', subcategory: 'vitamins', basePrice: 350, unit: '60 tabs', protein: 0, calories: 5, carbs: 1, fat: 0, fiber: 0, servingDesc: 'per tablet', isVeg: true, tags: ['supplement'] },
+  { id: 'mk_vitamin_d3', name: 'Vitamin D3 Capsules', emoji: '☀️', topCategory: 'supplements', subcategory: 'vitamins', basePrice: 300, unit: '60 caps', protein: 0, calories: 5, carbs: 0, fat: 0.5, fiber: 0, servingDesc: 'per capsule', isVeg: true, tags: ['supplement', 'bone_health'] },
+
+  // ─── SUPPLEMENTS — HEALTH SUPPLEMENTS ───
+  { id: 'mk_creatine', name: 'Creatine Monohydrate', emoji: '⚡', topCategory: 'supplements', subcategory: 'health_supplements', basePrice: 800, unit: '250g', protein: 0, calories: 0, carbs: 0, fat: 0, fiber: 0, servingDesc: 'per 5g scoop', isVeg: true, tags: ['performance', 'supplement'] },
 ];
 
 // ─── Helper: Get city-adjusted price ───

@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Search, MapPin, Clock, ChevronDown, Users, Scale, Wallet, Store, Leaf, SlidersHorizontal, Loader2 } from 'lucide-react';
+import { ArrowLeft, Search, MapPin, Clock, ChevronDown, Users, Scale, Wallet, Store, Leaf, SlidersHorizontal, Loader2, Package } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SUPPORTED_CITIES, resolveCity, type MarketItem as LegacyMarketItem } from '@/lib/market-service';
-import { MARKET_ITEMS, getCityPrice, calculateMarketPES, getMarketPESColor, TOP_CATEGORIES, type MarketTopCategory, type MarketSubcategory, type RawMarketItem } from '@/lib/market-data';
+import { MARKET_ITEMS, getCityPrice, calculateMarketPES, getMarketPESColor, TOP_CATEGORIES, FRESH_CATEGORIES, PACKED_CATEGORIES, type MarketTopCategory, type MarketSubcategory, type RawMarketItem, type MarketViewMode } from '@/lib/market-data';
 import { detectCity } from '@/lib/auto-location';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -79,6 +79,9 @@ export default function Market() {
   const [locationLoading, setLocationLoading] = useState(true);
   const [cityPickerOpen, setCityPickerOpen] = useState(false);
 
+  // View mode: Fresh vs Packed
+  const [viewMode, setViewMode] = useState<MarketViewMode>('fresh');
+
   // Browse state
   const [selectedCategory, setSelectedCategory] = useState<MarketTopCategory | null>(null);
   const [selectedSub, setSelectedSub] = useState<MarketSubcategory | null>(null);
@@ -129,6 +132,13 @@ export default function Market() {
     toast.success(`📍 Prices updated for ${selectedCity}`);
   };
 
+  // Reset category when switching view mode
+  const handleViewModeChange = (mode: MarketViewMode) => {
+    setViewMode(mode);
+    setSelectedCategory(null);
+    setSelectedSub(null);
+  };
+
   // ─── Process Market Items with City Pricing ───
   const processedItems = useMemo(() => {
     const resolvedCity = city || 'India';
@@ -149,6 +159,10 @@ export default function Market() {
   // ─── Filtering & Sorting ───
   const filteredItems = useMemo(() => {
     let result = processedItems;
+
+    // View mode filter (Fresh vs Packed)
+    const allowedCategories = viewMode === 'fresh' ? FRESH_CATEGORIES : PACKED_CATEGORIES;
+    result = result.filter(i => allowedCategories.includes(i.topCategory));
 
     // Category filter
     if (selectedCategory) {
@@ -180,7 +194,20 @@ export default function Market() {
     }
 
     return result;
-  }, [processedItems, selectedCategory, selectedSub, search, filter, sort]);
+  }, [processedItems, viewMode, selectedCategory, selectedSub, search, filter, sort]);
+
+  // ─── Badge Assignment: top 3 by PES get "popular", best_value tagged get "best_seller" ───
+  const badgeMap = useMemo(() => {
+    const map = new Map<string, 'popular' | 'best_seller' | 'new'>();
+    const sorted = [...filteredItems].sort((a, b) => b.pes - a.pes);
+    sorted.slice(0, 3).forEach(item => map.set(item.id, 'popular'));
+    filteredItems.forEach(item => {
+      if (item.tags.includes('best_value') && !map.has(item.id)) {
+        map.set(item.id, 'best_seller');
+      }
+    });
+    return map;
+  }, [filteredItems]);
 
   // ─── Smart Sections Data ───
   const bestValue = useMemo(() => {
@@ -199,7 +226,6 @@ export default function Market() {
   }, [processedItems]);
 
   const comparePair = useMemo(() => {
-    // Paneer vs Soya Chunks
     const paneer = processedItems.find(i => i.id === 'mk_paneer');
     const soya = processedItems.find(i => i.id === 'mk_soya_chunks');
     if (paneer && soya) {
@@ -327,7 +353,7 @@ export default function Market() {
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search chicken, eggs, paneer, dal..."
+              placeholder="Search chicken, eggs, paneer, almonds, whey..."
               className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-muted text-sm text-foreground placeholder:text-muted-foreground border-none outline-none"
             />
           </div>
@@ -358,7 +384,7 @@ export default function Market() {
         )}
 
         {/* Hero Section */}
-        {!search && !selectedCategory && (
+        {!search && !selectedCategory && viewMode === 'fresh' && (
           <MarketHeroSection
             bestValue={bestValue}
             biggestDrop={null}
@@ -367,10 +393,37 @@ export default function Market() {
           />
         )}
 
+        {/* Fresh / Packed Toggle */}
+        <div className="flex p-1 rounded-xl bg-muted">
+          <button
+            onClick={() => handleViewModeChange('fresh')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+              viewMode === 'fresh'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Leaf className="w-3.5 h-3.5" />
+            Fresh Foods
+          </button>
+          <button
+            onClick={() => handleViewModeChange('packed')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+              viewMode === 'packed'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Package className="w-3.5 h-3.5" />
+            Packed & Branded
+          </button>
+        </div>
+
         {/* Category Grid */}
         <MarketCategoryGrid
           selectedCategory={selectedCategory}
           selectedSub={selectedSub}
+          viewMode={viewMode}
           onSelectCategory={setSelectedCategory}
           onSelectSub={setSelectedSub}
         />
@@ -413,8 +466,8 @@ export default function Market() {
           </div>
         </div>
 
-        {/* Smart Sections (only on home / no category) */}
-        {!selectedCategory && !search && filter === 'all' && (
+        {/* Smart Sections (only on home / no category / fresh mode) */}
+        {!selectedCategory && !search && filter === 'all' && viewMode === 'fresh' && (
           <MarketSmartSections
             budgetPicks={budgetPicks}
             comparePair={comparePair}
@@ -458,6 +511,8 @@ export default function Market() {
                   servingDesc={item.servingDesc}
                   isVeg={item.isVeg}
                   isCompareSelected={isCompareSelected}
+                  badge={badgeMap.get(item.id) || null}
+                  badgeCity={city && city !== 'India' ? city : undefined}
                   onTap={() => handleOpenDetail(item)}
                   onAddToPlan={(e) => {
                     e.stopPropagation();
