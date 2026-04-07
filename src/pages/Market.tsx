@@ -81,8 +81,8 @@ const FILTER_CHIPS: { key: FilterMode; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'veg', label: '🌱 Veg Only' },
   { key: 'nonveg', label: '🥩 Non-Veg' },
-  { key: 'high_protein', label: '💪 High Protein' },
-  { key: 'budget', label: '💰 Under ₹100' },
+  { key: 'high_protein', label: 'High Protein' },
+  { key: 'budget', label: 'Under ₹100' },
 ];
 
 export default function Market() {
@@ -243,13 +243,13 @@ export default function Market() {
             {/* Auto-location banner */}
             {!city || city === 'India' ? (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="p-3 rounded-2xl bg-accent/10 border border-accent/20">
-                <p className="text-[11px] font-semibold text-foreground">🇮🇳 Showing national average prices</p>
+                <p className="text-[11px] font-semibold text-foreground">Showing national average prices</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">Set your city for location-specific prices</p>
               </motion.div>
             ) : isAutoDetected && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="p-2.5 rounded-xl bg-primary/5 border border-primary/10 flex items-center gap-2">
                 <MapPin className="w-3.5 h-3.5 text-primary" />
-                <p className="text-[10px] text-foreground flex-1">📍 Auto-detected: <span className="font-bold">{detectedCity}</span></p>
+                <p className="text-[10px] text-foreground flex-1">Auto-detected: <span className="font-bold">{detectedCity}</span></p>
               </motion.div>
             )}
 
@@ -264,7 +264,7 @@ export default function Market() {
                 <PriceDropsRow items={priceDrops} onItemTap={handleItemTapByName} />
                 {city && city !== 'India' && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 rounded-2xl bg-gradient-to-r from-primary/8 to-accent/8 border border-primary/15">
-                    <p className="text-xs font-bold text-foreground mb-1">🏙️ Your City: {city}</p>
+                    <p className="text-xs font-bold text-foreground mb-1">Your City: {city}</p>
                     <p className="text-[10px] text-muted-foreground">Prices adjusted for local market rates</p>
                     <button onClick={() => setMultiCityOpen(true)} className="mt-2 text-[10px] font-bold text-primary">
                       Compare with other cities →
@@ -384,7 +384,7 @@ export default function Market() {
             {filteredItems.length > 0 && (
               <div className="mt-4">
                 <button onClick={() => setShowTrend(!showTrend)} className="w-full flex items-center justify-between mb-3">
-                  <p className="text-xs font-bold text-foreground">📊 Price Trends</p>
+                  <p className="text-xs font-bold text-foreground">Price Trends</p>
                   <span className="text-[10px] text-primary font-semibold">{showTrend ? 'Hide' : 'Show'}</span>
                 </button>
                 <AnimatePresence>
@@ -406,7 +406,7 @@ export default function Market() {
             <div className="p-4 rounded-2xl bg-card border border-border">
               <div className="flex items-center gap-2 mb-2">
                 <Wallet className="w-4 h-4 text-primary" />
-                <p className="text-xs font-bold text-foreground">💰 Your Savings</p>
+                <p className="text-xs font-bold text-foreground">Your Savings</p>
               </div>
               <div className="flex gap-4 mb-3">
                 <div><p className="text-lg font-bold text-foreground">₹{savings.weekly || 0}</p><p className="text-[10px] text-muted-foreground">This week</p></div>
