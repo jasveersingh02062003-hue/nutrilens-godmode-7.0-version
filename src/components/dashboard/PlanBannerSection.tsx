@@ -44,8 +44,11 @@ export default function PlanBannerSection() {
         );
       })()}
 
+      {/* Smart Market Banner (rotation) */}
+      {showMarketBanner && <SmartMarketBanner />}
+
       {/* Active Plan Banner */}
-      {(() => {
+      {!showMarketBanner && (() => {
         if (!ap) return <ActivePlanBanner />;
         if (ap.planId === 'madhavan_21_day') return <MadhavanPlanBanner />;
         if (ap.planId === 'event_based' && ap.eventSettings) {
@@ -103,7 +106,7 @@ export default function PlanBannerSection() {
         }
         return <ActivePlanBanner />;
       })()}
-      {!ap && <PlanPromoCard />}
+      {!ap && !showMarketBanner && <PlanPromoCard />}
 
       {/* Reverse Diet Banner */}
       {isReverseDietActive() && !ap && (
