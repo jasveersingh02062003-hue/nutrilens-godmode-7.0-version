@@ -5,7 +5,7 @@ import { useMarket } from '@/contexts/MarketContext';
 import MarketPageHeader from '@/components/MarketPageHeader';
 import PriceAlertSheet from '@/components/PriceAlertSheet';
 import { DealsSkeleton } from '@/components/market/MarketSkeleton';
-import { getFoodImage } from '@/lib/food-images';
+import MarketImage from '@/components/market/MarketImage';
 import { useNavigate } from 'react-router-dom';
 
 export default function MarketDeals() {
@@ -76,31 +76,22 @@ export default function MarketDeals() {
             <h3 className="text-sm font-bold text-foreground">📉 Price Drops This Week</h3>
           </div>
           <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
-            {priceDrops.map((item: any, i: number) => {
-              const imgUrl = getFoodImage(item.id);
-              return (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="flex-shrink-0 p-3 rounded-xl bg-green-500/5 border border-green-500/15 min-w-[100px] text-center"
-                >
-                  {imgUrl ? (
-                    <div className="w-10 h-10 rounded-lg mx-auto mb-1 overflow-hidden">
-                      <img src={imgUrl} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
-                    </div>
-                  ) : (
-                    <span className="text-2xl block mb-1">{item.emoji}</span>
-                  )}
-                  <p className="text-[10px] font-semibold text-foreground truncate">{item.name.split('(')[0].trim()}</p>
-                  <p className="text-[11px] font-bold text-foreground">₹{item.cityPrice}</p>
-                  <span className="inline-block mt-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-green-500/15 text-green-600">
-                    ↓{item.drop}%
-                  </span>
-                </motion.div>
-              );
-            })}
+            {priceDrops.map((item: any, i: number) => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="flex-shrink-0 p-3 rounded-xl bg-green-500/5 border border-green-500/15 min-w-[100px] text-center"
+              >
+                <div className="mx-auto mb-1"><MarketImage itemId={item.id} emoji={item.emoji} alt={item.name} size="sm" /></div>
+                <p className="text-[10px] font-semibold text-foreground truncate">{item.name.split('(')[0].trim()}</p>
+                <p className="text-[11px] font-bold text-foreground">₹{item.cityPrice}</p>
+                <span className="inline-block mt-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-green-500/15 text-green-600">
+                  ↓{item.drop}%
+                </span>
+              </motion.div>
+            ))}
           </div>
         </div>
 
@@ -118,22 +109,13 @@ export default function MarketDeals() {
             </div>
             <p className="text-[11px] text-muted-foreground mb-3">Get ~{combo.totalProtein}g protein for just ₹{combo.totalCost}/day</p>
             <div className="flex gap-2 mb-3">
-              {combo.items.map((item: any) => {
-                const imgUrl = getFoodImage(item.id);
-                return (
-                  <div key={item.id} className="flex-1 p-2 rounded-xl bg-card border border-border/50 text-center">
-                    {imgUrl ? (
-                      <div className="w-10 h-10 mx-auto rounded-lg overflow-hidden bg-muted">
-                        <img src={imgUrl} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
-                      </div>
-                    ) : (
-                      <span className="text-xl block">{item.emoji}</span>
-                    )}
-                    <p className="text-[9px] font-semibold text-foreground mt-0.5 truncate">{item.name.split('(')[0].trim()}</p>
-                    <p className="text-[9px] text-muted-foreground">{item.protein}g protein</p>
-                  </div>
-                );
-              })}
+              {combo.items.map((item: any) => (
+                <div key={item.id} className="flex-1 p-2 rounded-xl bg-card border border-border/50 text-center">
+                  <div className="mx-auto"><MarketImage itemId={item.id} emoji={item.emoji} alt={item.name} size="sm" /></div>
+                  <p className="text-[9px] font-semibold text-foreground mt-0.5 truncate">{item.name.split('(')[0].trim()}</p>
+                  <p className="text-[9px] text-muted-foreground">{item.protein}g protein</p>
+                </div>
+              ))}
             </div>
             <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
               <span className="text-[10px] font-bold text-foreground">Total: ~{combo.totalProtein}g protein</span>
@@ -150,9 +132,7 @@ export default function MarketDeals() {
             <span className="text-[9px] text-muted-foreground ml-auto">Protein per ₹</span>
           </div>
           <div className="space-y-1.5">
-            {bestPES.map((item, i) => {
-              const imgUrl = getFoodImage(item.id);
-              return (
+            {bestPES.map((item, i) => (
                 <motion.div
                   key={item.id}
                   initial={{ opacity: 0, y: 5 }}
@@ -163,13 +143,7 @@ export default function MarketDeals() {
                   <span className="w-6 text-center text-[11px] font-bold text-muted-foreground">
                     {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
                   </span>
-                  {imgUrl ? (
-                    <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
-                      <img src={imgUrl} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
-                    </div>
-                  ) : (
-                    <span className="text-xl">{item.emoji}</span>
-                  )}
+                  <MarketImage itemId={item.id} emoji={item.emoji} alt={item.name} size="sm" />
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] font-semibold text-foreground truncate">{item.name}</p>
                     <p className="text-[9px] text-muted-foreground">₹{item.cityPrice}/{item.unit} · {item.protein}g protein</p>
@@ -182,8 +156,7 @@ export default function MarketDeals() {
                     PES {item.pes}
                   </span>
                 </motion.div>
-              );
-            })}
+            ))}
           </div>
         </div>
 
@@ -203,16 +176,7 @@ export default function MarketDeals() {
                 className="p-3 rounded-xl bg-card border border-border/50 hover:border-primary/20 transition-colors"
               >
                 <div className="flex items-start justify-between mb-1">
-                  {(() => {
-                    const imgUrl = getFoodImage(item.id);
-                    return imgUrl ? (
-                      <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted">
-                        <img src={imgUrl} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
-                      </div>
-                    ) : (
-                      <span className="text-2xl">{item.emoji}</span>
-                    );
-                  })()}
+                  <MarketImage itemId={item.id} emoji={item.emoji} alt={item.name} size="sm" />
                   <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${
                     item.pesColor === 'green' ? 'bg-green-500/10 text-green-600'
                     : item.pesColor === 'yellow' ? 'bg-amber-500/10 text-amber-600'

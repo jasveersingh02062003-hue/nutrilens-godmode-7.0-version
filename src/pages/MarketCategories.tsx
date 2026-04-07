@@ -4,8 +4,9 @@ import { TOP_CATEGORIES, SUBCATEGORIES, MARKET_ITEMS, getCityPrice, calculateMar
 import { useMarket } from '@/contexts/MarketContext';
 import MarketPageHeader from '@/components/MarketPageHeader';
 import { CategorySidebarSkeleton } from '@/components/market/MarketSkeleton';
-import { getFoodImage, getCategoryImage } from '@/lib/food-images';
+import { getCategoryImage } from '@/lib/food-images';
 import { getCategoryTip } from '@/lib/nutrition-tips';
+import MarketImage from '@/components/market/MarketImage';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Sparkles } from 'lucide-react';
 
@@ -26,7 +27,9 @@ const CATEGORY_INSIGHTS: Record<string, { insight: string; comparison?: string }
 export default function MarketCategories() {
   const navigate = useNavigate();
   const { city, cityLabel, locationLoading } = useMarket();
-  const [activeCategory, setActiveCategory] = useState<MarketTopCategory>('meat_seafood');
+  const searchParams = new URLSearchParams(window.location.search);
+  const initialCat = (searchParams.get('cat') as MarketTopCategory) || 'meat_seafood';
+  const [activeCategory, setActiveCategory] = useState<MarketTopCategory>(initialCat);
 
   const allCategories = TOP_CATEGORIES;
   const subs = SUBCATEGORIES[activeCategory] || [];
@@ -190,9 +193,7 @@ export default function MarketCategories() {
 
               <div className="space-y-2">
                 <h3 className="text-xs font-bold text-foreground">🏆 Top Value in {allCategories.find(c => c.key === activeCategory)?.label}</h3>
-                {topItems.map((item, i) => {
-                  const imgUrl = getFoodImage(item.id);
-                  return (
+                {topItems.map((item, i) => (
                     <motion.button
                       key={item.id}
                       initial={{ opacity: 0, y: 5 }}
@@ -201,13 +202,7 @@ export default function MarketCategories() {
                       onClick={() => handleSubTap(activeCategory)}
                       className="w-full flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 text-left hover:border-primary/20 transition-colors"
                     >
-                      <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center overflow-hidden">
-                        {imgUrl ? (
-                          <img src={imgUrl} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
-                        ) : (
-                          <span className="text-xl">{item.emoji}</span>
-                        )}
-                      </div>
+                      <MarketImage itemId={item.id} emoji={item.emoji} alt={item.name} size="sm" />
                       <div className="flex-1 min-w-0">
                         <p className="text-[12px] font-semibold text-foreground truncate">{item.name}</p>
                         <p className="text-[10px] text-muted-foreground">₹{item.cityPrice}/{item.unit} · {item.protein}g protein</p>
@@ -221,8 +216,7 @@ export default function MarketCategories() {
                       </span>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </motion.button>
-                  );
-                })}
+                ))}
               </div>
             </motion.div>
           </AnimatePresence>
