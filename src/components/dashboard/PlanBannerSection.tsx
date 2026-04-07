@@ -7,10 +7,21 @@ import PlanPromoCard from '@/components/PlanPromoCard';
 import BoostersChecklist from '@/components/BoostersChecklist';
 import ActivityTracker from '@/components/ActivityTracker';
 import TummyInsightCard from '@/components/TummyInsightCard';
+import SmartMarketBanner from '@/components/SmartMarketBanner';
 
 export default function PlanBannerSection() {
   const raw = getActivePlanRaw();
   const ap = getActivePlan();
+
+  // Banner rotation logic: deterministic per day
+  const dayOfYear = (() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 0);
+    return Math.floor((now.getTime() - start.getTime()) / 86400000);
+  })();
+
+  // If active plan: 70% plan, 30% market. If no plan: always market.
+  const showMarketBanner = ap ? (dayOfYear % 10 >= 7) : true;
 
   return (
     <>
@@ -33,8 +44,11 @@ export default function PlanBannerSection() {
         );
       })()}
 
+      {/* Smart Market Banner (rotation) */}
+      {showMarketBanner && <SmartMarketBanner />}
+
       {/* Active Plan Banner */}
-      {(() => {
+      {!showMarketBanner && (() => {
         if (!ap) return <ActivePlanBanner />;
         if (ap.planId === 'madhavan_21_day') return <MadhavanPlanBanner />;
         if (ap.planId === 'event_based' && ap.eventSettings) {
@@ -92,7 +106,7 @@ export default function PlanBannerSection() {
         }
         return <ActivePlanBanner />;
       })()}
-      {!ap && <PlanPromoCard />}
+      {!ap && !showMarketBanner && <PlanPromoCard />}
 
       {/* Reverse Diet Banner */}
       {isReverseDietActive() && !ap && (

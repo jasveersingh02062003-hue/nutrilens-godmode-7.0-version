@@ -15,6 +15,7 @@ import PriceTrendChart from '@/components/PriceTrendChart';
 import MarketCompareBar from '@/components/MarketCompareBar';
 import ComparisonSheet from '@/components/ComparisonSheet';
 import PriceFreshnessBadge from '@/components/PriceFreshnessBadge';
+import MultiCityCompareSheet from '@/components/MultiCityCompareSheet';
 import { buildFromFood } from '@/lib/compare-helpers';
 import { INDIAN_FOODS } from '@/lib/indian-foods';
 import { scopedGet } from '@/lib/scoped-storage';
@@ -65,6 +66,7 @@ export default function Market() {
   const [compareItems, setCompareItems] = useState<MarketItem[]>([]);
   const [compareOpen, setCompareOpen] = useState(false);
   const [budgetFilter, setBudgetFilter] = useState<number | null>(null);
+  const [multiCityOpen, setMultiCityOpen] = useState(false);
 
   const rawCity = (profile as any)?.city || '';
   const cityInfo = useMemo(() => resolveCity(rawCity || 'India'), [rawCity]);
@@ -137,7 +139,7 @@ export default function Market() {
 
   const lastUpdatedLabel = lastUpdated
     ? formatDistanceToNow(new Date(lastUpdated), { addSuffix: true })
-    : 'Static prices';
+    : city ? 'Static prices' : 'Average across India';
 
   const handleOpenDetail = (item: MarketItem) => {
     setSelectedItem(item);
@@ -218,6 +220,12 @@ export default function Market() {
               <span>{lastUpdatedLabel}</span>
             </button>
           </div>
+          <button
+            onClick={() => setMultiCityOpen(true)}
+            className="px-2 py-1 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
+          >
+            <span className="text-[9px] font-bold text-muted-foreground">🏙️ Compare</span>
+          </button>
           <div className="px-2 py-1 rounded-lg bg-muted">
             <span className="text-[9px] font-bold text-muted-foreground">
               {/* FIRECRAWL_HOOK: Change to "LIVE" when Firecrawl is active */}
@@ -226,12 +234,13 @@ export default function Market() {
           </div>
         </div>
 
-        {/* City not set warning */}
+      {/* City not set — "Average across India" label + prompt */}
         {!city && (
           <div className="mx-4 mb-2 p-2.5 rounded-xl bg-accent/10 border border-accent/20">
-            <p className="text-[11px] font-semibold text-foreground">📍 Set your city for location-based prices</p>
-            <button onClick={() => setCityPickerOpen(true)} className="text-[10px] font-bold text-primary mt-0.5">
-              Choose your city →
+            <p className="text-[11px] font-semibold text-foreground">🇮🇳 Showing average prices across India</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Set your city to see location-specific prices & trends</p>
+            <button onClick={() => setCityPickerOpen(true)} className="text-[10px] font-bold text-primary mt-1">
+              📍 Choose your city →
             </button>
           </div>
         )}
@@ -640,6 +649,13 @@ export default function Market() {
         open={reportOpen}
         onOpenChange={setReportOpen}
         prefillItem={reportPrefill}
+      />
+
+      {/* Multi-City Compare Sheet */}
+      <MultiCityCompareSheet
+        open={multiCityOpen}
+        onOpenChange={setMultiCityOpen}
+        defaultCity={city || undefined}
       />
     </div>
   );

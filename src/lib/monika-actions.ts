@@ -366,8 +366,33 @@ export function buildMonikaContext() {
         'Compare foods: "compare eggs vs paneer"',
         'Best under price: "best protein under ₹50"',
         'Evaluate food: "how good is chicken curry"',
+        'Market prices: "what\'s cheapest protein today?"',
+        'City prices: "egg price in hyderabad"',
       ],
     },
+    marketIntelligence: (() => {
+      try {
+        const { foodDatabase } = require('./pes-engine');
+        const topItems = [...foodDatabase]
+          .filter((f: any) => f.protein > 0 && f.price > 0)
+          .sort((a: any, b: any) => b.proteinPerRupee - a.proteinPerRupee)
+          .slice(0, 5)
+          .map((f: any) => ({
+            name: f.name,
+            price: f.price,
+            protein: f.protein,
+            proteinPerRupee: f.proteinPerRupee,
+          }));
+        const userCity = (profile as any)?.city || null;
+        return {
+          city: userCity,
+          topProteinValues: topItems,
+          tip: topItems.length > 0
+            ? `Best protein value today: ${topItems[0].name} at ₹${topItems[0].price} for ${topItems[0].protein}g protein (₹${topItems[0].proteinPerRupee.toFixed(2)}/g)`
+            : null,
+        };
+      } catch { return null; }
+    })(),
   };
 }
 
