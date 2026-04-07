@@ -1,90 +1,90 @@
 
 
-# Smart Market — Visual & UX Polish Plan
+# Smart Market — Remaining Visual Polish Plan
 
 ## Current State
 
-The 5-phase overhaul is already implemented with:
-- MarketContext providing shared city/prices/compare state across all tabs
+The Smart Market is already fully built with:
+- 5 tabs (Shop, Categories, Deals, Compare, My List) all functional
+- MarketContext providing shared city/prices/compare state
 - MarketBottomNav with spring animations and layoutId dot
-- MarketItemCard with PES badges, image support, nutrition tips, price trends
-- Shop homepage with Hero, QuickActions, TopValue, CategoryGrid, Education, PriceDrops sections
+- Real food images via Unsplash (food-images.ts) with fade-in
+- MarketHeroSection with 3-slide auto-rotation (5s interval)
 - Flipkart-style Categories with sidebar + content area
-- Deals with price drops, budget combos, PES leaderboard, price forecast, alert CTA
-- Compare with quick pairs, category filters, selection bar
-- My List with add, auto-generate from meal plan, share, summary bar
-- food-images.ts with Unsplash URLs, nutrition-tips.ts with per-item tips
-- MarketSkeleton loading states
+- Education cards, price drops, PES rankings, budget combos
+- Compare with quick pairs and category filters
+- My List with auto-generate from meal plan
 
-## Remaining Gaps (After Reviewing Code)
+## What Actually Needs Fixing (After Full Code Review)
 
-1. **MarketItemCard missing `itemId` prop** -- the card accepts `itemId?` but Market.tsx never passes it, so images and tips never render for item cards on the Shop page
-2. **TopValueCards and QuickActionsRow still use emoji** -- no image support integrated
-3. **PriceDropsRow still uses emoji** -- no image support
-4. **CategoryGridHome still uses emoji** -- no category images used
-5. **Hero banner not rotating** -- it's static, shows only "best value today" with no auto-rotate
-6. **No "Recently Viewed" section** on homepage
-7. **Categories page missing category hero images** -- `getCategoryImage` exists but isn't used
-8. **No image fade-in animation** on image load across components
-9. **MarketDeals "High Protein Low Cost" grid** still uses emoji, not images
-10. **Compare page item list** uses images correctly (already done)
+After reviewing every file, there are **7 concrete issues** remaining:
 
-## Implementation Plan (3 Phases)
-
-### Phase 1: Wire Images Everywhere + Fix itemId Prop
-
-Pass `itemId` to MarketItemCard in Market.tsx so real images load. Add image support to TopValueCards, QuickActionsRow, PriceDropsRow, and CategoryGridHome.
-
-**Files modified:**
-- `src/pages/Market.tsx` -- pass `itemId={item.id}` to MarketItemCard; pass image URLs in topValueItems and priceDrops data
-- `src/components/market/TopValueCards.tsx` -- accept `itemId`, use `getFoodImage()` with fade-in `<img>`, fallback to emoji
-- `src/components/market/QuickActionsRow.tsx` -- use `getFoodImage()` for each pill item
-- `src/components/market/PriceDropsRow.tsx` -- accept `itemId`, use `getFoodImage()` for each drop card
-- `src/components/market/CategoryGridHome.tsx` -- use `getCategoryImage()` as background for category tiles
-
-### Phase 2: Hero Banner Auto-Rotate + Category Hero Images + Recently Viewed
-
-Make the hero banner rotate between 3 data-driven slides. Add category hero images to the Categories page. Add a "Recently Viewed" horizontal scroll at the bottom of the Shop homepage.
-
-**Files modified:**
-- `src/components/MarketHeroSection.tsx` -- rewrite to auto-rotate between 3 slides: (1) Best Value Today, (2) Biggest Price Drop, (3) Budget Protein Challenge. Use `AnimatePresence` fade transition with 5s interval and dot indicators
-- `src/pages/MarketCategories.tsx` -- add `getCategoryImage()` as a banner image above the category insight card
-- `src/pages/Market.tsx` -- add "Recently Viewed" section using localStorage tracking; add `biggestDrop` data to hero props
-
-### Phase 3: Image Fade-In Animation + Deals Image Fix + Visual Polish
-
-Add consistent image fade-in across all market components. Fix remaining emoji-only spots.
-
-**Files modified:**
-- `src/components/market/MarketImage.tsx` (NEW) -- shared image component with `opacity: 0 -> 1` fade on load, emoji fallback, rounded corners, consistent sizing
-- `src/pages/MarketDeals.tsx` -- use `MarketImage` in "High Protein Low Cost" grid and "Budget Protein Combo" section
-- `src/components/MarketItemCard.tsx` -- replace inline image logic with `MarketImage` component
-- `src/pages/MarketCategories.tsx` -- use `MarketImage` in top items list
-- `src/pages/MarketCompare.tsx` -- use `MarketImage` in item list
+1. **Broken Unsplash URL** -- `mk_potato` has a typo in URL (`ber3a3` instead of valid hash), will show error/emoji fallback
+2. **MarketImage component created but never used** -- `MarketImage.tsx` exists with proper fade-in + fallback logic, but Deals, Categories, and Compare pages all use inline `<img>` + emoji fallback patterns instead of the shared component
+3. **No `prefers-reduced-motion` support** -- Framer Motion animations run unconditionally, bad for accessibility
+4. **CategoryGridHome "View All" button navigates wrong** -- clicking any category goes to `/market/categories` but doesn't pre-select that category
+5. **Compare page doesn't use MarketImage** -- inline image/emoji pattern duplicated
+6. **My List suggestions show only emoji** -- `getFoodImage()` not used for suggestion cards or list items
+7. **Hero banner `useEffect` dependency** -- `slides.length` causes unnecessary re-renders because `slides` is rebuilt every render
 
 ---
 
-## Animation Summary
+## Implementation Plan (2 Phases)
 
+### Phase 1: Fix Data Issues + Wire MarketImage Component Everywhere
+
+Replace all inline image/emoji patterns with the shared `MarketImage` component for consistency. Fix the broken URL and category navigation.
+
+**Files modified:**
+- `src/lib/food-images.ts` -- Fix `mk_potato` broken URL
+- `src/pages/MarketDeals.tsx` -- Replace 4 inline image patterns with `<MarketImage>` (price drops, combo, PES list, high protein grid)
+- `src/pages/MarketCategories.tsx` -- Replace top items inline image with `<MarketImage>`
+- `src/pages/MarketCompare.tsx` -- Replace item list inline image with `<MarketImage>`
+- `src/pages/MarketList.tsx` -- Add `<MarketImage>` to suggestion cards and list items
+- `src/components/market/CategoryGridHome.tsx` -- Pass selected category key to navigate (`/market/categories?cat=X`)
+- `src/pages/MarketCategories.tsx` -- Read `?cat=X` from URL to pre-select active category on mount
+
+### Phase 2: Accessibility + Hero Performance Fix
+
+- `src/components/MarketHeroSection.tsx` -- Memoize slides array to prevent `useEffect` dependency churn; pause auto-rotate when user has `prefers-reduced-motion`
+- `src/components/MarketItemCard.tsx` -- Add `motion.prefersReducedMotion` check
+- `src/components/MarketBottomNav.tsx` -- Respect `prefers-reduced-motion` for spring animations
+
+---
+
+## Animation Inventory (Already Working)
+
+| Component | Animation | Status |
+|-----------|-----------|--------|
+| MarketBottomNav | Spring bounce + layoutId dot + glow | Working |
+| MarketHeroSection | AnimatePresence fade+slide, 5s auto-rotate, dot indicators | Working (perf fix needed) |
+| MarketItemCard | Stagger fade+slide up, PES badge scale-in, price trend pulse | Working |
+| TopValueCards | Spring scale-in with medals | Working |
+| QuickActionsRow | Stagger scale-in with image fade | Working |
+| PriceDropsRow | Slide-in from right, drop badge pulse | Working |
+| CategoryGridHome | Stagger fade-in with gradient overlay | Working |
+| EducationCard | AnimatePresence text swap, 6s auto-rotate, nav arrows | Working |
+| Categories sidebar | Stagger slide-in, layoutId active bar | Working |
+| Categories content | AnimatePresence fade+slide on category switch | Working |
+| Deals sections | Stagger fade+slide, spring scale for combo | Working |
+| Compare selection bar | Height+opacity animate, scale bounce on check | Working |
+| My List items | Slide-in/out with AnimatePresence | Working |
+
+**New in this plan:**
 | Component | Animation | Phase |
 |-----------|-----------|-------|
-| MarketImage (new shared component) | `opacity: 0 -> 1` on img load, 300ms ease | 3 |
-| Hero banner slides | `AnimatePresence` fade + slide, 5s auto-rotate | 2 |
-| Hero dot indicators | `layoutId` width transition for active dot | 2 |
-| Category hero image | Fade-in on category switch via `AnimatePresence` | 2 |
-| TopValueCards images | Image fade-in on load | 1 |
-| QuickActions pill images | Image fade-in, emoji fallback | 1 |
-| PriceDrops card images | Image fade-in, emoji fallback | 1 |
-| CategoryGrid backgrounds | Subtle gradient overlay on category image | 1 |
-| Recently Viewed scroll | Stagger fade-in with `delay: i * 0.04` | 2 |
+| MarketImage (shared) | opacity 0->1 on load, 300ms ease | 1 |
+| My List suggestion images | Fade-in via MarketImage | 1 |
+| All animations | Respect `prefers-reduced-motion` | 2 |
+
+---
 
 ## Files Summary
 
 | Phase | New Files | Modified Files |
 |-------|-----------|----------------|
-| 1 | -- | `Market.tsx`, `TopValueCards.tsx`, `QuickActionsRow.tsx`, `PriceDropsRow.tsx`, `CategoryGridHome.tsx` |
-| 2 | -- | `MarketHeroSection.tsx`, `MarketCategories.tsx`, `Market.tsx` |
-| 3 | `market/MarketImage.tsx` | `MarketDeals.tsx`, `MarketItemCard.tsx`, `MarketCategories.tsx`, `MarketCompare.tsx` |
+| 1 | -- | `food-images.ts`, `MarketDeals.tsx`, `MarketCategories.tsx`, `MarketCompare.tsx`, `MarketList.tsx`, `CategoryGridHome.tsx` |
+| 2 | -- | `MarketHeroSection.tsx`, `MarketItemCard.tsx`, `MarketBottomNav.tsx` |
 
-**Total: 1 new file, ~9 modified files, 0 backend changes**
+**Total: 0 new files, 9 modified files, 0 backend changes**
 
