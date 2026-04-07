@@ -1,201 +1,259 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, PlusCircle } from 'lucide-react';
-import { ArrowLeft, Search, SlidersHorizontal, Store, MapPin, Clock, ChevronDown, Users, Trophy, TrendingDown, Scale, Wallet } from 'lucide-react';
+import { ArrowLeft, Search, MapPin, Clock, ChevronDown, Users, Scale, Wallet, Store, Leaf, SlidersHorizontal, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getMarketItems, getLastPriceUpdate, SUPPORTED_CITIES, resolveCity, type MarketItem, type MarketCategory, type MarketSort } from '@/lib/market-service';
+import { SUPPORTED_CITIES, resolveCity, type MarketItem as LegacyMarketItem } from '@/lib/market-service';
+import { MARKET_ITEMS, getCityPrice, calculateMarketPES, getMarketPESColor, TOP_CATEGORIES, type MarketTopCategory, type MarketSubcategory, type RawMarketItem } from '@/lib/market-data';
+import { detectCity } from '@/lib/auto-location';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import PESBadge from '@/components/PESBadge';
-import type { PESColor } from '@/lib/pes-engine';
+import MarketCategoryGrid from '@/components/MarketCategoryGrid';
+import MarketHeroSection from '@/components/MarketHeroSection';
+import MarketSmartSections from '@/components/MarketSmartSections';
+import MarketItemCard from '@/components/MarketItemCard';
 import MarketItemDetailSheet from '@/components/MarketItemDetailSheet';
 import ReportPriceSheet from '@/components/ReportPriceSheet';
 import PriceTrendChart from '@/components/PriceTrendChart';
 import MarketCompareBar from '@/components/MarketCompareBar';
 import ComparisonSheet from '@/components/ComparisonSheet';
-import PriceFreshnessBadge from '@/components/PriceFreshnessBadge';
 import MultiCityCompareSheet from '@/components/MultiCityCompareSheet';
 import { buildFromFood } from '@/lib/compare-helpers';
 import { INDIAN_FOODS } from '@/lib/indian-foods';
 import { scopedGet } from '@/lib/scoped-storage';
-import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
 
-const CATEGORIES: { key: MarketCategory; label: string; icon: string }[] = [
-  { key: 'all', label: 'All', icon: '🏪' },
-  { key: 'protein', label: 'Protein', icon: '🥩' },
-  { key: 'vegetable', label: 'Veggies', icon: '🥬' },
-  { key: 'dals', label: 'Dals', icon: '🫘' },
-  { key: 'dairy', label: 'Dairy', icon: '🥛' },
-  { key: 'grain', label: 'Grains', icon: '🌾' },
-  { key: 'fruits', label: 'Fruits', icon: '🍌' },
-  { key: 'packed', label: 'Packed', icon: '📦' },
-  { key: 'frozen', label: 'Frozen', icon: '🧊' },
-  { key: 'drinks', label: 'Drinks', icon: '🍹' },
-  { key: 'spreads', label: 'Spreads', icon: '🥜' },
-  { key: 'supplement', label: 'Supps', icon: '💊' },
+type SortMode = 'pes' | 'price' | 'protein';
+type FilterMode = 'all' | 'veg' | 'nonveg' | 'high_protein' | 'budget';
+
+const SORT_OPTIONS: { key: SortMode; label: string }[] = [
+  { key: 'pes', label: 'Best Value' },
+  { key: 'price', label: 'Lowest Price' },
+  { key: 'protein', label: 'Most Protein' },
 ];
 
-const SORT_OPTIONS: { key: MarketSort; label: string }[] = [
-  { key: 'pes', label: 'PES Score' },
-  { key: 'price', label: 'Price' },
-  { key: 'protein', label: 'Protein' },
+const FILTER_CHIPS: { key: FilterMode; label: string; icon?: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'veg', label: '🌱 Veg Only' },
+  { key: 'nonveg', label: '🥩 Non-Veg' },
+  { key: 'high_protein', label: '💪 High Protein' },
+  { key: 'budget', label: '💰 Under ₹100' },
 ];
 
-const BUDGET_PRESETS = [100, 200, 300];
+// Convert RawMarketItem to the shape needed for detail sheet
+function toMarketItem(item: RawMarketItem, city: string, priceChange?: number): LegacyMarketItem {
+  const price = getCityPrice(item.basePrice, city);
+  const pes = calculateMarketPES(item.protein, price);
+  const costPerGram = item.protein > 0 ? Math.round((price / item.protein) * 100) / 100 : 999;
+  return {
+    id: item.id,
+    name: item.name,
+    price,
+    protein: item.protein,
+    calories: item.calories,
+    pes: Math.round(pes * 100) / 100,
+    pesColor: getMarketPESColor(pes),
+    costPerGramProtein: costPerGram,
+    category: item.isVeg ? 'Veg' : 'Non-Veg',
+    unit: item.unit,
+    source: 'fresh',
+    imageUrl: item.emoji,
+    lastUpdated: 'static',
+    priceChange: priceChange || 0,
+    carbs: item.carbs,
+    fat: item.fat,
+    fiber: item.fiber,
+  };
+}
 
 export default function Market() {
   const navigate = useNavigate();
   const { profile, updateProfile } = useUserProfile();
   const { user } = useAuth();
-  const [items, setItems] = useState<MarketItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [category, setCategory] = useState<MarketCategory>('all');
-  const [sort, setSort] = useState<MarketSort>('pes');
+
+  // Location state
+  const [city, setCity] = useState<string>('');
+  const [detectedCity, setDetectedCity] = useState<string>('');
+  const [isAutoDetected, setIsAutoDetected] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(true);
+  const [cityPickerOpen, setCityPickerOpen] = useState(false);
+
+  // Browse state
+  const [selectedCategory, setSelectedCategory] = useState<MarketTopCategory | null>(null);
+  const [selectedSub, setSelectedSub] = useState<MarketSubcategory | null>(null);
+  const [sort, setSort] = useState<SortMode>('pes');
+  const [filter, setFilter] = useState<FilterMode>('all');
   const [search, setSearch] = useState('');
-  const [selectedItem, setSelectedItem] = useState<MarketItem | null>(null);
+  const [showSortFilter, setShowSortFilter] = useState(false);
+
+  // Detail/compare state
+  const [selectedItem, setSelectedItem] = useState<LegacyMarketItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportPrefill, setReportPrefill] = useState('');
-  const [cityPickerOpen, setCityPickerOpen] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [compareItems, setCompareItems] = useState<LegacyMarketItem[]>([]);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [multiCityOpen, setMultiCityOpen] = useState(false);
   const [showTrend, setShowTrend] = useState(false);
   const [trendItem, setTrendItem] = useState('Chicken');
-  const [compareItems, setCompareItems] = useState<MarketItem[]>([]);
-  const [compareOpen, setCompareOpen] = useState(false);
-  const [budgetFilter, setBudgetFilter] = useState<number | null>(null);
-  const [multiCityOpen, setMultiCityOpen] = useState(false);
 
-  const rawCity = (profile as any)?.city || '';
-  const cityInfo = useMemo(() => resolveCity(rawCity || 'India'), [rawCity]);
-  const city = rawCity || '';
-
-  const savings = useMemo(() => {
-    try {
-      return JSON.parse(scopedGet('nutrilens_market_savings') || '{"weekly":0,"monthly":0}');
-    } catch { return { weekly: 0, monthly: 0 }; }
-  }, []);
+  // ─── Auto-Location Detection ───
+  useEffect(() => {
+    const profileCity = (profile as any)?.city || '';
+    setLocationLoading(true);
+    detectCity(profileCity).then(result => {
+      setCity(result.resolvedCity);
+      setDetectedCity(result.city);
+      setIsAutoDetected(result.isAutoDetected);
+      setLocationLoading(false);
+      // Auto-save detected city to profile if no city was set
+      if (result.isAutoDetected && !profileCity && result.resolvedCity !== 'India') {
+        if (updateProfile) updateProfile({ city: result.resolvedCity } as any);
+        if (user?.id) {
+          supabase.from('profiles').update({ city: result.resolvedCity }).eq('id', user.id);
+        }
+        toast.success(`📍 Location detected: ${result.city}`, { duration: 3000 });
+      }
+    });
+  }, [(profile as any)?.city]);
 
   const handleCitySelect = async (selectedCity: string) => {
     setCityPickerOpen(false);
-    if (selectedCity.toLowerCase() === city.toLowerCase()) return;
-    if (updateProfile) {
-      updateProfile({ city: selectedCity } as any);
-    }
+    setCity(selectedCity);
+    setIsAutoDetected(false);
+    if (updateProfile) updateProfile({ city: selectedCity } as any);
     if (user?.id) {
       await supabase.from('profiles').update({ city: selectedCity }).eq('id', user.id);
     }
     toast.success(`📍 Prices updated for ${selectedCity}`);
   };
 
-  useEffect(() => {
-    setLoading(true);
-    const c = city || 'India';
-    Promise.all([
-      getMarketItems(c, category, sort),
-      getLastPriceUpdate(c),
-    ]).then(([data, updated]) => {
-      setItems(data);
-      setLastUpdated(updated);
-      setLoading(false);
+  // ─── Process Market Items with City Pricing ───
+  const processedItems = useMemo(() => {
+    const resolvedCity = city || 'India';
+    return MARKET_ITEMS.map(item => {
+      const price = getCityPrice(item.basePrice, resolvedCity);
+      const pes = calculateMarketPES(item.protein, price);
+      const costPerGram = item.protein > 0 ? Math.round((price / item.protein) * 100) / 100 : 999;
+      return {
+        ...item,
+        cityPrice: price,
+        pes: Math.round(pes * 100) / 100,
+        pesColor: getMarketPESColor(pes),
+        costPerGram,
+      };
     });
-  }, [city, category, sort]);
+  }, [city]);
 
-  const filtered = useMemo(() => {
-    let result = items;
+  // ─── Filtering & Sorting ───
+  const filteredItems = useMemo(() => {
+    let result = processedItems;
+
+    // Category filter
+    if (selectedCategory) {
+      result = result.filter(i => i.topCategory === selectedCategory);
+    }
+    if (selectedSub) {
+      result = result.filter(i => i.subcategory === selectedSub);
+    }
+
+    // Search
     if (search.trim()) {
       const q = search.toLowerCase();
-      result = result.filter(item =>
-        item.name.toLowerCase().includes(q) ||
-        (item.brand && item.brand.toLowerCase().includes(q))
-      );
+      result = result.filter(i => i.name.toLowerCase().includes(q) || i.tags.some(t => t.includes(q)));
     }
-    if (budgetFilter) {
-      result = result.filter(item => item.price <= budgetFilter);
+
+    // Filter chips
+    switch (filter) {
+      case 'veg': result = result.filter(i => i.isVeg); break;
+      case 'nonveg': result = result.filter(i => !i.isVeg); break;
+      case 'high_protein': result = result.filter(i => i.protein >= 15); break;
+      case 'budget': result = result.filter(i => i.cityPrice <= 100); break;
     }
+
+    // Sort
+    switch (sort) {
+      case 'pes': result = [...result].sort((a, b) => b.pes - a.pes); break;
+      case 'price': result = [...result].sort((a, b) => a.cityPrice - b.cityPrice); break;
+      case 'protein': result = [...result].sort((a, b) => b.protein - a.protein); break;
+    }
+
     return result;
-  }, [items, search, budgetFilter]);
+  }, [processedItems, selectedCategory, selectedSub, search, filter, sort]);
 
-  // Budget protein summary
-  const budgetProteinSummary = useMemo(() => {
-    if (!budgetFilter) return null;
-    let totalProtein = 0;
-    let totalCost = 0;
-    const picked: string[] = [];
-    const sorted = [...filtered].sort((a, b) => a.costPerGramProtein - b.costPerGramProtein);
-    for (const item of sorted) {
-      if (totalCost + item.price > budgetFilter) continue;
-      totalCost += item.price;
-      totalProtein += item.protein;
-      picked.push(item.name);
-      if (picked.length >= 5) break;
+  // ─── Smart Sections Data ───
+  const bestValue = useMemo(() => {
+    const sorted = [...processedItems].sort((a, b) => b.pes - a.pes);
+    const top = sorted[0];
+    if (!top) return null;
+    return { name: top.name, emoji: top.emoji, price: top.cityPrice, unit: top.unit, protein: top.protein, costPerGram: top.costPerGram };
+  }, [processedItems]);
+
+  const budgetPicks = useMemo(() => {
+    return processedItems
+      .filter(i => i.cityPrice <= 100 && i.protein >= 5)
+      .sort((a, b) => a.costPerGram - b.costPerGram)
+      .slice(0, 6)
+      .map(i => ({ name: i.name, emoji: i.emoji, price: i.cityPrice, unit: i.unit, protein: i.protein, costPerGram: i.costPerGram }));
+  }, [processedItems]);
+
+  const comparePair = useMemo(() => {
+    // Paneer vs Soya Chunks
+    const paneer = processedItems.find(i => i.id === 'mk_paneer');
+    const soya = processedItems.find(i => i.id === 'mk_soya_chunks');
+    if (paneer && soya) {
+      return {
+        a: { name: paneer.name, emoji: paneer.emoji, price: paneer.cityPrice, unit: paneer.unit, protein: paneer.protein, costPerGram: paneer.costPerGram },
+        b: { name: soya.name, emoji: soya.emoji, price: soya.cityPrice, unit: soya.unit, protein: soya.protein, costPerGram: soya.costPerGram },
+      };
     }
-    return { totalProtein: Math.round(totalProtein), totalCost: Math.round(totalCost), count: picked.length };
-  }, [filtered, budgetFilter]);
+    return null;
+  }, [processedItems]);
 
-  const topItem = filtered.length > 0 ? filtered[0] : null;
-
-  const lastUpdatedLabel = lastUpdated
-    ? formatDistanceToNow(new Date(lastUpdated), { addSuffix: true })
-    : city ? 'Static prices' : 'Average across India';
-
-  const handleOpenDetail = (item: MarketItem) => {
-    setSelectedItem(item);
+  // ─── Handlers ───
+  const handleOpenDetail = useCallback((item: typeof processedItems[0]) => {
+    setSelectedItem(toMarketItem(MARKET_ITEMS.find(m => m.id === item.id)!, city || 'India'));
     setDetailOpen(true);
-  };
+  }, [city]);
 
-  const handleReportPrice = (itemName?: string) => {
-    setReportPrefill(itemName || '');
-    setReportOpen(true);
-  };
+  const handleItemTapByName = useCallback((name: string) => {
+    const item = processedItems.find(i => i.name === name);
+    if (item) handleOpenDetail(item);
+  }, [processedItems, handleOpenDetail]);
 
-  const toggleCompare = (item: MarketItem, e: React.MouseEvent) => {
+  const toggleCompare = useCallback((item: typeof processedItems[0], e: React.MouseEvent) => {
     e.stopPropagation();
+    const marketItem = toMarketItem(MARKET_ITEMS.find(m => m.id === item.id)!, city || 'India');
     setCompareItems(prev => {
-      const exists = prev.find(i => i.id === item.id);
-      if (exists) return prev.filter(i => i.id !== item.id);
-      if (prev.length >= 4) {
-        toast.error('Max 4 items to compare');
-        return prev;
-      }
-      return [...prev, item];
+      if (prev.find(i => i.id === item.id)) return prev.filter(i => i.id !== item.id);
+      if (prev.length >= 4) { toast.error('Max 4 items'); return prev; }
+      return [...prev, marketItem];
     });
-  };
+  }, [city]);
 
-  const handleCompare = () => {
-    setCompareOpen(true);
-  };
-
-  // Convert MarketItem to CompareItem for ComparisonSheet
   const compareData = useMemo(() => {
     return compareItems.map(item => {
       const food = INDIAN_FOODS.find(f => f.name.toLowerCase() === item.name.toLowerCase());
       if (food) return buildFromFood(food);
       return {
-        type: 'food' as const,
-        id: item.id,
-        name: item.name,
-        calories: item.calories,
-        protein: item.protein,
-        carbs: item.carbs || 0,
-        fat: item.fat || 0,
-        fiber: item.fiber || 0,
-        iron: 0,
-        calcium: 0,
-        vitC: 0,
-        cost: item.price,
-        pes: item.pes,
-        image: item.imageUrl,
-        servingGrams: 100,
+        type: 'food' as const, id: item.id, name: item.name, calories: item.calories, protein: item.protein,
+        carbs: item.carbs || 0, fat: item.fat || 0, fiber: item.fiber || 0, iron: 0, calcium: 0, vitC: 0,
+        cost: item.price, pes: item.pes, image: item.imageUrl, servingGrams: 100,
       };
     });
   }, [compareItems]);
 
+  const savings = useMemo(() => {
+    try { return JSON.parse(scopedGet('nutrilens_market_savings') || '{"weekly":0,"monthly":0}'); }
+    catch { return { weekly: 0, monthly: 0 }; }
+  }, []);
+
+  const cityLabel = city && city !== 'India' ? city : 'All India';
+
   return (
     <div className="max-w-lg mx-auto min-h-screen bg-background pb-24">
-      {/* Header */}
+      {/* ─── Header ─── */}
       <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="flex items-center gap-3 px-4 py-3">
           <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center">
@@ -203,26 +261,27 @@ export default function Market() {
           </button>
           <div className="flex-1">
             <h1 className="text-base font-bold text-foreground flex items-center gap-2">
-              <Store className="w-4.5 h-4.5 text-secondary" /> Smart Market
+              <Store className="w-4.5 h-4.5 text-primary" /> Smart Market
             </h1>
             <button
               onClick={() => setCityPickerOpen(!cityPickerOpen)}
               className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
             >
               <MapPin className="w-3 h-3" />
-              <span>{city || 'Set city'}</span>
-              {cityInfo.isAlias && (
-                <span className="text-[9px] text-primary">(→ {cityInfo.resolved})</span>
+              {locationLoading ? (
+                <span className="flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Detecting...</span>
+              ) : (
+                <>
+                  <span>{cityLabel}</span>
+                  {isAutoDetected && <span className="text-[9px] text-primary">(auto)</span>}
+                  <ChevronDown className="w-3 h-3" />
+                </>
               )}
-              <ChevronDown className="w-3 h-3" />
-              <span className="mx-1">·</span>
-              <Clock className="w-3 h-3" />
-              <span>{lastUpdatedLabel}</span>
             </button>
           </div>
           <button
             onClick={() => setMultiCityOpen(true)}
-            className="px-2 py-1 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
+            className="px-2.5 py-1 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
           >
             <span className="text-[9px] font-bold text-muted-foreground">🏙️ Compare</span>
           </button>
@@ -234,26 +293,10 @@ export default function Market() {
           </div>
         </div>
 
-      {/* City not set — "Average across India" label + prompt */}
-        {!city && (
-          <div className="mx-4 mb-2 p-2.5 rounded-xl bg-accent/10 border border-accent/20">
-            <p className="text-[11px] font-semibold text-foreground">🇮🇳 Showing average prices across India</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Set your city to see location-specific prices & trends</p>
-            <button onClick={() => setCityPickerOpen(true)} className="text-[10px] font-bold text-primary mt-1">
-              📍 Choose your city →
-            </button>
-          </div>
-        )}
-
-        {/* City picker */}
+        {/* City picker dropdown */}
         <AnimatePresence>
           {cityPickerOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
               <div className="px-4 pb-3">
                 <p className="text-[10px] font-semibold text-muted-foreground mb-2">Select your city</p>
                 <div className="flex flex-wrap gap-1.5">
@@ -284,300 +327,183 @@ export default function Market() {
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search foods, brands..."
+              placeholder="Search chicken, eggs, paneer, dal..."
               className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-muted text-sm text-foreground placeholder:text-muted-foreground border-none outline-none"
             />
           </div>
         </div>
-
-        {/* Category Pills */}
-        <div className="flex gap-2 px-4 pb-3 overflow-x-auto scrollbar-hide">
-          {CATEGORIES.map(cat => (
-            <button
-              key={cat.key}
-              onClick={() => setCategory(cat.key)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors
-                ${category === cat.key
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
-            >
-              <span>{cat.icon}</span> {cat.label}
-            </button>
-          ))}
-        </div>
       </div>
 
-      {/* Sort Bar + Budget Filter */}
-      <div className="px-4 py-2 space-y-2">
-        <div className="flex items-center gap-2">
-          <SlidersHorizontal className="w-3.5 h-3.5 text-muted-foreground" />
-          <span className="text-[11px] text-muted-foreground">Sort:</span>
-          {SORT_OPTIONS.map(opt => (
-            <button
-              key={opt.key}
-              onClick={() => setSort(opt.key)}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors
-                ${sort === opt.key
-                  ? 'bg-secondary text-secondary-foreground'
-                  : 'text-muted-foreground hover:bg-muted'}`}
-            >
-              {opt.label}
+      {/* ─── Main Content ─── */}
+      <div className="px-4 pt-4 space-y-5">
+
+        {/* Auto-location banner */}
+        {!city || city === 'India' ? (
+          <div className="p-3 rounded-2xl bg-accent/10 border border-accent/20">
+            <p className="text-[11px] font-semibold text-foreground">🇮🇳 Showing national average prices</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Set your city for location-specific prices</p>
+            <button onClick={() => setCityPickerOpen(true)} className="text-[10px] font-bold text-primary mt-1">
+              📍 Choose your city →
             </button>
-          ))}
+          </div>
+        ) : isAutoDetected && (
+          <div className="p-2.5 rounded-xl bg-primary/5 border border-primary/10 flex items-center gap-2">
+            <MapPin className="w-3.5 h-3.5 text-primary" />
+            <p className="text-[10px] text-foreground flex-1">
+              📍 Auto-detected: <span className="font-bold">{detectedCity}</span>
+              {detectedCity !== city && <span className="text-muted-foreground"> → Prices for {city}</span>}
+            </p>
+            <button onClick={() => setCityPickerOpen(true)} className="text-[10px] font-bold text-primary">Change</button>
+          </div>
+        )}
+
+        {/* Hero Section */}
+        {!search && !selectedCategory && (
+          <MarketHeroSection
+            bestValue={bestValue}
+            biggestDrop={null}
+            city={cityLabel}
+            onTap={handleItemTapByName}
+          />
+        )}
+
+        {/* Category Grid */}
+        <MarketCategoryGrid
+          selectedCategory={selectedCategory}
+          selectedSub={selectedSub}
+          onSelectCategory={setSelectedCategory}
+          onSelectSub={setSelectedSub}
+        />
+
+        {/* Filter & Sort Bar */}
+        <div className="space-y-2">
+          {/* Filter chips */}
+          <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
+            {FILTER_CHIPS.map(f => (
+              <button
+                key={f.key}
+                onClick={() => setFilter(filter === f.key ? 'all' : f.key)}
+                className={`px-2.5 py-1.5 rounded-full text-[10px] font-semibold whitespace-nowrap transition-colors ${
+                  filter === f.key
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Sort */}
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-[10px] text-muted-foreground">Sort:</span>
+            {SORT_OPTIONS.map(opt => (
+              <button
+                key={opt.key}
+                onClick={() => setSort(opt.key)}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-colors ${
+                  sort === opt.key ? 'bg-secondary text-secondary-foreground' : 'text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+            <span className="ml-auto text-[10px] text-muted-foreground">{filteredItems.length} items</span>
+          </div>
         </div>
 
-        {/* Budget Quick Filter */}
-        <div className="flex items-center gap-2">
-          <Wallet className="w-3.5 h-3.5 text-muted-foreground" />
-          <span className="text-[10px] text-muted-foreground">Budget:</span>
-          {BUDGET_PRESETS.map(b => (
-            <button
-              key={b}
-              onClick={() => setBudgetFilter(budgetFilter === b ? null : b)}
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-colors ${
-                budgetFilter === b
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
-            >
-              ≤₹{b}
-            </button>
-          ))}
-          {budgetFilter && (
-            <button onClick={() => setBudgetFilter(null)} className="text-[10px] text-primary font-semibold ml-1">
-              Clear
-            </button>
+        {/* Smart Sections (only on home / no category) */}
+        {!selectedCategory && !search && filter === 'all' && (
+          <MarketSmartSections
+            budgetPicks={budgetPicks}
+            comparePair={comparePair}
+            onItemTap={handleItemTapByName}
+          />
+        )}
+
+        {/* ─── Items List ─── */}
+        {selectedCategory && (
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-lg">{TOP_CATEGORIES.find(c => c.key === selectedCategory)?.emoji}</span>
+            <h2 className="text-sm font-bold text-foreground">{TOP_CATEGORIES.find(c => c.key === selectedCategory)?.label}</h2>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          {filteredItems.length === 0 ? (
+            <div className="text-center py-12">
+              <Store className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">No items found</p>
+              <button onClick={() => { setFilter('all'); setSelectedCategory(null); setSearch(''); }} className="text-xs text-primary font-semibold mt-2">
+                Clear filters
+              </button>
+            </div>
+          ) : (
+            filteredItems.map((item, i) => {
+              const isCompareSelected = compareItems.some(c => c.id === item.id);
+              return (
+                <MarketItemCard
+                  key={item.id}
+                  rank={i + 1}
+                  name={item.name}
+                  emoji={item.emoji}
+                  price={item.cityPrice}
+                  unit={item.unit}
+                  protein={item.protein}
+                  calories={item.calories}
+                  costPerGram={item.costPerGram}
+                  pesColor={item.pesColor}
+                  pes={item.pes}
+                  servingDesc={item.servingDesc}
+                  isVeg={item.isVeg}
+                  isCompareSelected={isCompareSelected}
+                  onTap={() => handleOpenDetail(item)}
+                  onAddToPlan={(e) => {
+                    e.stopPropagation();
+                    toast.success(`${item.name} noted! Open Meal Planner to add it.`, { icon: '✅' });
+                    navigate('/planner');
+                  }}
+                  onToggleCompare={(e) => toggleCompare(item, e)}
+                  index={i}
+                />
+              );
+            })
           )}
         </div>
 
-        {/* Budget protein summary */}
-        {budgetProteinSummary && (
-          <div className="p-2.5 rounded-xl bg-primary/5 border border-primary/10">
-            <p className="text-[11px] font-semibold text-foreground">
-              💪 You can get ~{budgetProteinSummary.totalProtein}g protein for ₹{budgetProteinSummary.totalCost}
-            </p>
-            <p className="text-[10px] text-muted-foreground">
-              From top {budgetProteinSummary.count} value items below
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Top Protein Value Today Hero */}
-      {!loading && topItem && sort === 'pes' && !search && !budgetFilter && (
-        <div className="px-4 mb-3">
-          <motion.button
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            onClick={() => handleOpenDetail(topItem)}
-            className="w-full p-4 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 text-left"
-          >
-            <div className="flex items-center gap-1 mb-2">
-              <Trophy className="w-4 h-4 text-primary" />
-              <span className="text-[11px] font-bold text-primary">🏆 TOP PROTEIN VALUE TODAY</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center overflow-hidden shrink-0">
-                {topItem.imageUrl && topItem.imageUrl.length <= 4 ? (
-                  <span className="text-3xl">{topItem.imageUrl}</span>
-                ) : topItem.imageUrl ? (
-                  <img src={topItem.imageUrl} alt={topItem.name} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-3xl">🥗</span>
-                )}
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-foreground">
-                  {topItem.brand ? `${topItem.brand} ` : ''}{topItem.name}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  💪 {topItem.protein}g protein · ₹{topItem.price}{topItem.unit ? `/${topItem.unit}` : ''}
-                </p>
-                <p className="text-[11px] font-semibold text-primary mt-0.5">
-                  ₹{topItem.costPerGramProtein}/g protein · PES {topItem.pes}
-                </p>
-              </div>
-              <PESBadge pes={topItem.pes} color={topItem.pesColor as PESColor} size="sm" />
-            </div>
-          </motion.button>
-        </div>
-      )}
-
-      {/* Items List */}
-      <div className="px-4 space-y-2">
-        {loading ? (
-          Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />
-          ))
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-12">
-            <Store className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">No items found</p>
-          </div>
-        ) : (
-          <AnimatePresence mode="popLayout">
-            {filtered.map((item, i) => {
-              const isEmoji = item.imageUrl && item.imageUrl.length <= 4;
-              const isCompareSelected = compareItems.some(c => c.id === item.id);
-              return (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ delay: Math.min(i * 0.03, 0.3) }}
-                  className="relative"
-                >
-                  <button
-                    onClick={() => handleOpenDetail(item)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-xl bg-card border text-left hover:border-primary/20 transition-colors active:scale-[0.99] ${
-                      isCompareSelected ? 'border-primary/40 bg-primary/5' : 'border-border'
-                    }`}
-                  >
-                    {/* Image / Emoji */}
-                    <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center overflow-hidden shrink-0">
-                      {isEmoji ? (
-                        <span className="text-2xl">{item.imageUrl}</span>
-                      ) : item.imageUrl ? (
-                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
-                      ) : (
-                        <span className="text-2xl">🥗</span>
-                      )}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-bold text-muted-foreground">#{i + 1}</span>
-                        <p className="text-sm font-semibold text-foreground truncate">
-                          {item.brand ? `${item.brand} ` : ''}{item.name}
-                        </p>
-                        {item.source === 'packed' && (
-                          <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-accent/20 text-accent-foreground">PACKED</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[11px] text-muted-foreground">💪 {item.protein}g</span>
-                        <span className="text-[11px] text-muted-foreground">· 🔥 {item.calories} kcal</span>
-                        {item.protein === 0 && item.calories === 0 && (
-                          <span className="text-[9px] font-semibold text-amber-500">⚠️ Incomplete</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[11px] font-medium text-foreground">
-                          ₹{item.price}{item.unit ? `/${item.unit}` : ''}
-                        </span>
-                        {item.priceChange !== undefined && item.priceChange !== 0 && (
-                          <span className={`text-[10px] font-bold ${item.priceChange > 0 ? 'text-destructive' : 'text-primary'}`}>
-                            {item.priceChange > 0 ? '↑' : '↓'}{Math.abs(item.priceChange)}%
-                          </span>
-                        )}
-                        <span className="text-[10px] text-muted-foreground">₹{item.costPerGramProtein}/g</span>
-                        <PriceFreshnessBadge lastUpdated={item.lastUpdated} isStale={(item as any).isStale} compact />
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <PESBadge pes={item.pes} color={item.pesColor as PESColor} size="sm" />
-                      {item.isVerified && <span className="text-[8px] text-primary font-semibold">✅</span>}
-                      {/* Quick action buttons */}
-                      <div className="flex gap-1 mt-1">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toast.success(`${item.name} noted! Open Meal Planner to add it.`, { icon: '✅' });
-                            navigate('/planner');
-                          }}
-                          className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors"
-                          title="Add to Plan"
-                        >
-                          <PlusCircle className="w-3.5 h-3.5 text-primary" />
-                        </button>
-                        {item.platforms && item.platforms.length > 0 && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const cheapest = [...item.platforms!].sort((a, b) => a.price - b.price)[0];
-                              // Try deep link first, fallback to HTTPS
-                              const deepLinks: Record<string, string> = {
-                                'BigBasket': 'bigbasket://',
-                                'Amazon': 'amazon://',
-                                'Blinkit': 'blinkit://',
-                              };
-                              const deepLink = Object.entries(deepLinks).find(([name]) => 
-                                cheapest.name?.toLowerCase().includes(name.toLowerCase())
-                              );
-                              if (deepLink) {
-                                window.location.href = deepLink[1];
-                                setTimeout(() => window.open(cheapest.url, '_blank'), 500);
-                              } else {
-                                window.open(cheapest.url, '_blank');
-                              }
-                            }}
-                            className="w-6 h-6 rounded-full bg-secondary/10 flex items-center justify-center hover:bg-secondary/20 transition-colors"
-                            title="Buy"
-                          >
-                            <ShoppingCart className="w-3.5 h-3.5 text-secondary" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                  {/* Compare toggle */}
-                  <button
-                    onClick={(e) => toggleCompare(item, e)}
-                    className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
-                      isCompareSelected ? 'bg-primary text-primary-foreground' : 'bg-muted/80 text-muted-foreground hover:bg-muted'
-                    }`}
-                  >
-                    <Scale className="w-3 h-3" />
-                  </button>
+        {/* Price Trend Section */}
+        {filteredItems.length > 0 && (
+          <div className="mt-4">
+            <button onClick={() => setShowTrend(!showTrend)} className="w-full flex items-center justify-between mb-3">
+              <p className="text-xs font-bold text-foreground">📊 Price Trends</p>
+              <span className="text-[10px] text-primary font-semibold">{showTrend ? 'Hide' : 'Show'}</span>
+            </button>
+            <AnimatePresence>
+              {showTrend && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden space-y-3">
+                  <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-1">
+                    {['Chicken', 'Eggs', 'Paneer', 'Tomato', 'Onion', 'Milk'].map(name => (
+                      <button
+                        key={name}
+                        onClick={() => setTrendItem(name)}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold whitespace-nowrap transition-colors ${
+                          trendItem === name ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {name}
+                      </button>
+                    ))}
+                  </div>
+                  <PriceTrendChart city={city || 'hyderabad'} itemName={trendItem} />
                 </motion.div>
-              );
-            })}
-          </AnimatePresence>
+              )}
+            </AnimatePresence>
+          </div>
         )}
-      </div>
 
-      {/* Price Trend Section */}
-      {!loading && filtered.length > 0 && (
-        <div className="px-4 mt-6">
-          <button
-            onClick={() => setShowTrend(!showTrend)}
-            className="w-full flex items-center justify-between mb-3"
-          >
-            <p className="text-xs font-bold text-foreground">📊 Price Trends</p>
-            <span className="text-[10px] text-primary font-semibold">{showTrend ? 'Hide' : 'Show'}</span>
-          </button>
-          <AnimatePresence>
-            {showTrend && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden space-y-3"
-              >
-                <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-1">
-                  {['Chicken', 'Eggs', 'Paneer', 'Tomato', 'Onion', 'Milk'].map(name => (
-                    <button
-                      key={name}
-                      onClick={() => setTrendItem(name)}
-                      className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold whitespace-nowrap transition-colors ${
-                        trendItem === name ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                      }`}
-                    >
-                      {name}
-                    </button>
-                  ))}
-                </div>
-                <PriceTrendChart city={city || 'hyderabad'} itemName={trendItem} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      )}
-
-      {/* Savings Tracker */}
-      <div className="px-4 mt-6">
-        <div className="p-4 rounded-xl bg-card border border-border">
+        {/* Savings Tracker */}
+        <div className="p-4 rounded-2xl bg-card border border-border">
           <div className="flex items-center gap-2 mb-2">
             <Wallet className="w-4 h-4 text-primary" />
             <p className="text-xs font-bold text-foreground">💰 Your Savings</p>
@@ -593,41 +519,32 @@ export default function Market() {
             </div>
           </div>
           <Progress value={Math.min((savings.weekly || 0) / 5, 100)} className="h-1.5 mb-2" />
-          {savings.weekly === 0 && savings.monthly === 0 ? (
-            <p className="text-[10px] text-muted-foreground">
-              Use swap suggestions in your meal plan to start tracking savings
-            </p>
-          ) : (
-            <p className="text-[10px] text-primary font-semibold">
-              {savings.weekly > 200 ? '🎉 Great savings!' : 'Keep using smart swaps to save more!'}
-            </p>
-          )}
+          <p className="text-[10px] text-muted-foreground">
+            {savings.weekly === 0 ? 'Use swap suggestions in your meal plan to start tracking savings' : savings.weekly > 200 ? '🎉 Great savings!' : 'Keep using smart swaps to save more!'}
+          </p>
         </div>
-      </div>
 
-      {/* Report Price */}
-      <div className="px-4 mt-4 mb-8">
+        {/* Report Price */}
         <button
-          onClick={() => handleReportPrice()}
-          className="w-full p-4 rounded-xl bg-card border border-border hover:border-primary/20 transition-colors text-left"
+          onClick={() => { setReportPrefill(''); setReportOpen(true); }}
+          className="w-full p-4 rounded-2xl bg-card border border-border hover:border-primary/20 transition-colors text-left"
         >
           <div className="flex items-center gap-2 mb-1">
             <Users className="w-4 h-4 text-primary" />
             <p className="text-sm font-semibold text-foreground">Report a Price</p>
           </div>
-          <p className="text-[11px] text-muted-foreground">Help improve prices for everyone in {city || 'your area'}</p>
+          <p className="text-[11px] text-muted-foreground">Help improve prices for everyone in {cityLabel}</p>
         </button>
       </div>
 
-      {/* Compare floating bar */}
+      {/* ─── Floating & Sheet Components ─── */}
       <MarketCompareBar
         selected={compareItems}
-        onCompare={handleCompare}
+        onCompare={() => setCompareOpen(true)}
         onClear={() => setCompareItems([])}
         onRemove={(id) => setCompareItems(prev => prev.filter(i => i.id !== id))}
       />
 
-      {/* Comparison Sheet */}
       <ComparisonSheet
         open={compareOpen}
         onClose={() => { setCompareOpen(false); setCompareItems([]); }}
@@ -635,28 +552,17 @@ export default function Market() {
         onPick={() => { setCompareOpen(false); setCompareItems([]); }}
       />
 
-      {/* Detail Sheet */}
       <MarketItemDetailSheet
         open={detailOpen}
         onOpenChange={setDetailOpen}
         item={selectedItem}
         city={city || 'hyderabad'}
-        onReportPrice={handleReportPrice}
+        onReportPrice={(name) => { setReportPrefill(name || ''); setReportOpen(true); }}
       />
 
-      {/* Report Price Sheet */}
-      <ReportPriceSheet
-        open={reportOpen}
-        onOpenChange={setReportOpen}
-        prefillItem={reportPrefill}
-      />
+      <ReportPriceSheet open={reportOpen} onOpenChange={setReportOpen} prefillItem={reportPrefill} />
 
-      {/* Multi-City Compare Sheet */}
-      <MultiCityCompareSheet
-        open={multiCityOpen}
-        onOpenChange={setMultiCityOpen}
-        defaultCity={city || undefined}
-      />
+      <MultiCityCompareSheet open={multiCityOpen} onOpenChange={setMultiCityOpen} defaultCity={city || undefined} />
     </div>
   );
 }
