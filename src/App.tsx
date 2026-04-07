@@ -165,6 +165,7 @@ function AppLayout() {
         <Route path="/market/deals" element={<ProtectedRoute><MarketProvider><PageTransition><MarketDeals /></PageTransition></MarketProvider></ProtectedRoute>} />
         <Route path="/market/compare" element={<ProtectedRoute><MarketProvider><PageTransition><MarketCompare /></PageTransition></MarketProvider></ProtectedRoute>} />
         <Route path="/market/list" element={<ProtectedRoute><MarketProvider><PageTransition><MarketList /></PageTransition></MarketProvider></ProtectedRoute>} />
+        <Route path="/admin/ads" element={<ProtectedRoute><PageTransition><AdAdmin /></PageTransition></ProtectedRoute>} />
         <Route path="/quicklog" element={<ProtectedRoute><PageTransition><QuickLog /></PageTransition></ProtectedRoute>} />
         <Route path="/camera" element={<Navigate to="/" replace />} />
         <Route path="*" element={<Suspense fallback={<PageLoader />}><PageTransition><NotFound /></PageTransition></Suspense>} />
