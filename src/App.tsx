@@ -52,6 +52,7 @@ const preloadMarketCategories = () => import("./pages/MarketCategories");
 const preloadMarketDeals = () => import("./pages/MarketDeals");
 const preloadMarketCompare = () => import("./pages/MarketCompare");
 const preloadMarketList = () => import("./pages/MarketList");
+const preloadAdAdmin = () => import("./pages/AdAdmin");
 
 const CameraHome = lazyWithRetry(preloadCameraHome, "camera-home");
 const Dashboard = lazyWithRetry(preloadDashboard, "dashboard");
@@ -70,6 +71,7 @@ const MarketCategories = lazyWithRetry(preloadMarketCategories, "market-categori
 const MarketDeals = lazyWithRetry(preloadMarketDeals, "market-deals");
 const MarketCompare = lazyWithRetry(preloadMarketCompare, "market-compare");
 const MarketList = lazyWithRetry(preloadMarketList, "market-list");
+const AdAdmin = lazyWithRetry(preloadAdAdmin, "ad-admin");
 
 const queryClient = new QueryClient();
 
@@ -163,6 +165,7 @@ function AppLayout() {
         <Route path="/market/deals" element={<ProtectedRoute><MarketProvider><PageTransition><MarketDeals /></PageTransition></MarketProvider></ProtectedRoute>} />
         <Route path="/market/compare" element={<ProtectedRoute><MarketProvider><PageTransition><MarketCompare /></PageTransition></MarketProvider></ProtectedRoute>} />
         <Route path="/market/list" element={<ProtectedRoute><MarketProvider><PageTransition><MarketList /></PageTransition></MarketProvider></ProtectedRoute>} />
+        <Route path="/admin/ads" element={<ProtectedRoute><PageTransition><AdAdmin /></PageTransition></ProtectedRoute>} />
         <Route path="/quicklog" element={<ProtectedRoute><PageTransition><QuickLog /></PageTransition></ProtectedRoute>} />
         <Route path="/camera" element={<Navigate to="/" replace />} />
         <Route path="*" element={<Suspense fallback={<PageLoader />}><PageTransition><NotFound /></PageTransition></Suspense>} />
