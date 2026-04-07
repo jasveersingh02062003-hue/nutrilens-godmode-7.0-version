@@ -128,6 +128,29 @@ export const foodDatabase: PESFood[] = [
   { id: "FR04", name: "Watermelon (100g)", price: 3, protein: 0.6, calories: 30, fat: 0.2, carbs: 7.6, tags: ["vegetarian", "budget", "fruit"], mealType: ["snack"], proteinPerRupee: 0.20 },
   { id: "FR05", name: "Pomegranate (100g)", price: 20, protein: 1.7, calories: 83, fat: 1.2, carbs: 19, tags: ["vegetarian", "fruit"], mealType: ["snack"], proteinPerRupee: 0.09 },
   { id: "FR06", name: "Pineapple (100g)", price: 6, protein: 0.5, calories: 50, fat: 0.1, carbs: 13, tags: ["vegetarian", "fruit"], mealType: ["snack"], proteinPerRupee: 0.08 },
+  // ─── Dals & Legumes (Missing) ───
+  { id: "D01", name: "Toor Dal (50g)", price: 11, protein: 11, calories: 175, fat: 1.5, carbs: 30, tags: ["vegetarian", "budget"], mealType: ["lunch", "dinner"], proteinPerRupee: 1.00 },
+  { id: "D02", name: "Black Urad Dal (50g)", price: 12, protein: 12, calories: 180, fat: 1, carbs: 30, tags: ["vegetarian", "budget"], mealType: ["lunch", "dinner"], proteinPerRupee: 1.00 },
+  // ─── High Protein (Missing) ───
+  { id: "HP01", name: "Tofu (100g)", price: 30, protein: 17, calories: 144, fat: 8, carbs: 3, tags: ["vegetarian", "vegan", "high_protein"], mealType: ["lunch", "dinner"], proteinPerRupee: 0.57 },
+  { id: "HP02", name: "Moong Sprouts (100g)", price: 8, protein: 7, calories: 65, fat: 0.4, carbs: 10, tags: ["vegetarian", "budget", "high_protein"], mealType: ["breakfast", "snack"], proteinPerRupee: 0.88 },
+  { id: "HP03", name: "Chana Sprouts (100g)", price: 10, protein: 9, calories: 120, fat: 1, carbs: 18, tags: ["vegetarian", "budget", "high_protein"], mealType: ["breakfast", "snack"], proteinPerRupee: 0.90 },
+  { id: "HP04", name: "Prawns (100g)", price: 80, protein: 24, calories: 100, fat: 1.7, carbs: 0.2, tags: ["non_veg", "high_protein"], mealType: ["lunch", "dinner"], proteinPerRupee: 0.30 },
+  // ─── Dairy (Missing) ───
+  { id: "DA01", name: "Ghee (10g)", price: 6, protein: 0, calories: 90, fat: 10, carbs: 0, tags: ["vegetarian"], mealType: ["breakfast", "lunch", "dinner"], proteinPerRupee: 0 },
+  { id: "DA02", name: "Buttermilk / Chaas (200ml)", price: 10, protein: 2, calories: 40, fat: 1, carbs: 5, tags: ["vegetarian", "budget"], mealType: ["lunch", "snack"], proteinPerRupee: 0.20 },
+  // ─── Grains & Millets (Missing) ───
+  { id: "GR01", name: "Wheat Atta (50g)", price: 4, protein: 6, calories: 170, fat: 1.5, carbs: 36, tags: ["vegetarian", "budget"], mealType: ["lunch", "dinner"], proteinPerRupee: 1.50 },
+  { id: "GR02", name: "Basmati Rice (50g)", price: 8, protein: 3.5, calories: 175, fat: 0.5, carbs: 39, tags: ["vegetarian"], mealType: ["lunch", "dinner"], proteinPerRupee: 0.44 },
+  { id: "GR03", name: "Ragi (50g)", price: 5, protein: 4, calories: 160, fat: 1.3, carbs: 36, tags: ["vegetarian", "budget", "millet"], mealType: ["breakfast", "dinner"], proteinPerRupee: 0.80 },
+  { id: "GR04", name: "Jowar (50g)", price: 5, protein: 5, calories: 170, fat: 1.5, carbs: 37, tags: ["vegetarian", "budget", "millet"], mealType: ["lunch", "dinner"], proteinPerRupee: 1.00 },
+  { id: "GR05", name: "Bajra (50g)", price: 4, protein: 6, calories: 180, fat: 2, carbs: 34, tags: ["vegetarian", "budget", "millet"], mealType: ["lunch", "dinner"], proteinPerRupee: 1.50 },
+  // ─── Fish Varieties (Raw) ───
+  { id: "FI01", name: "Rohu (100g)", price: 25, protein: 17, calories: 97, fat: 1.4, carbs: 0, tags: ["non_veg", "high_protein", "budget"], mealType: ["lunch", "dinner"], proteinPerRupee: 0.68 },
+  { id: "FI02", name: "Pomfret (100g)", price: 60, protein: 20, calories: 96, fat: 2.5, carbs: 0, tags: ["non_veg", "high_protein"], mealType: ["lunch", "dinner"], proteinPerRupee: 0.33 },
+  { id: "FI03", name: "Surmai (100g)", price: 50, protein: 22, calories: 109, fat: 2, carbs: 0, tags: ["non_veg", "high_protein"], mealType: ["lunch", "dinner"], proteinPerRupee: 0.44 },
+  // ─── Herbs ───
+  { id: "H01", name: "Curry Leaves (5g)", price: 1, protein: 0.3, calories: 5, fat: 0.1, carbs: 1, tags: ["vegetarian", "budget", "vegetable"], mealType: ["lunch", "dinner"], proteinPerRupee: 0.30 },
 ];
 
 // ─── Dynamic Thresholds ───

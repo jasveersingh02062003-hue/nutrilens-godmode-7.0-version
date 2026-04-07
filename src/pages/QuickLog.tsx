@@ -59,12 +59,32 @@ export default function QuickLog() {
     for (const meal of newData.meals) {
       const prevMeal = prev.meals.find(m => m.type === meal.type);
       if (prevMeal && meal.loggedCalories > prevMeal.loggedCalories) {
+        const addedCal = meal.loggedCalories - prevMeal.loggedCalories;
+        const addedPro = meal.loggedProtein - (prevMeal.loggedProtein || 0);
         setFeedback({
-          calories: meal.loggedCalories - prevMeal.loggedCalories,
-          protein: meal.loggedProtein - (prevMeal.loggedProtein || 0),
+          calories: addedCal,
+          protein: addedPro,
           mealLabel: meal.label,
         });
         setTimeout(() => setFeedback(null), 3000);
+
+        // PES insight toast (Section 6.3 — Quick Log shows PES after logging)
+        try {
+          const { evaluateFood } = require('@/lib/pes-engine');
+          const { getBudgetSettings } = require('@/lib/expense-store');
+          const budget = getBudgetSettings();
+          const dailyBudget = Math.round((budget?.monthlyBudget || 5000) / 30);
+          // Estimate cost from static DB
+          const estimatedCost = Math.max(1, Math.round(addedCal * dailyBudget / (newData.totalCalories || 2000)));
+          const result = evaluateFood(
+            { name: meal.label, protein: addedPro, price: estimatedCost },
+            dailyBudget
+          );
+          const { toast } = require('sonner');
+          const pesEmoji = result.color === 'green' ? '🟢' : result.color === 'yellow' ? '🟡' : '🔴';
+          toast(`${pesEmoji} PES ${result.pes} — ₹${estimatedCost} est. · ${addedPro}g protein`, { duration: 4000 });
+        } catch {}
+
         break;
       }
     }

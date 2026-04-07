@@ -1400,6 +1400,7 @@ export default function BudgetPlannerTab({ onOnboardingComplete }: { onOnboardin
   const [detailPeriod, setDetailPeriod] = useState<'week' | 'month'>('week');
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [deleteConfirmExpense, setDeleteConfirmExpense] = useState<Expense | null>(null);
+  const [livePriceEstimate, setLivePriceEstimate] = useState<{ total: number; source: string } | null>(null);
 
   const refresh = useCallback(() => setRefreshKey(k => k + 1), []);
   const [survivalOn, setSurvivalOn] = useState(isSurvivalModeManual);
@@ -1409,6 +1410,31 @@ export default function BudgetPlannerTab({ onOnboardingComplete }: { onOnboardin
   const weeklySummary = useMemo(() => getBudgetSummary('week'), [refreshKey]);
   const monthlySummary = useMemo(() => getBudgetSummary('month'), [refreshKey]);
   const alerts = useMemo(() => checkBudgetAlerts(), [refreshKey]);
+
+  // FIRECRAWL_HOOK: Live price estimate for today's planned meals
+  // When Firecrawl is enabled, this will use real-time scraped prices
+  useEffect(() => {
+    (async () => {
+      try {
+        const { estimateLiveCost } = await import('@/lib/live-price-service');
+        const { getProfile } = await import('@/lib/store');
+        const profile = getProfile();
+        const city = profile?.city || undefined;
+        // Estimate cost for common daily staples
+        const staples = [
+          { name: 'Rice', quantity: 100, unit: 'g' },
+          { name: 'Dal', quantity: 50, unit: 'g' },
+          { name: 'Vegetables', quantity: 200, unit: 'g' },
+          { name: 'Oil', quantity: 15, unit: 'ml' },
+        ];
+        const result = await estimateLiveCost(staples, city);
+        if (result) {
+          const primarySource = result.itemPrices.length > 0 ? result.itemPrices[0].source : 'static';
+          setLivePriceEstimate({ total: result.total, source: primarySource });
+        }
+      } catch {}
+    })();
+  }, [refreshKey]);
 
   // Check if onboarding is needed
   const needsOnboarding = !enhanced.onboardingDone && budgetSettings.weeklyBudget === 2000 && budgetSettings.monthlyBudget === 8000;

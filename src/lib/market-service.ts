@@ -140,6 +140,17 @@ const FRESH_FOOD_IMAGES: Record<string, string> = {
   'garlic': '🧄',
   'chilli': '🌶️',
   'coriander': '🌿',
+  'curry leaves': '🌿',
+  'ragi': '🌾',
+  'jowar': '🌾',
+  'bajra': '🌾',
+  'pomfret': '🐟',
+  'rohu': '🐟',
+  'surmai': '🐟',
+  'buttermilk': '🥛',
+  'chaas': '🥛',
+  'atta': '🌾',
+  'basmati': '🍚',
 };
 
 function getFreshFoodEmoji(name: string): string {
