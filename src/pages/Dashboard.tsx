@@ -213,6 +213,9 @@ export default function Dashboard() {
 
         <PlanBannerSection />
 
+        {/* Smart Market Banner */}
+        <motion.div variants={fadeUp}><SmartMarketBanner /></motion.div>
+
         {/* 2. Calorie Ring */}
         <motion.div variants={fadeUp}>
           <CalorieRing dayState={d.dayState} proteinRemaining={Math.round(Math.max(0, getProteinTarget(d.profile) - d.totals.protein))} />
