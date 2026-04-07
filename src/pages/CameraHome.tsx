@@ -535,6 +535,36 @@ export default function CameraHome() {
   // ─── Calculations ───
   const activeItems = detectedItems.filter(i => i.selected !== false);
 
+  // Async PES + price lookup after scan (non-blocking)
+  useEffect(() => {
+    if (step !== 'confirm' || activeItems.length === 0) { setScanPriceInsight(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { getLivePrice } = await import('@/lib/live-price-service');
+        const { scopedGet: sg } = await import('@/lib/scoped-storage');
+        let totalCost = 0;
+        let totalProt = 0;
+        for (const item of activeItems) {
+          const lp = await getLivePrice(item.name);
+          if (lp) {
+            const qty = item.quantity || 1;
+            const weightG = (item.estimatedWeightGrams || 100) * qty;
+            totalCost += lp.unit === 'kg' ? (lp.price * weightG) / 1000 : lp.price * qty;
+          }
+          totalProt += (item.protein || 0) * (item.quantity || 1);
+        }
+        if (cancelled || totalCost <= 0) return;
+        const pes = totalProt / totalCost;
+        const pesLabel = pes >= 0.6 ? 'Excellent value! 🟢' : pes >= 0.3 ? 'Fair value 🟡' : 'Low value 🔴';
+        const costPerGram = totalProt > 0 ? totalCost / totalProt : 0;
+        const cityName = (() => { try { return JSON.parse(sg('nutrilens_profile') || '{}').city || 'India'; } catch { return 'India'; } })();
+        setScanPriceInsight({ totalCost: Math.round(totalCost), pes: Math.round(pes * 100) / 100, pesLabel, city: cityName, costPerGram: Math.round(costPerGram * 100) / 100 });
+      } catch { /* non-blocking */ }
+    })();
+    return () => { cancelled = true; };
+  }, [step, activeItems]);
+
   const totalCal = activeItems.reduce((s, f) => s + f.calories * f.quantity, 0);
   const totalProtein = activeItems.reduce((s, f) => s + f.protein * f.quantity, 0);
   const totalCarbs = activeItems.reduce((s, f) => s + f.carbs * f.quantity, 0);
