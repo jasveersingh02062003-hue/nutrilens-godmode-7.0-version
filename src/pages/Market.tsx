@@ -151,20 +151,22 @@ export default function Market() {
     return map;
   }, [filteredItems]);
 
+  const vegFilteredItems = useMemo(() => vegOnly ? processedItems.filter(i => i.isVeg) : processedItems, [processedItems, vegOnly]);
+
   const topValueItems = useMemo(() => {
-    return [...processedItems]
+    return [...vegFilteredItems]
       .filter(i => FRESH_CATEGORIES.includes(i.topCategory))
       .sort((a, b) => b.pes - a.pes)
       .slice(0, 3)
       .map(i => ({ name: i.name, emoji: i.emoji, price: i.cityPrice, unit: i.unit, protein: i.protein, costPerGram: i.costPerGram, pes: i.pes, pesColor: i.pesColor, itemId: i.id }));
-  }, [processedItems]);
+  }, [vegFilteredItems]);
 
   const bestValue = useMemo(() => {
-    const sorted = [...processedItems].sort((a, b) => b.pes - a.pes);
+    const sorted = [...vegFilteredItems].sort((a, b) => b.pes - a.pes);
     const top = sorted[0];
     if (!top) return null;
     return { name: top.name, emoji: top.emoji, price: top.cityPrice, unit: top.unit, protein: top.protein, costPerGram: top.costPerGram, itemId: top.id };
-  }, [processedItems]);
+  }, [vegFilteredItems]);
 
   const biggestDrop = useMemo(() => {
     const drops = [
@@ -172,11 +174,11 @@ export default function Market() {
       { id: 'mk_cabbage', change: -10 }, { id: 'mk_tomato', change: -8 },
     ];
     for (const d of drops) {
-      const item = processedItems.find(i => i.id === d.id);
+      const item = vegFilteredItems.find(i => i.id === d.id);
       if (item) return { name: item.name, emoji: item.emoji, price: item.cityPrice, unit: item.unit, protein: item.protein, costPerGram: item.costPerGram, priceChange: d.change, itemId: d.id };
     }
     return null;
-  }, [processedItems]);
+  }, [vegFilteredItems]);
 
   const priceDrops = useMemo(() => {
     const drops = [
@@ -185,11 +187,11 @@ export default function Market() {
       { id: 'mk_cabbage', dropPercent: 10 },
     ];
     return drops.map(d => {
-      const item = processedItems.find(i => i.id === d.id);
+      const item = vegFilteredItems.find(i => i.id === d.id);
       if (!item) return null;
       return { name: item.name, emoji: item.emoji, price: item.cityPrice, unit: item.unit, dropPercent: d.dropPercent, itemId: d.id };
     }).filter(Boolean) as any[];
-  }, [processedItems]);
+  }, [vegFilteredItems]);
 
   const handleOpenDetail = useCallback((item: typeof processedItems[0]) => {
     // Track recently viewed
@@ -271,7 +273,7 @@ export default function Market() {
                 )}
 
                 {/* Recently Viewed */}
-                <RecentlyViewedRow processedItems={processedItems} onItemTap={handleItemTapByName} />
+                <RecentlyViewedRow processedItems={vegFilteredItems} onItemTap={handleItemTapByName} />
               </>
             )}
 
@@ -331,7 +333,7 @@ export default function Market() {
             {/* Category label */}
             {selectedCategory && (
               <div className="flex items-center gap-2">
-                <span className="text-lg">{TOP_CATEGORIES.find(c => c.key === selectedCategory)?.emoji}</span>
+                <MarketImage itemId={MARKET_ITEMS.find(m => m.topCategory === selectedCategory)?.id} emoji={TOP_CATEGORIES.find(c => c.key === selectedCategory)?.emoji || ''} alt={selectedCategory} size="sm" />
                 <h2 className="text-sm font-bold text-foreground">{TOP_CATEGORIES.find(c => c.key === selectedCategory)?.label}</h2>
                 <button onClick={() => { setSelectedCategory(null); setSelectedSub(null); }} className="text-[10px] text-primary font-semibold ml-auto">Clear</button>
               </div>
