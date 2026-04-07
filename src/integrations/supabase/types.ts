@@ -188,6 +188,42 @@ export type Database = {
         }
         Relationships: []
       }
+      price_alerts: {
+        Row: {
+          city: string
+          comparison_type: string
+          created_at: string
+          id: string
+          is_active: boolean
+          item_name: string
+          last_triggered_at: string | null
+          threshold_price: number
+          user_id: string
+        }
+        Insert: {
+          city: string
+          comparison_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          item_name: string
+          last_triggered_at?: string | null
+          threshold_price: number
+          user_id: string
+        }
+        Update: {
+          city?: string
+          comparison_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          item_name?: string
+          last_triggered_at?: string | null
+          threshold_price?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       price_history: {
         Row: {
           avg_price: number
@@ -222,6 +258,7 @@ export type Database = {
         Row: {
           city: string
           id: string
+          is_verified: boolean | null
           item_name: string
           price_per_unit: number
           reported_at: string
@@ -231,6 +268,7 @@ export type Database = {
         Insert: {
           city: string
           id?: string
+          is_verified?: boolean | null
           item_name: string
           price_per_unit: number
           reported_at?: string
@@ -240,6 +278,7 @@ export type Database = {
         Update: {
           city?: string
           id?: string
+          is_verified?: boolean | null
           item_name?: string
           price_per_unit?: number
           reported_at?: string
