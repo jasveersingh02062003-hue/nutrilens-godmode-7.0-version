@@ -110,7 +110,7 @@ export default function Market() {
       .filter(i => FRESH_CATEGORIES.includes(i.topCategory))
       .sort((a, b) => b.pes - a.pes)
       .slice(0, 3)
-      .map(i => ({ name: i.name, emoji: i.emoji, price: i.cityPrice, unit: i.unit, protein: i.protein, costPerGram: i.costPerGram, pes: i.pes, pesColor: i.pesColor }));
+      .map(i => ({ name: i.name, emoji: i.emoji, price: i.cityPrice, unit: i.unit, protein: i.protein, costPerGram: i.costPerGram, pes: i.pes, pesColor: i.pesColor, itemId: i.id }));
   }, [processedItems]);
 
   const bestValue = useMemo(() => {
@@ -129,7 +129,7 @@ export default function Market() {
     return drops.map(d => {
       const item = processedItems.find(i => i.id === d.id);
       if (!item) return null;
-      return { name: item.name, emoji: item.emoji, price: item.cityPrice, unit: item.unit, dropPercent: d.dropPercent };
+      return { name: item.name, emoji: item.emoji, price: item.cityPrice, unit: item.unit, dropPercent: d.dropPercent, itemId: d.id };
     }).filter(Boolean) as any[];
   }, [processedItems]);
 
@@ -304,6 +304,7 @@ export default function Market() {
                     }}
                     onToggleCompare={(e) => toggleCompare(item, e)}
                     index={i}
+                    itemId={item.id}
                   />
                 ))
               )}
