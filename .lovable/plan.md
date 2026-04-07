@@ -1,111 +1,58 @@
 
 
-# Phase 2: Smart Market — Full Experience Upgrade
+# Phase 2.5: Smart Market — Gap Fix & Polish
 
-## Overview
-Transform the current skeleton Market page into a rich, production-quality experience with real product images, geo-aware pricing, price trend charts, "Report Price" flow, proper timestamps, and a polished UI. Firecrawl/API hooks remain as placeholders — everything else works with static + community data.
+## Identified Gaps
 
-## What Changes
+After auditing the codebase against the blueprint, here are the missing pieces:
 
-### 1. Update `packed_products` table — Add real image URLs
-Insert real product image URLs (from brand CDNs / public sources) for all 35 seeded products. Also add ~15 more popular products (protein ice cream, frozen items, beverages).
+### Critical Gaps (Blocking UX)
+1. **28 packed products have NULL image_url** — cards show nothing for most packed items
+2. **city_prices table has 0 rows** — fresh foods have no geo-aware prices, everything falls back to static
+3. **City picker on Market page doesn't actually update the profile** — tapping a city does nothing
+4. **Profile page has no Smart Market link** — blueprint requires it
+5. **"Add to Meal Plan" button in detail sheet is non-functional** — just a dead button
 
-### 2. Enhance Market Service (`src/lib/market-service.ts`)
-- **Geo-aware pricing**: `getFreshMarketItems()` now checks `city_prices` table first (Supabase), falls back to `live-price-service.ts` resolution chain, then static
-- **Add `imageUrl` field** to `MarketItem` interface — fresh foods get mapped food emoji/icons, packed get real image URLs
-- **Add `lastUpdated` field** — shows when price was last refreshed
-- **Add `priceChange` field** — percentage change vs yesterday (from `price_history` table when available)
-- **Add sub-categories**: `dals`, `grains`, `fruits` to `MarketCategory`
-- **New function**: `getMarketItemDetail(id, city)` — returns full detail with platform links + price history
+### Data Gaps
+6. **price_history has data for only Hyderabad (70 rows)** — Mumbai and Bangalore have only 35 rows each, and dates may not cover recent 7 days (seeded data might be stale)
+7. **No city_prices seeded** — the geo-aware pricing layer (Step 2 in the resolution chain) has zero data
 
-### 3. Rebuild Market Page (`src/pages/Market.tsx`) — Full UX Overhaul
-**Header**:
-- City from profile with MapPin icon, tap to change (shows supported cities list)
-- "Last updated" timestamp showing exact time of last price refresh
-- Source indicator badge (Community / Static / Live when Firecrawl enabled later)
+### UX Polish Gaps
+8. **No savings tracker section** on Market page (blueprint shows "This week: ₹340 saved")
+9. **Market page has no "Top Protein Value Today" header section** — just a flat list
+10. **Dashboard SmartMarketBanner** doesn't show price drop data since price_history may be stale
 
-**Category pills** — expanded:
-- 🥩 Protein | 🥬 Veggies | 🫘 Dals | 🥛 Dairy | 🌾 Grains | 🍌 Fruits | 📦 Packed | 💊 Supps
+## Plan
 
-**Food Cards — redesigned with images**:
-- Product image (real URL for packed, food emoji/icon for fresh)
-- Name + brand (if packed)
-- Price with unit + city label + price change arrow (↑5% / ↓12%)
-- Protein grams + calories
-- ₹/g protein metric
-- PES badge (green/yellow/red)
-- Source badge ("Static" / "Community" / "Live" placeholder)
-- "Last updated: 6:30 AM" timestamp on each card
-- Tap → opens detail sheet
+### Step 1: Fix Packed Product Images
+Update all 28 products with NULL image_url using real Amazon/brand CDN URLs via the insert tool.
 
-**New: Market Item Detail Sheet** (`src/components/MarketItemDetailSheet.tsx`):
-- Large product image
-- Full nutrition breakdown (protein, carbs, fat, fiber, sugar, calories)
-- PES score with explanation
-- Price across platforms (for packed: Amazon ₹X, BigBasket ₹Y — with CTA buttons)
-- 7-day price trend mini chart (from `price_history` — shows "No data yet" if empty, with note "Live trends coming soon with Firecrawl")
-- Allergen warnings
-- "Add to Meal Plan" button
-- "Report Price" button
+### Step 2: Seed city_prices with Fresh Food Prices
+Insert current-date static prices for 15+ fresh foods across 3 cities (Hyderabad, Mumbai, Bangalore) into `city_prices`. This makes the geo-aware pricing layer active.
 
-**New: Report Price Sheet** (`src/components/ReportPriceSheet.tsx`):
-- Select item from list or type name
-- Enter price + unit
-- Auto-fills city from profile
-- Submit → calls `reportPrice()` from `live-price-service.ts`
-- Success toast: "Thanks! X people confirmed this price in {city}"
+### Step 3: Refresh price_history with Recent Dates  
+Re-seed price_history with the last 7 days (relative to today) so trend charts actually show data. Cover all 10 items across 3 cities.
 
-**New: Price Trend Chart** (`src/components/PriceTrendChart.tsx`):
-- Uses Recharts (already in project)
-- 7-day or 30-day toggle
-- Line chart with price on Y axis, date on X
-- Shows "No trend data yet — prices will be tracked once live scraping is enabled" when `price_history` is empty
-- Space clearly reserved for Firecrawl data
+### Step 4: Fix City Picker — Actually Update Profile
+In `Market.tsx`, when a user taps a city pill, update the profile's city field via Supabase and local context. Currently it just closes the dropdown.
 
-### 4. Seed `price_history` with 7 days of static data
-Insert mock historical prices for top 10 volatile items (Chicken, Eggs, Tomato, Onion, Paneer, Fish, Mutton, Milk, Soya Chunks, Potato) across 3 cities (Hyderabad, Mumbai, Bangalore) so the trend chart has something to show.
+### Step 5: Add Smart Market Link to Profile Page
+Add a "Smart Market" navigation card in the Profile page between existing menu items.
 
-### 5. Geo-Aware City Logic Enhancement
-- Read city from `profile.city` 
-- If no city set → show a "Set your city" prompt card at top of market
-- City selector modal with supported cities: Hyderabad, Bangalore, Mumbai, Delhi, Chennai, Pune, Kolkata, Ahmedabad, Jaipur, Lucknow
-- All prices tagged with city name
-- "Prices for {City}" prominently displayed
+### Step 6: Wire "Add to Meal Plan" Button
+In `MarketItemDetailSheet.tsx`, make the "Add to Meal Plan" button functional — navigate to the meal planner or show a toast confirming the item was noted.
 
-### 6. Update `MarketCompactView` (Planner tab)
-- Show product images
-- Show "Updated X mins ago" timestamp
-- Show price change arrows
-- Make cards tappable → navigate to `/market`
-
-### 7. Dashboard Rotating Banner (`src/components/SmartMarketBanner.tsx`)
-- Rotates daily showing market insight:
-  - Day 1: Best protein value today
-  - Day 2: Price drop alert
-  - Day 3: Weekly savings summary
-  - Day 4: Community report prompt
-- Tap → navigate to `/market`
-- Placed in Dashboard below calorie ring, above energy tracker
+### Step 7: Add "Top Value Today" Hero Section
+Add a highlighted hero card at the top of the Market items list showing the #1 PES-ranked item for the user's city with a larger visual treatment.
 
 ## Files Changed
 
 | File | Action |
 |------|--------|
-| `src/lib/market-service.ts` | Modified — geo-aware pricing, image URLs, detail function |
-| `src/pages/Market.tsx` | Rewritten — full UX with images, timestamps, categories |
-| `src/components/MarketItemDetailSheet.tsx` | New — item detail with nutrition, platforms, chart |
-| `src/components/ReportPriceSheet.tsx` | New — crowdsource price reporting UI |
-| `src/components/PriceTrendChart.tsx` | New — Recharts line chart for price history |
-| `src/components/SmartMarketBanner.tsx` | New — rotating dashboard banner |
-| `src/components/MarketCompactView.tsx` | Modified — images, timestamps, tappable |
-| `src/pages/Dashboard.tsx` | Modified — add SmartMarketBanner |
-| DB: `packed_products` | Data update — add image_url for all products + 15 new products |
-| DB: `price_history` | Data insert — 7 days × 10 items × 3 cities seed data |
-
-## Technical Notes
-- Real product images use public CDN URLs (Amul, BigBasket product pages, etc.)
-- Fresh food items use high-quality food emoji as placeholder until Firecrawl image scraping is enabled
-- Price source badge clearly shows "Static" with a note "Live prices coming soon" — transparent to user
-- All Firecrawl integration points are clearly marked with `// FIRECRAWL_HOOK:` comments
-- `_source` parameter in service functions ready for `'live'` mode
+| DB: `packed_products` | Data update — add image_url for 28 products |
+| DB: `city_prices` | Data insert — seed fresh food prices for 3 cities |
+| DB: `price_history` | Data insert — refresh 7 days × 10 items × 3 cities |
+| `src/pages/Market.tsx` | Modified — fix city picker to update profile, add hero card |
+| `src/pages/Profile.tsx` | Modified — add Smart Market navigation link |
+| `src/components/MarketItemDetailSheet.tsx` | Modified — wire Add to Meal Plan button |
 
