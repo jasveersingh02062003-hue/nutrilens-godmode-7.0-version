@@ -30,7 +30,8 @@ export default function MarketHeroSection({ bestValue, biggestDrop, city, onTap 
   const prefersReducedMotion = useReducedMotion();
   const [activeSlide, setActiveSlide] = useState(0);
 
-  const slides: Slide[] = [];
+  const slides: Slide[] = useMemo(() => {
+  const s: Slide[] = [];
 
   // Slide 1: Best Value Today
   if (bestValue) {
@@ -123,7 +124,8 @@ export default function MarketHeroSection({ bestValue, biggestDrop, city, onTap 
         </motion.button>
       ),
     });
-  }
+  return s;
+  }, [bestValue, biggestDrop, city, onTap]);
 
   // Auto-rotate (skip if reduced motion preferred)
   useEffect(() => {
