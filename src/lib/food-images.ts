@@ -33,7 +33,7 @@ const FOOD_IMAGES: Record<string, string> = {
   mk_spinach: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=200&h=200&fit=crop',
   mk_methi: 'https://images.unsplash.com/photo-1515686811547-3b4b4e4a5b67?w=200&h=200&fit=crop',
   mk_amaranth: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=200&h=200&fit=crop',
-  mk_potato: 'https://images.unsplash.com/photo-1518977676601-b53f82ber3a3?w=200&h=200&fit=crop',
+  mk_potato: 'https://images.unsplash.com/photo-1518977676601-b53f82bbe9e8?w=200&h=200&fit=crop',
   mk_sweet_potato: 'https://images.unsplash.com/photo-1596097635121-14b63b7a5c61?w=200&h=200&fit=crop',
   mk_beetroot: 'https://images.unsplash.com/photo-1593105544559-ecb03bf76f82?w=200&h=200&fit=crop',
   mk_carrot: 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=200&h=200&fit=crop',

@@ -6,6 +6,7 @@ import { useMarket } from '@/contexts/MarketContext';
 import { useNavigate } from 'react-router-dom';
 import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { MARKET_ITEMS, getCityPrice } from '@/lib/market-data';
+import MarketImage from '@/components/market/MarketImage';
 import { toast } from 'sonner';
 
 interface ListItem {
@@ -226,7 +227,7 @@ export default function MarketList() {
                       onClick={() => addSuggested(s.id)}
                       className="p-2.5 rounded-xl bg-card border border-border/50 text-left hover:border-primary/20 transition-colors"
                     >
-                      <span className="text-xl block">{s.emoji}</span>
+                      <MarketImage itemId={s.id} emoji={s.emoji} alt={s.name} size="sm" />
                       <p className="text-[10px] font-semibold text-foreground mt-1 truncate">{s.name}</p>
                       <p className="text-[9px] text-muted-foreground">{s.protein}g protein</p>
                     </motion.button>
@@ -283,7 +284,7 @@ export default function MarketList() {
                       onClick={() => toggleCheck(item.id)}
                       className="w-5 h-5 rounded-full border-2 border-muted-foreground/30 flex-shrink-0"
                     />
-                    <span className="text-lg">{item.emoji}</span>
+                    <MarketImage itemId={MARKET_ITEMS.find(m => m.name === item.name)?.id} emoji={item.emoji} alt={item.name} size="sm" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-foreground truncate">{item.name}</p>
                       {item.estimatedPrice && (
@@ -339,7 +340,7 @@ export default function MarketList() {
                       onClick={() => addSuggested(s.id)}
                       className="flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border/50 hover:border-primary/20 transition-colors"
                     >
-                      <span className="text-lg">{s.emoji}</span>
+                      <MarketImage itemId={s.id} emoji={s.emoji} alt={s.name} size="sm" />
                       <div className="text-left">
                         <p className="text-[10px] font-semibold text-foreground whitespace-nowrap">{s.name.split('(')[0].trim()}</p>
                         <p className="text-[9px] text-muted-foreground">{s.protein}g protein</p>

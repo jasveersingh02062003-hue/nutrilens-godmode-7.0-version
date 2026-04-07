@@ -7,7 +7,7 @@ import MarketPageHeader from '@/components/MarketPageHeader';
 import ComparisonSheet from '@/components/ComparisonSheet';
 import { buildFromFood } from '@/lib/compare-helpers';
 import { INDIAN_FOODS } from '@/lib/indian-foods';
-import { getFoodImage } from '@/lib/food-images';
+import MarketImage from '@/components/market/MarketImage';
 import { toast } from 'sonner';
 
 const COMPARE_PAIRS = [
@@ -174,7 +174,6 @@ export default function MarketCompare() {
         <div className="space-y-1.5">
           {filteredItems.map((item, i) => {
             const isSelected = selectedIds.includes(item.id);
-            const imgUrl = getFoodImage(item.id);
             return (
               <motion.button
                 key={item.id}
@@ -186,13 +185,7 @@ export default function MarketCompare() {
                   isSelected ? 'border-primary/40 bg-primary/5' : 'border-border/50 bg-card hover:border-primary/20'
                 }`}
               >
-                {imgUrl ? (
-                  <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
-                    <img src={imgUrl} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
-                  </div>
-                ) : (
-                  <span className="text-xl">{item.emoji}</span>
-                )}
+                <MarketImage itemId={item.id} emoji={item.emoji} alt={item.name} size="sm" />
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] font-semibold text-foreground truncate">{item.name}</p>
                   <p className="text-[9px] text-muted-foreground">{item.protein}g protein · ₹{item.cityPrice}/{item.unit}</p>

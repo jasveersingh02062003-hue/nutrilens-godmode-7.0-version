@@ -3,6 +3,7 @@ import { TOP_CATEGORIES, MARKET_ITEMS, type MarketTopCategory } from '@/lib/mark
 import { useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { getCategoryImage } from '@/lib/food-images';
+import { useNavigate } from 'react-router-dom';
 
 interface CategoryGridHomeProps {
   onCategoryTap: (category: MarketTopCategory) => void;
@@ -23,6 +24,7 @@ function FadeImage({ src, alt, className }: { src: string; alt: string; classNam
 }
 
 export default function CategoryGridHome({ onCategoryTap }: CategoryGridHomeProps) {
+  const navigate = useNavigate();
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     MARKET_ITEMS.forEach(item => {
@@ -38,7 +40,7 @@ export default function CategoryGridHome({ onCategoryTap }: CategoryGridHomeProp
       <div className="flex items-center justify-between px-1">
         <h2 className="text-xs font-bold text-foreground">📂 Browse by Category</h2>
         <button
-          onClick={() => onCategoryTap('meat_seafood')}
+          onClick={() => navigate('/market/categories')}
           className="text-[10px] text-primary font-semibold flex items-center gap-0.5"
         >
           View All <ChevronRight className="w-3 h-3" />
@@ -55,7 +57,7 @@ export default function CategoryGridHome({ onCategoryTap }: CategoryGridHomeProp
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => onCategoryTap(cat.key)}
+              onClick={() => navigate(`/market/categories?cat=${cat.key}`)}
               className="relative p-3 rounded-2xl border border-border/40 text-center hover:border-primary/20 transition-all shadow-sm overflow-hidden"
             >
               {/* Background image with gradient overlay */}
