@@ -155,6 +155,21 @@ function GroceriesTab({ plan }: { plan: WeekPlan }) {
 
       <SurvivalKitSheet open={kitOpen} onOpenChange={(o) => { setKitOpen(o); if (!o) setSavedKit(getSavedSurvivalKit()); }} />
 
+      {/* Live Cost Estimate */}
+      {costEstimate && (
+        <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-3.5 h-3.5 text-primary" />
+            <p className="text-[11px] font-bold text-foreground">
+              Estimated cost: ₹{costEstimate.total}
+            </p>
+            <span className="text-[10px] text-muted-foreground ml-auto">
+              {city || 'avg'} prices
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">Mark items you already have or purchased</p>
         <span className="text-xs font-bold text-primary">{checkedItems}/{totalItems}</span>
