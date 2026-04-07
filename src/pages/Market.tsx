@@ -79,10 +79,10 @@ const SORT_OPTIONS: { key: SortMode; label: string }[] = [
 
 const FILTER_CHIPS: { key: FilterMode; label: string }[] = [
   { key: 'all', label: 'All' },
-  { key: 'veg', label: '🌱 Veg Only' },
-  { key: 'nonveg', label: '🥩 Non-Veg' },
-  { key: 'high_protein', label: '💪 High Protein' },
-  { key: 'budget', label: '💰 Under ₹100' },
+  { key: 'veg', label: 'Veg Only' },
+  { key: 'nonveg', label: 'Non-Veg' },
+  { key: 'high_protein', label: 'High Protein' },
+  { key: 'budget', label: 'Under ₹100' },
 ];
 
 export default function Market() {
@@ -151,20 +151,22 @@ export default function Market() {
     return map;
   }, [filteredItems]);
 
+  const vegFilteredItems = useMemo(() => vegOnly ? processedItems.filter(i => i.isVeg) : processedItems, [processedItems, vegOnly]);
+
   const topValueItems = useMemo(() => {
-    return [...processedItems]
+    return [...vegFilteredItems]
       .filter(i => FRESH_CATEGORIES.includes(i.topCategory))
       .sort((a, b) => b.pes - a.pes)
       .slice(0, 3)
       .map(i => ({ name: i.name, emoji: i.emoji, price: i.cityPrice, unit: i.unit, protein: i.protein, costPerGram: i.costPerGram, pes: i.pes, pesColor: i.pesColor, itemId: i.id }));
-  }, [processedItems]);
+  }, [vegFilteredItems]);
 
   const bestValue = useMemo(() => {
-    const sorted = [...processedItems].sort((a, b) => b.pes - a.pes);
+    const sorted = [...vegFilteredItems].sort((a, b) => b.pes - a.pes);
     const top = sorted[0];
     if (!top) return null;
     return { name: top.name, emoji: top.emoji, price: top.cityPrice, unit: top.unit, protein: top.protein, costPerGram: top.costPerGram, itemId: top.id };
-  }, [processedItems]);
+  }, [vegFilteredItems]);
 
   const biggestDrop = useMemo(() => {
     const drops = [
@@ -172,11 +174,11 @@ export default function Market() {
       { id: 'mk_cabbage', change: -10 }, { id: 'mk_tomato', change: -8 },
     ];
     for (const d of drops) {
-      const item = processedItems.find(i => i.id === d.id);
+      const item = vegFilteredItems.find(i => i.id === d.id);
       if (item) return { name: item.name, emoji: item.emoji, price: item.cityPrice, unit: item.unit, protein: item.protein, costPerGram: item.costPerGram, priceChange: d.change, itemId: d.id };
     }
     return null;
-  }, [processedItems]);
+  }, [vegFilteredItems]);
 
   const priceDrops = useMemo(() => {
     const drops = [
@@ -185,11 +187,11 @@ export default function Market() {
       { id: 'mk_cabbage', dropPercent: 10 },
     ];
     return drops.map(d => {
-      const item = processedItems.find(i => i.id === d.id);
+      const item = vegFilteredItems.find(i => i.id === d.id);
       if (!item) return null;
       return { name: item.name, emoji: item.emoji, price: item.cityPrice, unit: item.unit, dropPercent: d.dropPercent, itemId: d.id };
     }).filter(Boolean) as any[];
-  }, [processedItems]);
+  }, [vegFilteredItems]);
 
   const handleOpenDetail = useCallback((item: typeof processedItems[0]) => {
     // Track recently viewed
@@ -241,13 +243,13 @@ export default function Market() {
             {/* Auto-location banner */}
             {!city || city === 'India' ? (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="p-3 rounded-2xl bg-accent/10 border border-accent/20">
-                <p className="text-[11px] font-semibold text-foreground">🇮🇳 Showing national average prices</p>
+                <p className="text-[11px] font-semibold text-foreground">Showing national average prices</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">Set your city for location-specific prices</p>
               </motion.div>
             ) : isAutoDetected && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="p-2.5 rounded-xl bg-primary/5 border border-primary/10 flex items-center gap-2">
                 <MapPin className="w-3.5 h-3.5 text-primary" />
-                <p className="text-[10px] text-foreground flex-1">📍 Auto-detected: <span className="font-bold">{detectedCity}</span></p>
+                <p className="text-[10px] text-foreground flex-1">Auto-detected: <span className="font-bold">{detectedCity}</span></p>
               </motion.div>
             )}
 
@@ -262,7 +264,7 @@ export default function Market() {
                 <PriceDropsRow items={priceDrops} onItemTap={handleItemTapByName} />
                 {city && city !== 'India' && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 rounded-2xl bg-gradient-to-r from-primary/8 to-accent/8 border border-primary/15">
-                    <p className="text-xs font-bold text-foreground mb-1">🏙️ Your City: {city}</p>
+                    <p className="text-xs font-bold text-foreground mb-1">Your City: {city}</p>
                     <p className="text-[10px] text-muted-foreground">Prices adjusted for local market rates</p>
                     <button onClick={() => setMultiCityOpen(true)} className="mt-2 text-[10px] font-bold text-primary">
                       Compare with other cities →
@@ -271,7 +273,7 @@ export default function Market() {
                 )}
 
                 {/* Recently Viewed */}
-                <RecentlyViewedRow processedItems={processedItems} onItemTap={handleItemTapByName} />
+                <RecentlyViewedRow processedItems={vegFilteredItems} onItemTap={handleItemTapByName} />
               </>
             )}
 
@@ -331,7 +333,7 @@ export default function Market() {
             {/* Category label */}
             {selectedCategory && (
               <div className="flex items-center gap-2">
-                <span className="text-lg">{TOP_CATEGORIES.find(c => c.key === selectedCategory)?.emoji}</span>
+                <MarketImage itemId={MARKET_ITEMS.find(m => m.topCategory === selectedCategory)?.id} emoji={TOP_CATEGORIES.find(c => c.key === selectedCategory)?.emoji || ''} alt={selectedCategory} size="sm" />
                 <h2 className="text-sm font-bold text-foreground">{TOP_CATEGORIES.find(c => c.key === selectedCategory)?.label}</h2>
                 <button onClick={() => { setSelectedCategory(null); setSelectedSub(null); }} className="text-[10px] text-primary font-semibold ml-auto">Clear</button>
               </div>
@@ -382,7 +384,7 @@ export default function Market() {
             {filteredItems.length > 0 && (
               <div className="mt-4">
                 <button onClick={() => setShowTrend(!showTrend)} className="w-full flex items-center justify-between mb-3">
-                  <p className="text-xs font-bold text-foreground">📊 Price Trends</p>
+                  <p className="text-xs font-bold text-foreground">Price Trends</p>
                   <span className="text-[10px] text-primary font-semibold">{showTrend ? 'Hide' : 'Show'}</span>
                 </button>
                 <AnimatePresence>
@@ -404,7 +406,7 @@ export default function Market() {
             <div className="p-4 rounded-2xl bg-card border border-border">
               <div className="flex items-center gap-2 mb-2">
                 <Wallet className="w-4 h-4 text-primary" />
-                <p className="text-xs font-bold text-foreground">💰 Your Savings</p>
+                <p className="text-xs font-bold text-foreground">Your Savings</p>
               </div>
               <div className="flex gap-4 mb-3">
                 <div><p className="text-lg font-bold text-foreground">₹{savings.weekly || 0}</p><p className="text-[10px] text-muted-foreground">This week</p></div>

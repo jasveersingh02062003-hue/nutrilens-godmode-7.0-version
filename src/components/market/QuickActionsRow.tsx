@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { getCityPrice, MARKET_ITEMS } from '@/lib/market-data';
 import { useMemo } from 'react';
 import MarketImage from '@/components/market/MarketImage';
+import { useMarket } from '@/contexts/MarketContext';
 
 interface QuickActionsRowProps {
   city: string;
@@ -11,18 +12,23 @@ interface QuickActionsRowProps {
 const QUICK_ITEMS = ['mk_egg_white', 'mk_chicken_breast', 'mk_milk_toned', 'mk_paneer', 'mk_banana', 'mk_moong_dal'];
 
 export default function QuickActionsRow({ city, onItemTap }: QuickActionsRowProps) {
+  const { vegOnly } = useMarket();
+
   const items = useMemo(() => {
     return QUICK_ITEMS.map(id => {
       const item = MARKET_ITEMS.find(i => i.id === id);
       if (!item) return null;
+      if (vegOnly && !item.isVeg) return null;
       const price = getCityPrice(item.basePrice, city);
       return { ...item, cityPrice: price };
     }).filter(Boolean) as any[];
-  }, [city]);
+  }, [city, vegOnly]);
+
+  if (items.length === 0) return null;
 
   return (
     <div className="space-y-2">
-      <h2 className="text-xs font-bold text-foreground px-1">⚡ Quick Browse</h2>
+      <h2 className="text-xs font-bold text-foreground px-1">Quick Browse</h2>
       <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
         {items.map((item, i) => {
           return (

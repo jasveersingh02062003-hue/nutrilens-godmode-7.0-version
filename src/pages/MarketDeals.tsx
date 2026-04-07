@@ -85,7 +85,7 @@ export default function MarketDeals() {
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <TrendingDown className="w-4 h-4 text-green-500" />
-            <h3 className="text-sm font-bold text-foreground">📉 Price Drops This Week</h3>
+            <h3 className="text-sm font-bold text-foreground">Price Drops This Week</h3>
           </div>
           <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
             {priceDrops.map((item: any, i: number) => (
@@ -117,7 +117,7 @@ export default function MarketDeals() {
           >
             <div className="flex items-center gap-2 mb-2">
               <Target className="w-4 h-4 text-amber-600" />
-              <h3 className="text-sm font-bold text-foreground">💰 Budget Protein Combo</h3>
+              <h3 className="text-sm font-bold text-foreground">Budget Protein Combo</h3>
             </div>
             <p className="text-[11px] text-muted-foreground mb-3">Get ~{combo.totalProtein}g protein for just ₹{combo.totalCost}/day</p>
             <div className="flex gap-2 mb-3">
@@ -140,7 +140,7 @@ export default function MarketDeals() {
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Trophy className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-bold text-foreground">🏆 Best PES Rankings</h3>
+            <h3 className="text-sm font-bold text-foreground">Best PES Rankings</h3>
             <span className="text-[9px] text-muted-foreground ml-auto">Protein per ₹</span>
           </div>
           <div className="space-y-1.5">
@@ -176,7 +176,7 @@ export default function MarketDeals() {
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-bold text-foreground">💪 High Protein, Low Cost</h3>
+            <h3 className="text-sm font-bold text-foreground">High Protein, Low Cost</h3>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {highProteinBudget.map((item, i) => (
@@ -213,7 +213,7 @@ export default function MarketDeals() {
           transition={{ delay: 0.2 }}
           className="p-4 rounded-2xl bg-gradient-to-r from-blue-500/8 to-indigo-500/5 border border-blue-500/15"
         >
-          <p className="text-[10px] font-bold uppercase tracking-wider text-blue-600 mb-1">📊 Price Forecast</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-blue-600 mb-1">Price Forecast</p>
           <p className="text-[12px] font-medium text-foreground">Chicken prices may drop next week based on seasonal trends. Tomato prices expected to rise after monsoon.</p>
           <p className="text-[9px] text-muted-foreground mt-1.5">Based on 30-day historical data</p>
         </motion.div>
