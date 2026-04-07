@@ -3,6 +3,7 @@ import PostOnboardingTutorial from '@/components/PostOnboardingTutorial';
 import { ClipboardList, X, ShieldAlert } from 'lucide-react';
 import MonikaFab from '@/components/MonikaFab';
 import TimeInsightCard from '@/components/TimeInsightCard';
+import SmartMarketBanner from '@/components/SmartMarketBanner';
 import ProteinRescueCard from '@/components/ProteinRescueCard';
 import RepeatMealsButton from '@/components/RepeatMealsButton';
 import CalorieRing from '@/components/CalorieRing';
