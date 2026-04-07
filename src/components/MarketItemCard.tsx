@@ -1,8 +1,8 @@
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { PlusCircle, Scale, TrendingDown, TrendingUp, Minus, Info, Lightbulb } from 'lucide-react';
 import { useState } from 'react';
-import { getFoodImage } from '@/lib/food-images';
 import { getItemTip } from '@/lib/nutrition-tips';
+import MarketImage from '@/components/market/MarketImage';
 
 interface MarketItemCardProps {
   rank: number;
@@ -62,10 +62,9 @@ export default function MarketItemCard({
   rank, name, emoji, price, unit, protein, calories, costPerGram, pesColor, pes, priceChange, servingDesc, isVeg, isCompareSelected, badge, badgeCity, onTap, onAddToPlan, onToggleCompare, index, itemId
 }: MarketItemCardProps) {
   const [showTip, setShowTip] = useState(false);
-  const [imgLoaded, setImgLoaded] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
   const config = PES_CONFIG[pesColor];
   const insight = getNutritionInsight(protein, calories, costPerGram, isVeg);
-  const imageUrl = itemId ? getFoodImage(itemId) : null;
   const tip = itemId ? getItemTip(itemId) : null;
 
   const badgeEl = badge === 'popular' ? (
@@ -86,9 +85,9 @@ export default function MarketItemCard({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index * 0.03, 0.25), duration: 0.3 }}
+      transition={prefersReducedMotion ? { duration: 0 } : { delay: Math.min(index * 0.03, 0.25), duration: 0.3 }}
       className="relative"
     >
       <button
@@ -97,23 +96,9 @@ export default function MarketItemCard({
           isCompareSelected ? 'border-primary/40 shadow-md shadow-primary/5' : 'border-border/60 hover:border-primary/20 hover:shadow-sm'
         }`}
       >
-        {/* Image/Emoji area with rank badge */}
-        <div className="relative flex-shrink-0">
+         <div className="relative flex-shrink-0">
           <div className="w-14 h-14 rounded-2xl bg-card border border-border/50 flex items-center justify-center shadow-sm overflow-hidden">
-            {imageUrl ? (
-              <>
-                <img
-                  src={imageUrl}
-                  alt={name}
-                  loading="lazy"
-                  onLoad={() => setImgLoaded(true)}
-                  className={`w-full h-full object-cover transition-opacity duration-300 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
-                />
-                {!imgLoaded && <span className="text-[28px] absolute">{emoji}</span>}
-              </>
-            ) : (
-              <span className="text-[28px]">{emoji}</span>
-            )}
+            <MarketImage itemId={itemId} emoji={emoji} alt={name} size="lg" />
           </div>
           <span className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-muted border border-border flex items-center justify-center text-[9px] font-bold text-muted-foreground">
             {rank}

@@ -1,7 +1,7 @@
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { TrendingDown, Trophy, Zap, Target } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
-import { getFoodImage } from '@/lib/food-images';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import MarketImage from '@/components/market/MarketImage';
 
 interface HeroItem {
   name: string;
@@ -21,18 +21,6 @@ interface MarketHeroSectionProps {
   onTap?: (name: string) => void;
 }
 
-function FadeImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
-  const [loaded, setLoaded] = useState(false);
-  return (
-    <img
-      src={src}
-      alt={alt}
-      onLoad={() => setLoaded(true)}
-      className={`${className} transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
-    />
-  );
-}
-
 interface Slide {
   id: string;
   content: React.ReactNode;
@@ -46,7 +34,7 @@ export default function MarketHeroSection({ bestValue, biggestDrop, city, onTap 
 
   // Slide 1: Best Value Today
   if (bestValue) {
-    const img = bestValue.itemId ? getFoodImage(bestValue.itemId) : null;
+    const img = bestValue.itemId ? true : false;
     slides.push({
       id: 'best-value',
       content: (
@@ -60,11 +48,8 @@ export default function MarketHeroSection({ bestValue, biggestDrop, city, onTap 
           </div>
           <div className="flex items-center gap-3">
             <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center overflow-hidden">
-              {img ? (
-                <FadeImage src={img} alt={bestValue.name} className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-3xl">{bestValue.emoji}</span>
-              )}
+              <MarketImage itemId={bestValue.itemId} emoji={bestValue.emoji} alt={bestValue.name} size="lg" />
+            </div>
             </div>
             <div className="flex-1">
               <p className="text-base font-bold text-foreground">{bestValue.name}</p>
@@ -88,7 +73,7 @@ export default function MarketHeroSection({ bestValue, biggestDrop, city, onTap 
 
   // Slide 2: Price Drop Alert
   if (biggestDrop && biggestDrop.priceChange && biggestDrop.priceChange < 0) {
-    const img = biggestDrop.itemId ? getFoodImage(biggestDrop.itemId) : null;
+    const img2 = biggestDrop.itemId ? true : false;
     slides.push({
       id: 'price-drop',
       content: (
@@ -102,11 +87,8 @@ export default function MarketHeroSection({ bestValue, biggestDrop, city, onTap 
           </div>
           <div className="flex items-center gap-3">
             <div className="w-14 h-14 rounded-2xl bg-green-500/10 flex items-center justify-center overflow-hidden">
-              {img ? (
-                <FadeImage src={img} alt={biggestDrop.name} className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-3xl">{biggestDrop.emoji}</span>
-              )}
+              <MarketImage itemId={biggestDrop.itemId} emoji={biggestDrop.emoji} alt={biggestDrop.name} size="lg" />
+            </div>
             </div>
             <div className="flex-1">
               <p className="text-base font-bold text-foreground">

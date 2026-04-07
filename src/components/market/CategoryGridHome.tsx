@@ -51,7 +51,11 @@ export default function CategoryGridHome({ onCategoryTap }: CategoryGridHomeProp
               {/* Background image with gradient overlay */}
               {imageUrl ? (
                 <div className="absolute inset-0">
-                  <FadeImage src={imageUrl} alt={cat.label} className="w-full h-full object-cover" />
+                  <img
+                    src={imageUrl}
+                    alt={cat.label}
+                    className="w-full h-full object-cover transition-opacity duration-300"
+                  />
                   <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-background/40" />
                 </div>
               ) : (

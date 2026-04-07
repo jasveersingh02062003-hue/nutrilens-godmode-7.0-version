@@ -28,7 +28,6 @@ export default function PriceDropsRow({ items, onItemTap }: PriceDropsRowProps) 
 
       <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
         {items.map((item, i) => {
-          const imageUrl = item.itemId ? getFoodImage(item.itemId) : null;
           return (
             <motion.button
               key={item.name}
@@ -39,13 +38,9 @@ export default function PriceDropsRow({ items, onItemTap }: PriceDropsRowProps) 
               onClick={() => onItemTap(item.name)}
               className="flex-shrink-0 p-3 rounded-xl bg-green-500/5 border border-green-500/15 hover:border-green-500/30 transition-all min-w-[110px] text-center"
             >
-              {imageUrl ? (
-                <div className="w-12 h-12 mx-auto rounded-xl overflow-hidden bg-muted mb-1">
-                  <FadeImage src={imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                </div>
-              ) : (
-                <span className="text-2xl block mb-1">{item.emoji}</span>
-              )}
+              <div className="mx-auto mb-1">
+                <MarketImage itemId={item.itemId} emoji={item.emoji} alt={item.name} size="md" />
+              </div>
               <p className="text-[11px] font-semibold text-foreground truncate">{item.name.split('(')[0].trim()}</p>
               <p className="text-[11px] font-bold text-foreground mt-0.5">₹{item.price}<span className="text-[9px] font-normal text-muted-foreground">/{item.unit}</span></p>
               <motion.span

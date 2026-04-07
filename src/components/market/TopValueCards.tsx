@@ -33,7 +33,6 @@ export default function TopValueCards({ items, onItemTap }: TopValueCardsProps) 
 
       <div className="grid grid-cols-3 gap-2">
         {items.slice(0, 3).map((item, i) => {
-          const imageUrl = item.itemId ? getFoodImage(item.itemId) : null;
           return (
             <motion.button
               key={item.name}
@@ -62,12 +61,9 @@ export default function TopValueCards({ items, onItemTap }: TopValueCardsProps) 
               )}
 
               {/* Image or emoji */}
-              {imageUrl ? (
-                <div className="w-14 h-14 mx-auto rounded-xl overflow-hidden mb-1.5 bg-muted">
-                  <FadeImage src={imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                </div>
-              ) : (
-                <span className="text-3xl block mb-1.5">{item.emoji}</span>
+              <div className="mx-auto mb-1.5">
+                <MarketImage itemId={item.itemId} emoji={item.emoji} alt={item.name} size="lg" />
+              </div>
               )}
 
               <p className="text-[11px] font-bold text-foreground truncate">{item.name.split('(')[0].trim()}</p>
