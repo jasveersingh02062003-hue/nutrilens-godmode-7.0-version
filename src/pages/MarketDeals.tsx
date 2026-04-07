@@ -118,13 +118,22 @@ export default function MarketDeals() {
             </div>
             <p className="text-[11px] text-muted-foreground mb-3">Get ~{combo.totalProtein}g protein for just ₹{combo.totalCost}/day</p>
             <div className="flex gap-2 mb-3">
-              {combo.items.map((item: any) => (
-                <div key={item.id} className="flex-1 p-2 rounded-xl bg-card border border-border/50 text-center">
-                  <span className="text-xl block">{item.emoji}</span>
-                  <p className="text-[9px] font-semibold text-foreground mt-0.5 truncate">{item.name.split('(')[0].trim()}</p>
-                  <p className="text-[9px] text-muted-foreground">{item.protein}g protein</p>
-                </div>
-              ))}
+              {combo.items.map((item: any) => {
+                const imgUrl = getFoodImage(item.id);
+                return (
+                  <div key={item.id} className="flex-1 p-2 rounded-xl bg-card border border-border/50 text-center">
+                    {imgUrl ? (
+                      <div className="w-10 h-10 mx-auto rounded-lg overflow-hidden bg-muted">
+                        <img src={imgUrl} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
+                      </div>
+                    ) : (
+                      <span className="text-xl block">{item.emoji}</span>
+                    )}
+                    <p className="text-[9px] font-semibold text-foreground mt-0.5 truncate">{item.name.split('(')[0].trim()}</p>
+                    <p className="text-[9px] text-muted-foreground">{item.protein}g protein</p>
+                  </div>
+                );
+              })}
             </div>
             <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
               <span className="text-[10px] font-bold text-foreground">Total: ~{combo.totalProtein}g protein</span>
@@ -194,7 +203,16 @@ export default function MarketDeals() {
                 className="p-3 rounded-xl bg-card border border-border/50 hover:border-primary/20 transition-colors"
               >
                 <div className="flex items-start justify-between mb-1">
-                  <span className="text-2xl">{item.emoji}</span>
+                  {(() => {
+                    const imgUrl = getFoodImage(item.id);
+                    return imgUrl ? (
+                      <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted">
+                        <img src={imgUrl} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
+                      </div>
+                    ) : (
+                      <span className="text-2xl">{item.emoji}</span>
+                    );
+                  })()}
                   <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${
                     item.pesColor === 'green' ? 'bg-green-500/10 text-green-600'
                     : item.pesColor === 'yellow' ? 'bg-amber-500/10 text-amber-600'

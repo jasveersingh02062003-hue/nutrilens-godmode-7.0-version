@@ -1,26 +1,26 @@
 import { motion } from 'framer-motion';
 import { TOP_CATEGORIES, MARKET_ITEMS, type MarketTopCategory } from '@/lib/market-data';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
+import { getCategoryImage } from '@/lib/food-images';
 
 interface CategoryGridHomeProps {
   onCategoryTap: (category: MarketTopCategory) => void;
 }
 
-// Only show fresh categories on homepage grid
 const HOME_CATEGORIES: MarketTopCategory[] = ['meat_seafood', 'eggs', 'vegetables', 'dals_pulses', 'dairy', 'grains_millets', 'fruits', 'dry_fruits', 'superfoods'];
 
-const GRADIENT_COLORS: Record<string, string> = {
-  meat_seafood: 'from-red-500/12 to-red-500/3',
-  eggs: 'from-amber-500/12 to-amber-500/3',
-  vegetables: 'from-green-500/12 to-green-500/3',
-  dals_pulses: 'from-orange-500/12 to-orange-500/3',
-  dairy: 'from-blue-400/12 to-blue-400/3',
-  grains_millets: 'from-yellow-600/12 to-yellow-600/3',
-  fruits: 'from-pink-500/12 to-pink-500/3',
-  dry_fruits: 'from-amber-700/12 to-amber-700/3',
-  superfoods: 'from-emerald-500/12 to-emerald-500/3',
-};
+function FadeImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <img
+      src={src}
+      alt={alt}
+      onLoad={() => setLoaded(true)}
+      className={`${className} transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+    />
+  );
+}
 
 export default function CategoryGridHome({ onCategoryTap }: CategoryGridHomeProps) {
   const categoryCounts = useMemo(() => {
@@ -46,21 +46,36 @@ export default function CategoryGridHome({ onCategoryTap }: CategoryGridHomeProp
       </div>
 
       <div className="grid grid-cols-3 gap-2">
-        {categories.map((cat, i) => (
-          <motion.button
-            key={cat.key}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.04 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => onCategoryTap(cat.key)}
-            className={`p-3 rounded-2xl bg-gradient-to-br ${GRADIENT_COLORS[cat.key] || 'from-muted to-muted/50'} border border-border/40 text-center hover:border-primary/20 transition-all shadow-sm`}
-          >
-            <span className="text-2xl block mb-1">{cat.emoji}</span>
-            <p className="text-[11px] font-bold text-foreground leading-tight">{cat.label}</p>
-            <p className="text-[9px] text-muted-foreground mt-0.5">{categoryCounts[cat.key] || 0} items</p>
-          </motion.button>
-        ))}
+        {categories.map((cat, i) => {
+          const imageUrl = getCategoryImage(cat.key);
+          return (
+            <motion.button
+              key={cat.key}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.04 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => onCategoryTap(cat.key)}
+              className="relative p-3 rounded-2xl border border-border/40 text-center hover:border-primary/20 transition-all shadow-sm overflow-hidden"
+            >
+              {/* Background image with gradient overlay */}
+              {imageUrl ? (
+                <div className="absolute inset-0">
+                  <FadeImage src={imageUrl} alt={cat.label} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-background/40" />
+                </div>
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-br from-muted to-muted/50" />
+              )}
+
+              <div className="relative z-10">
+                <span className="text-2xl block mb-1">{cat.emoji}</span>
+                <p className="text-[11px] font-bold text-foreground leading-tight">{cat.label}</p>
+                <p className="text-[9px] text-muted-foreground mt-0.5">{categoryCounts[cat.key] || 0} items</p>
+              </div>
+            </motion.button>
+          );
+        })}
       </div>
     </div>
   );

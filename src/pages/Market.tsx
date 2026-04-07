@@ -22,6 +22,56 @@ import { HeroSkeleton, QuickActionsSkeleton, ItemCardSkeleton } from '@/componen
 import { scopedGet } from '@/lib/scoped-storage';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
+import { getFoodImage } from '@/lib/food-images';
+import { Clock } from 'lucide-react';
+
+function RecentlyViewedRow({ processedItems, onItemTap }: { processedItems: any[]; onItemTap: (name: string) => void }) {
+  const recentIds: string[] = useMemo(() => {
+    try { return JSON.parse(localStorage.getItem('nutrilens_recently_viewed') || '[]'); }
+    catch { return []; }
+  }, []);
+
+  const recentItems = useMemo(() => {
+    return recentIds.map(id => processedItems.find(i => i.id === id)).filter(Boolean).slice(0, 6);
+  }, [recentIds, processedItems]);
+
+  if (recentItems.length === 0) return null;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1.5 px-1">
+        <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+        <h2 className="text-xs font-bold text-foreground">Recently Viewed</h2>
+      </div>
+      <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
+        {recentItems.map((item: any, i: number) => {
+          const img = getFoodImage(item.id);
+          return (
+            <motion.button
+              key={item.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.04 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => onItemTap(item.name)}
+              className="flex-shrink-0 w-20 text-center p-2 rounded-xl bg-card border border-border/50 hover:border-primary/20 transition-all"
+            >
+              {img ? (
+                <div className="w-10 h-10 mx-auto rounded-lg overflow-hidden bg-muted mb-1">
+                  <img src={img} alt={item.name} className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <span className="text-xl block mb-1">{item.emoji}</span>
+              )}
+              <p className="text-[9px] font-semibold text-foreground truncate">{item.name.split('(')[0].trim()}</p>
+              <p className="text-[9px] font-bold text-primary">₹{item.cityPrice}</p>
+            </motion.button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 type SortMode = 'pes' | 'price' | 'protein';
 type FilterMode = 'all' | 'veg' | 'nonveg' | 'high_protein' | 'budget';
@@ -110,14 +160,26 @@ export default function Market() {
       .filter(i => FRESH_CATEGORIES.includes(i.topCategory))
       .sort((a, b) => b.pes - a.pes)
       .slice(0, 3)
-      .map(i => ({ name: i.name, emoji: i.emoji, price: i.cityPrice, unit: i.unit, protein: i.protein, costPerGram: i.costPerGram, pes: i.pes, pesColor: i.pesColor }));
+      .map(i => ({ name: i.name, emoji: i.emoji, price: i.cityPrice, unit: i.unit, protein: i.protein, costPerGram: i.costPerGram, pes: i.pes, pesColor: i.pesColor, itemId: i.id }));
   }, [processedItems]);
 
   const bestValue = useMemo(() => {
     const sorted = [...processedItems].sort((a, b) => b.pes - a.pes);
     const top = sorted[0];
     if (!top) return null;
-    return { name: top.name, emoji: top.emoji, price: top.cityPrice, unit: top.unit, protein: top.protein, costPerGram: top.costPerGram };
+    return { name: top.name, emoji: top.emoji, price: top.cityPrice, unit: top.unit, protein: top.protein, costPerGram: top.costPerGram, itemId: top.id };
+  }, [processedItems]);
+
+  const biggestDrop = useMemo(() => {
+    const drops = [
+      { id: 'mk_bangda', change: -15 }, { id: 'mk_egg_white', change: -12 },
+      { id: 'mk_cabbage', change: -10 }, { id: 'mk_tomato', change: -8 },
+    ];
+    for (const d of drops) {
+      const item = processedItems.find(i => i.id === d.id);
+      if (item) return { name: item.name, emoji: item.emoji, price: item.cityPrice, unit: item.unit, protein: item.protein, costPerGram: item.costPerGram, priceChange: d.change, itemId: d.id };
+    }
+    return null;
   }, [processedItems]);
 
   const priceDrops = useMemo(() => {
@@ -129,11 +191,18 @@ export default function Market() {
     return drops.map(d => {
       const item = processedItems.find(i => i.id === d.id);
       if (!item) return null;
-      return { name: item.name, emoji: item.emoji, price: item.cityPrice, unit: item.unit, dropPercent: d.dropPercent };
+      return { name: item.name, emoji: item.emoji, price: item.cityPrice, unit: item.unit, dropPercent: d.dropPercent, itemId: d.id };
     }).filter(Boolean) as any[];
   }, [processedItems]);
 
   const handleOpenDetail = useCallback((item: typeof processedItems[0]) => {
+    // Track recently viewed
+    try {
+      const key = 'nutrilens_recently_viewed';
+      const recent: string[] = JSON.parse(localStorage.getItem(key) || '[]');
+      const updated = [item.id, ...recent.filter(id => id !== item.id)].slice(0, 10);
+      localStorage.setItem(key, JSON.stringify(updated));
+    } catch {}
     setSelectedItem(toMarketItem(MARKET_ITEMS.find(m => m.id === item.id)!));
     setDetailOpen(true);
   }, [toMarketItem]);
@@ -189,7 +258,7 @@ export default function Market() {
             {/* HOMEPAGE SECTIONS */}
             {!isBrowsing && viewMode === 'fresh' && (
               <>
-                <MarketHeroSection bestValue={bestValue} biggestDrop={null} city={cityLabel} onTap={handleItemTapByName} />
+                <MarketHeroSection bestValue={bestValue} biggestDrop={biggestDrop} city={cityLabel} onTap={handleItemTapByName} />
                 <QuickActionsRow city={city || 'India'} onItemTap={handleItemTapByName} />
                 <TopValueCards items={topValueItems} onItemTap={handleItemTapByName} />
                 <CategoryGridHome onCategoryTap={handleCategoryNav} />
@@ -204,6 +273,9 @@ export default function Market() {
                     </button>
                   </motion.div>
                 )}
+
+                {/* Recently Viewed */}
+                <RecentlyViewedRow processedItems={processedItems} onItemTap={handleItemTapByName} />
               </>
             )}
 
@@ -304,6 +376,7 @@ export default function Market() {
                     }}
                     onToggleCompare={(e) => toggleCompare(item, e)}
                     index={i}
+                    itemId={item.id}
                   />
                 ))
               )}
