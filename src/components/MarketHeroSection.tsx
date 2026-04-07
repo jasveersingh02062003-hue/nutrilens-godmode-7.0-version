@@ -1,7 +1,9 @@
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { TrendingDown, Trophy, Zap, Target } from 'lucide-react';
+import { TrendingDown, Trophy, Zap, Target, Sparkles, Shield } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import MarketImage from '@/components/market/MarketImage';
+import { useAdServing } from '@/hooks/useAdServing';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface HeroItem {
   name: string;
@@ -29,6 +31,8 @@ interface Slide {
 export default function MarketHeroSection({ bestValue, biggestDrop, city, onTap }: MarketHeroSectionProps) {
   const prefersReducedMotion = useReducedMotion();
   const [activeSlide, setActiveSlide] = useState(0);
+  const { user } = useAuth();
+  const { ad: sponsoredAd, logImpression, logClick } = useAdServing('hero_banner');
 
   const slides: Slide[] = useMemo(() => {
   const s: Slide[] = [];
@@ -126,8 +130,52 @@ export default function MarketHeroSection({ bestValue, biggestDrop, city, onTap 
     });
   }
 
+  // Sponsored Slide (inserted at position 2 if available)
+  if (sponsoredAd) {
+    const pesBg = sponsoredAd.pesScore >= 70 ? 'bg-green-500/15 text-green-700 border-green-500/20'
+      : sponsoredAd.pesScore >= 50 ? 'bg-amber-500/15 text-amber-700 border-amber-500/20'
+      : 'bg-orange-500/15 text-orange-700 border-orange-500/20';
+
+    s.splice(1, 0, {
+      id: 'sponsored',
+      content: (
+        <motion.button
+          onClick={() => {
+            logClick(user?.id);
+          }}
+          className="w-full p-4 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/15 text-left relative overflow-hidden"
+        >
+          <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/80 backdrop-blur-sm">
+            <Sparkles className="w-2.5 h-2.5 text-muted-foreground" />
+            <span className="text-[9px] font-medium text-muted-foreground tracking-wide">Sponsored</span>
+          </div>
+          <div className="flex items-center gap-3">
+            {sponsoredAd.imageUrl && (
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+                <img src={sponsoredAd.imageUrl} alt={sponsoredAd.headline} className="w-full h-full object-cover" loading="lazy" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-foreground truncate pr-16">{sponsoredAd.headline}</p>
+              {sponsoredAd.subtitle && (
+                <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{sponsoredAd.subtitle}</p>
+              )}
+              <div className="flex items-center gap-2 mt-1.5">
+                <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-semibold border ${pesBg}`}>
+                  <Shield className="w-2.5 h-2.5" />
+                  PES {sponsoredAd.pesScore}
+                </span>
+                <span className="text-[10px] font-medium text-primary">{sponsoredAd.ctaText} →</span>
+              </div>
+            </div>
+          </div>
+        </motion.button>
+      ),
+    });
+  }
+
   return s;
-  }, [bestValue, biggestDrop, city, onTap]);
+  }, [bestValue, biggestDrop, city, onTap, sponsoredAd, logClick, user?.id]);
 
   // Auto-rotate (skip if reduced motion preferred)
   useEffect(() => {
@@ -138,6 +186,13 @@ export default function MarketHeroSection({ bestValue, biggestDrop, city, onTap 
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slides.length, prefersReducedMotion]);
+
+  // Log impression when sponsored slide is visible
+  useEffect(() => {
+    if (slides[activeSlide]?.id === 'sponsored' && sponsoredAd) {
+      logImpression(user?.id);
+    }
+  }, [activeSlide, slides, sponsoredAd, logImpression, user?.id]);
 
   if (slides.length === 0) return null;
 
