@@ -16,6 +16,8 @@ interface MarketItemCardProps {
   servingDesc: string;
   isVeg: boolean;
   isCompareSelected?: boolean;
+  badge?: 'popular' | 'best_seller' | 'new' | null;
+  badgeCity?: string;
   onTap: () => void;
   onAddToPlan: (e: React.MouseEvent) => void;
   onToggleCompare: (e: React.MouseEvent) => void;
@@ -23,7 +25,7 @@ interface MarketItemCardProps {
 }
 
 export default function MarketItemCard({
-  rank, name, emoji, price, unit, protein, calories, costPerGram, pesColor, pes, priceChange, servingDesc, isVeg, isCompareSelected, onTap, onAddToPlan, onToggleCompare, index
+  rank, name, emoji, price, unit, protein, calories, costPerGram, pesColor, pes, priceChange, servingDesc, isVeg, isCompareSelected, badge, badgeCity, onTap, onAddToPlan, onToggleCompare, index
 }: MarketItemCardProps) {
   const pesGradient = pesColor === 'green'
     ? 'from-green-500/8 to-transparent'
@@ -36,6 +38,20 @@ export default function MarketItemCard({
     : pesColor === 'yellow'
     ? 'bg-amber-500/15 text-amber-700'
     : 'bg-red-500/15 text-red-700';
+
+  const badgeEl = badge === 'popular' ? (
+    <span className="px-1.5 py-0.5 rounded-md text-[8px] font-bold bg-primary/15 text-primary">
+      🔥 Popular{badgeCity ? ` in ${badgeCity}` : ''}
+    </span>
+  ) : badge === 'best_seller' ? (
+    <span className="px-1.5 py-0.5 rounded-md text-[8px] font-bold bg-amber-500/15 text-amber-700">
+      ⭐ Best Seller
+    </span>
+  ) : badge === 'new' ? (
+    <span className="px-1.5 py-0.5 rounded-md text-[8px] font-bold bg-blue-500/15 text-blue-700">
+      🆕 New
+    </span>
+  ) : null;
 
   return (
     <motion.div
@@ -66,7 +82,10 @@ export default function MarketItemCard({
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <p className="text-[13px] font-bold text-foreground truncate">{name}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-[13px] font-bold text-foreground truncate">{name}</p>
+            {badgeEl}
+          </div>
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-sm font-semibold text-foreground">₹{price}<span className="text-[10px] font-normal text-muted-foreground">/{unit}</span></span>
             {priceChange !== undefined && priceChange !== 0 && (

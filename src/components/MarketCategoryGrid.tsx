@@ -1,21 +1,24 @@
 import { motion } from 'framer-motion';
-import { TOP_CATEGORIES, SUBCATEGORIES, type MarketTopCategory, type MarketSubcategory } from '@/lib/market-data';
+import { TOP_CATEGORIES, SUBCATEGORIES, FRESH_CATEGORIES, PACKED_CATEGORIES, type MarketTopCategory, type MarketSubcategory, type MarketViewMode } from '@/lib/market-data';
 
 interface MarketCategoryGridProps {
   selectedCategory: MarketTopCategory | null;
   selectedSub: MarketSubcategory | null;
+  viewMode: MarketViewMode;
   onSelectCategory: (cat: MarketTopCategory | null) => void;
   onSelectSub: (sub: MarketSubcategory | null) => void;
 }
 
-export default function MarketCategoryGrid({ selectedCategory, selectedSub, onSelectCategory, onSelectSub }: MarketCategoryGridProps) {
+export default function MarketCategoryGrid({ selectedCategory, selectedSub, viewMode, onSelectCategory, onSelectSub }: MarketCategoryGridProps) {
+  const allowedKeys = viewMode === 'fresh' ? FRESH_CATEGORIES : PACKED_CATEGORIES;
+  const visibleCategories = TOP_CATEGORIES.filter(c => allowedKeys.includes(c.key));
   const subs = selectedCategory ? SUBCATEGORIES[selectedCategory] || [] : [];
 
   return (
     <div className="space-y-3">
       {/* Top-level category grid */}
       <div className="grid grid-cols-3 gap-2">
-        {TOP_CATEGORIES.map((cat, i) => {
+        {visibleCategories.map((cat, i) => {
           const isActive = selectedCategory === cat.key;
           return (
             <motion.button
