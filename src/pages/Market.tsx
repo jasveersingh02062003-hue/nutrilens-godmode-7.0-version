@@ -650,6 +650,13 @@ export default function Market() {
         onOpenChange={setReportOpen}
         prefillItem={reportPrefill}
       />
+
+      {/* Multi-City Compare Sheet */}
+      <MultiCityCompareSheet
+        open={multiCityOpen}
+        onOpenChange={setMultiCityOpen}
+        defaultCity={city || undefined}
+      />
     </div>
   );
 }
