@@ -11,7 +11,7 @@ export default function MarketCompactView() {
   const { profile } = useUserProfile();
   const [items, setItems] = useState<MarketItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const city = profile?.city || 'India';
+  const city = (profile as any)?.city || 'India';
 
   useEffect(() => {
     getTopMarketItems(city, 8).then(data => {

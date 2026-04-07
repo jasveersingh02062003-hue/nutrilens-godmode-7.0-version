@@ -4,7 +4,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { foodDatabase, type PESFood } from './pes-engine';
-import { getPrice, type PriceEntry } from './price-database';
+import { findPrice } from './price-database';
 
 // ─── Types ───
 
@@ -61,7 +61,7 @@ function getFreshMarketItems(city: string, category: MarketCategory): MarketItem
 
   return foods.map(f => {
     // Try to get city-specific price, fallback to static
-    const priceEntry = getPrice(f.name);
+    const priceEntry = findPrice(f.name);
     const price = priceEntry?.basePrice ?? f.price;
     const pes = f.protein > 0 && price > 0 ? f.protein / price : 0;
 
