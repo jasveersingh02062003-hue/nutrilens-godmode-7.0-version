@@ -14,6 +14,7 @@ import ReportPriceSheet from '@/components/ReportPriceSheet';
 import PriceTrendChart from '@/components/PriceTrendChart';
 import MarketCompareBar from '@/components/MarketCompareBar';
 import ComparisonSheet from '@/components/ComparisonSheet';
+import PriceFreshnessBadge from '@/components/PriceFreshnessBadge';
 import { buildFromFood } from '@/lib/compare-helpers';
 import { INDIAN_FOODS } from '@/lib/indian-foods';
 import { scopedGet } from '@/lib/scoped-storage';
@@ -448,6 +449,9 @@ export default function Market() {
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[11px] text-muted-foreground">💪 {item.protein}g</span>
                         <span className="text-[11px] text-muted-foreground">· 🔥 {item.calories} kcal</span>
+                        {item.protein === 0 && item.calories === 0 && (
+                          <span className="text-[9px] font-semibold text-amber-500">⚠️ Incomplete</span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[11px] font-medium text-foreground">
@@ -459,6 +463,7 @@ export default function Market() {
                           </span>
                         )}
                         <span className="text-[10px] text-muted-foreground">₹{item.costPerGramProtein}/g</span>
+                        <PriceFreshnessBadge lastUpdated={item.lastUpdated} isStale={(item as any).isStale} compact />
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
@@ -482,7 +487,21 @@ export default function Market() {
                             onClick={(e) => {
                               e.stopPropagation();
                               const cheapest = [...item.platforms!].sort((a, b) => a.price - b.price)[0];
-                              window.open(cheapest.url, '_blank');
+                              // Try deep link first, fallback to HTTPS
+                              const deepLinks: Record<string, string> = {
+                                'BigBasket': 'bigbasket://',
+                                'Amazon': 'amazon://',
+                                'Blinkit': 'blinkit://',
+                              };
+                              const deepLink = Object.entries(deepLinks).find(([name]) => 
+                                cheapest.name?.toLowerCase().includes(name.toLowerCase())
+                              );
+                              if (deepLink) {
+                                window.location.href = deepLink[1];
+                                setTimeout(() => window.open(cheapest.url, '_blank'), 500);
+                              } else {
+                                window.open(cheapest.url, '_blank');
+                              }
                             }}
                             className="w-6 h-6 rounded-full bg-secondary/10 flex items-center justify-center hover:bg-secondary/20 transition-colors"
                             title="Buy"
