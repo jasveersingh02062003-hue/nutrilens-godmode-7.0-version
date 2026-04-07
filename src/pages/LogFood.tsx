@@ -762,6 +762,11 @@ export default function LogFood() {
                             ≈ {Math.round(item.estimatedWeightGrams * item.quantity)}g total
                           </p>
                         )}
+                        {itemPrices.has(item.id) && (
+                          <p className="text-[10px] text-primary/80 font-medium mt-0.5">
+                            💰 ₹{itemPrices.get(item.id)!.price} · PES {itemPrices.get(item.id)!.pes}
+                          </p>
+                        )}
                         {warnings.map((w, wi) => (
                           <div key={wi} className="flex items-center gap-1 mt-1">
                             <AlertTriangle className={`w-3 h-3 ${w.severity === 'block' ? 'text-destructive' : 'text-accent'}`} />
