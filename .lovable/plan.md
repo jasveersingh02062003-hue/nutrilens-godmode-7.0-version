@@ -1,94 +1,90 @@
 
 
-# Smart Market — Gap Analysis Fix Plan
+# Smart Market — Visual & UX Polish Plan
 
-## Current State Assessment
+## Current State
 
-After reviewing all 5 market pages, the codebase already handles several items from the gap list:
-- **Auto-location**: Already implemented in `Market.tsx` using `detectCity()` (GPS → IP → fallback), persists to profile + localStorage
-- **City selector**: Already in `MarketPageHeader` with dropdown
-- **Price alerts table**: Already exists (`price_alerts` table in DB)
-- **Compare custom item add**: Already works — search bar + checkbox selection + max 4 items
-- **MarketList with market item matching**: Already matches typed items to `MARKET_ITEMS` for price/protein
+The 5-phase overhaul is already implemented with:
+- MarketContext providing shared city/prices/compare state across all tabs
+- MarketBottomNav with spring animations and layoutId dot
+- MarketItemCard with PES badges, image support, nutrition tips, price trends
+- Shop homepage with Hero, QuickActions, TopValue, CategoryGrid, Education, PriceDrops sections
+- Flipkart-style Categories with sidebar + content area
+- Deals with price drops, budget combos, PES leaderboard, price forecast, alert CTA
+- Compare with quick pairs, category filters, selection bar
+- My List with add, auto-generate from meal plan, share, summary bar
+- food-images.ts with Unsplash URLs, nutrition-tips.ts with per-item tips
+- MarketSkeleton loading states
 
-**Actual gaps remaining:**
-1. Auto-location only runs on Shop tab — Categories, Deals, Compare, My List each read `profile.city` independently (no shared context)
-2. Emojis used everywhere instead of real food images
-3. No global market context (city/prices/compare list not shared across tabs)
-4. Price Alert sheet not wired (just shows toast "coming soon")
-5. My List has no "auto-generate from meal plan" logic
-6. No loading skeletons or error states
-7. No "Why eat this" tooltips with data
+## Remaining Gaps (After Reviewing Code)
 
----
+1. **MarketItemCard missing `itemId` prop** -- the card accepts `itemId?` but Market.tsx never passes it, so images and tips never render for item cards on the Shop page
+2. **TopValueCards and QuickActionsRow still use emoji** -- no image support integrated
+3. **PriceDropsRow still uses emoji** -- no image support
+4. **CategoryGridHome still uses emoji** -- no category images used
+5. **Hero banner not rotating** -- it's static, shows only "best value today" with no auto-rotate
+6. **No "Recently Viewed" section** on homepage
+7. **Categories page missing category hero images** -- `getCategoryImage` exists but isn't used
+8. **No image fade-in animation** on image load across components
+9. **MarketDeals "High Protein Low Cost" grid** still uses emoji, not images
+10. **Compare page item list** uses images correctly (already done)
 
 ## Implementation Plan (3 Phases)
 
-### Phase 1: Shared Market Context + Auto-Location Sync
-Create a `MarketContext` provider that wraps all `/market` routes, providing:
-- `city` (auto-detected once, shared across all tabs)
-- `processedItems` (computed once, reused everywhere — eliminates duplicate `useMemo` in every page)
-- `compareItems` + `toggleCompare()` (global compare state persists across tab switches)
-- `myListItems` (shared with My List tab)
+### Phase 1: Wire Images Everywhere + Fix itemId Prop
 
-**Files:**
-- **New**: `src/contexts/MarketContext.tsx` — context with city, processedItems, compare state
-- **Edit**: `src/App.tsx` — wrap market routes with `<MarketProvider>`
-- **Edit**: `src/pages/Market.tsx` — remove local city/processedItems state, consume from context
-- **Edit**: `src/pages/MarketCategories.tsx` — consume city + processedItems from context
-- **Edit**: `src/pages/MarketDeals.tsx` — consume from context
-- **Edit**: `src/pages/MarketCompare.tsx` — consume compareItems from context
-- **Edit**: `src/pages/MarketList.tsx` — consume city from context
+Pass `itemId` to MarketItemCard in Market.tsx so real images load. Add image support to TopValueCards, QuickActionsRow, PriceDropsRow, and CategoryGridHome.
 
-### Phase 2: Real Food Images + "Why Eat This" Tips
-Replace emoji placeholders with real Unsplash/static food images using a mapping. Add nutrition tips per item.
+**Files modified:**
+- `src/pages/Market.tsx` -- pass `itemId={item.id}` to MarketItemCard; pass image URLs in topValueItems and priceDrops data
+- `src/components/market/TopValueCards.tsx` -- accept `itemId`, use `getFoodImage()` with fade-in `<img>`, fallback to emoji
+- `src/components/market/QuickActionsRow.tsx` -- use `getFoodImage()` for each pill item
+- `src/components/market/PriceDropsRow.tsx` -- accept `itemId`, use `getFoodImage()` for each drop card
+- `src/components/market/CategoryGridHome.tsx` -- use `getCategoryImage()` as background for category tiles
 
-**Files:**
-- **New**: `src/lib/food-images.ts` — mapping of `itemId → imageUrl` using free Unsplash CDN URLs (e.g., `https://images.unsplash.com/photo-xxxxx?w=200&h=200&fit=crop`)
-- **New**: `src/lib/nutrition-tips.ts` — static mapping of `itemId|category → tip string` (e.g., "Eggs: complete protein with all 9 amino acids at ₹1/g protein")
-- **Edit**: `src/components/MarketItemCard.tsx` — replace emoji with `<img>` using food-images map, fallback to emoji if no image
-- **Edit**: `src/components/market/TopValueCards.tsx` — use real images
-- **Edit**: `src/components/market/QuickActionsRow.tsx` — use real images in pills
-- **Edit**: `src/components/market/CategoryGridHome.tsx` — use category hero images
-- **Edit**: `src/pages/MarketCategories.tsx` — use images in top items list
-- **Edit**: `src/pages/MarketDeals.tsx` — use images in price drops and grid cards
+### Phase 2: Hero Banner Auto-Rotate + Category Hero Images + Recently Viewed
 
-### Phase 3: Price Alert Sheet + My List Meal Plan Auto-Generate + Loading States
-Wire up the price alert functionality and meal plan integration.
+Make the hero banner rotate between 3 data-driven slides. Add category hero images to the Categories page. Add a "Recently Viewed" horizontal scroll at the bottom of the Shop homepage.
 
-**Files:**
-- **Edit**: `src/pages/MarketDeals.tsx` — open `PriceAlertSheet` on CTA tap (component already exists at `src/components/PriceAlertSheet.tsx`)
-- **Edit**: `src/pages/MarketList.tsx` — add "Auto-generate from Meal Plan" button that reads `meal-planner-store` from localStorage, aggregates ingredients, matches to MARKET_ITEMS
-- **New**: `src/components/market/MarketSkeleton.tsx` — skeleton loaders for item cards, category sidebar, deals sections
-- **Edit**: `src/pages/Market.tsx` — show skeleton while location detecting
-- **Edit**: `src/pages/MarketCategories.tsx` — show skeleton on category switch
-- **Edit**: `src/pages/MarketDeals.tsx` — show skeleton on initial load
+**Files modified:**
+- `src/components/MarketHeroSection.tsx` -- rewrite to auto-rotate between 3 slides: (1) Best Value Today, (2) Biggest Price Drop, (3) Budget Protein Challenge. Use `AnimatePresence` fade transition with 5s interval and dot indicators
+- `src/pages/MarketCategories.tsx` -- add `getCategoryImage()` as a banner image above the category insight card
+- `src/pages/Market.tsx` -- add "Recently Viewed" section using localStorage tracking; add `biggestDrop` data to hero props
+
+### Phase 3: Image Fade-In Animation + Deals Image Fix + Visual Polish
+
+Add consistent image fade-in across all market components. Fix remaining emoji-only spots.
+
+**Files modified:**
+- `src/components/market/MarketImage.tsx` (NEW) -- shared image component with `opacity: 0 -> 1` fade on load, emoji fallback, rounded corners, consistent sizing
+- `src/pages/MarketDeals.tsx` -- use `MarketImage` in "High Protein Low Cost" grid and "Budget Protein Combo" section
+- `src/components/MarketItemCard.tsx` -- replace inline image logic with `MarketImage` component
+- `src/pages/MarketCategories.tsx` -- use `MarketImage` in top items list
+- `src/pages/MarketCompare.tsx` -- use `MarketImage` in item list
 
 ---
 
-## Animation Plan
+## Animation Summary
 
-| Component | Animation | Already Done? |
-|-----------|-----------|---------------|
-| MarketBottomNav tabs | Spring bounce + layoutId dot | Yes |
-| Item cards stagger | fade+slide up | Yes |
-| Category sidebar active bar | layoutId slide | Yes |
-| Content area swap | AnimatePresence fade+slide | Yes |
-| **NEW: Image load** | Fade-in on load (`opacity 0→1`) | No — add |
-| **NEW: Skeleton shimmer** | CSS shimmer animation | No — add |
-| **NEW: Price alert success** | Scale bounce on save | No — add |
-
----
+| Component | Animation | Phase |
+|-----------|-----------|-------|
+| MarketImage (new shared component) | `opacity: 0 -> 1` on img load, 300ms ease | 3 |
+| Hero banner slides | `AnimatePresence` fade + slide, 5s auto-rotate | 2 |
+| Hero dot indicators | `layoutId` width transition for active dot | 2 |
+| Category hero image | Fade-in on category switch via `AnimatePresence` | 2 |
+| TopValueCards images | Image fade-in on load | 1 |
+| QuickActions pill images | Image fade-in, emoji fallback | 1 |
+| PriceDrops card images | Image fade-in, emoji fallback | 1 |
+| CategoryGrid backgrounds | Subtle gradient overlay on category image | 1 |
+| Recently Viewed scroll | Stagger fade-in with `delay: i * 0.04` | 2 |
 
 ## Files Summary
 
 | Phase | New Files | Modified Files |
 |-------|-----------|----------------|
-| 1 | `contexts/MarketContext.tsx` | `App.tsx`, `Market.tsx`, `MarketCategories.tsx`, `MarketDeals.tsx`, `MarketCompare.tsx`, `MarketList.tsx` |
-| 2 | `lib/food-images.ts`, `lib/nutrition-tips.ts` | `MarketItemCard.tsx`, `TopValueCards.tsx`, `QuickActionsRow.tsx`, `CategoryGridHome.tsx`, `MarketCategories.tsx`, `MarketDeals.tsx` |
-| 3 | `market/MarketSkeleton.tsx` | `MarketDeals.tsx`, `MarketList.tsx`, `Market.tsx`, `MarketCategories.tsx` |
+| 1 | -- | `Market.tsx`, `TopValueCards.tsx`, `QuickActionsRow.tsx`, `PriceDropsRow.tsx`, `CategoryGridHome.tsx` |
+| 2 | -- | `MarketHeroSection.tsx`, `MarketCategories.tsx`, `Market.tsx` |
+| 3 | `market/MarketImage.tsx` | `MarketDeals.tsx`, `MarketItemCard.tsx`, `MarketCategories.tsx`, `MarketCompare.tsx` |
 
-**Total: 4 new files, ~12 modified files, 0 backend changes**
-
-Work will be divided across 3 implementation messages, one per phase.
+**Total: 1 new file, ~9 modified files, 0 backend changes**
 
