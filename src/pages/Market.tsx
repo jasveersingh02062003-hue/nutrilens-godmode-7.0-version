@@ -146,6 +146,13 @@ export default function Market() {
   }, [processedItems]);
 
   const handleOpenDetail = useCallback((item: typeof processedItems[0]) => {
+    // Track recently viewed
+    try {
+      const key = 'nutrilens_recently_viewed';
+      const recent: string[] = JSON.parse(localStorage.getItem(key) || '[]');
+      const updated = [item.id, ...recent.filter(id => id !== item.id)].slice(0, 10);
+      localStorage.setItem(key, JSON.stringify(updated));
+    } catch {}
     setSelectedItem(toMarketItem(MARKET_ITEMS.find(m => m.id === item.id)!));
     setDetailOpen(true);
   }, [toMarketItem]);
@@ -216,6 +223,9 @@ export default function Market() {
                     </button>
                   </motion.div>
                 )}
+
+                {/* Recently Viewed */}
+                <RecentlyViewedRow processedItems={processedItems} onItemTap={handleItemTapByName} />
               </>
             )}
 
