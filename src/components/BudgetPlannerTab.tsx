@@ -1564,6 +1564,19 @@ export default function BudgetPlannerTab({ onOnboardingComplete }: { onOnboardin
       {/* Alerts */}
       <AlertsInline alerts={alerts} />
 
+      {/* Live Price Estimate */}
+      {livePriceEstimate && (
+        <div className="card-elevated p-3 flex items-center gap-3">
+          <span className="text-lg">📡</span>
+          <div className="flex-1">
+            <p className="text-[11px] font-bold text-foreground">Live Price Estimate (Daily Staples)</p>
+            <p className="text-xs text-muted-foreground">
+              ~₹{livePriceEstimate.total}/day · Source: {livePriceEstimate.source}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* This Week Card */}
       <BudgetCard label="This Week" icon="📅" summary={weeklySummary} onClick={() => openDetails('week')} />
 
