@@ -1,0 +1,55 @@
+import { Store, LayoutGrid, Flame, Scale, ClipboardList } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+
+const marketTabs = [
+  { path: '/market', icon: Store, label: 'Shop', exact: true },
+  { path: '/market/categories', icon: LayoutGrid, label: 'Categories' },
+  { path: '/market/deals', icon: Flame, label: 'Deals' },
+  { path: '/market/compare', icon: Scale, label: 'Compare' },
+  { path: '/market/list', icon: ClipboardList, label: 'My List' },
+];
+
+export default function MarketBottomNav() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Only render on market routes
+  if (!location.pathname.startsWith('/market')) return null;
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/60 backdrop-blur-xl border-t border-border/50 pb-[env(safe-area-inset-bottom,0px)]">
+      <div className="grid grid-cols-5 max-w-lg mx-auto h-16 px-1">
+        {marketTabs.map((tab) => {
+          const active = tab.exact
+            ? location.pathname === tab.path
+            : location.pathname.startsWith(tab.path);
+
+          return (
+            <button
+              key={tab.path}
+              onClick={() => navigate(tab.path)}
+              className="flex flex-col items-center justify-center gap-1 min-h-[48px]"
+            >
+              <motion.div
+                animate={active ? { y: -2 } : { y: 0 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                whileTap={{ scale: 0.9 }}
+              >
+                <tab.icon className={`w-5 h-5 ${active ? 'text-primary stroke-[2.5]' : 'text-muted-foreground'}`} />
+              </motion.div>
+              <span className={`text-[10px] ${active ? 'font-bold text-primary' : 'font-medium text-muted-foreground'}`}>{tab.label}</span>
+              {active && (
+                <motion.div
+                  layoutId="market-nav-dot"
+                  className="w-1 h-1 rounded-full bg-primary -mt-0.5"
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
