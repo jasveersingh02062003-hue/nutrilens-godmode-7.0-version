@@ -245,6 +245,7 @@ export default function TodayMealPlan() {
               );
             })}
 
+            {/* Swap Nudges */}
             {todayPlan.meals.map(meal => {
               const scaled = getScaledMealInfo(meal);
               if (!scaled) return null;
@@ -252,19 +253,20 @@ export default function TodayMealPlan() {
               const cost = scaled.cost;
               const isLogged = meal.cooked || loggedMeals.has(meal.recipeId);
 
+              if (isLogged || cost <= 0 || scaled.protein <= 0) return null;
               return (
-                <div key={meal.recipeId}>
-                  {/* existing meal card is above, swap nudge below */}
-                  {!isLogged && cost > 0 && scaled.protein > 0 && (
-                    <SwapNudgeCard
-                      mealName={recipe.name}
-                      mealCost={cost}
-                      mealProtein={scaled.protein}
-                    />
-                  )}
-                </div>
+                <SwapNudgeCard
+                  key={`swap-${meal.recipeId}`}
+                  mealName={recipe.name}
+                  mealCost={cost}
+                  mealProtein={scaled.protein}
+                />
               );
             })}
+
+            {/* Daily cost total */}
+            <div className="flex items-center justify-between pt-2 border-t border-border">
+              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
                 <IndianRupee className="w-3 h-3" /> Today's estimated cost
               </span>
               <span className="text-xs font-bold text-accent">₹{totalCost}</span>
@@ -274,4 +276,5 @@ export default function TodayMealPlan() {
       </div>
     </Collapsible>
   );
+}
 }
