@@ -226,12 +226,13 @@ export default function Market() {
           </div>
         </div>
 
-        {/* City not set warning */}
+      {/* City not set — "Average across India" label + prompt */}
         {!city && (
           <div className="mx-4 mb-2 p-2.5 rounded-xl bg-accent/10 border border-accent/20">
-            <p className="text-[11px] font-semibold text-foreground">📍 Set your city for location-based prices</p>
-            <button onClick={() => setCityPickerOpen(true)} className="text-[10px] font-bold text-primary mt-0.5">
-              Choose your city →
+            <p className="text-[11px] font-semibold text-foreground">🇮🇳 Showing average prices across India</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Set your city to see location-specific prices & trends</p>
+            <button onClick={() => setCityPickerOpen(true)} className="text-[10px] font-bold text-primary mt-1">
+              📍 Choose your city →
             </button>
           </div>
         )}
