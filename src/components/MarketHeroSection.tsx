@@ -1,7 +1,9 @@
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { TrendingDown, Trophy, Zap, Target } from 'lucide-react';
+import { TrendingDown, Trophy, Zap, Target, Sparkles, Shield } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import MarketImage from '@/components/market/MarketImage';
+import { useAdServing } from '@/hooks/useAdServing';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface HeroItem {
   name: string;
