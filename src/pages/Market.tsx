@@ -92,7 +92,8 @@ export default function Market() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { city, cityLabel, detectedCity, isAutoDetected, locationLoading, handleCitySelect, processedItems, compareItems, toggleCompare, setCompareItems, compareData, toMarketItem, vegOnly } = useMarket();
-
+  const { user } = useAuth();
+  const { ad: searchAd, logImpression: logSearchImpression, logClick: logSearchClick } = useAdServing('search_boost');
   const [viewMode, setViewMode] = useState<MarketViewMode>('fresh');
   const [selectedCategory, setSelectedCategory] = useState<MarketTopCategory | null>(
     (searchParams.get('category') as MarketTopCategory) || null
