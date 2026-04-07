@@ -1,12 +1,14 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TOP_CATEGORIES, SUBCATEGORIES, MARKET_ITEMS, FRESH_CATEGORIES, PACKED_CATEGORIES, getCityPrice, calculateMarketPES, getMarketPESColor, type MarketTopCategory, type MarketSubcategory } from '@/lib/market-data';
+import { TOP_CATEGORIES, SUBCATEGORIES, MARKET_ITEMS, getCityPrice, calculateMarketPES, getMarketPESColor, type MarketTopCategory, type MarketSubcategory } from '@/lib/market-data';
+import { useMarket } from '@/contexts/MarketContext';
 import MarketPageHeader from '@/components/MarketPageHeader';
+import { CategorySidebarSkeleton } from '@/components/market/MarketSkeleton';
+import { getFoodImage } from '@/lib/food-images';
+import { getCategoryTip } from '@/lib/nutrition-tips';
 import { useNavigate } from 'react-router-dom';
-import { useUserProfile } from '@/contexts/UserProfileContext';
 import { ChevronRight, Sparkles } from 'lucide-react';
 
-// Smart insights per category
 const CATEGORY_INSIGHTS: Record<string, { insight: string; comparison?: string }> = {
   meat_seafood: { insight: 'Chicken breast gives 31g protein at just ₹3.2/g — leanest and cheapest meat option', comparison: 'Chicken vs Fish' },
   eggs: { insight: 'White eggs give 6.3g protein for just ₹6 — best budget protein source in India', comparison: 'White vs Brown vs Desi' },
@@ -23,15 +25,13 @@ const CATEGORY_INSIGHTS: Record<string, { insight: string; comparison?: string }
 
 export default function MarketCategories() {
   const navigate = useNavigate();
-  const { profile } = useUserProfile();
-  const city = (profile as any)?.city || 'India';
+  const { city, cityLabel, locationLoading } = useMarket();
   const [activeCategory, setActiveCategory] = useState<MarketTopCategory>('meat_seafood');
 
   const allCategories = TOP_CATEGORIES;
   const subs = SUBCATEGORIES[activeCategory] || [];
   const insightData = CATEGORY_INSIGHTS[activeCategory];
 
-  // Count items per subcategory
   const subCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     MARKET_ITEMS.filter(i => i.topCategory === activeCategory).forEach(item => {
@@ -40,12 +40,11 @@ export default function MarketCategories() {
     return counts;
   }, [activeCategory]);
 
-  // Top 3 items in this category
   const topItems = useMemo(() => {
     return MARKET_ITEMS
       .filter(i => i.topCategory === activeCategory)
       .map(item => {
-        const price = getCityPrice(item.basePrice, city);
+        const price = getCityPrice(item.basePrice, city || 'India');
         const pes = calculateMarketPES(item.protein, price);
         return { ...item, cityPrice: price, pes: Math.round(pes * 100) / 100, pesColor: getMarketPESColor(pes) };
       })
@@ -61,41 +60,45 @@ export default function MarketCategories() {
 
   return (
     <div className="max-w-lg mx-auto min-h-screen bg-background pb-24">
-      <MarketPageHeader title="Categories" city={city !== 'India' ? city : 'All India'} />
+      <MarketPageHeader title="Categories" city={cityLabel} />
 
       <div className="flex min-h-[calc(100vh-120px)]">
         {/* Left Sidebar */}
-        <div className="w-20 bg-card/50 border-r border-border/30 overflow-y-auto scrollbar-hide flex-shrink-0">
-          {allCategories.map((cat, i) => {
-            const isActive = activeCategory === cat.key;
-            return (
-              <motion.button
-                key={cat.key}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.03 }}
-                onClick={() => setActiveCategory(cat.key)}
-                className={`relative w-full flex flex-col items-center gap-1 py-3 px-1 transition-all ${
-                  isActive ? 'bg-primary/8' : 'hover:bg-muted/50'
-                }`}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="category-active-bar"
-                    className="absolute left-0 top-0 bottom-0 w-[3px] bg-primary rounded-r-full"
-                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                  />
-                )}
-                <span className="text-2xl">{cat.emoji}</span>
-                <span className={`text-[9px] text-center leading-tight ${
-                  isActive ? 'font-bold text-primary' : 'font-medium text-muted-foreground'
-                }`}>
-                  {cat.label.split(' ')[0]}
-                </span>
-              </motion.button>
-            );
-          })}
-        </div>
+        {locationLoading ? (
+          <CategorySidebarSkeleton />
+        ) : (
+          <div className="w-20 bg-card/50 border-r border-border/30 overflow-y-auto scrollbar-hide flex-shrink-0">
+            {allCategories.map((cat, i) => {
+              const isActive = activeCategory === cat.key;
+              return (
+                <motion.button
+                  key={cat.key}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.03 }}
+                  onClick={() => setActiveCategory(cat.key)}
+                  className={`relative w-full flex flex-col items-center gap-1 py-3 px-1 transition-all ${
+                    isActive ? 'bg-primary/8' : 'hover:bg-muted/50'
+                  }`}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="category-active-bar"
+                      className="absolute left-0 top-0 bottom-0 w-[3px] bg-primary rounded-r-full"
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    />
+                  )}
+                  <span className="text-2xl">{cat.emoji}</span>
+                  <span className={`text-[9px] text-center leading-tight ${
+                    isActive ? 'font-bold text-primary' : 'font-medium text-muted-foreground'
+                  }`}>
+                    {cat.label.split(' ')[0]}
+                  </span>
+                </motion.button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Right Content Area */}
         <div className="flex-1 overflow-y-auto">
@@ -108,7 +111,6 @@ export default function MarketCategories() {
               transition={{ duration: 0.2 }}
               className="p-4 space-y-4"
             >
-              {/* Category Title */}
               <div>
                 <h2 className="text-base font-bold text-foreground flex items-center gap-2">
                   {allCategories.find(c => c.key === activeCategory)?.emoji}
@@ -117,7 +119,6 @@ export default function MarketCategories() {
                 <p className="text-[10px] text-muted-foreground mt-0.5">{MARKET_ITEMS.filter(i => i.topCategory === activeCategory).length} items available</p>
               </div>
 
-              {/* Smart Insight Banner */}
               {insightData && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
@@ -139,11 +140,9 @@ export default function MarketCategories() {
                 </motion.div>
               )}
 
-              {/* Subcategory Grid */}
               <div className="space-y-2">
                 <h3 className="text-xs font-bold text-foreground">Subcategories</h3>
                 <div className="grid grid-cols-2 gap-2">
-                  {/* View All */}
                   <motion.button
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -174,35 +173,41 @@ export default function MarketCategories() {
                 </div>
               </div>
 
-              {/* Top items in category */}
               <div className="space-y-2">
                 <h3 className="text-xs font-bold text-foreground">🏆 Top Value in {allCategories.find(c => c.key === activeCategory)?.label}</h3>
-                {topItems.map((item, i) => (
-                  <motion.button
-                    key={item.id}
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.15 + i * 0.04 }}
-                    onClick={() => handleSubTap(activeCategory)}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 text-left hover:border-primary/20 transition-colors"
-                  >
-                    <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
-                      <span className="text-xl">{item.emoji}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[12px] font-semibold text-foreground truncate">{item.name}</p>
-                      <p className="text-[10px] text-muted-foreground">₹{item.cityPrice}/{item.unit} · {item.protein}g protein</p>
-                    </div>
-                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                      item.pesColor === 'green' ? 'bg-green-500/10 text-green-600'
-                      : item.pesColor === 'yellow' ? 'bg-amber-500/10 text-amber-600'
-                      : 'bg-red-500/10 text-red-600'
-                    }`}>
-                      PES {item.pes}
-                    </span>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                  </motion.button>
-                ))}
+                {topItems.map((item, i) => {
+                  const imgUrl = getFoodImage(item.id);
+                  return (
+                    <motion.button
+                      key={item.id}
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.15 + i * 0.04 }}
+                      onClick={() => handleSubTap(activeCategory)}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 text-left hover:border-primary/20 transition-colors"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center overflow-hidden">
+                        {imgUrl ? (
+                          <img src={imgUrl} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
+                        ) : (
+                          <span className="text-xl">{item.emoji}</span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-semibold text-foreground truncate">{item.name}</p>
+                        <p className="text-[10px] text-muted-foreground">₹{item.cityPrice}/{item.unit} · {item.protein}g protein</p>
+                      </div>
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                        item.pesColor === 'green' ? 'bg-green-500/10 text-green-600'
+                        : item.pesColor === 'yellow' ? 'bg-amber-500/10 text-amber-600'
+                        : 'bg-red-500/10 text-red-600'
+                      }`}>
+                        PES {item.pes}
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </motion.button>
+                  );
+                })}
               </div>
             </motion.div>
           </AnimatePresence>

@@ -1,15 +1,15 @@
 import { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Scale, Plus, X, ArrowRightLeft, Sparkles, ChevronRight } from 'lucide-react';
-import { MARKET_ITEMS, getCityPrice, calculateMarketPES, getMarketPESColor, TOP_CATEGORIES, type MarketTopCategory } from '@/lib/market-data';
+import { MARKET_ITEMS, TOP_CATEGORIES, type MarketTopCategory } from '@/lib/market-data';
+import { useMarket } from '@/contexts/MarketContext';
 import MarketPageHeader from '@/components/MarketPageHeader';
 import ComparisonSheet from '@/components/ComparisonSheet';
 import { buildFromFood } from '@/lib/compare-helpers';
 import { INDIAN_FOODS } from '@/lib/indian-foods';
-import { useUserProfile } from '@/contexts/UserProfileContext';
+import { getFoodImage } from '@/lib/food-images';
 import { toast } from 'sonner';
 
-// Pre-built comparison pairs
 const COMPARE_PAIRS = [
   { a: 'mk_egg_white', b: 'mk_paneer', label: '🥚 Eggs vs 🧀 Paneer' },
   { a: 'mk_chicken_breast', b: 'mk_rohu', label: '🍗 Chicken vs 🐟 Fish' },
@@ -20,20 +20,11 @@ const COMPARE_PAIRS = [
 ];
 
 export default function MarketCompare() {
-  const { profile } = useUserProfile();
-  const city = (profile as any)?.city || 'India';
+  const { cityLabel, processedItems } = useMarket();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [compareOpen, setCompareOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<MarketTopCategory | 'all'>('all');
-
-  const processedItems = useMemo(() => {
-    return MARKET_ITEMS.map(item => {
-      const price = getCityPrice(item.basePrice, city);
-      const pes = calculateMarketPES(item.protein, price);
-      return { ...item, cityPrice: price, pes: Math.round(pes * 100) / 100, pesColor: getMarketPESColor(pes) };
-    });
-  }, [city]);
 
   const filteredItems = useMemo(() => {
     let result = processedItems;
@@ -72,7 +63,7 @@ export default function MarketCompare() {
     <div className="max-w-lg mx-auto min-h-screen bg-background pb-24">
       <MarketPageHeader
         title="Compare Items"
-        city={city !== 'India' ? city : 'All India'}
+        city={cityLabel}
         showSearch
         searchValue={search}
         onSearchChange={setSearch}
@@ -183,6 +174,7 @@ export default function MarketCompare() {
         <div className="space-y-1.5">
           {filteredItems.map((item, i) => {
             const isSelected = selectedIds.includes(item.id);
+            const imgUrl = getFoodImage(item.id);
             return (
               <motion.button
                 key={item.id}
@@ -194,7 +186,13 @@ export default function MarketCompare() {
                   isSelected ? 'border-primary/40 bg-primary/5' : 'border-border/50 bg-card hover:border-primary/20'
                 }`}
               >
-                <span className="text-xl">{item.emoji}</span>
+                {imgUrl ? (
+                  <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
+                    <img src={imgUrl} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
+                  </div>
+                ) : (
+                  <span className="text-xl">{item.emoji}</span>
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] font-semibold text-foreground truncate">{item.name}</p>
                   <p className="text-[9px] text-muted-foreground">{item.protein}g protein · ₹{item.cityPrice}/{item.unit}</p>
