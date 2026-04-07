@@ -11,18 +11,6 @@ interface CategoryGridHomeProps {
 
 const HOME_CATEGORIES: MarketTopCategory[] = ['meat_seafood', 'eggs', 'vegetables', 'dals_pulses', 'dairy', 'grains_millets', 'fruits', 'dry_fruits', 'superfoods'];
 
-function FadeImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
-  const [loaded, setLoaded] = useState(false);
-  return (
-    <img
-      src={src}
-      alt={alt}
-      onLoad={() => setLoaded(true)}
-      className={`${className} transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
-    />
-  );
-}
-
 export default function CategoryGridHome({ onCategoryTap }: CategoryGridHomeProps) {
   const navigate = useNavigate();
   const categoryCounts = useMemo(() => {
@@ -63,7 +51,11 @@ export default function CategoryGridHome({ onCategoryTap }: CategoryGridHomeProp
               {/* Background image with gradient overlay */}
               {imageUrl ? (
                 <div className="absolute inset-0">
-                  <FadeImage src={imageUrl} alt={cat.label} className="w-full h-full object-cover" />
+                  <img
+                    src={imageUrl}
+                    alt={cat.label}
+                    className="w-full h-full object-cover transition-opacity duration-300"
+                  />
                   <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-background/40" />
                 </div>
               ) : (

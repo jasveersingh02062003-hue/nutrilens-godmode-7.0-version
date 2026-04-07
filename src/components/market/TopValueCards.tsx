@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion';
 import { Trophy } from 'lucide-react';
-import { useState } from 'react';
-import { getFoodImage } from '@/lib/food-images';
+import MarketImage from '@/components/market/MarketImage';
 
 interface TopValueItem {
   name: string;
@@ -21,18 +20,6 @@ interface TopValueCardsProps {
   onItemTap: (name: string) => void;
 }
 
-function FadeImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
-  const [loaded, setLoaded] = useState(false);
-  return (
-    <img
-      src={src}
-      alt={alt}
-      onLoad={() => setLoaded(true)}
-      className={`${className} transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
-    />
-  );
-}
-
 export default function TopValueCards({ items, onItemTap }: TopValueCardsProps) {
   if (items.length === 0) return null;
 
@@ -46,7 +33,6 @@ export default function TopValueCards({ items, onItemTap }: TopValueCardsProps) 
 
       <div className="grid grid-cols-3 gap-2">
         {items.slice(0, 3).map((item, i) => {
-          const imageUrl = item.itemId ? getFoodImage(item.itemId) : null;
           return (
             <motion.button
               key={item.name}
@@ -75,13 +61,9 @@ export default function TopValueCards({ items, onItemTap }: TopValueCardsProps) 
               )}
 
               {/* Image or emoji */}
-              {imageUrl ? (
-                <div className="w-14 h-14 mx-auto rounded-xl overflow-hidden mb-1.5 bg-muted">
-                  <FadeImage src={imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                </div>
-              ) : (
-                <span className="text-3xl block mb-1.5">{item.emoji}</span>
-              )}
+              <div className="mx-auto mb-1.5">
+                <MarketImage itemId={item.itemId} emoji={item.emoji} alt={item.name} size="lg" />
+              </div>
 
               <p className="text-[11px] font-bold text-foreground truncate">{item.name.split('(')[0].trim()}</p>
               <p className="text-[12px] font-bold text-primary mt-0.5">₹{item.price}<span className="text-[9px] font-normal text-muted-foreground">/{item.unit}</span></p>

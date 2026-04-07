@@ -22,7 +22,7 @@ import { HeroSkeleton, QuickActionsSkeleton, ItemCardSkeleton } from '@/componen
 import { scopedGet } from '@/lib/scoped-storage';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
-import { getFoodImage } from '@/lib/food-images';
+import MarketImage from '@/components/market/MarketImage';
 import { Clock } from 'lucide-react';
 
 function RecentlyViewedRow({ processedItems, onItemTap }: { processedItems: any[]; onItemTap: (name: string) => void }) {
@@ -45,7 +45,6 @@ function RecentlyViewedRow({ processedItems, onItemTap }: { processedItems: any[
       </div>
       <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
         {recentItems.map((item: any, i: number) => {
-          const img = getFoodImage(item.id);
           return (
             <motion.button
               key={item.id}
@@ -56,13 +55,9 @@ function RecentlyViewedRow({ processedItems, onItemTap }: { processedItems: any[
               onClick={() => onItemTap(item.name)}
               className="flex-shrink-0 w-20 text-center p-2 rounded-xl bg-card border border-border/50 hover:border-primary/20 transition-all"
             >
-              {img ? (
-                <div className="w-10 h-10 mx-auto rounded-lg overflow-hidden bg-muted mb-1">
-                  <img src={img} alt={item.name} className="w-full h-full object-cover" />
-                </div>
-              ) : (
-                <span className="text-xl block mb-1">{item.emoji}</span>
-              )}
+              <div className="mx-auto mb-1">
+                <MarketImage itemId={item.id} emoji={item.emoji} alt={item.name} size="sm" className="mx-auto" />
+              </div>
               <p className="text-[9px] font-semibold text-foreground truncate">{item.name.split('(')[0].trim()}</p>
               <p className="text-[9px] font-bold text-primary">₹{item.cityPrice}</p>
             </motion.button>

@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { Lightbulb, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -17,13 +17,15 @@ interface EducationCardProps {
 
 export default function EducationCard({ onItemTap }: EducationCardProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
+    if (prefersReducedMotion) return;
     const timer = setInterval(() => {
       setCurrentIndex(prev => (prev + 1) % FACTS.length);
     }, 6000);
     return () => clearInterval(timer);
-  }, []);
+  }, [prefersReducedMotion]);
 
   const fact = FACTS[currentIndex];
 
