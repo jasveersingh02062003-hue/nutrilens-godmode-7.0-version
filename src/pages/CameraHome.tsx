@@ -715,10 +715,21 @@ export default function CameraHome() {
     const dateKey = getTodayKey();
     addMealToLog(meal);
 
-    toast.success(`✅ ${MEAL_LABELS[selectedMealType].label} logged – ${Math.round(totalCal)} kcal`, {
-      action: { label: 'Undo', onClick: () => { deleteMealFromLog(dateKey, meal.id); toast.info('Meal removed'); } },
-      duration: 5000,
-    });
+    // PES insight on meal log
+    const mealCostVal = finalCost?.amount || 0;
+    if (mealCostVal > 0 && totalProtein > 0) {
+      const pesVal = totalProtein / mealCostVal;
+      const pesLabel = pesVal >= 0.6 ? 'Excellent value! 🟢' : pesVal >= 0.3 ? 'Fair value 🟡' : 'Low value 🔴';
+      toast.success(
+        `✅ ${MEAL_LABELS[selectedMealType].label} · ₹${Math.round(mealCostVal)} · PES ${pesVal.toFixed(2)} — ${pesLabel}`,
+        { action: { label: 'Undo', onClick: () => { deleteMealFromLog(dateKey, meal.id); toast.info('Meal removed'); } }, duration: 5000 }
+      );
+    } else {
+      toast.success(`✅ ${MEAL_LABELS[selectedMealType].label} logged – ${Math.round(totalCal)} kcal`, {
+        action: { label: 'Undo', onClick: () => { deleteMealFromLog(dateKey, meal.id); toast.info('Meal removed'); } },
+        duration: 5000,
+      });
+    }
 
     // Real-time budget check after logging
     const mealCostAmount = finalCost?.amount || 0;
