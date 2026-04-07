@@ -1,26 +1,19 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Flame, TrendingDown, Wallet, Sparkles, Trophy, Target, Bell, Zap } from 'lucide-react';
-import { MARKET_ITEMS, getCityPrice, calculateMarketPES, getMarketPESColor } from '@/lib/market-data';
+import { useMarket } from '@/contexts/MarketContext';
 import MarketPageHeader from '@/components/MarketPageHeader';
-import { useUserProfile } from '@/contexts/UserProfileContext';
+import PriceAlertSheet from '@/components/PriceAlertSheet';
+import { DealsSkeleton } from '@/components/market/MarketSkeleton';
+import { getFoodImage } from '@/lib/food-images';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 
 export default function MarketDeals() {
-  const { profile } = useUserProfile();
   const navigate = useNavigate();
-  const city = (profile as any)?.city || 'India';
+  const { city, cityLabel, processedItems, locationLoading } = useMarket();
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertItem, setAlertItem] = useState({ name: '', price: 0 });
 
-  const processedItems = useMemo(() => {
-    return MARKET_ITEMS.map(item => {
-      const price = getCityPrice(item.basePrice, city);
-      const pes = calculateMarketPES(item.protein, price);
-      return { ...item, cityPrice: price, pes: Math.round(pes * 100) / 100, pesColor: getMarketPESColor(pes), costPerGram: item.protein > 0 ? Math.round((price / item.protein) * 100) / 100 : 999 };
-    });
-  }, [city]);
-
-  // Simulated price drops
   const priceDrops = useMemo(() => {
     const drops = [
       { id: 'mk_egg_white', drop: 12 }, { id: 'mk_tomato', drop: 8 },
@@ -38,20 +31,28 @@ export default function MarketDeals() {
   const bestPES = useMemo(() => [...processedItems].sort((a, b) => b.pes - a.pes).slice(0, 10), [processedItems]);
   const highProteinBudget = useMemo(() => processedItems.filter(i => i.protein >= 15).sort((a, b) => a.costPerGram - b.costPerGram).slice(0, 8), [processedItems]);
 
-  // Budget protein combo
   const combo = useMemo(() => {
     const eggs = processedItems.find(i => i.id === 'mk_egg_white');
     const chicken = processedItems.find(i => i.id === 'mk_chicken_breast');
     const milk = processedItems.find(i => i.id === 'mk_milk_toned');
     if (!eggs || !chicken || !milk) return null;
-    const totalProtein = (eggs.protein * 4) + (chicken.protein * 1.5) + (milk.protein * 5); // 4 eggs + 150g chicken + 500ml milk
+    const totalProtein = (eggs.protein * 4) + (chicken.protein * 1.5) + (milk.protein * 5);
     const totalCost = (eggs.cityPrice * 4) + (chicken.cityPrice * 0.15) + (milk.cityPrice * 0.5);
     return { items: [eggs, chicken, milk], totalProtein: Math.round(totalProtein), totalCost: Math.round(totalCost) };
   }, [processedItems]);
 
+  if (locationLoading) {
+    return (
+      <div className="max-w-lg mx-auto min-h-screen bg-background pb-24">
+        <MarketPageHeader title="Deals & Picks" city="Loading..." />
+        <DealsSkeleton />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-lg mx-auto min-h-screen bg-background pb-24">
-      <MarketPageHeader title="Deals & Picks" city={city !== 'India' ? city : 'All India'} />
+      <MarketPageHeader title="Deals & Picks" city={cityLabel} />
 
       <div className="px-4 pt-4 space-y-6">
         {/* Deals Hero Banner */}
@@ -75,22 +76,31 @@ export default function MarketDeals() {
             <h3 className="text-sm font-bold text-foreground">📉 Price Drops This Week</h3>
           </div>
           <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
-            {priceDrops.map((item: any, i: number) => (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className="flex-shrink-0 p-3 rounded-xl bg-green-500/5 border border-green-500/15 min-w-[100px] text-center"
-              >
-                <span className="text-2xl block mb-1">{item.emoji}</span>
-                <p className="text-[10px] font-semibold text-foreground truncate">{item.name.split('(')[0].trim()}</p>
-                <p className="text-[11px] font-bold text-foreground">₹{item.cityPrice}</p>
-                <span className="inline-block mt-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-green-500/15 text-green-600">
-                  ↓{item.drop}%
-                </span>
-              </motion.div>
-            ))}
+            {priceDrops.map((item: any, i: number) => {
+              const imgUrl = getFoodImage(item.id);
+              return (
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  className="flex-shrink-0 p-3 rounded-xl bg-green-500/5 border border-green-500/15 min-w-[100px] text-center"
+                >
+                  {imgUrl ? (
+                    <div className="w-10 h-10 rounded-lg mx-auto mb-1 overflow-hidden">
+                      <img src={imgUrl} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
+                    </div>
+                  ) : (
+                    <span className="text-2xl block mb-1">{item.emoji}</span>
+                  )}
+                  <p className="text-[10px] font-semibold text-foreground truncate">{item.name.split('(')[0].trim()}</p>
+                  <p className="text-[11px] font-bold text-foreground">₹{item.cityPrice}</p>
+                  <span className="inline-block mt-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-green-500/15 text-green-600">
+                    ↓{item.drop}%
+                  </span>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
 
@@ -131,31 +141,40 @@ export default function MarketDeals() {
             <span className="text-[9px] text-muted-foreground ml-auto">Protein per ₹</span>
           </div>
           <div className="space-y-1.5">
-            {bestPES.map((item, i) => (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.03 }}
-                className="flex items-center gap-3 p-2.5 rounded-xl bg-card border border-border/50"
-              >
-                <span className="w-6 text-center text-[11px] font-bold text-muted-foreground">
-                  {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
-                </span>
-                <span className="text-xl">{item.emoji}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-semibold text-foreground truncate">{item.name}</p>
-                  <p className="text-[9px] text-muted-foreground">₹{item.cityPrice}/{item.unit} · {item.protein}g protein</p>
-                </div>
-                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                  item.pesColor === 'green' ? 'bg-green-500/10 text-green-600'
-                  : item.pesColor === 'yellow' ? 'bg-amber-500/10 text-amber-600'
-                  : 'bg-red-500/10 text-red-600'
-                }`}>
-                  PES {item.pes}
-                </span>
-              </motion.div>
-            ))}
+            {bestPES.map((item, i) => {
+              const imgUrl = getFoodImage(item.id);
+              return (
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.03 }}
+                  className="flex items-center gap-3 p-2.5 rounded-xl bg-card border border-border/50"
+                >
+                  <span className="w-6 text-center text-[11px] font-bold text-muted-foreground">
+                    {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
+                  </span>
+                  {imgUrl ? (
+                    <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
+                      <img src={imgUrl} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
+                    </div>
+                  ) : (
+                    <span className="text-xl">{item.emoji}</span>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-semibold text-foreground truncate">{item.name}</p>
+                    <p className="text-[9px] text-muted-foreground">₹{item.cityPrice}/{item.unit} · {item.protein}g protein</p>
+                  </div>
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                    item.pesColor === 'green' ? 'bg-green-500/10 text-green-600'
+                    : item.pesColor === 'yellow' ? 'bg-amber-500/10 text-amber-600'
+                    : 'bg-red-500/10 text-red-600'
+                  }`}>
+                    PES {item.pes}
+                  </span>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
 
@@ -208,7 +227,11 @@ export default function MarketDeals() {
         {/* 6. Price Alert CTA */}
         <motion.button
           whileTap={{ scale: 0.98 }}
-          onClick={() => toast.info('Price alerts coming soon! 🔔')}
+          onClick={() => {
+            const topItem = bestPES[0];
+            setAlertItem({ name: topItem?.name || 'Eggs', price: topItem?.cityPrice || 6 });
+            setAlertOpen(true);
+          }}
           className="w-full p-4 rounded-2xl bg-card border border-border hover:border-primary/20 transition-all flex items-center gap-3"
         >
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -220,6 +243,14 @@ export default function MarketDeals() {
           </div>
         </motion.button>
       </div>
+
+      <PriceAlertSheet
+        open={alertOpen}
+        onOpenChange={setAlertOpen}
+        itemName={alertItem.name}
+        city={city || 'India'}
+        currentPrice={alertItem.price}
+      />
     </div>
   );
 }

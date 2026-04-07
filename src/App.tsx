@@ -13,6 +13,7 @@ import { UserProfileProvider, useUserProfile } from "./contexts/UserProfileConte
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import PageTransition from "./components/PageTransition";
+import { MarketProvider } from "./contexts/MarketContext";
 import { attemptModuleImportRecovery, clearModuleImportRecovery, isRecoverableModuleError, preloadRouteSafely } from "./lib/module-recovery";
 
 function lazyWithRetry<T extends React.ComponentType<any>>(
@@ -157,11 +158,11 @@ function AppLayout() {
         <Route path="/food-archive" element={<ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><FoodArchive /></div></PageTransition></ProtectedRoute>} />
         <Route path="/pantry" element={<ProtectedRoute><PageTransition><Pantry /></PageTransition></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><Profile /></div></PageTransition></ProtectedRoute>} />
-        <Route path="/market" element={<ProtectedRoute><PageTransition><Market /></PageTransition></ProtectedRoute>} />
-        <Route path="/market/categories" element={<ProtectedRoute><PageTransition><MarketCategories /></PageTransition></ProtectedRoute>} />
-        <Route path="/market/deals" element={<ProtectedRoute><PageTransition><MarketDeals /></PageTransition></ProtectedRoute>} />
-        <Route path="/market/compare" element={<ProtectedRoute><PageTransition><MarketCompare /></PageTransition></ProtectedRoute>} />
-        <Route path="/market/list" element={<ProtectedRoute><PageTransition><MarketList /></PageTransition></ProtectedRoute>} />
+        <Route path="/market" element={<ProtectedRoute><MarketProvider><PageTransition><Market /></PageTransition></MarketProvider></ProtectedRoute>} />
+        <Route path="/market/categories" element={<ProtectedRoute><MarketProvider><PageTransition><MarketCategories /></PageTransition></MarketProvider></ProtectedRoute>} />
+        <Route path="/market/deals" element={<ProtectedRoute><MarketProvider><PageTransition><MarketDeals /></PageTransition></MarketProvider></ProtectedRoute>} />
+        <Route path="/market/compare" element={<ProtectedRoute><MarketProvider><PageTransition><MarketCompare /></PageTransition></MarketProvider></ProtectedRoute>} />
+        <Route path="/market/list" element={<ProtectedRoute><MarketProvider><PageTransition><MarketList /></PageTransition></MarketProvider></ProtectedRoute>} />
         <Route path="/quicklog" element={<ProtectedRoute><PageTransition><QuickLog /></PageTransition></ProtectedRoute>} />
         <Route path="/camera" element={<Navigate to="/" replace />} />
         <Route path="*" element={<Suspense fallback={<PageLoader />}><PageTransition><NotFound /></PageTransition></Suspense>} />

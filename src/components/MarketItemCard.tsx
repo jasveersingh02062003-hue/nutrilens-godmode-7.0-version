@@ -1,6 +1,8 @@
 import { motion } from 'framer-motion';
-import { PlusCircle, Scale, TrendingDown, TrendingUp, Minus, Info } from 'lucide-react';
+import { PlusCircle, Scale, TrendingDown, TrendingUp, Minus, Info, Lightbulb } from 'lucide-react';
 import { useState } from 'react';
+import { getFoodImage } from '@/lib/food-images';
+import { getItemTip } from '@/lib/nutrition-tips';
 
 interface MarketItemCardProps {
   rank: number;
@@ -23,6 +25,7 @@ interface MarketItemCardProps {
   onAddToPlan: (e: React.MouseEvent) => void;
   onToggleCompare: (e: React.MouseEvent) => void;
   index: number;
+  itemId?: string;
 }
 
 const PES_CONFIG = {
@@ -46,7 +49,6 @@ const PES_CONFIG = {
   },
 };
 
-// Nutrition insight based on item characteristics
 function getNutritionInsight(protein: number, calories: number, costPerGram: number, isVeg: boolean): string | null {
   if (protein >= 25 && costPerGram < 15) return '💎 High protein, great value';
   if (protein >= 20) return '💪 Excellent protein source';
@@ -57,11 +59,14 @@ function getNutritionInsight(protein: number, calories: number, costPerGram: num
 }
 
 export default function MarketItemCard({
-  rank, name, emoji, price, unit, protein, calories, costPerGram, pesColor, pes, priceChange, servingDesc, isVeg, isCompareSelected, badge, badgeCity, onTap, onAddToPlan, onToggleCompare, index
+  rank, name, emoji, price, unit, protein, calories, costPerGram, pesColor, pes, priceChange, servingDesc, isVeg, isCompareSelected, badge, badgeCity, onTap, onAddToPlan, onToggleCompare, index, itemId
 }: MarketItemCardProps) {
-  const [showInsight, setShowInsight] = useState(false);
+  const [showTip, setShowTip] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
   const config = PES_CONFIG[pesColor];
   const insight = getNutritionInsight(protein, calories, costPerGram, isVeg);
+  const imageUrl = itemId ? getFoodImage(itemId) : null;
+  const tip = itemId ? getItemTip(itemId) : null;
 
   const badgeEl = badge === 'popular' ? (
     <span className="px-1.5 py-0.5 rounded-md text-[8px] font-bold bg-primary/15 text-primary animate-pulse">
@@ -92,16 +97,27 @@ export default function MarketItemCard({
           isCompareSelected ? 'border-primary/40 shadow-md shadow-primary/5' : 'border-border/60 hover:border-primary/20 hover:shadow-sm'
         }`}
       >
-        {/* Emoji area with rank badge */}
+        {/* Image/Emoji area with rank badge */}
         <div className="relative flex-shrink-0">
-          <div className="w-14 h-14 rounded-2xl bg-card border border-border/50 flex items-center justify-center shadow-sm">
-            <span className="text-[28px]">{emoji}</span>
+          <div className="w-14 h-14 rounded-2xl bg-card border border-border/50 flex items-center justify-center shadow-sm overflow-hidden">
+            {imageUrl ? (
+              <>
+                <img
+                  src={imageUrl}
+                  alt={name}
+                  loading="lazy"
+                  onLoad={() => setImgLoaded(true)}
+                  className={`w-full h-full object-cover transition-opacity duration-300 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+                />
+                {!imgLoaded && <span className="text-[28px] absolute">{emoji}</span>}
+              </>
+            ) : (
+              <span className="text-[28px]">{emoji}</span>
+            )}
           </div>
-          {/* Rank badge */}
           <span className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-muted border border-border flex items-center justify-center text-[9px] font-bold text-muted-foreground">
             {rank}
           </span>
-          {/* Veg/Non-veg indicator */}
           <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-sm border-2 border-background ${
             isVeg ? 'bg-green-500' : 'bg-red-500'
           }`} />
@@ -145,36 +161,35 @@ export default function MarketItemCard({
             <span className="text-[10px] text-muted-foreground">{servingDesc}</span>
           </div>
 
-          {/* Cost per gram protein - highlighted */}
+          {/* Cost per gram protein + tip toggle */}
           <div className="mt-1.5 flex items-center gap-2">
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-muted/60 text-[9px] font-semibold text-foreground/70">
               ₹{costPerGram}/g protein
             </span>
-            {insight && (
+            {(insight || tip) && (
               <button
-                onClick={(e) => { e.stopPropagation(); setShowInsight(!showInsight); }}
+                onClick={(e) => { e.stopPropagation(); setShowTip(!showTip); }}
                 className="text-muted-foreground/50 hover:text-primary transition-colors"
               >
-                <Info className="w-3 h-3" />
+                {tip ? <Lightbulb className="w-3 h-3" /> : <Info className="w-3 h-3" />}
               </button>
             )}
           </div>
 
-          {/* Nutrition insight tooltip */}
-          {showInsight && insight && (
+          {/* Nutrition tip / insight tooltip */}
+          {showTip && (tip || insight) && (
             <motion.p
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
-              className="text-[9px] text-primary font-medium mt-1"
+              className="text-[9px] text-primary font-medium mt-1 leading-relaxed"
             >
-              {insight}
+              {tip || insight}
             </motion.p>
           )}
         </div>
 
         {/* Right column: PES + Actions */}
         <div className="flex flex-col items-end gap-2 shrink-0 pt-0.5">
-          {/* PES Badge */}
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -184,7 +199,6 @@ export default function MarketItemCard({
             PES {pes}
           </motion.div>
 
-          {/* Action buttons */}
           <div className="flex gap-1.5">
             <motion.button
               whileTap={{ scale: 0.85 }}

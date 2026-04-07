@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ClipboardList, Plus, Trash2, ShoppingCart, ArrowRight, Share2, Sparkles, Check } from 'lucide-react';
+import { ClipboardList, Plus, Trash2, ShoppingCart, ArrowRight, Share2, Sparkles, Check, CalendarDays } from 'lucide-react';
 import MarketPageHeader from '@/components/MarketPageHeader';
+import { useMarket } from '@/contexts/MarketContext';
 import { useNavigate } from 'react-router-dom';
 import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { MARKET_ITEMS, getCityPrice } from '@/lib/market-data';
-import { useUserProfile } from '@/contexts/UserProfileContext';
 import { toast } from 'sonner';
 
 interface ListItem {
@@ -23,8 +23,7 @@ const STORAGE_KEY = 'nutrilens_market_list';
 
 export default function MarketList() {
   const navigate = useNavigate();
-  const { profile } = useUserProfile();
-  const city = (profile as any)?.city || 'India';
+  const { city, cityLabel } = useMarket();
   const [items, setItems] = useState<ListItem[]>([]);
   const [newItem, setNewItem] = useState('');
 
@@ -43,12 +42,11 @@ export default function MarketList() {
   const addItem = () => {
     const name = newItem.trim();
     if (!name) return;
-    // Try to match with market items for price/protein
     const marketItem = MARKET_ITEMS.find(m => m.name.toLowerCase().includes(name.toLowerCase()));
     const item: ListItem = {
       id: Date.now().toString(), name: marketItem?.name || name, emoji: marketItem?.emoji || '🛒',
       quantity: '1', checked: false,
-      estimatedPrice: marketItem ? getCityPrice(marketItem.basePrice, city) : undefined,
+      estimatedPrice: marketItem ? getCityPrice(marketItem.basePrice, city || 'India') : undefined,
       protein: marketItem?.protein, unit: marketItem?.unit,
     };
     save([...items, item]);
@@ -62,11 +60,77 @@ export default function MarketList() {
     const item: ListItem = {
       id: Date.now().toString(), name: marketItem.name, emoji: marketItem.emoji,
       quantity: '1', checked: false,
-      estimatedPrice: getCityPrice(marketItem.basePrice, city),
+      estimatedPrice: getCityPrice(marketItem.basePrice, city || 'India'),
       protein: marketItem.protein, unit: marketItem.unit,
     };
     save([...items, item]);
     toast.success(`Added ${marketItem.name}`);
+  };
+
+  const autoGenerateFromMealPlan = () => {
+    try {
+      const stored = scopedGet('nutrilens_meal_planner');
+      if (!stored) {
+        toast.error('No meal plan found. Create one first!');
+        return;
+      }
+      const plannerData = JSON.parse(stored);
+      const ingredientMap: Record<string, { count: number; protein: number; emoji: string; unit: string; price: number }> = {};
+
+      // Scan all days and meals for ingredients
+      Object.values(plannerData).forEach((day: any) => {
+        if (!day?.meals) return;
+        Object.values(day.meals).forEach((meal: any) => {
+          if (!meal?.items) return;
+          (meal.items as any[]).forEach((food: any) => {
+            const name = (food.name || '').toLowerCase();
+            const marketItem = MARKET_ITEMS.find(m => m.name.toLowerCase().includes(name) || name.includes(m.name.toLowerCase().split('(')[0].trim()));
+            if (marketItem && !ingredientMap[marketItem.id]) {
+              ingredientMap[marketItem.id] = {
+                count: 1,
+                protein: marketItem.protein,
+                emoji: marketItem.emoji,
+                unit: marketItem.unit,
+                price: getCityPrice(marketItem.basePrice, city || 'India'),
+              };
+            } else if (marketItem) {
+              ingredientMap[marketItem.id].count += 1;
+            }
+          });
+        });
+      });
+
+      const existingNames = items.map(i => i.name);
+      const newItems: ListItem[] = Object.entries(ingredientMap)
+        .filter(([id]) => {
+          const m = MARKET_ITEMS.find(i => i.id === id);
+          return m && !existingNames.includes(m.name);
+        })
+        .map(([id, data]) => {
+          const m = MARKET_ITEMS.find(i => i.id === id)!;
+          return {
+            id: `mp_${Date.now()}_${id}`,
+            name: m.name,
+            emoji: data.emoji,
+            quantity: String(data.count),
+            checked: false,
+            estimatedPrice: data.price,
+            protein: data.protein,
+            unit: data.unit,
+          };
+        });
+
+      if (newItems.length === 0) {
+        toast.info('All meal plan items are already in your list!');
+        return;
+      }
+
+      save([...items, ...newItems]);
+      toast.success(`Added ${newItems.length} items from meal plan! 🎉`);
+    } catch (e) {
+      console.error('Meal plan parse error:', e);
+      toast.error('Could not read meal plan data');
+    }
   };
 
   const toggleCheck = (id: string) => save(items.map(i => i.id === id ? { ...i, checked: !i.checked } : i));
@@ -89,7 +153,6 @@ export default function MarketList() {
     }
   };
 
-  // Suggested items (high protein, budget)
   const suggestions = useMemo(() => {
     const existingNames = items.map(i => i.name);
     return MARKET_ITEMS
@@ -100,10 +163,10 @@ export default function MarketList() {
 
   return (
     <div className="max-w-lg mx-auto min-h-screen bg-background pb-24">
-      <MarketPageHeader title="My List" city={city !== 'India' ? city : undefined} />
+      <MarketPageHeader title="My List" city={cityLabel !== 'All India' ? cityLabel : undefined} />
 
       <div className="px-4 pt-4 space-y-4">
-        {/* Add Item */}
+        {/* Add Item + Auto-generate */}
         <div className="flex gap-2">
           <input
             type="text"
@@ -122,6 +185,20 @@ export default function MarketList() {
           </motion.button>
         </div>
 
+        {/* Auto-generate from meal plan */}
+        <motion.button
+          whileTap={{ scale: 0.98 }}
+          onClick={autoGenerateFromMealPlan}
+          className="w-full flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/15 hover:bg-primary/8 transition-colors"
+        >
+          <CalendarDays className="w-5 h-5 text-primary" />
+          <div className="flex-1 text-left">
+            <p className="text-[12px] font-semibold text-foreground">Auto-generate from Meal Plan</p>
+            <p className="text-[10px] text-muted-foreground">Import ingredients from your weekly plan</p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-primary" />
+        </motion.button>
+
         {items.length === 0 ? (
           <div className="text-center py-12">
             <ClipboardList className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
@@ -135,7 +212,6 @@ export default function MarketList() {
               <ShoppingCart className="w-3.5 h-3.5" /> Browse Market <ArrowRight className="w-3.5 h-3.5" />
             </motion.button>
 
-            {/* Suggestions */}
             {suggestions.length > 0 && (
               <div className="mt-8 text-left">
                 <div className="flex items-center gap-1.5 mb-3">
