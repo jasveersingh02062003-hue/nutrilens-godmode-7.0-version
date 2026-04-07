@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion';
 import { Trophy } from 'lucide-react';
-import { useState } from 'react';
-import { getFoodImage } from '@/lib/food-images';
+import MarketImage from '@/components/market/MarketImage';
 
 interface TopValueItem {
   name: string;
@@ -19,18 +18,6 @@ interface TopValueItem {
 interface TopValueCardsProps {
   items: TopValueItem[];
   onItemTap: (name: string) => void;
-}
-
-function FadeImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
-  const [loaded, setLoaded] = useState(false);
-  return (
-    <img
-      src={src}
-      alt={alt}
-      onLoad={() => setLoaded(true)}
-      className={`${className} transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
-    />
-  );
 }
 
 export default function TopValueCards({ items, onItemTap }: TopValueCardsProps) {

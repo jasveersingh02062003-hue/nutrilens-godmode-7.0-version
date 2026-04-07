@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { getCityPrice, MARKET_ITEMS } from '@/lib/market-data';
-import { useMemo, useState } from 'react';
-import { getFoodImage } from '@/lib/food-images';
+import { useMemo } from 'react';
+import MarketImage from '@/components/market/MarketImage';
 
 interface QuickActionsRowProps {
   city: string;
@@ -9,18 +9,6 @@ interface QuickActionsRowProps {
 }
 
 const QUICK_ITEMS = ['mk_egg_white', 'mk_chicken_breast', 'mk_milk_toned', 'mk_paneer', 'mk_banana', 'mk_moong_dal'];
-
-function FadeImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
-  const [loaded, setLoaded] = useState(false);
-  return (
-    <img
-      src={src}
-      alt={alt}
-      onLoad={() => setLoaded(true)}
-      className={`${className} transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
-    />
-  );
-}
 
 export default function QuickActionsRow({ city, onItemTap }: QuickActionsRowProps) {
   const items = useMemo(() => {
