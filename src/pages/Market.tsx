@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ShoppingCart, PlusCircle } from 'lucide-react';
 import { ArrowLeft, Search, SlidersHorizontal, Store, MapPin, Clock, ChevronDown, Users, Trophy, TrendingDown, Scale, Wallet } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getMarketItems, getLastPriceUpdate, SUPPORTED_CITIES, resolveCity, type MarketItem, type MarketCategory, type MarketSort } from '@/lib/market-service';
@@ -29,6 +30,9 @@ const CATEGORIES: { key: MarketCategory; label: string; icon: string }[] = [
   { key: 'grain', label: 'Grains', icon: '🌾' },
   { key: 'fruits', label: 'Fruits', icon: '🍌' },
   { key: 'packed', label: 'Packed', icon: '📦' },
+  { key: 'frozen', label: 'Frozen', icon: '🧊' },
+  { key: 'drinks', label: 'Drinks', icon: '🍹' },
+  { key: 'spreads', label: 'Spreads', icon: '🥜' },
   { key: 'supplement', label: 'Supps', icon: '💊' },
 ];
 
@@ -460,6 +464,33 @@ export default function Market() {
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       <PESBadge pes={item.pes} color={item.pesColor as PESColor} size="sm" />
                       {item.isVerified && <span className="text-[8px] text-primary font-semibold">✅</span>}
+                      {/* Quick action buttons */}
+                      <div className="flex gap-1 mt-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toast.success(`${item.name} noted! Open Meal Planner to add it.`, { icon: '✅' });
+                            navigate('/planner');
+                          }}
+                          className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors"
+                          title="Add to Plan"
+                        >
+                          <PlusCircle className="w-3.5 h-3.5 text-primary" />
+                        </button>
+                        {item.platforms && item.platforms.length > 0 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const cheapest = [...item.platforms!].sort((a, b) => a.price - b.price)[0];
+                              window.open(cheapest.url, '_blank');
+                            }}
+                            className="w-6 h-6 rounded-full bg-secondary/10 flex items-center justify-center hover:bg-secondary/20 transition-colors"
+                            title="Buy"
+                          >
+                            <ShoppingCart className="w-3.5 h-3.5 text-secondary" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </button>
                   {/* Compare toggle */}

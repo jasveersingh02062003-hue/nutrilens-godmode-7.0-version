@@ -8,7 +8,7 @@ import { findPrice } from './price-database';
 
 // ─── Types ───
 
-export type MarketCategory = 'all' | 'protein' | 'vegetable' | 'dairy' | 'grain' | 'packed' | 'supplement' | 'dals' | 'fruits';
+export type MarketCategory = 'all' | 'protein' | 'vegetable' | 'dairy' | 'grain' | 'packed' | 'supplement' | 'dals' | 'fruits' | 'frozen' | 'drinks' | 'spreads';
 export type MarketSort = 'pes' | 'price' | 'protein';
 export type PackedCategory = 'protein_drink' | 'protein_bar' | 'ready_to_eat' | 'frozen' | 'spread' | 'supplement' | 'beverage' | 'snack';
 
@@ -308,9 +308,11 @@ export async function getMarketItems(
 ): Promise<MarketItem[]> {
   let items: MarketItem[] = [];
 
-  if (category === 'packed' || category === 'supplement') {
-    const packedCat = category === 'supplement' ? 'supplement' : undefined;
-    items = await getPackedProducts(packedCat);
+  if (category === 'packed' || category === 'supplement' || category === 'frozen' || category === 'drinks' || category === 'spreads') {
+    const catMap: Record<string, PackedCategory | undefined> = {
+      packed: undefined, supplement: 'supplement', frozen: 'frozen', drinks: 'beverage', spreads: 'spread',
+    };
+    items = await getPackedProducts(catMap[category]);
   } else if (category === 'all') {
     const fresh = await getFreshMarketItems(city, 'all');
     const packed = await getPackedProducts();
