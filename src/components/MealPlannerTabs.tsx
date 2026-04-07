@@ -1,10 +1,12 @@
 import { useState, useMemo, useRef, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Check, Plus, Search, Clock, Flame, Zap, X } from 'lucide-react';
+import { ShoppingCart, Check, Plus, Search, Clock, Flame, Zap, X, MapPin } from 'lucide-react';
 import { getWeekPlan, getCurrentWeekStart } from '@/lib/meal-planner-store';
 import { generateShoppingList } from '@/lib/meal-plan-generator';
 import { recipes, getRecipeById } from '@/lib/recipes';
 import { getRecipeImage } from '@/lib/recipe-images';
+import { estimateLiveCost } from '@/lib/live-price-service';
+import { useUserProfile } from '@/contexts/UserProfileContext';
 import type { WeekPlan } from '@/lib/meal-planner-store';
 import BudgetPlannerTab from './BudgetPlannerTab';
 import SurvivalKitSheet from './SurvivalKitSheet';
@@ -26,8 +28,11 @@ interface MealPlannerTabsProps {
 
 // ===== Groceries Sub-Tab =====
 function GroceriesTab({ plan }: { plan: WeekPlan }) {
+  const { profile } = useUserProfile();
+  const city = (profile as any)?.city || '';
   const [kitOpen, setKitOpen] = useState(false);
   const [savedKit, setSavedKit] = useState(() => getSavedSurvivalKit());
+  const [costEstimate, setCostEstimate] = useState<{ total: number; itemPrices: { name: string; cost: number; source: string }[] } | null>(null);
 
   const initialList = useMemo(() => {
     const planList = generateShoppingList(plan);
