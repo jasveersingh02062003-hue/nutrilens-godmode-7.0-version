@@ -14,6 +14,9 @@ export default function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Hide on market routes — MarketBottomNav takes over
+  if (location.pathname.startsWith('/market')) return null;
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/60 backdrop-blur-xl border-t border-border/50 pb-[env(safe-area-inset-bottom,0px)]">
       <div className="grid grid-cols-5 max-w-lg mx-auto h-16 px-1">

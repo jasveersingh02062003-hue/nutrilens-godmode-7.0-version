@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import BottomNav from "./components/BottomNav";
+import MarketBottomNav from "./components/MarketBottomNav";
 import { getProfile } from "./lib/store";
 import { getNotificationSettings, startNotificationScheduler, stopNotificationScheduler } from "./lib/notifications";
 import { UserProfileProvider, useUserProfile } from "./contexts/UserProfileContext";
