@@ -68,6 +68,7 @@ function CategoryThumbnail({ categoryKey, emoji }: { categoryKey: string; emoji:
 export default function MarketCategories() {
   const navigate = useNavigate();
   const { city, cityLabel, locationLoading, processedItems, toMarketItem, vegOnly } = useMarket();
+  const { user } = useAuth();
   const searchParams = new URLSearchParams(window.location.search);
   const initialCat = (searchParams.get('cat') as MarketTopCategory) || 'meat_seafood';
   const [activeCategory, setActiveCategory] = useState<MarketTopCategory>(initialCat);
@@ -75,6 +76,8 @@ export default function MarketCategories() {
   const [sort, setSort] = useState<SortMode>('pes');
   const [selectedItem, setSelectedItem] = useState<LegacyMarketItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+
+  const { ad: categoryAd, logImpression: logCatImpression, logClick: logCatClick } = useAdServing('category_promoted', { category: activeCategory });
 
   const allCategories = useMemo(() => {
     if (!vegOnly) return TOP_CATEGORIES;
