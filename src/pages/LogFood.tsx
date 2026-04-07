@@ -255,7 +255,19 @@ export default function LogFood() {
     const proteinTarget = profile2?.dailyProtein || 60;
     const totalProteinEaten = getDailyTotals(getDailyLog()).protein;
     const proteinPct = Math.min(100, Math.round((totalProteinEaten / proteinTarget) * 100));
-    toast.success(`${mealLabels[mealType]} logged ✅ Protein goal ${proteinPct}% done 💪`, { duration: 4000 });
+
+    // PES insight on meal log
+    const costAmount2 = mealCost?.amount || 0;
+    if (costAmount2 > 0 && totalProtein > 0) {
+      const pesVal = totalProtein / costAmount2;
+      const pesLabel = pesVal >= 0.6 ? 'Excellent value! 🟢' : pesVal >= 0.3 ? 'Fair value 🟡' : 'Low value 🔴';
+      toast.success(
+        `${mealLabels[mealType]} logged ✅ ₹${Math.round(costAmount2)} · PES ${pesVal.toFixed(2)} — ${pesLabel}`,
+        { duration: 5000 }
+      );
+    } else {
+      toast.success(`${mealLabels[mealType]} logged ✅ Protein goal ${proteinPct}% done 💪`, { duration: 4000 });
+    }
 
     // Show contextual correction toast if needed
     const mealToast = getContextualMealToast();
