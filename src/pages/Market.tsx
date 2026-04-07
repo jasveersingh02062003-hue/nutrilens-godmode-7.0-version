@@ -79,8 +79,8 @@ const SORT_OPTIONS: { key: SortMode; label: string }[] = [
 
 const FILTER_CHIPS: { key: FilterMode; label: string }[] = [
   { key: 'all', label: 'All' },
-  { key: 'veg', label: '🌱 Veg Only' },
-  { key: 'nonveg', label: '🥩 Non-Veg' },
+  { key: 'veg', label: 'Veg Only' },
+  { key: 'nonveg', label: 'Non-Veg' },
   { key: 'high_protein', label: 'High Protein' },
   { key: 'budget', label: 'Under ₹100' },
 ];
