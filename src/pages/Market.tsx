@@ -15,6 +15,7 @@ import PriceTrendChart from '@/components/PriceTrendChart';
 import MarketCompareBar from '@/components/MarketCompareBar';
 import ComparisonSheet from '@/components/ComparisonSheet';
 import PriceFreshnessBadge from '@/components/PriceFreshnessBadge';
+import MultiCityCompareSheet from '@/components/MultiCityCompareSheet';
 import { buildFromFood } from '@/lib/compare-helpers';
 import { INDIAN_FOODS } from '@/lib/indian-foods';
 import { scopedGet } from '@/lib/scoped-storage';
@@ -65,6 +66,7 @@ export default function Market() {
   const [compareItems, setCompareItems] = useState<MarketItem[]>([]);
   const [compareOpen, setCompareOpen] = useState(false);
   const [budgetFilter, setBudgetFilter] = useState<number | null>(null);
+  const [multiCityOpen, setMultiCityOpen] = useState(false);
 
   const rawCity = (profile as any)?.city || '';
   const cityInfo = useMemo(() => resolveCity(rawCity || 'India'), [rawCity]);
@@ -218,6 +220,12 @@ export default function Market() {
               <span>{lastUpdatedLabel}</span>
             </button>
           </div>
+          <button
+            onClick={() => setMultiCityOpen(true)}
+            className="px-2 py-1 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
+          >
+            <span className="text-[9px] font-bold text-muted-foreground">🏙️ Compare</span>
+          </button>
           <div className="px-2 py-1 rounded-lg bg-muted">
             <span className="text-[9px] font-bold text-muted-foreground">
               {/* FIRECRAWL_HOOK: Change to "LIVE" when Firecrawl is active */}
