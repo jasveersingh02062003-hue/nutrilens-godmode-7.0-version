@@ -24,7 +24,7 @@ const STORAGE_KEY = 'nutrilens_market_list';
 
 export default function MarketList() {
   const navigate = useNavigate();
-  const { city, cityLabel } = useMarket();
+  const { city, cityLabel, vegOnly } = useMarket();
   const [items, setItems] = useState<ListItem[]>([]);
   const [newItem, setNewItem] = useState('');
 
@@ -157,10 +157,10 @@ export default function MarketList() {
   const suggestions = useMemo(() => {
     const existingNames = items.map(i => i.name);
     return MARKET_ITEMS
-      .filter(m => m.protein >= 10 && m.basePrice <= 200 && !existingNames.includes(m.name))
+      .filter(m => m.protein >= 10 && m.basePrice <= 200 && !existingNames.includes(m.name) && (!vegOnly || m.isVeg))
       .sort((a, b) => b.protein - a.protein)
       .slice(0, 4);
-  }, [items]);
+  }, [items, vegOnly]);
 
   return (
     <div className="max-w-lg mx-auto min-h-screen bg-background pb-24">

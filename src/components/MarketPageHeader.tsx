@@ -1,9 +1,10 @@
-import { ArrowLeft, Store, MapPin, Search, X, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Store, MapPin, Search, X, ChevronDown, Leaf } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SUPPORTED_CITIES } from '@/lib/market-service';
 import { useUserProfile } from '@/contexts/UserProfileContext';
+import { useMarket } from '@/contexts/MarketContext';
 
 interface MarketPageHeaderProps {
   title?: string;
@@ -26,6 +27,7 @@ export default function MarketPageHeader({
 }: MarketPageHeaderProps) {
   const navigate = useNavigate();
   const { profile } = useUserProfile();
+  const { vegOnly, setVegOnly } = useMarket();
   const [searchOpen, setSearchOpen] = useState(showSearch);
   const [cityPickerOpen, setCityPickerOpen] = useState(false);
 
@@ -57,6 +59,20 @@ export default function MarketPageHeader({
             <ChevronDown className={`w-3 h-3 transition-transform ${cityPickerOpen ? 'rotate-180' : ''}`} />
           </button>
         </div>
+
+        {/* Veg toggle */}
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          onClick={() => setVegOnly(!vegOnly)}
+          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[10px] font-bold transition-all border ${
+            vegOnly
+              ? 'bg-green-500/15 text-green-600 border-green-500/30'
+              : 'bg-muted/80 text-muted-foreground border-transparent hover:bg-muted'
+          }`}
+        >
+          <Leaf className={`w-3 h-3 ${vegOnly ? 'text-green-600' : 'text-muted-foreground'}`} />
+          Veg
+        </motion.button>
 
         {/* Search toggle */}
         {onSearchChange && (

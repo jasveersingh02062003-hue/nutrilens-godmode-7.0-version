@@ -88,7 +88,7 @@ const FILTER_CHIPS: { key: FilterMode; label: string }[] = [
 export default function Market() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { city, cityLabel, detectedCity, isAutoDetected, locationLoading, handleCitySelect, processedItems, compareItems, toggleCompare, setCompareItems, compareData, toMarketItem } = useMarket();
+  const { city, cityLabel, detectedCity, isAutoDetected, locationLoading, handleCitySelect, processedItems, compareItems, toggleCompare, setCompareItems, compareData, toMarketItem, vegOnly } = useMarket();
 
   const [viewMode, setViewMode] = useState<MarketViewMode>('fresh');
   const [selectedCategory, setSelectedCategory] = useState<MarketTopCategory | null>(
@@ -120,6 +120,7 @@ export default function Market() {
 
   const filteredItems = useMemo(() => {
     let result = processedItems;
+    if (vegOnly) result = result.filter(i => i.isVeg);
     const allowedCategories = viewMode === 'fresh' ? FRESH_CATEGORIES : PACKED_CATEGORIES;
     result = result.filter(i => allowedCategories.includes(i.topCategory));
     if (selectedCategory) result = result.filter(i => i.topCategory === selectedCategory);
@@ -140,7 +141,7 @@ export default function Market() {
       case 'protein': result = [...result].sort((a, b) => b.protein - a.protein); break;
     }
     return result;
-  }, [processedItems, viewMode, selectedCategory, selectedSub, search, filter, sort]);
+  }, [processedItems, viewMode, selectedCategory, selectedSub, search, filter, sort, vegOnly]);
 
   const badgeMap = useMemo(() => {
     const map = new Map<string, 'popular' | 'best_seller' | 'new'>();
