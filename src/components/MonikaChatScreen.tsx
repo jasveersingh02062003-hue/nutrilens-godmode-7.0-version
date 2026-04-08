@@ -357,6 +357,24 @@ export default function MonikaChatScreen({ open, onClose, onDashboardRefresh }: 
     setMessages(prev => [...prev, rejectMsg]);
   }, []);
 
+  // ─── Sponsor click tracking ───
+  const handleSponsorClick = useCallback(async (sponsor: SponsorSuggestionAction) => {
+    try {
+      await supabase.functions.invoke('log-ad-event', {
+        body: {
+          event_type: 'click',
+          campaign_id: sponsor.campaignId,
+          creative_id: sponsor.creativeId,
+          placement_slot: 'monika_contextual',
+          user_id: (await supabase.auth.getUser()).data.user?.id,
+        },
+      });
+    } catch {}
+    if (sponsor.ctaUrl) {
+      window.open(sponsor.ctaUrl, '_blank', 'noopener,noreferrer');
+    }
+  }, []);
+
   if (!open) return null;
 
   const chatContent = (
