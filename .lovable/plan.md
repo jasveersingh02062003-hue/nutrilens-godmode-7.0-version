@@ -1,123 +1,118 @@
 
 
-# Nutrition-Gap-Aware Sponsored Recommendation Engine
+# Smart Market & Monetization — Phased Implementation Plan
 
-## What We're Building
+## Current State Summary
 
-A real-time recommendation engine that matches branded products to the user's **current nutritional gap + remaining budget**, then surfaces those recommendations consistently across Dashboard, Monika Chat, Meal Planner, Budget Planner, and Smart Market.
-
-Instead of static banner ads, the system says: *"You're 25g protein short, budget has ₹45 left. Try Yoga Bar Protein Bar (20g protein, ₹40) — PES 72"*
+- **Database**: Seeded — 118 city_prices, 123 packed_products, 350 price_history rows
+- **PES Formula**: Fixed in both `market-data.ts` and `market-service.ts` (normalized to per-100g)
+- **MarketContext**: Already queries `city_prices` DB with fallback to static multipliers
+- **Firecrawl**: API key configured, edge function deployed, but never triggered
+- **Admin**: `/admin/ads` page exists but has no auth guard
 
 ---
 
-## Architecture
+## Phase 1: Activate Firecrawl (One-Time Scrape)
+**Goal:** Run Firecrawl once now for 3 key cities to get real live prices into `city_prices`. No cron job — manual trigger only.
+
+### Steps:
+1. **Add unique constraint** on `city_prices(city, item_name, price_date)` via migration — required for the upsert in `firecrawl-prices` to work (currently it silently fails)
+2. **Trigger firecrawl-prices** edge function manually for Hyderabad, Mumbai, and Delhi using `supabase.functions.invoke()` — this scrapes BigBasket/Blinkit/FreshToHome for chicken, eggs, mutton, fish, tomato, onion, potato prices
+3. **Verify** the scrape worked by querying `city_prices` for today's date and confirming rows were inserted with `source = 'firecrawl'`
+4. **Update freshness badge** — the `PriceFreshnessBadge` already reads `lastUpdated` timestamps, so scraped data will automatically show "Live" instead of "Estimate"
+
+**Files changed:**
+- New migration: add unique constraint
+- No code changes — everything is already wired
+
+**Firecrawl credits used:** ~3 searches (1 per city) = 3 credits
+
+---
+
+## Phase 2: Enrich MarketItemDetailSheet (Amazon/Flipkart Level)
+**Goal:** Transform the thin detail page into a rich product page with micronutrients, serving size slider, health benefits, cooking tips, and buy CTAs.
+
+### Steps:
+1. **Extend `RawMarketItem` type** in `market-data.ts` — add optional fields:
+   - `micronutrients`: `{ iron, calcium, vitB12, zinc, vitD, vitC, omega3, selenium, folate }` (all per 100g)
+   - `healthBenefits`: string[] (e.g., "Rich in B12 for nerve health")
+   - `cookingTips`: string[] (e.g., "Grilling retains more protein than frying")
+   - `allergenTags`: string[] (for fresh items like fish, prawns)
+   - `buyLinks`: `{ platform: string; url: string }[]`
+
+2. **Populate micronutrient data** for all 350+ items in `MARKET_ITEMS` array — sourced from IFCT (Indian Food Composition Table) which we already reference in `ifct-reference.ts`
+
+3. **Build serving size slider** in `MarketItemDetailSheet`:
+   - Slider from 50g to 1000g (default 100g)
+   - All nutrition values recalculate live as user moves slider
+   - Price also recalculates (e.g., 200g chicken at ₹320/kg = ₹64)
+
+4. **Redesign the detail sheet** to Amazon-style sections:
+   - Hero: product image (larger), name, brand, PES badge, price
+   - Nutrition Facts: full table with macros + micros, serving size selector
+   - Health Benefits: bullet list with icons
+   - Cooking Tips: expandable section
+   - Price Trend: 7-day chart (already exists)
+   - Buy Online: platform cards with prices and external links
+   - Add to Meal Plan: prominent CTA button
+   - Report Price / Set Alert: secondary actions
+
+**Files changed:**
+- `src/lib/market-data.ts` — extend type + add micronutrient data
+- `src/components/MarketItemDetailSheet.tsx` — major redesign
+
+---
+
+## Phase 3: Admin Auth Guard + Ad System Activation
+**Goal:** Secure the admin page and make the ad system functional with test campaigns.
+
+### Steps:
+1. **Create `user_roles` table** with `admin` role enum (following the security pattern in system instructions)
+2. **Add auth guard** to `/admin/ads` — check `has_role(auth.uid(), 'admin')` before rendering
+3. **Seed test ad campaigns** — create 2-3 test brand accounts + campaigns + creatives targeting protein-gap users
+4. **Verify SmartProductNudge** renders on Dashboard when user has a protein gap and matching products exist
+
+**Files changed:**
+- New migration: `user_roles` table + `has_role()` function
+- `src/pages/AdAdmin.tsx` — add role check
+- Database inserts: test brand/campaign/creative data
+
+---
+
+## Phase 4: Market UX Polish
+**Goal:** Fix remaining UX gaps for a production-quality market experience.
+
+### Steps:
+1. **Prominent "Report Price" CTA** on market category pages (not just buried in detail sheet)
+2. **Savings Tracker** — calculate "This week you saved ₹X by choosing PES-optimized foods"
+3. **Multi-city comparison** — wire `MultiCityCompareSheet` to use real `city_prices` data instead of static multipliers
+4. **Market page performance** — add virtualization for 350+ items list
+
+**Files changed:**
+- `src/pages/MarketCategories.tsx` — report price button
+- New component: `SavingsTrackerCard.tsx`
+- `src/components/MultiCityCompareSheet.tsx` — use DB data
+- Market list components — add virtualization
+
+---
+
+## Phase 5: Future (Pre-Publish)
+These will be done when you're ready to publish:
+
+1. **Re-run Firecrawl** for all 10 cities to refresh prices
+2. **Set up pg_cron** for automated daily scraping (Category A items)
+3. **Government Mandi API** — register at data.gov.in, configure API key, wire `fetch-govt-prices`
+4. **Barcode scanner** for packed products
+5. **Affiliate link tracking** for Amazon/BigBasket
+
+---
+
+## Execution Order
 
 ```text
-┌─────────────────────────────────────────────┐
-│         useNutritionGapAds() Hook           │
-│  (single entry point for all surfaces)      │
-├─────────────────────────────────────────────┤
-│  1. Read today's logged food → compute gap  │
-│  2. Read remaining daily budget             │
-│  3. Query packed_products + ad_campaigns    │
-│     WHERE protein >= gap threshold          │
-│     AND price <= remaining budget           │
-│     AND pes_score >= 30                     │
-│  4. Return matched ProductRecommendation[]  │
-└──────────┬──────────┬───────────┬───────────┘
-           │          │           │
-    Dashboard    Monika Chat   Meal/Budget
-    NudgeCard    System Prompt  Planner Cards
+Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5
+(30 min)   (3 hrs)   (1 hr)    (2 hrs)   (pre-publish)
 ```
 
----
-
-## Implementation Steps
-
-### Step 1: Create Gap Calculation Utility
-**New file:** `src/lib/nutrition-gap-ads.ts`
-
-- `computeCurrentGaps()` — reads today's `DailyLog` via `getDailyTotals()`, compares against profile targets (`dailyProtein`, `dailyCalories`, `dailyCarbs`, `dailyFat`). Returns `{ proteinGap, calorieGap, carbGap, fatGap }`.
-- `getRemainingBudget()` — uses `getUnifiedBudget()` daily budget minus today's logged meal costs. Returns `remainingBudget: number`.
-- `matchProducts(gaps, budget)` — queries `packed_products` table filtered by: `protein >= min(gaps.proteinGap, 10)`, `selling_price <= budget`, `pes_score >= 30`, ordered by `cost_per_gram_protein ASC`. Returns top 3 matches.
-- `matchSponsoredProducts(gaps, budget)` — same logic but joins against `ad_campaigns` + `ad_creatives` for active sponsored products. Sponsored results get priority over organic matches.
-
-### Step 2: Create `useNutritionGapAds` Hook
-**New file:** `src/hooks/useNutritionGapAds.ts`
-
-- Wraps `computeCurrentGaps()` + `matchSponsoredProducts()` in a React Query call.
-- Accepts `surface: 'dashboard' | 'chat' | 'planner' | 'market' | 'budget'` to vary the messaging tone.
-- Returns `{ recommendations: ProductRecommendation[], gaps, remainingBudget, isLoading }`.
-- Each `ProductRecommendation` includes: product info, campaign/creative IDs (if sponsored), a pre-built suggestion message, and impression/click tracking functions.
-- Respects the existing session frequency cap from `useAdServing`.
-
-### Step 3: Create Smart Recommendation Card Component
-**New file:** `src/components/SmartProductNudge.tsx`
-
-- Renders a card showing: the user's gap ("You need 25g more protein"), the product suggestion with price + PES badge, and a budget impact line ("₹40 — fits your remaining ₹45 budget").
-- Two variants: `compact` (inline in planner/budget) and `full` (dashboard).
-- IntersectionObserver for impression tracking. Click logs via `log-ad-event`.
-- "Sponsored" badge only shown for paid campaigns; organic `packed_products` matches show as "Suggested".
-
-### Step 4: Wire into Dashboard
-**Modify:** `src/pages/Dashboard.tsx`
-
-- Replace/augment existing `DashboardSponsoredCard` slots with `SmartProductNudge` using `useNutritionGapAds('dashboard')`.
-- Place after `ProteinGapNudgeCard` — the organic nudge says "you're short", the sponsored nudge says "here's a product that fixes it".
-- Only renders when there's both a gap AND a matching product.
-
-### Step 5: Wire into Monika Chat
-**Modify:** `supabase/functions/monika-chat/index.ts`
-
-- Update the system prompt injection: instead of just passing campaign headlines, pass the user's computed gaps + matched products with prices.
-- Monika can now say: *"You're 30g short on protein and have ₹50 left. A Yoga Bar (₹40, 20g protein, PES 72) would close most of that gap. Want me to add it?"*
-
-### Step 6: Wire into Meal Planner
-**Modify:** `src/components/MealPlanDashboard.tsx`
-
-- When a meal slot is empty or under-target, show a `SmartProductNudge compact` card below the slot suggesting a product that fills the calorie/protein gap for that specific meal.
-- Uses `useNutritionGapAds('planner')` with meal-specific gap calculation.
-
-### Step 7: Wire into Budget Planner
-**Modify:** `src/components/BudgetPlannerTab.tsx`
-
-- In the "Smart Savings" section, show cost-efficient sponsored products: *"Switch to [Brand] protein bar — saves ₹15/day vs chicken for same protein."*
-- Uses `cost_per_gram_protein` from `packed_products` to compute savings.
-
-### Step 8: Update `ad_targeting` Table Usage
-**Modify:** `src/hooks/useAdServing.ts`
-
-- When fetching campaigns, also join `ad_targeting` and filter: `min_protein_gap <= user's actual gap` and `max_user_budget >= user's remaining budget`.
-- This lets brands target only users who actually need their product category.
-
-### Step 9: Add CPA Tracking
-**New migration:** Add `ad_conversions` table
-
-- Columns: `id`, `campaign_id`, `user_id`, `conversion_type` (add_to_plan, add_to_cart, logged), `product_id`, `created_at`.
-- When a user adds a recommended product to their meal plan or logs it, fire a conversion event.
-- Edge function `log-ad-event` updated to handle `event_type: 'conversion'`.
-
----
-
-## Database Changes
-
-1. **New table `ad_conversions`**: tracks when a recommended product is actually added/logged.
-2. **No schema changes** to `packed_products` or `ad_campaigns` — existing columns suffice.
-
-## Files Summary
-
-| Action | File |
-|--------|------|
-| New | `src/lib/nutrition-gap-ads.ts` |
-| New | `src/hooks/useNutritionGapAds.ts` |
-| New | `src/components/SmartProductNudge.tsx` |
-| Modify | `src/pages/Dashboard.tsx` |
-| Modify | `src/components/MealPlanDashboard.tsx` |
-| Modify | `src/components/BudgetPlannerTab.tsx` |
-| Modify | `supabase/functions/monika-chat/index.ts` |
-| Modify | `src/hooks/useAdServing.ts` |
-| Modify | `supabase/functions/log-ad-event/index.ts` |
-| Migration | `ad_conversions` table |
-
-No breaking changes — all recommendations return empty arrays when no products match, so existing UI is unaffected.
+We start with Phase 1 (Firecrawl activation) since it's quick, uses minimal credits (3 only), and immediately makes the app show real data.
 
