@@ -269,7 +269,7 @@ export const MARKET_ITEMS: RawMarketItem[] = [
   { id: 'mk_buttermilk', name: 'Buttermilk / Chaas', emoji: '🥛', topCategory: 'dairy', subcategory: 'milk_curd', basePrice: 20, unit: 'liter', protein: 1.5, calories: 25, carbs: 3, fat: 0.5, fiber: 0, servingDesc: 'per 100ml', isVeg: true, tags: ['probiotic', 'budget'] },
 
   // ─── PANEER & CHEESE ───
-  { id: 'mk_paneer', name: 'Paneer', emoji: '🧀', topCategory: 'dairy', subcategory: 'paneer_cheese', basePrice: 360, unit: 'kg', protein: 18, calories: 265, carbs: 1.2, fat: 20, fiber: 0, servingDesc: 'per 100g', isVeg: true, tags: ['high_protein', 'calcium_rich'] },
+  { id: 'mk_paneer', name: 'Paneer', emoji: '🧀', topCategory: 'dairy', subcategory: 'paneer_cheese', basePrice: 360, unit: 'kg', protein: 18, calories: 265, carbs: 1.2, fat: 20, fiber: 0, servingDesc: 'per 100g', isVeg: true, tags: ['high_protein', 'calcium_rich'], micro: { iron: 0.2, calcium: 208, vitB12: 0.8, zinc: 2.7, vitD: 20, vitA: 82, folate: 37 }, healthBenefits: ['High calcium (208mg) — strengthens bones & teeth', 'Good B12 source for vegetarians', 'Complete protein with all essential amino acids'], cookingTips: ['Soak in warm water before cooking for softer texture', 'Grill or air-fry instead of deep frying to save fat', 'Add to curries at the end — overheating makes it rubbery'] },
 
   // ─── GHEE & BUTTER ───
   { id: 'mk_ghee', name: 'Desi Ghee', emoji: '🧈', topCategory: 'dairy', subcategory: 'ghee_butter', basePrice: 600, unit: 'kg', protein: 0, calories: 900, carbs: 0, fat: 100, fiber: 0, servingDesc: 'per 100g', isVeg: true, tags: ['cooking_fat'] },
