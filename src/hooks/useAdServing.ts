@@ -32,6 +32,9 @@ export function useAdServing(placementSlot: string, options?: UseAdServingOption
   const { data: ad, isLoading } = useQuery({
     queryKey: ['ad-serving', placementSlot, options?.category, options?.diet],
     queryFn: async (): Promise<AdCreativeData | null> => {
+      // Session frequency cap
+      if (sessionImpressionCount >= MAX_SESSION_IMPRESSIONS) return null;
+
       const today = new Date().toISOString().split('T')[0];
 
       // Query active campaigns for this slot
