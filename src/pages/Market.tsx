@@ -264,6 +264,7 @@ export default function Market() {
                 <MarketHeroSection bestValue={bestValue} biggestDrop={biggestDrop} city={cityLabel} onTap={handleItemTapByName} />
                 <QuickActionsRow city={city || 'India'} onItemTap={handleItemTapByName} />
                 <TopValueCards items={topValueItems} onItemTap={handleItemTapByName} />
+                <SavingsTrackerCard />
                 <CategoryGridHome onCategoryTap={handleCategoryNav} />
                 <EducationCard onItemTap={handleItemTapByName} />
                 <PriceDropsRow items={priceDrops} onItemTap={handleItemTapByName} />
