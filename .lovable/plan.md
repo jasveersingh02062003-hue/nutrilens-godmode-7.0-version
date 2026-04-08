@@ -1,59 +1,94 @@
 
 
-# Progress Review & Next Steps
+# Actual Gaps — Corrected Audit + Implementation Plan
 
-## Completed
+Your audit report is **outdated on many points**. Here's the reality based on live database queries:
 
-| Phase | Item | Status |
-|-------|------|--------|
-| **Phase 1** | Firecrawl edge function deployed | Done |
-| **Phase 1** | Unique constraint on city_prices | Done |
-| **Phase 2** | MarketItemDetailSheet redesign with micronutrients, serving slider | Done |
-| **Phase 3** | `user_roles` table + `has_role()` function | Done |
-| **Phase 3** | Admin auth guard on `/admin/ads` | Done |
-| **Phase 3** | Test ad campaigns seeded (Yoga Bar, MuscleBlaze, Amul Pro) | Done |
-| **Phase 4** | Report Price FAB on MarketCategories | Done |
-| **Phase 4** | SavingsTrackerCard created + wired into Market page | Done |
-| **Phase 4** | MultiCityCompareSheet verified using DB data | Done |
-| **Phase 5** | `pg_cron` + `pg_net` extensions enabled (migration exists) | Done |
-| **Phase 5** | Cron job SQL inserted (volatile-daily, medium-biweekly, full-monthly) | Done |
+## Already Done (Audit Says Missing, But Actually Complete)
 
-## Remaining Phase 5 Items (Pre-Publish)
+| Audit Claim | Reality |
+|---|---|
+| packed_products = 0 rows | **123 rows** in DB |
+| city_prices = 0 rows | **131 rows** (9 cities, 31 items) |
+| price_history = 0 rows | **350 rows** |
+| No unique constraint on city_prices | **Exists**: `city_prices_city_item_date_unique` |
+| No pg_cron jobs | **4 jobs active**: volatile-daily, medium-biweekly, full-monthly, price-alerts-hourly |
+| PES formula mismatch | **Fixed** in market-service.ts line 271-272 (normalizes to per-100g) |
+| No admin auth guard | **Built** — AdAdmin.tsx uses `has_role()` RPC check (lines 110-117) |
+| No barcode scanner | **Built** — BarcodeScanner.tsx exists, wired to MarketPageHeader |
+| No affiliate links | **Built** — 10 products have barcodes + affiliate data, MarketItemDetailSheet has "Buy Online" section |
+| No micronutrients | **Built** — MarketItemDetailSheet has full micronutrient table (Iron, Calcium, B12, Zinc, etc.) |
+| No serving size selector | **Built** — Slider for 50g-1000g with live recalculation |
+| No savings tracker | **SavingsTrackerCard** exists and is wired to Market page |
+| No "Report a Price" CTA | **Report Price FAB** on MarketCategories |
+| No multi-city comparison | **MultiCityCompareSheet** wired with DB data |
 
-| Item | Description | Effort |
-|------|-------------|--------|
-| **Barcode scanner** | Camera-based barcode scanning → `packed_products` lookup | ~2 hrs |
-| **Affiliate link tracking** | Amazon/BigBasket referral links on packed product pages | ~1 hr |
-| **Government Mandi API** | Wire `fetch-govt-prices` edge function (needs data.gov.in API key) | Blocked on API key |
+---
 
-## Recommendation: Barcode Scanner Next
+## Actual Remaining Gaps (7 items)
 
-The barcode scanner is the highest-impact remaining item — it turns the packed_products table (123 rows already seeded) into a scannable, shoppable experience.
+### P0 — Critical (3 items)
 
-### Implementation Plan
+**1. Government Mandi API is still a placeholder**
+- `fetch-govt-prices` returns empty array
+- Blocked on your data.gov.in API key registration
+- Effort: 1 hr (once you provide the key)
 
-**Step 1: Add barcode scanning library**
-Install `@nicolo-ribaudo/html5-qrcode` (lightweight, works in mobile browsers, supports EAN-13/UPC barcodes).
+**2. 113 packed_products have no barcode or affiliate links**
+- Only 10/123 products have barcodes seeded
+- Barcode scanner won't find most products
+- Effort: 1 hr — seed barcodes for top 50 products
 
-**Step 2: Create BarcodeScanner component**
-- Camera permission request with fallback messaging
-- Live viewfinder with scan region overlay
-- On scan: query `packed_products` table by matching product name/brand (barcode column to be added)
-- Show product detail card with nutrition, PES score, price
+**3. No user_roles seeded — admin page inaccessible**
+- `user_roles` table has 0 rows
+- Nobody can actually access /admin/ads
+- Effort: 5 min — insert your user ID as admin
 
-**Step 3: Add barcode column to packed_products**
-- Migration: `ALTER TABLE packed_products ADD COLUMN barcode text;`
-- Add index for fast lookup
-- Seed known barcodes for top products (Yoga Bar, MuscleBlaze, Amul, etc.)
+### P1 — Important (2 items)
 
-**Step 4: Wire into Market page**
-- Add scan button (camera icon) to Market page header
-- Open BarcodeScanner as a full-screen sheet
-- On successful scan → navigate to product detail or show inline result
+**4. No push notification delivery for price alerts**
+- `check-price-alerts` cron runs hourly but only checks thresholds
+- No actual notification delivery (no FCM/Web Push configured)
+- Effort: 3 hrs
 
-### Files Changed
-- New: `src/components/BarcodeScanner.tsx`
-- Edit: `src/pages/Market.tsx` — add scan button
-- Edit: `src/components/MarketPageHeader.tsx` — scan icon in header
-- New migration: add `barcode` column to `packed_products`
+**5. Market page has no pagination/virtualization**
+- 350+ fresh items + 123 packed = ~470 items loading at once
+- Will cause performance issues on low-end phones
+- Effort: 2 hrs
+
+### P2 — Nice to Have (2 items)
+
+**6. No wearable integration (Google Fit)**
+- `GoogleFitSheet` component exists but is not connected
+- Effort: 4 hrs
+
+**7. No restaurant menu integration (Swiggy/Zomato)**
+- Competitive gap vs HealthifyMe
+- Effort: 5 hrs
+
+---
+
+## Implementation Plan
+
+### Step 1: Seed admin role (5 min)
+Insert your user ID into `user_roles` with `admin` role so you can access /admin/ads.
+
+### Step 2: Seed remaining barcodes (1 hr)
+Add real EAN-13 barcodes for top 50 packed products (protein bars, drinks, supplements) so the barcode scanner has meaningful coverage.
+
+### Step 3: Market page virtualization (2 hrs)
+Add `react-window` or intersection-observer-based lazy loading to prevent 470+ items rendering at once.
+
+### Step 4: Wire Government API (1 hr, blocked on your API key)
+Complete `fetchMandiPrices()` with real data.gov.in API call, mandi-to-city mapping, and retail markup application.
+
+### Step 5: Push notifications for price alerts (3 hrs)
+Implement Web Push API with service worker for price alert delivery.
+
+### Steps 6-7: Wearable + restaurant integrations (9 hrs total)
+Future sprint items.
+
+---
+
+**Bottom line: Your system is at ~75% health, not 30%. The architecture AND data are live. The main gaps are: more barcode coverage, admin role seeding, and the govt API key from you.**
 
