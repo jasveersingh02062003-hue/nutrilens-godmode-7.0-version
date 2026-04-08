@@ -315,8 +315,9 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    // Fetch active sponsored products for monika_contextual slot
+    // Fetch active sponsored products for monika_contextual slot + gap-aware matching
     let sponsoredProducts: any[] = [];
+    let gapAwareProducts: any[] = [];
     try {
       const supabase = createClient(
         Deno.env.get("SUPABASE_URL")!,
@@ -328,14 +329,15 @@ serve(async (req) => {
         .select(`
           id, campaign_name, pes_score, target_diet, budget_total, budget_spent,
           brand_accounts!inner(brand_name),
-          ad_creatives!inner(id, headline, subtitle, cta_text, cta_url, image_url, is_active)
+          ad_creatives!inner(id, headline, subtitle, cta_text, cta_url, image_url, is_active),
+          ad_targeting(min_protein_gap, max_user_budget, meal_context)
         `)
         .eq("status", "active")
         .eq("placement_slot", "monika_contextual")
         .gte("pes_score", 30)
         .lte("start_date", today)
         .gte("end_date", today)
-        .limit(3);
+        .limit(5);
 
       if (campaigns && campaigns.length > 0) {
         sponsoredProducts = campaigns
@@ -358,6 +360,34 @@ serve(async (req) => {
               pesScore: c.pes_score,
             };
           });
+      }
+
+      // Fetch gap-aware products from packed_products
+      const proteinGap = userContext?.realTimeStatus?.remainingProtein || userContext?.proteinGap || 0;
+      const remainingBudget = userContext?.realTimeStatus?.remainingBudget || 0;
+
+      if (proteinGap > 5 && remainingBudget > 10) {
+        const { data: products } = await supabase
+          .from("packed_products")
+          .select("product_name, brand, protein, calories, selling_price, mrp, pes_score, cost_per_gram_protein")
+          .gte("protein", Math.min(proteinGap, 10))
+          .gte("pes_score", 30)
+          .order("cost_per_gram_protein", { ascending: true })
+          .limit(3);
+
+        if (products) {
+          gapAwareProducts = products
+            .filter((p: any) => (p.selling_price || p.mrp) <= remainingBudget)
+            .map((p: any) => ({
+              productName: p.product_name,
+              brand: p.brand,
+              protein: p.protein,
+              calories: p.calories,
+              price: p.selling_price || p.mrp,
+              pesScore: p.pes_score,
+              costPerGramProtein: p.cost_per_gram_protein,
+            }));
+        }
       }
     } catch (e) {
       console.error("Failed to fetch sponsored products:", e);
@@ -401,6 +431,23 @@ When suggesting, output this action block:
 \`\`\`
 `;
     }
+
+    // Inject gap-aware product recommendations
+    if (gapAwareProducts.length > 0) {
+      systemPrompt += `
+
+═══════════════════════════════════════
+NUTRITION GAP-AWARE PRODUCT RECOMMENDATIONS
+═══════════════════════════════════════
+
+The user has a protein gap of ${userContext?.realTimeStatus?.remainingProtein || '?'}g and remaining budget of ₹${userContext?.realTimeStatus?.remainingBudget || '?'}.
+
+These products fit their gap AND budget. Suggest them naturally when discussing nutrition, protein, or snacks:
+
+${JSON.stringify(gapAwareProducts, null, 2)}
+
+Frame suggestions as: "You still need Xg protein — a ${gapAwareProducts[0]?.productName || 'product'} (${gapAwareProducts[0]?.protein || '?'}g protein, ₹${gapAwareProducts[0]?.price || '?'}) would close that gap nicely."
+`;
 
     const apiMessages: any[] = [{ role: "system", content: systemPrompt }];
 
