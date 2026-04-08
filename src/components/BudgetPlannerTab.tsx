@@ -1630,6 +1630,9 @@ export default function BudgetPlannerTab({ onOnboardingComplete }: { onOnboardin
       {/* Smart Swaps */}
       <SmartSwapsCard />
 
+      {/* Gap-aware product recommendations */}
+      <SmartProductNudge surface="budget" variant="compact" />
+
       {/* Recent Expenses (inline on dashboard) */}
       <RecentExpensesInline
         expenses={allExpenses}
