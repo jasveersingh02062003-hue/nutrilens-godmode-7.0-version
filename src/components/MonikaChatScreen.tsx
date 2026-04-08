@@ -423,8 +423,8 @@ export default function MonikaChatScreen({ open, onClose, onDashboardRefresh }: 
                 )}
               </div>
 
-              {/* Action confirmation buttons */}
-              {m.actions && m.actions.length > 0 && m.actionsConfirmed === undefined && (
+              {/* Action confirmation buttons — exclude sponsor_suggestion from confirm/reject */}
+              {m.actions && m.actions.length > 0 && m.actionsConfirmed === undefined && !m.actions.every(a => a.type === 'sponsor_suggestion') && (
                 <div className="px-4 pb-3 flex gap-2">
                   <button
                     onClick={() => handleConfirmActions(m.id)}
@@ -443,6 +443,34 @@ export default function MonikaChatScreen({ open, onClose, onDashboardRefresh }: 
               {m.actionsConfirmed === true && !m.reportUrl && (
                 <div className="px-4 pb-2 text-[10px] text-primary font-medium">✅ Logged</div>
               )}
+
+              {/* Inline Sponsored Product Card */}
+              {m.actions?.filter(a => a.type === 'sponsor_suggestion').map((action, i) => {
+                const sponsor = action as SponsorSuggestionAction;
+                return (
+                  <div key={i} className="mx-4 mb-3 rounded-xl border border-border/50 bg-gradient-to-br from-primary/[0.03] to-accent/[0.03] overflow-hidden">
+                    <div className="px-3 py-2.5">
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <span className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground/50 bg-muted/30 px-1 py-0.5 rounded">Sponsored</span>
+                        {sponsor.pesScore > 0 && (
+                          <span className="text-[9px] font-bold text-green-600 dark:text-green-400">PES {sponsor.pesScore}</span>
+                        )}
+                      </div>
+                      <p className="text-xs font-semibold text-foreground">{sponsor.productName}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">by {sponsor.brandName}</p>
+                      {sponsor.ctaUrl && (
+                        <button
+                          onClick={() => handleSponsorClick(sponsor)}
+                          className="mt-2 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-[11px] font-semibold border border-primary/20 active:scale-[0.97] transition-transform"
+                        >
+                          {sponsor.ctaText} →
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
               {/* Report download button */}
               {m.reportUrl && (
                 <div className="px-4 pb-3">
