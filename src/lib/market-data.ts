@@ -407,7 +407,7 @@ export const PRICE_SEARCH_KEYS: Record<string, string> = {
 };
 
 export function getMarketPESColor(pes: number): 'green' | 'yellow' | 'red' {
-  if (pes >= 0.15) return 'green';
-  if (pes >= 0.05) return 'yellow';
+  if (pes >= 0.8) return 'green';
+  if (pes >= 0.3) return 'yellow';
   return 'red';
 }
