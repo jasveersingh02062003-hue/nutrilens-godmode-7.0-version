@@ -323,11 +323,12 @@ export async function getPackedProducts(category?: PackedCategory): Promise<Mark
     isVerified: p.is_verified,
     imageUrl: p.image_url || undefined,
     lastUpdated: p.updated_at,
-    priceChange: 0, // Packed products have MRP, no daily change
+    priceChange: 0,
     carbs: p.carbs,
     fat: p.fat,
     fiber: p.fiber,
     sugar: p.sugar,
+    affiliateLinks: (p.affiliate_links as any[]) ?? [],
   }));
 }
 
