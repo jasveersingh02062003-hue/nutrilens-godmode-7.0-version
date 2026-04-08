@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { X, Send, Sparkles, Loader2, Mic, MicOff, Camera, Check, XCircle, Download, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
-import { parseActions, executeAction, buildMonikaContext, generateReportHTML, type MonikaAction, type ReportAction } from '@/lib/monika-actions';
+import { parseActions, executeAction, buildMonikaContext, generateReportHTML, type MonikaAction, type ReportAction, type SponsorSuggestionAction } from '@/lib/monika-actions';
 import { supabase } from '@/integrations/supabase/client';
 import type { MealSource } from '@/lib/store';
 import ContextPickerSheet from '@/components/ContextPickerSheet';
