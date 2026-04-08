@@ -448,6 +448,7 @@ ${JSON.stringify(gapAwareProducts, null, 2)}
 
 Frame suggestions as: "You still need Xg protein — a ${gapAwareProducts[0]?.productName || 'product'} (${gapAwareProducts[0]?.protein || '?'}g protein, ₹${gapAwareProducts[0]?.price || '?'}) would close that gap nicely."
 `;
+    }
 
     const apiMessages: any[] = [{ role: "system", content: systemPrompt }];
 
