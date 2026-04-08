@@ -223,6 +223,27 @@ export default function MonikaChatScreen({ open, onClose, onDashboardRefresh }: 
           }
         }
       }
+      // After stream, log impressions for any sponsor suggestions
+      const { actions: finalActions } = parseActions(fullResponse);
+      for (const action of finalActions) {
+        if (action.type === 'sponsor_suggestion') {
+          const sponsor = action as SponsorSuggestionAction;
+          try {
+            const userId = (await supabase.auth.getUser()).data.user?.id;
+            if (userId) {
+              await supabase.functions.invoke('log-ad-event', {
+                body: {
+                  event_type: 'impression',
+                  campaign_id: sponsor.campaignId,
+                  creative_id: sponsor.creativeId,
+                  placement_slot: 'monika_contextual',
+                  user_id: userId,
+                },
+              });
+            }
+          } catch {}
+        }
+      }
     } catch (e: any) {
       console.error('Monika chat error:', e);
       setMessages(prev => [...prev, {
