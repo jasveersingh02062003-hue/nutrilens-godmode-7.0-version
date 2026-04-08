@@ -60,7 +60,18 @@ export interface ReportAction {
   endDate: string;
 }
 
-export type MonikaAction = MealAction | ActivityAction | WaterAction | ReportAction;
+export interface SponsorSuggestionAction {
+  type: 'sponsor_suggestion';
+  campaignId: string;
+  creativeId: string;
+  brandName: string;
+  productName: string;
+  ctaText: string;
+  ctaUrl?: string;
+  pesScore: number;
+}
+
+export type MonikaAction = MealAction | ActivityAction | WaterAction | ReportAction | SponsorSuggestionAction;
 
 // ─── Parse actions from Monica's streamed text ───
 
