@@ -411,7 +411,25 @@ export default function MarketCategories() {
         onOpenChange={setDetailOpen}
         item={selectedItem}
         city={city || 'hyderabad'}
-        onReportPrice={() => {}}
+        onReportPrice={() => setReportPriceOpen(true)}
+      />
+
+      {/* Floating Report Price Button */}
+      <motion.button
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ delay: 0.5, type: 'spring' }}
+        onClick={() => setReportPriceOpen(true)}
+        className="fixed bottom-24 right-4 z-30 flex items-center gap-2 px-4 py-3 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25"
+      >
+        <MessageSquarePlus className="w-4 h-4" />
+        <span className="text-xs font-bold">Report Price</span>
+      </motion.button>
+
+      <ReportPriceSheet
+        open={reportPriceOpen}
+        onOpenChange={setReportPriceOpen}
+        city={city || 'hyderabad'}
       />
     </div>
   );
