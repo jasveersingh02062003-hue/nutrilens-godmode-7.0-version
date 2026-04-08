@@ -99,7 +99,6 @@ export default function AdAdmin() {
     target_categories: '' as string,
     start_date: new Date().toISOString().split('T')[0],
     end_date: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
-    // Creative fields
     headline: '',
     subtitle: '',
     image_url: '',
@@ -108,7 +107,19 @@ export default function AdAdmin() {
     format: 'native',
   });
 
-  // Fetch brands (using service role via edge function would be ideal, but for admin we query directly)
+  // Admin role check
+  const { data: isAdmin, isLoading: isAdminLoading } = useQuery({
+    queryKey: ['admin-role-check', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return false;
+      const { data } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' });
+      return data === true;
+    },
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Fetch brands
   const { data: brands = [] } = useQuery({
     queryKey: ['admin-brands'],
     queryFn: async () => {
@@ -152,6 +163,43 @@ export default function AdAdmin() {
     },
     staleTime: 30000,
   });
+
+  // Auth guards (after all hooks)
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <Shield className="w-12 h-12 text-muted-foreground mx-auto" />
+          <p className="text-sm font-semibold text-foreground">Sign in required</p>
+          <button onClick={() => navigate('/auth')} className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold">Sign In</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isAdminLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-2">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs text-muted-foreground">Verifying access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <Shield className="w-12 h-12 text-destructive mx-auto" />
+          <p className="text-sm font-semibold text-foreground">Access Denied</p>
+          <p className="text-xs text-muted-foreground">You need admin privileges to access this page.</p>
+          <button onClick={() => navigate('/')} className="px-4 py-2 rounded-xl bg-muted text-foreground text-sm font-semibold">Go Home</button>
+        </div>
+      </div>
+    );
+  }
 
   const handleCreateBrand = async () => {
     if (!brandForm.brand_name.trim()) { toast.error('Brand name required'); return; }
