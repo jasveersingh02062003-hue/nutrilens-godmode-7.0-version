@@ -458,6 +458,7 @@ export type Database = {
       packed_products: {
         Row: {
           allergens: Json | null
+          barcode: string | null
           brand: string
           calories: number | null
           carbs: number | null
@@ -481,6 +482,7 @@ export type Database = {
         }
         Insert: {
           allergens?: Json | null
+          barcode?: string | null
           brand: string
           calories?: number | null
           carbs?: number | null
@@ -504,6 +506,7 @@ export type Database = {
         }
         Update: {
           allergens?: Json | null
+          barcode?: string | null
           brand?: string
           calories?: number | null
           carbs?: number | null
