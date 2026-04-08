@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback, type ReactNode } from 'react';
-import { MARKET_ITEMS, getCityPrice, calculateMarketPES, getMarketPESColor, FRESH_CATEGORIES, type RawMarketItem } from '@/lib/market-data';
+import { MARKET_ITEMS, getCityPrice, calculateMarketPES, getMarketPESColor, FRESH_CATEGORIES, PRICE_SEARCH_KEYS, type RawMarketItem } from '@/lib/market-data';
 import { type MarketItem as LegacyMarketItem } from '@/lib/market-service';
 import { detectCity } from '@/lib/auto-location';
 import { useUserProfile } from '@/contexts/UserProfileContext';
