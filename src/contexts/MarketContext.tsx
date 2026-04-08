@@ -146,18 +146,23 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   }, [city, livePrices]);
 
   const toMarketItem = useCallback((item: RawMarketItem, priceChange?: number) => {
-    return convertToMarketItem(item, city || 'India', priceChange);
-  }, [city]);
+    const searchKey = PRICE_SEARCH_KEYS[item.name]?.toLowerCase();
+    const liveMatch = searchKey ? livePrices[searchKey] : livePrices[item.name.toLowerCase()];
+    return convertToMarketItem(item, city || 'India', priceChange, liveMatch);
+  }, [city, livePrices]);
 
   const toggleCompare = useCallback((item: ProcessedMarketItem, e: React.MouseEvent) => {
     e.stopPropagation();
-    const marketItem = convertToMarketItem(MARKET_ITEMS.find(m => m.id === item.id)!, city || 'India');
+    const raw = MARKET_ITEMS.find(m => m.id === item.id)!;
+    const searchKey = PRICE_SEARCH_KEYS[raw.name]?.toLowerCase();
+    const liveMatch = searchKey ? livePrices[searchKey] : livePrices[raw.name.toLowerCase()];
+    const marketItem = convertToMarketItem(raw, city || 'India', undefined, liveMatch);
     setCompareItems(prev => {
       if (prev.find(i => i.id === item.id)) return prev.filter(i => i.id !== item.id);
       if (prev.length >= 4) { toast.error('Max 4 items'); return prev; }
       return [...prev, marketItem];
     });
-  }, [city]);
+  }, [city, livePrices]);
 
   const compareData = useMemo(() => {
     return compareItems.map(item => {
