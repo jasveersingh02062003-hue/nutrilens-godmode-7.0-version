@@ -107,7 +107,19 @@ export default function AdAdmin() {
     format: 'native',
   });
 
-  // Fetch brands (using service role via edge function would be ideal, but for admin we query directly)
+  // Admin role check
+  const { data: isAdmin, isLoading: isAdminLoading } = useQuery({
+    queryKey: ['admin-role-check', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return false;
+      const { data } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' });
+      return data === true;
+    },
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Fetch brands
   const { data: brands = [] } = useQuery({
     queryKey: ['admin-brands'],
     queryFn: async () => {
