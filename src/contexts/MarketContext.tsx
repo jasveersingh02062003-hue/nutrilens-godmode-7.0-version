@@ -100,15 +100,48 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     toast.success(`📍 Prices updated for ${selectedCity}`);
   }, [updateProfile, user?.id]);
 
+  // Fetch live prices from city_prices DB
+  const [livePrices, setLivePrices] = useState<Record<string, { price: number; updatedAt: string }>>({});
+
+  useEffect(() => {
+    const resolvedCity = city || 'India';
+    if (resolvedCity === 'India') return;
+    supabase
+      .from('city_prices')
+      .select('item_name, avg_price, updated_at')
+      .ilike('city', resolvedCity.toLowerCase())
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          const prices: Record<string, { price: number; updatedAt: string }> = {};
+          for (const row of data) {
+            prices[row.item_name.toLowerCase()] = { price: Number(row.avg_price), updatedAt: row.updated_at };
+          }
+          setLivePrices(prices);
+        }
+      });
+  }, [city]);
+
   const processedItems = useMemo(() => {
     const resolvedCity = city || 'India';
     return MARKET_ITEMS.map(item => {
-      const price = getCityPrice(item.basePrice, resolvedCity);
-      const pes = calculateMarketPES(item.protein, price);
-      const costPerGram = item.protein > 0 ? Math.round((price / item.protein) * 100) / 100 : 999;
-      return { ...item, cityPrice: price, pes: Math.round(pes * 100) / 100, pesColor: getMarketPESColor(pes), costPerGram } as ProcessedMarketItem;
+      // Check DB live price first (match by PRICE_SEARCH_KEYS or item name)
+      const searchKey = PRICE_SEARCH_KEYS[item.name]?.toLowerCase();
+      const liveMatch = searchKey ? livePrices[searchKey] : livePrices[item.name.toLowerCase()];
+      
+      const price = liveMatch ? liveMatch.price : getCityPrice(item.basePrice, resolvedCity);
+      const pes = calculateMarketPES(item.protein, price, item.unit);
+      const pricePer100g = item.unit === 'kg' ? price / 10 : price;
+      const costPerGram = item.protein > 0 ? Math.round((pricePer100g / item.protein) * 100) / 100 : 999;
+      return { 
+        ...item, 
+        cityPrice: price, 
+        pes: Math.round(pes * 100) / 100, 
+        pesColor: getMarketPESColor(pes), 
+        costPerGram,
+        lastUpdated: liveMatch ? liveMatch.updatedAt : 'static',
+      } as ProcessedMarketItem;
     });
-  }, [city]);
+  }, [city, livePrices]);
 
   const toMarketItem = useCallback((item: RawMarketItem, priceChange?: number) => {
     return convertToMarketItem(item, city || 'India', priceChange);
