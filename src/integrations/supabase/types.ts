@@ -240,6 +240,44 @@ export type Database = {
         }
         Relationships: []
       }
+      ad_targeting: {
+        Row: {
+          campaign_id: string
+          cities: string[] | null
+          created_at: string
+          id: string
+          max_user_budget: number | null
+          meal_context: string | null
+          min_protein_gap: number | null
+        }
+        Insert: {
+          campaign_id: string
+          cities?: string[] | null
+          created_at?: string
+          id?: string
+          max_user_budget?: number | null
+          meal_context?: string | null
+          min_protein_gap?: number | null
+        }
+        Update: {
+          campaign_id?: string
+          cities?: string[] | null
+          created_at?: string
+          id?: string
+          max_user_budget?: number | null
+          meal_context?: string | null
+          min_protein_gap?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_targeting_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "ad_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brand_accounts: {
         Row: {
           balance: number

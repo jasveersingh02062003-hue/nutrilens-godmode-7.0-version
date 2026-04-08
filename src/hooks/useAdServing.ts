@@ -1,6 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
+
+// Session-level frequency cap — shared across all slots
+let sessionImpressionCount = 0;
+const MAX_SESSION_IMPRESSIONS = 3;
 
 export interface AdCreativeData {
   campaignId: string;
@@ -28,6 +32,9 @@ export function useAdServing(placementSlot: string, options?: UseAdServingOption
   const { data: ad, isLoading } = useQuery({
     queryKey: ['ad-serving', placementSlot, options?.category, options?.diet],
     queryFn: async (): Promise<AdCreativeData | null> => {
+      // Session frequency cap
+      if (sessionImpressionCount >= MAX_SESSION_IMPRESSIONS) return null;
+
       const today = new Date().toISOString().split('T')[0];
 
       // Query active campaigns for this slot
@@ -94,6 +101,7 @@ export function useAdServing(placementSlot: string, options?: UseAdServingOption
 
   const logImpression = useCallback(async (userId?: string) => {
     if (!ad || !userId) return;
+    sessionImpressionCount++;
     try {
       await supabase.functions.invoke('log-ad-event', {
         body: {
