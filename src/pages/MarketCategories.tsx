@@ -77,6 +77,7 @@ export default function MarketCategories() {
   const [sort, setSort] = useState<SortMode>('pes');
   const [selectedItem, setSelectedItem] = useState<LegacyMarketItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [reportPriceOpen, setReportPriceOpen] = useState(false);
 
   const { ad: categoryAd, logImpression: logCatImpression, logClick: logCatClick } = useAdServing('category_promoted', { category: activeCategory });
 
