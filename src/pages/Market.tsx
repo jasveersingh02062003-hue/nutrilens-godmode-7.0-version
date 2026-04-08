@@ -20,6 +20,7 @@ import PriceDropsRow from '@/components/market/PriceDropsRow';
 import MarketHeroSection from '@/components/MarketHeroSection';
 import SponsoredCard from '@/components/market/SponsoredCard';
 import { HeroSkeleton, QuickActionsSkeleton, ItemCardSkeleton } from '@/components/market/MarketSkeleton';
+import SavingsTrackerCard from '@/components/SavingsTrackerCard';
 import { scopedGet } from '@/lib/scoped-storage';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
