@@ -264,7 +264,10 @@ async function getFreshMarketItems(city: string, category: MarketCategory): Prom
     const cityPrice = cityPrices[f.name.toLowerCase()];
     const priceEntry = findPrice(f.name);
     const price = cityPrice ?? priceEntry?.basePrice ?? f.price;
-    const pes = f.protein > 0 && price > 0 ? f.protein / price : 0;
+    // Normalize price to per-100g for kg items
+    const unit = priceEntry?.unit || 'kg';
+    const pricePer100g = unit === 'kg' ? price / 10 : price;
+    const pes = f.protein > 0 && pricePer100g > 0 ? f.protein / pricePer100g : 0;
 
     return {
       id: f.id,
@@ -274,7 +277,7 @@ async function getFreshMarketItems(city: string, category: MarketCategory): Prom
       calories: f.calories,
       pes: Math.round(pes * 100) / 100,
       pesColor: getPESColor(pes),
-      costPerGramProtein: calculateCostPerGramProtein(price, f.protein),
+      costPerGramProtein: calculateCostPerGramProtein(pricePer100g, f.protein),
       category: f.tags.includes('non_veg') ? 'Non-Veg' : 'Veg',
       unit: priceEntry?.unit,
       source: 'fresh' as const,
