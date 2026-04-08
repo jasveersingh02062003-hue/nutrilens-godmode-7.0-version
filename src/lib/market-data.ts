@@ -356,14 +356,58 @@ export function getCityPrice(basePrice: number, city: string): number {
 }
 
 // ─── Helper: Calculate PES for a market item ───
-export function calculateMarketPES(protein: number, price: number): number {
+// Normalizes price to per-100g for kg items, per-piece for piece items
+export function calculateMarketPES(protein: number, price: number, unit?: string): number {
   if (protein <= 0 || price <= 0) return 0;
-  const pes = protein / price;
+  // For kg-priced items: nutrition is per 100g, price is per kg → divide by 10
+  const pricePer100g = unit === 'kg' ? price / 10 : price;
+  const pes = protein / pricePer100g;
   return Math.round(pes * 100) / 100;
 }
 
+// ─── Helper: DB search key mapping for price history ───
+// Maps market item names to shorter DB-friendly search keys
+export const PRICE_SEARCH_KEYS: Record<string, string> = {
+  'Chicken (Whole)': 'chicken',
+  'Chicken Breast': 'chicken',
+  'Chicken Thigh': 'chicken',
+  'Chicken Leg': 'chicken',
+  'Chicken Keema': 'chicken',
+  'Rohu': 'rohu',
+  'Pomfret': 'pomfret',
+  'Surmai (Kingfish)': 'surmai',
+  'Hilsa (Ilish)': 'hilsa',
+  'Katla': 'katla',
+  'Bangda (Mackerel)': 'bangda',
+  'Basa Fish': 'basa',
+  'Mutton Leg': 'mutton',
+  'Mutton Keema': 'mutton',
+  'Mutton Ribs': 'mutton',
+  'Mutton Liver': 'mutton',
+  'Prawns (Small)': 'prawns',
+  'Prawns (Medium)': 'prawns',
+  'Prawns (Jumbo)': 'prawns',
+  'White Eggs': 'eggs',
+  'Brown Eggs': 'eggs',
+  'Desi / Country Eggs': 'eggs',
+  'Spinach (Palak)': 'spinach',
+  'Methi (Fenugreek)': 'methi',
+  'Paneer': 'paneer',
+  'Toned Milk': 'milk',
+  'Full Cream Milk': 'milk',
+  'Curd (Dahi)': 'curd',
+  'Toor Dal': 'toor dal',
+  'Moong Dal': 'moong dal',
+  'Masoor Dal': 'masoor dal',
+  'Soya Chunks': 'soya chunks',
+  'Potato': 'potato',
+  'Tomato': 'tomato',
+  'Onion': 'onion',
+  'Banana': 'banana',
+};
+
 export function getMarketPESColor(pes: number): 'green' | 'yellow' | 'red' {
-  if (pes >= 0.15) return 'green';
-  if (pes >= 0.05) return 'yellow';
+  if (pes >= 0.8) return 'green';
+  if (pes >= 0.3) return 'yellow';
   return 'red';
 }

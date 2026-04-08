@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback, type ReactNode } from 'react';
-import { MARKET_ITEMS, getCityPrice, calculateMarketPES, getMarketPESColor, FRESH_CATEGORIES, type RawMarketItem } from '@/lib/market-data';
+import { MARKET_ITEMS, getCityPrice, calculateMarketPES, getMarketPESColor, FRESH_CATEGORIES, PRICE_SEARCH_KEYS, type RawMarketItem } from '@/lib/market-data';
 import { type MarketItem as LegacyMarketItem } from '@/lib/market-service';
 import { detectCity } from '@/lib/auto-location';
 import { useUserProfile } from '@/contexts/UserProfileContext';
@@ -14,6 +14,7 @@ export interface ProcessedMarketItem extends RawMarketItem {
   pes: number;
   pesColor: 'green' | 'yellow' | 'red';
   costPerGram: number;
+  lastUpdated?: string;
 }
 
 interface MarketContextValue {
@@ -42,15 +43,16 @@ export function useMarket() {
   return ctx;
 }
 
-function convertToMarketItem(item: RawMarketItem, city: string, priceChange?: number): LegacyMarketItem {
-  const price = getCityPrice(item.basePrice, city);
-  const pes = calculateMarketPES(item.protein, price);
-  const costPerGram = item.protein > 0 ? Math.round((price / item.protein) * 100) / 100 : 999;
+function convertToMarketItem(item: RawMarketItem, city: string, priceChange?: number, livePrice?: { price: number; updatedAt: string }): LegacyMarketItem {
+  const price = livePrice ? livePrice.price : getCityPrice(item.basePrice, city);
+  const pes = calculateMarketPES(item.protein, price, item.unit);
+  const pricePer100g = item.unit === 'kg' ? price / 10 : price;
+  const costPerGram = item.protein > 0 ? Math.round((pricePer100g / item.protein) * 100) / 100 : 999;
   return {
     id: item.id, name: item.name, price, protein: item.protein, calories: item.calories,
     pes: Math.round(pes * 100) / 100, pesColor: getMarketPESColor(pes), costPerGramProtein: costPerGram,
     category: item.isVeg ? 'Veg' : 'Non-Veg', unit: item.unit, source: 'fresh', imageUrl: item.emoji,
-    lastUpdated: 'static', priceChange: priceChange || 0, carbs: item.carbs, fat: item.fat, fiber: item.fiber,
+    lastUpdated: livePrice ? livePrice.updatedAt : 'static', priceChange: priceChange || 0, carbs: item.carbs, fat: item.fat, fiber: item.fiber,
   };
 }
 
@@ -100,29 +102,67 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     toast.success(`📍 Prices updated for ${selectedCity}`);
   }, [updateProfile, user?.id]);
 
+  // Fetch live prices from city_prices DB
+  const [livePrices, setLivePrices] = useState<Record<string, { price: number; updatedAt: string }>>({});
+
+  useEffect(() => {
+    const resolvedCity = city || 'India';
+    if (resolvedCity === 'India') return;
+    supabase
+      .from('city_prices')
+      .select('item_name, avg_price, updated_at')
+      .ilike('city', resolvedCity.toLowerCase())
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          const prices: Record<string, { price: number; updatedAt: string }> = {};
+          for (const row of data) {
+            prices[row.item_name.toLowerCase()] = { price: Number(row.avg_price), updatedAt: row.updated_at };
+          }
+          setLivePrices(prices);
+        }
+      });
+  }, [city]);
+
   const processedItems = useMemo(() => {
     const resolvedCity = city || 'India';
     return MARKET_ITEMS.map(item => {
-      const price = getCityPrice(item.basePrice, resolvedCity);
-      const pes = calculateMarketPES(item.protein, price);
-      const costPerGram = item.protein > 0 ? Math.round((price / item.protein) * 100) / 100 : 999;
-      return { ...item, cityPrice: price, pes: Math.round(pes * 100) / 100, pesColor: getMarketPESColor(pes), costPerGram } as ProcessedMarketItem;
+      // Check DB live price first (match by PRICE_SEARCH_KEYS or item name)
+      const searchKey = PRICE_SEARCH_KEYS[item.name]?.toLowerCase();
+      const liveMatch = searchKey ? livePrices[searchKey] : livePrices[item.name.toLowerCase()];
+      
+      const price = liveMatch ? liveMatch.price : getCityPrice(item.basePrice, resolvedCity);
+      const pes = calculateMarketPES(item.protein, price, item.unit);
+      const pricePer100g = item.unit === 'kg' ? price / 10 : price;
+      const costPerGram = item.protein > 0 ? Math.round((pricePer100g / item.protein) * 100) / 100 : 999;
+      return { 
+        ...item, 
+        cityPrice: price, 
+        pes: Math.round(pes * 100) / 100, 
+        pesColor: getMarketPESColor(pes), 
+        costPerGram,
+        lastUpdated: liveMatch ? liveMatch.updatedAt : 'static',
+      } as ProcessedMarketItem;
     });
-  }, [city]);
+  }, [city, livePrices]);
 
   const toMarketItem = useCallback((item: RawMarketItem, priceChange?: number) => {
-    return convertToMarketItem(item, city || 'India', priceChange);
-  }, [city]);
+    const searchKey = PRICE_SEARCH_KEYS[item.name]?.toLowerCase();
+    const liveMatch = searchKey ? livePrices[searchKey] : livePrices[item.name.toLowerCase()];
+    return convertToMarketItem(item, city || 'India', priceChange, liveMatch);
+  }, [city, livePrices]);
 
   const toggleCompare = useCallback((item: ProcessedMarketItem, e: React.MouseEvent) => {
     e.stopPropagation();
-    const marketItem = convertToMarketItem(MARKET_ITEMS.find(m => m.id === item.id)!, city || 'India');
+    const raw = MARKET_ITEMS.find(m => m.id === item.id)!;
+    const searchKey = PRICE_SEARCH_KEYS[raw.name]?.toLowerCase();
+    const liveMatch = searchKey ? livePrices[searchKey] : livePrices[raw.name.toLowerCase()];
+    const marketItem = convertToMarketItem(raw, city || 'India', undefined, liveMatch);
     setCompareItems(prev => {
       if (prev.find(i => i.id === item.id)) return prev.filter(i => i.id !== item.id);
       if (prev.length >= 4) { toast.error('Max 4 items'); return prev; }
       return [...prev, marketItem];
     });
-  }, [city]);
+  }, [city, livePrices]);
 
   const compareData = useMemo(() => {
     return compareItems.map(item => {

@@ -5,6 +5,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { foodDatabase, type PESFood } from './pes-engine';
 import { findPrice } from './price-database';
+import { PRICE_SEARCH_KEYS } from './market-data';
 
 // ─── Types ───
 
@@ -264,7 +265,10 @@ async function getFreshMarketItems(city: string, category: MarketCategory): Prom
     const cityPrice = cityPrices[f.name.toLowerCase()];
     const priceEntry = findPrice(f.name);
     const price = cityPrice ?? priceEntry?.basePrice ?? f.price;
-    const pes = f.protein > 0 && price > 0 ? f.protein / price : 0;
+    // Normalize price to per-100g for kg items
+    const unit = priceEntry?.unit || 'kg';
+    const pricePer100g = unit === 'kg' ? price / 10 : price;
+    const pes = f.protein > 0 && pricePer100g > 0 ? f.protein / pricePer100g : 0;
 
     return {
       id: f.id,
@@ -274,7 +278,7 @@ async function getFreshMarketItems(city: string, category: MarketCategory): Prom
       calories: f.calories,
       pes: Math.round(pes * 100) / 100,
       pesColor: getPESColor(pes),
-      costPerGramProtein: calculateCostPerGramProtein(price, f.protein),
+      costPerGramProtein: calculateCostPerGramProtein(pricePer100g, f.protein),
       category: f.tags.includes('non_veg') ? 'Non-Veg' : 'Veg',
       unit: priceEntry?.unit,
       source: 'fresh' as const,
@@ -375,14 +379,16 @@ export async function getTopMarketItems(city: string, limit = 10): Promise<Marke
 // ─── Item Detail (for detail sheet) ───
 
 export async function getMarketItemDetail(item: MarketItem, city: string): Promise<MarketItemDetail> {
-  // Get price history
+  // Use search key mapping for better matching
+  const searchKey = PRICE_SEARCH_KEYS[item.name] || item.name;
+  
   let priceHistory: Array<{ date: string; price: number }> = [];
   try {
     const { data } = await supabase
       .from('price_history')
       .select('price_date, avg_price')
-      .eq('city', city.toLowerCase())
-      .ilike('item_name', `%${item.name}%`)
+      .ilike('city', city.toLowerCase())
+      .ilike('item_name', `%${searchKey}%`)
       .order('price_date', { ascending: true })
       .limit(30);
 
@@ -402,11 +408,12 @@ export async function getMarketItemDetail(item: MarketItem, city: string): Promi
 // ─── Price History (for trend charts) ───
 
 export async function getPriceHistory(city: string, itemName: string, days = 7) {
+  const searchKey = PRICE_SEARCH_KEYS[itemName] || itemName;
   const { data } = await supabase
     .from('price_history')
     .select('*')
-    .eq('city', city.toLowerCase())
-    .ilike('item_name', `%${itemName}%`)
+    .ilike('city', city.toLowerCase())
+    .ilike('item_name', `%${searchKey}%`)
     .order('price_date', { ascending: true })
     .limit(days);
 
