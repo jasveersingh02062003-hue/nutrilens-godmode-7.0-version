@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Store, Leaf, SlidersHorizontal, Package, Wallet, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
