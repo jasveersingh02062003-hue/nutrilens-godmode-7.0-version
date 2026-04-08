@@ -296,7 +296,7 @@ export default function BarcodeScanner({ open, onOpenChange, onProductFound }: B
                         <span className="text-[10px] text-muted-foreground line-through">₹{product.mrp}</span>
                       )}
                       {product.pes_score != null && product.pes_score > 0 && (
-                        <PESBadge score={product.pes_score} size="sm" />
+                        <PESBadge pes={product.pes_score} color={product.pes_score >= 7 ? 'green' : product.pes_score >= 4 ? 'yellow' : 'red'} size="sm" />
                       )}
                     </div>
                   </div>
