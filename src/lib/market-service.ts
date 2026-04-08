@@ -5,6 +5,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { foodDatabase, type PESFood } from './pes-engine';
 import { findPrice } from './price-database';
+import { PRICE_SEARCH_KEYS } from './market-data';
 
 // ─── Types ───
 
@@ -378,14 +379,16 @@ export async function getTopMarketItems(city: string, limit = 10): Promise<Marke
 // ─── Item Detail (for detail sheet) ───
 
 export async function getMarketItemDetail(item: MarketItem, city: string): Promise<MarketItemDetail> {
-  // Get price history
+  // Use search key mapping for better matching
+  const searchKey = PRICE_SEARCH_KEYS[item.name] || item.name;
+  
   let priceHistory: Array<{ date: string; price: number }> = [];
   try {
     const { data } = await supabase
       .from('price_history')
       .select('price_date, avg_price')
-      .eq('city', city.toLowerCase())
-      .ilike('item_name', `%${item.name}%`)
+      .ilike('city', city.toLowerCase())
+      .ilike('item_name', `%${searchKey}%`)
       .order('price_date', { ascending: true })
       .limit(30);
 
