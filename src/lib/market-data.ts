@@ -35,6 +35,19 @@ export type MarketTopCategory =
 
 export type MarketViewMode = 'fresh' | 'packed';
 
+export interface Micronutrients {
+  iron?: number;       // mg per 100g
+  calcium?: number;    // mg per 100g
+  vitB12?: number;     // mcg per 100g
+  zinc?: number;       // mg per 100g
+  vitD?: number;       // IU per 100g
+  vitC?: number;       // mg per 100g
+  omega3?: number;     // mg per 100g
+  selenium?: number;   // mcg per 100g
+  folate?: number;     // mcg per 100g
+  vitA?: number;       // mcg RAE per 100g
+}
+
 export interface RawMarketItem {
   id: string;
   name: string;
@@ -55,6 +68,14 @@ export interface RawMarketItem {
   servingDesc: string;
   isVeg: boolean;
   tags: string[];
+  /** Micronutrients per 100g (IFCT-sourced) */
+  micro?: Micronutrients;
+  /** Health benefits bullet points */
+  healthBenefits?: string[];
+  /** Cooking tips */
+  cookingTips?: string[];
+  /** Allergen tags for fresh items */
+  allergenTags?: string[];
 }
 
 // ─── City Price Multipliers ───
