@@ -1,0 +1,1 @@
+ALTER TABLE public.city_prices ADD CONSTRAINT city_prices_city_item_date_unique UNIQUE (city, item_name, price_date);
