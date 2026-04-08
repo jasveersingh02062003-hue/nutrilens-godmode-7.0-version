@@ -151,6 +151,22 @@ export default function Market() {
     return result;
   }, [processedItems, viewMode, selectedCategory, selectedSub, search, filter, sort, vegOnly]);
 
+  // Reset visible count when filters change
+  useEffect(() => { setVisibleCount(ITEMS_PER_PAGE); }, [viewMode, selectedCategory, selectedSub, search, filter, sort]);
+
+  // Intersection observer for infinite scroll
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setVisibleCount(prev => Math.min(prev + ITEMS_PER_PAGE, filteredItems.length));
+      }
+    }, { rootMargin: '200px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [filteredItems.length]);
+
   const badgeMap = useMemo(() => {
     const map = new Map<string, 'popular' | 'best_seller' | 'new'>();
     const sorted = [...filteredItems].sort((a, b) => b.pes - a.pes);
