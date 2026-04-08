@@ -1,10 +1,11 @@
-import { ArrowLeft, Store, MapPin, Search, X, ChevronDown, Leaf } from 'lucide-react';
+import { ArrowLeft, Store, MapPin, Search, X, ChevronDown, Leaf, ScanBarcode } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SUPPORTED_CITIES } from '@/lib/market-service';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { useMarket } from '@/contexts/MarketContext';
+import BarcodeScanner from '@/components/BarcodeScanner';
 
 interface MarketPageHeaderProps {
   title?: string;
@@ -30,6 +31,7 @@ export default function MarketPageHeader({
   const { vegOnly, setVegOnly } = useMarket();
   const [searchOpen, setSearchOpen] = useState(showSearch);
   const [cityPickerOpen, setCityPickerOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   const displayCity = city || (profile as any)?.city || 'All India';
 
@@ -59,6 +61,16 @@ export default function MarketPageHeader({
             <ChevronDown className={`w-3 h-3 transition-transform ${cityPickerOpen ? 'rotate-180' : ''}`} />
           </button>
         </div>
+
+        {/* Scan button */}
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          onClick={() => setScannerOpen(true)}
+          className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors"
+          aria-label="Scan barcode"
+        >
+          <ScanBarcode className="w-4 h-4 text-primary" />
+        </motion.button>
 
         {/* Veg toggle */}
         <motion.button
