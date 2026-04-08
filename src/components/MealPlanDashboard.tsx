@@ -23,6 +23,7 @@ import { getScaledMealInfo } from '@/lib/meal-scale';
 import { validatePlanFeasibility, validateDaySync } from '@/lib/plan-validator';
 import { deductRecipeFromPantry } from '@/lib/pantry-deduction';
 import RecipeDetail from './RecipeDetail';
+import SmartProductNudge from './SmartProductNudge';
 import ShoppingList from './ShoppingList';
 import {
   AlertDialog,
