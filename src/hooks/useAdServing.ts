@@ -101,6 +101,7 @@ export function useAdServing(placementSlot: string, options?: UseAdServingOption
 
   const logImpression = useCallback(async (userId?: string) => {
     if (!ad || !userId) return;
+    sessionImpressionCount++;
     try {
       await supabase.functions.invoke('log-ad-event', {
         body: {
