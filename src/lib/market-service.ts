@@ -408,11 +408,12 @@ export async function getMarketItemDetail(item: MarketItem, city: string): Promi
 // ─── Price History (for trend charts) ───
 
 export async function getPriceHistory(city: string, itemName: string, days = 7) {
+  const searchKey = PRICE_SEARCH_KEYS[itemName] || itemName;
   const { data } = await supabase
     .from('price_history')
     .select('*')
-    .eq('city', city.toLowerCase())
-    .ilike('item_name', `%${itemName}%`)
+    .ilike('city', city.toLowerCase())
+    .ilike('item_name', `%${searchKey}%`)
     .order('price_date', { ascending: true })
     .limit(days);
 
