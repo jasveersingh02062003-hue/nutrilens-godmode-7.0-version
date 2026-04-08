@@ -38,6 +38,7 @@ import ContextualTipsCard from '@/components/ContextualTipsCard';
 import EnergyTracker from '@/components/EnergyTracker';
 import ProteinGapNudgeCard from '@/components/ProteinGapNudgeCard';
 import SupplementUpsellCard from '@/components/SupplementUpsellCard';
+import DashboardSponsoredCard from '@/components/DashboardSponsoredCard';
 import { shouldBoostWater } from '@/lib/supplement-service';
 
 import DashboardHeader from '@/components/dashboard/DashboardHeader';

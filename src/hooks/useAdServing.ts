@@ -1,6 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
+
+// Session-level frequency cap — shared across all slots
+let sessionImpressionCount = 0;
+const MAX_SESSION_IMPRESSIONS = 3;
 
 export interface AdCreativeData {
   campaignId: string;
