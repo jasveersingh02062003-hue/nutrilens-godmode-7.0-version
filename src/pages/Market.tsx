@@ -20,6 +20,7 @@ import PriceDropsRow from '@/components/market/PriceDropsRow';
 import MarketHeroSection from '@/components/MarketHeroSection';
 import SponsoredCard from '@/components/market/SponsoredCard';
 import { HeroSkeleton, QuickActionsSkeleton, ItemCardSkeleton } from '@/components/market/MarketSkeleton';
+import SavingsTrackerCard from '@/components/SavingsTrackerCard';
 import { scopedGet } from '@/lib/scoped-storage';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
@@ -263,6 +264,7 @@ export default function Market() {
                 <MarketHeroSection bestValue={bestValue} biggestDrop={biggestDrop} city={cityLabel} onTap={handleItemTapByName} />
                 <QuickActionsRow city={city || 'India'} onItemTap={handleItemTapByName} />
                 <TopValueCards items={topValueItems} onItemTap={handleItemTapByName} />
+                <SavingsTrackerCard />
                 <CategoryGridHome onCategoryTap={handleCategoryNav} />
                 <EducationCard onItemTap={handleItemTapByName} />
                 <PriceDropsRow items={priceDrops} onItemTap={handleItemTapByName} />

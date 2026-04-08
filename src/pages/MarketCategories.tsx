@@ -10,7 +10,8 @@ import { getCategoryImage, getCategoryThumbnail } from '@/lib/food-images';
 import { getCategoryTip } from '@/lib/nutrition-tips';
 import MarketImage from '@/components/market/MarketImage';
 import SponsoredCard from '@/components/market/SponsoredCard';
-import { ChevronRight, Sparkles, ArrowLeft, SlidersHorizontal } from 'lucide-react';
+import ReportPriceSheet from '@/components/ReportPriceSheet';
+import { ChevronRight, Sparkles, ArrowLeft, SlidersHorizontal, MessageSquarePlus } from 'lucide-react';
 import { type MarketItem as LegacyMarketItem } from '@/lib/market-service';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -76,6 +77,7 @@ export default function MarketCategories() {
   const [sort, setSort] = useState<SortMode>('pes');
   const [selectedItem, setSelectedItem] = useState<LegacyMarketItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [reportPriceOpen, setReportPriceOpen] = useState(false);
 
   const { ad: categoryAd, logImpression: logCatImpression, logClick: logCatClick } = useAdServing('category_promoted', { category: activeCategory });
 
@@ -409,7 +411,24 @@ export default function MarketCategories() {
         onOpenChange={setDetailOpen}
         item={selectedItem}
         city={city || 'hyderabad'}
-        onReportPrice={() => {}}
+        onReportPrice={() => setReportPriceOpen(true)}
+      />
+
+      {/* Floating Report Price Button */}
+      <motion.button
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ delay: 0.5, type: 'spring' }}
+        onClick={() => setReportPriceOpen(true)}
+        className="fixed bottom-24 right-4 z-30 flex items-center gap-2 px-4 py-3 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25"
+      >
+        <MessageSquarePlus className="w-4 h-4" />
+        <span className="text-xs font-bold">Report Price</span>
+      </motion.button>
+
+      <ReportPriceSheet
+        open={reportPriceOpen}
+        onOpenChange={setReportPriceOpen}
       />
     </div>
   );
