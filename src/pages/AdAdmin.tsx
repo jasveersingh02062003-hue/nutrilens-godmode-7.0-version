@@ -164,6 +164,43 @@ export default function AdAdmin() {
     staleTime: 30000,
   });
 
+  // Auth guards (after all hooks)
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <Shield className="w-12 h-12 text-muted-foreground mx-auto" />
+          <p className="text-sm font-semibold text-foreground">Sign in required</p>
+          <button onClick={() => navigate('/auth')} className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold">Sign In</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isAdminLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-2">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs text-muted-foreground">Verifying access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <Shield className="w-12 h-12 text-destructive mx-auto" />
+          <p className="text-sm font-semibold text-foreground">Access Denied</p>
+          <p className="text-xs text-muted-foreground">You need admin privileges to access this page.</p>
+          <button onClick={() => navigate('/')} className="px-4 py-2 rounded-xl bg-muted text-foreground text-sm font-semibold">Go Home</button>
+        </div>
+      </div>
+    );
+  }
+
   const handleCreateBrand = async () => {
     if (!brandForm.brand_name.trim()) { toast.error('Brand name required'); return; }
     const { error } = await supabase.from('brand_accounts').insert({
