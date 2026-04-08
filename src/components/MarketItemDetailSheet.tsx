@@ -322,17 +322,44 @@ export default function MarketItemDetailSheet({ open, onOpenChange, item, city, 
             </div>
           ) : null}
 
-          {/* ── Platform Links (packed products) ── */}
-          {item.platforms && item.platforms.length > 0 && (
+          {/* ── Buy Online Links (affiliate + platform) ── */}
+          {((item.affiliateLinks && item.affiliateLinks.length > 0) || (item.platforms && item.platforms.length > 0)) && (
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <ShoppingCart className="w-3.5 h-3.5 text-primary" />
                 <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Buy Online</p>
               </div>
               <div className="space-y-1.5">
-                {item.platforms.map((p: any, i: number) => (
+                {/* Affiliate links first (tracked) */}
+                {item.affiliateLinks?.map((link: any, i: number) => (
                   <a
-                    key={i}
+                    key={`aff-${i}`}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => {
+                      try {
+                        const clicks = JSON.parse(localStorage.getItem('nutrilens_affiliate_clicks') || '[]');
+                        clicks.push({ product: item.name, platform: link.platform, price: link.price, ts: Date.now() });
+                        localStorage.setItem('nutrilens_affiliate_clicks', JSON.stringify(clicks.slice(-200)));
+                      } catch {}
+                    }}
+                    className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20 hover:border-primary/40 transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                      {link.platform === 'Amazon' ? '🛒' : link.platform === 'BigBasket' ? '🧺' : '🔗'}
+                    </div>
+                    <span className="text-sm font-semibold text-foreground flex-1">{link.platform}</span>
+                    <span className="text-sm font-bold text-primary">₹{link.price}</span>
+                    <ExternalLink className="w-3.5 h-3.5 text-primary/60" />
+                  </a>
+                ))}
+                {/* Regular platform links */}
+                {item.platforms?.filter((p: any) => 
+                  !item.affiliateLinks?.some((a: any) => a.platform === p.name)
+                ).map((p: any, i: number) => (
+                  <a
+                    key={`plat-${i}`}
                     href={p.url}
                     target="_blank"
                     rel="noopener noreferrer"

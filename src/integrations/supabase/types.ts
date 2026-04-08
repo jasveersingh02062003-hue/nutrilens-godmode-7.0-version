@@ -457,6 +457,7 @@ export type Database = {
       }
       packed_products: {
         Row: {
+          affiliate_links: Json | null
           allergens: Json | null
           barcode: string | null
           brand: string
@@ -481,6 +482,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          affiliate_links?: Json | null
           allergens?: Json | null
           barcode?: string | null
           brand: string
@@ -505,6 +507,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          affiliate_links?: Json | null
           allergens?: Json | null
           barcode?: string | null
           brand?: string

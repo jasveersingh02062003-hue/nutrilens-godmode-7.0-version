@@ -1,0 +1,1 @@
+ALTER TABLE public.packed_products ADD COLUMN IF NOT EXISTS affiliate_links jsonb DEFAULT '[]'::jsonb;
