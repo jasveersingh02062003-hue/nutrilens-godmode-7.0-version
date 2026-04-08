@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Store, Leaf, SlidersHorizontal, Package, Wallet, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -114,6 +114,9 @@ export default function Market() {
   const [multiCityOpen, setMultiCityOpen] = useState(false);
   const [showTrend, setShowTrend] = useState(false);
   const [trendItem, setTrendItem] = useState('Chicken');
+  const ITEMS_PER_PAGE = 20;
+  const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   const isBrowsing = !!selectedCategory || !!search || filter !== 'all';
 
@@ -147,6 +150,22 @@ export default function Market() {
     }
     return result;
   }, [processedItems, viewMode, selectedCategory, selectedSub, search, filter, sort, vegOnly]);
+
+  // Reset visible count when filters change
+  useEffect(() => { setVisibleCount(ITEMS_PER_PAGE); }, [viewMode, selectedCategory, selectedSub, search, filter, sort]);
+
+  // Intersection observer for infinite scroll
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setVisibleCount(prev => Math.min(prev + ITEMS_PER_PAGE, filteredItems.length));
+      }
+    }, { rootMargin: '200px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [filteredItems.length]);
 
   const badgeMap = useMemo(() => {
     const map = new Map<string, 'popular' | 'best_seller' | 'new'>();
@@ -364,7 +383,7 @@ export default function Market() {
                       variant="native"
                     />
                   )}
-                  {filteredItems.map((item, i) => (
+                  {filteredItems.slice(0, visibleCount).map((item, i) => (
                     <MarketItemCard
                       key={item.id}
                       rank={i + 1}
@@ -393,6 +412,12 @@ export default function Market() {
                       itemId={item.id}
                     />
                   ))}
+                  {/* Load more sentinel */}
+                  {visibleCount < filteredItems.length && (
+                    <div ref={loadMoreRef} className="flex justify-center py-4">
+                      <p className="text-[10px] text-muted-foreground">Loading more items...</p>
+                    </div>
+                  )}
                 </>
               )}
             </div>
