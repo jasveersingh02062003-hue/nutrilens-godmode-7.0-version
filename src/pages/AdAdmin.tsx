@@ -43,11 +43,14 @@ interface CampaignStats {
 }
 
 const PLACEMENT_SLOTS = [
-  { key: 'hero_banner', label: 'Hero Banner (P1)' },
-  { key: 'category_promoted', label: 'Category Promoted (P2)' },
-  { key: 'search_boost', label: 'Search Boost (P3)' },
-  { key: 'compare_sidebar', label: 'Compare Sidebar (P4)' },
-  { key: 'post_meal_nudge', label: 'Post-Meal Nudge (P5)' },
+  { key: 'hero_banner', label: '🏠 Hero Banner (P1)' },
+  { key: 'category_promoted', label: '📂 Category Promoted (P2)' },
+  { key: 'search_boost', label: '🔍 Search Boost (P3)' },
+  { key: 'compare_sidebar', label: '⚖️ Compare Sidebar (P4)' },
+  { key: 'post_meal_nudge', label: '🍽️ Post-Meal Nudge (P5)' },
+  { key: 'dashboard_protein_nudge', label: '💪 Dashboard Protein Nudge (P6)' },
+  { key: 'dashboard_smart_pick', label: '⭐ Dashboard Smart Pick (P7)' },
+  { key: 'post_meal_suggestion', label: '✅ Post-Meal Suggestion (P8)' },
 ];
 
 const PRICING_MODELS = [

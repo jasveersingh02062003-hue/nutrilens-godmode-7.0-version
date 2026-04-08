@@ -216,6 +216,9 @@ export default function Dashboard() {
         {/* Smart Market Banner */}
         <motion.div variants={fadeUp}><SmartMarketBanner /></motion.div>
 
+        {/* Sponsored: Dashboard Smart Pick */}
+        <motion.div variants={fadeUp}><DashboardSponsoredCard slot="dashboard_smart_pick" /></motion.div>
+
         {/* 2. Calorie Ring */}
         <motion.div variants={fadeUp}>
           <CalorieRing dayState={d.dayState} proteinRemaining={Math.round(Math.max(0, getProteinTarget(d.profile) - d.totals.protein))} />
@@ -235,6 +238,8 @@ export default function Dashboard() {
 
         {/* Supplement Intelligence Cards */}
         <motion.div variants={fadeUp}><ProteinGapNudgeCard onApplied={d.refreshLog} /></motion.div>
+        {/* Sponsored: Protein Gap Nudge */}
+        <motion.div variants={fadeUp}><DashboardSponsoredCard slot="dashboard_protein_nudge" /></motion.div>
         <motion.div variants={fadeUp}><SupplementUpsellCard /></motion.div>
 
         <motion.div variants={fadeUp}>
