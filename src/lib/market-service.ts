@@ -28,6 +28,7 @@ export interface MarketItem {
   servingSize?: string;
   source: 'fresh' | 'packed';
   platforms?: Array<{ name: string; url: string; price: number }>;
+  affiliateLinks?: Array<{ platform: string; url: string; price: number }>;
   allergens?: string[];
   isVerified?: boolean;
   imageUrl?: string;
