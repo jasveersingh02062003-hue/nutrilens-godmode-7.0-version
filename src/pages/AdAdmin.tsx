@@ -51,6 +51,7 @@ const PLACEMENT_SLOTS = [
   { key: 'dashboard_protein_nudge', label: '💪 Dashboard Protein Nudge (P6)' },
   { key: 'dashboard_smart_pick', label: '⭐ Dashboard Smart Pick (P7)' },
   { key: 'post_meal_suggestion', label: '✅ Post-Meal Suggestion (P8)' },
+  { key: 'monika_contextual', label: '🤖 Monika Chat Contextual (P9)' },
 ];
 
 const PRICING_MODELS = [

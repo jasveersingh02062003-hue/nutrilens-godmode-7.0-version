@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -314,7 +315,92 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const systemPrompt = buildSystemPrompt(userContext);
+    // Fetch active sponsored products for monika_contextual slot
+    let sponsoredProducts: any[] = [];
+    try {
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+      const today = new Date().toISOString().split("T")[0];
+      const { data: campaigns } = await supabase
+        .from("ad_campaigns")
+        .select(`
+          id, campaign_name, pes_score, target_diet, budget_total, budget_spent,
+          brand_accounts!inner(brand_name),
+          ad_creatives!inner(id, headline, subtitle, cta_text, cta_url, image_url, is_active)
+        `)
+        .eq("status", "active")
+        .eq("placement_slot", "monika_contextual")
+        .gte("pes_score", 30)
+        .lte("start_date", today)
+        .gte("end_date", today)
+        .limit(3);
+
+      if (campaigns && campaigns.length > 0) {
+        sponsoredProducts = campaigns
+          .filter((c: any) => c.budget_total === 0 || c.budget_spent < c.budget_total)
+          .map((c: any) => {
+            const creative = Array.isArray(c.ad_creatives)
+              ? c.ad_creatives.find((cr: any) => cr.is_active)
+              : c.ad_creatives;
+            const brand = Array.isArray(c.brand_accounts)
+              ? c.brand_accounts[0]
+              : c.brand_accounts;
+            return {
+              campaignId: c.id,
+              creativeId: creative?.id,
+              brandName: brand?.brand_name || "Sponsored",
+              productName: creative?.headline || c.campaign_name,
+              subtitle: creative?.subtitle,
+              ctaText: creative?.cta_text || "Learn More",
+              ctaUrl: creative?.cta_url,
+              pesScore: c.pes_score,
+            };
+          });
+      }
+    } catch (e) {
+      console.error("Failed to fetch sponsored products:", e);
+    }
+
+    let systemPrompt = buildSystemPrompt(userContext);
+
+    // Inject sponsored products into system prompt
+    if (sponsoredProducts.length > 0) {
+      systemPrompt += `
+
+═══════════════════════════════════════
+SPONSORED PRODUCT SUGGESTIONS (CONTEXTUAL ADS)
+═══════════════════════════════════════
+
+You have access to the following sponsored products. When the conversation is NATURALLY relevant (e.g., user asks about protein, snacks, supplements, or you're suggesting foods), you may recommend ONE of these products. 
+
+RULES:
+- Only suggest when contextually relevant — NEVER force a recommendation
+- Maximum ONE sponsor suggestion per conversation
+- Frame it as a helpful tip, not an ad: "By the way, [Product] could help with that — PES score of X"
+- Include the sponsor_suggestion action block so the app can track it
+- ALWAYS disclose it's sponsored with a brief note
+
+Available sponsored products:
+${JSON.stringify(sponsoredProducts, null, 2)}
+
+When suggesting, output this action block:
+
+\`\`\`action
+{
+  "type": "sponsor_suggestion",
+  "campaignId": "campaign-uuid",
+  "creativeId": "creative-uuid", 
+  "brandName": "Brand Name",
+  "productName": "Product Headline",
+  "ctaText": "CTA text",
+  "ctaUrl": "https://...",
+  "pesScore": 72
+}
+\`\`\`
+`;
+    }
 
     const apiMessages: any[] = [{ role: "system", content: systemPrompt }];
 
