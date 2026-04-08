@@ -429,7 +429,6 @@ export default function MarketCategories() {
       <ReportPriceSheet
         open={reportPriceOpen}
         onOpenChange={setReportPriceOpen}
-        city={city || 'hyderabad'}
       />
     </div>
   );
