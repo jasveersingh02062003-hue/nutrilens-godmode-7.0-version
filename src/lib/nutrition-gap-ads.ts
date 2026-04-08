@@ -62,7 +62,7 @@ export function getRemainingBudget(): number {
   const log = getDailyLog();
   let todaySpent = 0;
   for (const meal of log.meals) {
-    todaySpent += meal.totalCost || 0;
+    todaySpent += meal.cost?.amount || 0;
   }
   return Math.max(0, unified.daily - todaySpent);
 }
