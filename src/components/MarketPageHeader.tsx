@@ -169,6 +169,8 @@ export default function MarketPageHeader({
           </motion.div>
         )}
       </AnimatePresence>
+
+      <BarcodeScanner open={scannerOpen} onOpenChange={setScannerOpen} />
     </div>
   );
 }
