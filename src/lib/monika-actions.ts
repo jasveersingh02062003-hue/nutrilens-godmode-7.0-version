@@ -221,6 +221,10 @@ export function executeAction(action: MonikaAction): string {
       return '__REPORT__'; // Handled specially in chat screen
     }
 
+    case 'sponsor_suggestion': {
+      return '__SPONSOR__'; // Handled specially in chat screen — tracked via ad event
+    }
+
     default:
       return '⚠️ Unknown action';
   }
