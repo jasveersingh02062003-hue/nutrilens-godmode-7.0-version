@@ -14,6 +14,7 @@ export interface ProcessedMarketItem extends RawMarketItem {
   pes: number;
   pesColor: 'green' | 'yellow' | 'red';
   costPerGram: number;
+  lastUpdated?: string;
 }
 
 interface MarketContextValue {
@@ -42,15 +43,16 @@ export function useMarket() {
   return ctx;
 }
 
-function convertToMarketItem(item: RawMarketItem, city: string, priceChange?: number): LegacyMarketItem {
-  const price = getCityPrice(item.basePrice, city);
-  const pes = calculateMarketPES(item.protein, price);
-  const costPerGram = item.protein > 0 ? Math.round((price / item.protein) * 100) / 100 : 999;
+function convertToMarketItem(item: RawMarketItem, city: string, priceChange?: number, livePrice?: { price: number; updatedAt: string }): LegacyMarketItem {
+  const price = livePrice ? livePrice.price : getCityPrice(item.basePrice, city);
+  const pes = calculateMarketPES(item.protein, price, item.unit);
+  const pricePer100g = item.unit === 'kg' ? price / 10 : price;
+  const costPerGram = item.protein > 0 ? Math.round((pricePer100g / item.protein) * 100) / 100 : 999;
   return {
     id: item.id, name: item.name, price, protein: item.protein, calories: item.calories,
     pes: Math.round(pes * 100) / 100, pesColor: getMarketPESColor(pes), costPerGramProtein: costPerGram,
     category: item.isVeg ? 'Veg' : 'Non-Veg', unit: item.unit, source: 'fresh', imageUrl: item.emoji,
-    lastUpdated: 'static', priceChange: priceChange || 0, carbs: item.carbs, fat: item.fat, fiber: item.fiber,
+    lastUpdated: livePrice ? livePrice.updatedAt : 'static', priceChange: priceChange || 0, carbs: item.carbs, fat: item.fat, fiber: item.fiber,
   };
 }
 
