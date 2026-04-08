@@ -114,6 +114,9 @@ export default function Market() {
   const [multiCityOpen, setMultiCityOpen] = useState(false);
   const [showTrend, setShowTrend] = useState(false);
   const [trendItem, setTrendItem] = useState('Chicken');
+  const ITEMS_PER_PAGE = 20;
+  const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   const isBrowsing = !!selectedCategory || !!search || filter !== 'all';
 
