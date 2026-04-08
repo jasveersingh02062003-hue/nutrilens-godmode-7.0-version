@@ -383,7 +383,7 @@ export default function Market() {
                       variant="native"
                     />
                   )}
-                  {filteredItems.map((item, i) => (
+                  {filteredItems.slice(0, visibleCount).map((item, i) => (
                     <MarketItemCard
                       key={item.id}
                       rank={i + 1}
@@ -412,6 +412,12 @@ export default function Market() {
                       itemId={item.id}
                     />
                   ))}
+                  {/* Load more sentinel */}
+                  {visibleCount < filteredItems.length && (
+                    <div ref={loadMoreRef} className="flex justify-center py-4">
+                      <p className="text-[10px] text-muted-foreground">Loading more items...</p>
+                    </div>
+                  )}
                 </>
               )}
             </div>
