@@ -23,6 +23,7 @@ import { getScaledMealInfo } from '@/lib/meal-scale';
 import { validatePlanFeasibility, validateDaySync } from '@/lib/plan-validator';
 import { deductRecipeFromPantry } from '@/lib/pantry-deduction';
 import RecipeDetail from './RecipeDetail';
+import SmartProductNudge from './SmartProductNudge';
 import ShoppingList from './ShoppingList';
 import {
   AlertDialog,
@@ -359,6 +360,9 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
             );
           })}
         </div>
+
+        {/* Gap-aware product nudge for planner */}
+        <SmartProductNudge surface="planner" variant="compact" />
 
         {/* Meals for selected day */}
         <AnimatePresence mode="wait">

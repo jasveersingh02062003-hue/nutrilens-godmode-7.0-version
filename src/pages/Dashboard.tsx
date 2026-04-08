@@ -39,6 +39,7 @@ import EnergyTracker from '@/components/EnergyTracker';
 import ProteinGapNudgeCard from '@/components/ProteinGapNudgeCard';
 import SupplementUpsellCard from '@/components/SupplementUpsellCard';
 import DashboardSponsoredCard from '@/components/DashboardSponsoredCard';
+import SmartProductNudge from '@/components/SmartProductNudge';
 import { shouldBoostWater } from '@/lib/supplement-service';
 
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
@@ -239,7 +240,8 @@ export default function Dashboard() {
 
         {/* Supplement Intelligence Cards */}
         <motion.div variants={fadeUp}><ProteinGapNudgeCard onApplied={d.refreshLog} /></motion.div>
-        {/* Sponsored: Protein Gap Nudge */}
+        {/* Smart Product Nudge — gap-aware sponsored recommendation */}
+        <motion.div variants={fadeUp}><SmartProductNudge surface="dashboard" variant="full" /></motion.div>
         <motion.div variants={fadeUp}><DashboardSponsoredCard slot="dashboard_protein_nudge" /></motion.div>
         <motion.div variants={fadeUp}><SupplementUpsellCard /></motion.div>
 

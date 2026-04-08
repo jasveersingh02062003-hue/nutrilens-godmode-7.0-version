@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
     );
 
     const body = await req.json();
-    const { event_type, campaign_id, creative_id, placement_slot, user_id } = body;
+    const { event_type, campaign_id, creative_id, placement_slot, user_id, product_id, conversion_type } = body;
 
     // Validate required fields
     if (!event_type || !campaign_id || !user_id) {
@@ -27,9 +27,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!["impression", "click"].includes(event_type)) {
+    if (!["impression", "click", "conversion"].includes(event_type)) {
       return new Response(
-        JSON.stringify({ error: "event_type must be 'impression' or 'click'" }),
+        JSON.stringify({ error: "event_type must be 'impression', 'click', or 'conversion'" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -105,6 +105,15 @@ Deno.serve(async (req) => {
           .update({ budget_spent: campaign.budget_spent + campaign.cpc_rate })
           .eq("id", campaign_id);
       }
+    }
+
+    if (event_type === "conversion") {
+      await supabase.from("ad_conversions").insert({
+        campaign_id,
+        user_id,
+        conversion_type: conversion_type || "add_to_plan",
+        product_id: product_id || null,
+      });
     }
 
     return new Response(
