@@ -361,6 +361,9 @@ export default function MealPlanDashboard({ plan, profile, onRegenerate, onSwapM
           })}
         </div>
 
+        {/* Gap-aware product nudge for planner */}
+        <SmartProductNudge surface="planner" variant="compact" />
+
         {/* Meals for selected day */}
         <AnimatePresence mode="wait">
           <motion.div key={selectedDayIdx} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-3">
