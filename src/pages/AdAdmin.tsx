@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Plus, Pause, Play, CheckCircle, BarChart3, Eye, MousePointer, Shield, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Pause, Play, CheckCircle, BarChart3, Eye, MousePointer, Shield, Sparkles, Trash2, Barcode, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
