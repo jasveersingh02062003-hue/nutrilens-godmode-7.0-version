@@ -268,6 +268,27 @@ export default function AdAdmin() {
     toast.success(`Campaign ${newStatus}`);
   };
 
+  const seedBarcodesFromOFF = async () => {
+    if (seedingBarcodes) return;
+    setSeedingBarcodes(true);
+    const t = toast.loading('Looking up barcodes via Open Food Facts… (~1s per product)');
+    try {
+      const { data, error } = await supabase.functions.invoke('seed-barcodes-off');
+      if (error) throw error;
+      const s = (data as any)?.summary;
+      toast.success(
+        s ? `Backfill done: ${s.found} matched · ${s.missed} not found · ${s.errors} errors (of ${s.total})`
+          : 'Backfill complete',
+        { id: t, duration: 8000 }
+      );
+    } catch (e: any) {
+      toast.error(`Backfill failed: ${e?.message || 'unknown error'}`, { id: t });
+    } finally {
+      setSeedingBarcodes(false);
+    }
+  };
+
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
