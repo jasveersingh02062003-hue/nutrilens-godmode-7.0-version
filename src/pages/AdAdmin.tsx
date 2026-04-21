@@ -329,7 +329,26 @@ export default function AdAdmin() {
                 </div>
               </div>
 
-              {/* Campaign list */}
+              {/* Tools — backfill barcodes from Open Food Facts */}
+              <button
+                onClick={seedBarcodesFromOFF}
+                disabled={seedingBarcodes}
+                className="w-full p-3 rounded-xl bg-card border border-border flex items-center gap-3 text-left disabled:opacity-60"
+              >
+                {seedingBarcodes ? (
+                  <Loader2 className="w-4 h-4 text-primary animate-spin shrink-0" />
+                ) : (
+                  <Barcode className="w-4 h-4 text-primary shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-foreground">Seed barcodes from Open Food Facts</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Backfills missing EAN-13s on packed products. ~1s per product.
+                  </p>
+                </div>
+              </button>
+
+
               {campaigns.length === 0 ? (
                 <div className="text-center py-12">
                   <Sparkles className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
