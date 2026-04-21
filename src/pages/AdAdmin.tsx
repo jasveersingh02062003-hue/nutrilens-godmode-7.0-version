@@ -85,6 +85,7 @@ export default function AdAdmin() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [view, setView] = useState<'campaigns' | 'create_brand' | 'create_campaign'>('campaigns');
+  const [seedingBarcodes, setSeedingBarcodes] = useState(false);
   const [brandForm, setBrandForm] = useState({ brand_name: '', contact_email: '', logo_url: '' });
   const [campaignForm, setCampaignForm] = useState({
     brand_id: '',
