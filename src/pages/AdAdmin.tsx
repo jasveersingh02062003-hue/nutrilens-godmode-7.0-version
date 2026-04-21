@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Plus, Pause, Play, CheckCircle, BarChart3, Eye, MousePointer, Shield, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Pause, Play, CheckCircle, BarChart3, Eye, MousePointer, Shield, Sparkles, Trash2, Barcode, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -85,6 +85,7 @@ export default function AdAdmin() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [view, setView] = useState<'campaigns' | 'create_brand' | 'create_campaign'>('campaigns');
+  const [seedingBarcodes, setSeedingBarcodes] = useState(false);
   const [brandForm, setBrandForm] = useState({ brand_name: '', contact_email: '', logo_url: '' });
   const [campaignForm, setCampaignForm] = useState({
     brand_id: '',
@@ -267,6 +268,27 @@ export default function AdAdmin() {
     toast.success(`Campaign ${newStatus}`);
   };
 
+  const seedBarcodesFromOFF = async () => {
+    if (seedingBarcodes) return;
+    setSeedingBarcodes(true);
+    const t = toast.loading('Looking up barcodes via Open Food Facts… (~1s per product)');
+    try {
+      const { data, error } = await supabase.functions.invoke('seed-barcodes-off');
+      if (error) throw error;
+      const s = (data as any)?.summary;
+      toast.success(
+        s ? `Backfill done: ${s.found} matched · ${s.missed} not found · ${s.errors} errors (of ${s.total})`
+          : 'Backfill complete',
+        { id: t, duration: 8000 }
+      );
+    } catch (e: any) {
+      toast.error(`Backfill failed: ${e?.message || 'unknown error'}`, { id: t });
+    } finally {
+      setSeedingBarcodes(false);
+    }
+  };
+
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -307,7 +329,26 @@ export default function AdAdmin() {
                 </div>
               </div>
 
-              {/* Campaign list */}
+              {/* Tools — backfill barcodes from Open Food Facts */}
+              <button
+                onClick={seedBarcodesFromOFF}
+                disabled={seedingBarcodes}
+                className="w-full p-3 rounded-xl bg-card border border-border flex items-center gap-3 text-left disabled:opacity-60"
+              >
+                {seedingBarcodes ? (
+                  <Loader2 className="w-4 h-4 text-primary animate-spin shrink-0" />
+                ) : (
+                  <Barcode className="w-4 h-4 text-primary shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-foreground">Seed barcodes from Open Food Facts</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Backfills missing EAN-13s on packed products. ~1s per product.
+                  </p>
+                </div>
+              </button>
+
+
               {campaigns.length === 0 ? (
                 <div className="text-center py-12">
                   <Sparkles className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
