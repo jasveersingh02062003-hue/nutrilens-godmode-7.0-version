@@ -4,7 +4,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Loader2, MessageSquare, Trophy, Utensils, Droplet, Pill, Scale, RefreshCw } from 'lucide-react';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  ArrowLeft, Loader2, MessageSquare, Trophy, Utensils, Droplet, Pill, Scale, RefreshCw,
+  CalendarPlus, IndianRupee,
+} from 'lucide-react';
 import { logAdminAction } from '@/lib/audit';
 import { useAdminRole } from '@/hooks/useAdminRole';
 import { daysAgoISO } from '@/lib/admin-metrics';
