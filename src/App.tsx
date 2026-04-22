@@ -81,6 +81,12 @@ const PageLoader = () => (
   </div>
 );
 
+// Wrap each route in its own ErrorBoundary so a crash on one page
+// doesn't take down the whole app.
+const RouteBoundary = ({ children }: { children: React.ReactNode }) => (
+  <ErrorBoundary>{children}</ErrorBoundary>
+);
+
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
   if (isLoading) return <PageLoader />;
