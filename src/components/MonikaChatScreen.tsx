@@ -49,6 +49,53 @@ const loadChatHistory = (): ChatMessage[] => {
   } catch { return []; }
 };
 
+// Fire-and-forget cloud sync helpers — never block UI
+const cloudInsertMessage = (role: 'user' | 'assistant', content: string) => {
+  (async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await (supabase.from as any)('monika_conversations').insert({
+        user_id: user.id,
+        role,
+        content: content.slice(0, 8000),
+      });
+    } catch {}
+  })();
+};
+
+const cloudClearHistory = () => {
+  (async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await (supabase.from as any)('monika_conversations').delete().eq('user_id', user.id);
+    } catch {}
+  })();
+};
+
+const cloudFetchHistory = async (): Promise<ChatMessage[]> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+    const { data, error } = await (supabase.from as any)('monika_conversations')
+      .select('role, content, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (error || !data) return [];
+    return (data as Array<{ role: 'user' | 'assistant'; content: string }>)
+      .reverse()
+      .map(r => ({
+        id: crypto.randomUUID(),
+        role: r.role,
+        content: r.content,
+      }));
+  } catch {
+    return [];
+  }
+};
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -73,6 +120,24 @@ export default function MonikaChatScreen({ open, onClose, onDashboardRefresh }: 
     if (messages.length > 0) saveChatHistory(messages);
   }, [messages]);
 
+  // One-time cloud sync on first open: merge cloud history with local (cloud-wins on dupes)
+  const cloudSyncedRef = useRef(false);
+  useEffect(() => {
+    if (!open || cloudSyncedRef.current) return;
+    cloudSyncedRef.current = true;
+    (async () => {
+      const cloudMsgs = await cloudFetchHistory();
+      if (cloudMsgs.length === 0) return;
+      setMessages(prev => {
+        // Build a content+role signature set from local for dedup
+        const sig = new Set(prev.map(m => `${m.role}::${m.content}`));
+        const merged = [...cloudMsgs.filter(m => !sig.has(`${m.role}::${m.content}`)), ...prev];
+        // Keep last 100
+        return merged.slice(-100);
+      });
+    })();
+  }, [open]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -80,6 +145,7 @@ export default function MonikaChatScreen({ open, onClose, onDashboardRefresh }: 
   const clearHistory = useCallback(() => {
     setMessages([]);
     scopedRemove(CHAT_HISTORY_KEY);
+    cloudClearHistory();
     toast.success('Chat history cleared');
   }, []);
 
@@ -225,6 +291,11 @@ export default function MonikaChatScreen({ open, onClose, onDashboardRefresh }: 
       }
       // After stream, log impressions for any sponsor suggestions
       const { actions: finalActions } = parseActions(fullResponse);
+      // Cloud-sync the final assistant message (fire-and-forget)
+      if (fullResponse.trim()) {
+        const { cleanText } = parseActions(fullResponse);
+        cloudInsertMessage('assistant', cleanText);
+      }
       for (const action of finalActions) {
         if (action.type === 'sponsor_suggestion') {
           const sponsor = action as SponsorSuggestionAction;
@@ -267,6 +338,7 @@ export default function MonikaChatScreen({ open, onClose, onDashboardRefresh }: 
     const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: q };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
+    cloudInsertMessage('user', q);
     setInput('');
     setIsLoading(true);
     await streamChat(newMessages);
