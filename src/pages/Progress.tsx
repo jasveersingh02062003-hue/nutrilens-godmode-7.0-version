@@ -42,7 +42,6 @@ import UpgradeModal from '@/components/UpgradeModal';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
 import { getDailyBalances, getTodayAdjustmentStatus, getMonthlyStats, getWeekendPattern, computeAdjustmentMap, computeProjectedAdjustmentMap, computeSafeSpreadDays, getCorrectionMode, computeAdjustedTarget, type DailyBalanceEntry } from '@/lib/calorie-correction';
 import { toLocalDateKey } from '@/lib/store';
-import ProgressSkeleton from '@/components/progress/ProgressSkeleton';
 
 
 type DayBalance = 'surplus' | 'deficit' | 'balanced' | 'no-data' | 'future-reduced' | 'future-recovery';
@@ -200,8 +199,6 @@ export default function ProgressPage() {
   const logs = useMemo(() => getRecentLogs(30), [refreshKey]);
   const premium = isPremium();
 
-  // Defensive: if profile hasn't hydrated yet, show skeleton instead of a flash of empty UI.
-  if (!profile) return <ProgressSkeleton />;
 
 
   const refresh = useCallback(() => setRefreshKey(k => k + 1), []);
