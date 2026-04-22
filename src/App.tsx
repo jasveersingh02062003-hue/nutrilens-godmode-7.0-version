@@ -84,7 +84,12 @@ const AdminAds = lazyWithRetry(() => import("./pages/admin/AdminAds"), "admin-ad
 const AdminBrands = lazyWithRetry(() => import("./pages/admin/AdminBrands"), "admin-brands");
 const AdminBrandDetail = lazyWithRetry(() => import("./pages/admin/AdminBrandDetail"), "admin-brand-detail");
 const AdminScraping = lazyWithRetry(() => import("./pages/admin/AdminScraping"), "admin-scraping");
+const BrandLayout = lazyWithRetry(() => import("./components/brand/BrandLayout"), "brand-layout");
 const BrandDashboard = lazyWithRetry(() => import("./pages/brand/BrandDashboard"), "brand-dashboard");
+const BrandCampaigns = lazyWithRetry(() => import("./pages/brand/BrandCampaigns"), "brand-campaigns");
+const BrandNewCampaign = lazyWithRetry(() => import("./pages/brand/BrandNewCampaign"), "brand-new-campaign");
+const BrandBilling = lazyWithRetry(() => import("./pages/brand/BrandBilling"), "brand-billing");
+const BrandProducts = lazyWithRetry(() => import("./pages/brand/BrandProducts"), "brand-products");
 const RequireBrand = lazyWithRetry(() => import("./components/admin/RequireBrand"), "require-brand");
 const AdminPlans = lazyWithRetry(() => import("./pages/admin/AdminPlans"), "admin-plans");
 const AdminFeedback = lazyWithRetry(() => import("./pages/admin/AdminFeedback"), "admin-feedback");
@@ -211,7 +216,13 @@ function AppLayout() {
           <Route path="ops" element={<Suspense fallback={<PageLoader />}><AdminOps /></Suspense>} />
           <Route path="audit" element={<Suspense fallback={<PageLoader />}><RequireAdmin requireSuper><AdminAudit /></RequireAdmin></Suspense>} />
         </Route>
-        <Route path="/brand" element={<RouteBoundary><Suspense fallback={<PageLoader />}><RequireBrand><BrandDashboard /></RequireBrand></Suspense></RouteBoundary>} />
+        <Route path="/brand" element={<RouteBoundary><Suspense fallback={<PageLoader />}><RequireBrand><BrandLayout /></RequireBrand></Suspense></RouteBoundary>}>
+          <Route index element={<Suspense fallback={<PageLoader />}><BrandDashboard /></Suspense>} />
+          <Route path="campaigns" element={<Suspense fallback={<PageLoader />}><BrandCampaigns /></Suspense>} />
+          <Route path="new" element={<Suspense fallback={<PageLoader />}><BrandNewCampaign /></Suspense>} />
+          <Route path="billing" element={<Suspense fallback={<PageLoader />}><BrandBilling /></Suspense>} />
+          <Route path="products" element={<Suspense fallback={<PageLoader />}><BrandProducts /></Suspense>} />
+        </Route>
         <Route path="/advertise" element={<RouteBoundary><Suspense fallback={<PageLoader />}><Advertise /></Suspense></RouteBoundary>} />
         <Route path="/quicklog" element={<RouteBoundary><ProtectedRoute><PageTransition><QuickLog /></PageTransition></ProtectedRoute></RouteBoundary>} />
         <Route path="/camera" element={<Navigate to="/" replace />} />
