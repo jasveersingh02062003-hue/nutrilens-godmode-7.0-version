@@ -320,6 +320,63 @@ export type Database = {
           },
         ]
       }
+      api_usage: {
+        Row: {
+          cost_inr: number
+          created_at: string
+          id: string
+          metadata: Json
+          units: number
+          vendor: string
+        }
+        Insert: {
+          cost_inr?: number
+          created_at?: string
+          id?: string
+          metadata?: Json
+          units?: number
+          vendor: string
+        }
+        Update: {
+          cost_inr?: number
+          created_at?: string
+          id?: string
+          metadata?: Json
+          units?: number
+          vendor?: string
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          target_table: string | null
+          target_user_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          target_table?: string | null
+          target_user_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          target_table?: string | null
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
       brand_accounts: {
         Row: {
           balance: number
@@ -451,6 +508,36 @@ export type Database = {
           start_date?: string
           status?: string
           updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      feedback: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
           user_id?: string
         }
         Relationships: []
@@ -726,6 +813,7 @@ export type Database = {
           job_type: string | null
           join_date: string | null
           learning: Json | null
+          marketing_consent: boolean
           meal_times: Json | null
           medications: string | null
           men_health: Json | null
@@ -774,6 +862,7 @@ export type Database = {
           job_type?: string | null
           join_date?: string | null
           learning?: Json | null
+          marketing_consent?: boolean
           meal_times?: Json | null
           medications?: string | null
           men_health?: Json | null
@@ -822,6 +911,7 @@ export type Database = {
           job_type?: string | null
           join_date?: string | null
           learning?: Json | null
+          marketing_consent?: boolean
           meal_times?: Json | null
           medications?: string | null
           men_health?: Json | null
