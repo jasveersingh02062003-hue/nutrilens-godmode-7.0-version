@@ -5,10 +5,20 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Eye, EyeOff, Download, Search, Loader2, Hash, ExternalLink } from 'lucide-react';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu';
+import { Eye, EyeOff, Download, Search, Loader2, Hash, ExternalLink, Bookmark, Trash2 } from 'lucide-react';
 import { useAdminRole } from '@/hooks/useAdminRole';
 import { logAdminAction } from '@/lib/audit';
-import { md5Hex, daysAgoISO } from '@/lib/admin-metrics';
+import { daysAgoISO } from '@/lib/admin-metrics';
+import { sha256Hex, normalizeEmail } from '@/lib/hashing';
+import { listSegments, saveSegment, deleteSegment, SavedSegment } from '@/lib/admin-segments';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
@@ -50,6 +60,15 @@ export default function AdminUsers() {
   const [search, setSearch] = useState('');
   const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
   const [activeUserIds, setActiveUserIds] = useState<Set<string>>(new Set());
+  const [segments, setSegments] = useState<SavedSegment[]>(() => listSegments());
+
+  // Reveal modal state
+  const [revealTarget, setRevealTarget] = useState<ProfileRow | null>(null);
+  const [revealReason, setRevealReason] = useState('');
+
+  // Save segment modal
+  const [segOpen, setSegOpen] = useState(false);
+  const [segName, setSegName] = useState('');
 
   // filters
   const [city, setCity] = useState('all');
@@ -57,7 +76,7 @@ export default function AdminUsers() {
   const [ageBand, setAgeBand] = useState('all');
   const [goal, setGoal] = useState('all');
   const [signupWindow, setSignupWindow] = useState('all');
-  const [activity, setActivity] = useState('all'); // active7 | inactive7 | inactive30 | all
+  const [activity, setActivity] = useState('all'); // active7 | inactive7 | all
 
   useEffect(() => {
     (async () => {
@@ -88,6 +107,8 @@ export default function AdminUsers() {
     [rows]
   );
 
+  const currentFilters = { search, city, gender, ageBand, goal, signupWindow, activity };
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     const cutoffMap: Record<string, string> = {
@@ -112,18 +133,36 @@ export default function AdminUsers() {
     });
   }, [rows, search, city, gender, goal, ageBand, signupWindow, activity, activeUserIds]);
 
-  const handleReveal = async (userId: string) => {
+  const requestReveal = (r: ProfileRow) => {
     if (!isSuperAdmin) return toast.error('Super admin only');
-    const reason = prompt('Reason for revealing PII (e.g. support ticket #123):');
-    if (!reason) return;
-    setRevealedIds(s => new Set(s).add(userId));
+    setRevealReason('');
+    setRevealTarget(r);
+  };
+
+  const confirmReveal = async () => {
+    if (!revealTarget) return;
+    if (revealReason.trim().length < 5) {
+      return toast.error('Reason must be at least 5 characters');
+    }
+    setRevealedIds(s => new Set(s).add(revealTarget.id));
     await logAdminAction({
       action: 'pii_reveal',
       target_table: 'profiles',
-      target_user_id: userId,
-      metadata: { reason },
+      target_user_id: revealTarget.id,
+      metadata: { reason: revealReason.trim() },
     });
     toast.success('PII revealed · audit logged');
+    setRevealTarget(null);
+  };
+
+  const downloadBlob = (text: string, filename: string, type: string) => {
+    const blob = new Blob([text], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleExport = async () => {
@@ -133,48 +172,99 @@ export default function AdminUsers() {
       headers.join(','),
       ...filtered.map(r => headers.map(h => JSON.stringify((r as any)[h] ?? '')).join(',')),
     ].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `nutrilens-users-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(csv, `nutrilens-users-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv');
     await logAdminAction({
       action: 'csv_export',
       target_table: 'profiles',
-      metadata: { row_count: filtered.length, filters: { city, gender, goal, ageBand, signupWindow, activity } },
+      metadata: { row_count: filtered.length, filters: currentFilters },
     });
     toast.success(`Exported ${filtered.length} users`);
   };
 
   const handleMetaExport = async () => {
     if (!isSuperAdmin) return toast.error('Super admin only');
-    // Get auth.users emails via admin lookup not available client-side.
-    // Instead: hash user IDs + names so brand can match offline. Real Meta CAPI needs email/phone — note this as v1.
     const consenting = filtered.filter(r => r.marketing_consent);
-    if (!consenting.length) return toast.error('No users have marketing consent');
-    const lines = await Promise.all(
+    if (!consenting.length) return toast.error('No users with marketing consent in this filter');
+
+    // Try to fetch emails via service-role admin endpoint. If not available
+    // (no edge function set up yet) we fall back to hashing user_id so the
+    // export is still well-formed for manual matching.
+    let emailMap: Record<string, string> = {};
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-list-emails', {
+        body: { user_ids: consenting.map(r => r.id) },
+      });
+      if (!error && data?.emails) emailMap = data.emails as Record<string, string>;
+    } catch {
+      // edge function not deployed yet — silent fallback
+    }
+
+    const hashedRows = await Promise.all(
       consenting.map(async r => {
-        const namePart = (r.name ?? '').trim().toLowerCase();
-        const hash = await md5Hex(namePart || r.id);
-        return `${hash},${r.city ?? ''},${r.gender ?? ''},${r.age ?? ''}`;
+        const email = emailMap[r.id];
+        const hashed = email
+          ? await sha256Hex(normalizeEmail(email))
+          : await sha256Hex(`uid:${r.id}`); // fallback marker
+        return hashed;
       })
     );
-    const csv = ['hashed_name,city,gender,age', ...lines].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `meta-custom-audience-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const csv = ['email_sha256', ...hashedRows].join('\n');
+    downloadBlob(csv, `meta-custom-audience-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv');
+
+    const usedEmails = Object.keys(emailMap).length;
     await logAdminAction({
-      action: 'csv_export',
+      action: 'meta_audience_export',
       target_table: 'profiles',
-      metadata: { meta_audience: true, row_count: consenting.length },
+      metadata: {
+        row_count: consenting.length,
+        with_email: usedEmails,
+        with_id_fallback: consenting.length - usedEmails,
+        filters: currentFilters,
+      },
     });
-    toast.success(`Exported ${consenting.length} consenting users`);
+    toast.success(
+      `Exported ${consenting.length} (${usedEmails} email-hashed, ${consenting.length - usedEmails} id-hashed)`
+    );
+  };
+
+  const openSaveSegment = () => {
+    if (!filtered.length) return toast.error('No users in current filter');
+    setSegName('');
+    setSegOpen(true);
+  };
+
+  const confirmSaveSegment = async () => {
+    if (segName.trim().length < 2) return toast.error('Name required');
+    const seg = saveSegment({
+      name: segName.trim(),
+      filters: currentFilters,
+      count_at_save: filtered.length,
+    });
+    setSegments(listSegments());
+    await logAdminAction({
+      action: 'segment_save',
+      target_table: 'profiles',
+      metadata: { name: seg.name, row_count: filtered.length, filters: currentFilters },
+    });
+    toast.success(`Saved segment "${seg.name}"`);
+    setSegOpen(false);
+  };
+
+  const applySegment = (seg: SavedSegment) => {
+    const f = seg.filters as any;
+    setSearch(f.search ?? '');
+    setCity(f.city ?? 'all');
+    setGender(f.gender ?? 'all');
+    setAgeBand(f.ageBand ?? 'all');
+    setGoal(f.goal ?? 'all');
+    setSignupWindow(f.signupWindow ?? 'all');
+    setActivity(f.activity ?? 'all');
+    toast.success(`Loaded "${seg.name}"`);
+  };
+
+  const removeSegment = (id: string) => {
+    deleteSegment(id);
+    setSegments(listSegments());
   };
 
   return (
@@ -185,6 +275,40 @@ export default function AdminUsers() {
           <p className="text-sm text-muted-foreground">{filtered.length} of {rows.length} matching</p>
         </div>
         <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Bookmark className="w-4 h-4 mr-2" />
+                Segments {segments.length > 0 && `(${segments.length})`}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-72">
+              <DropdownMenuLabel>Saved segments</DropdownMenuLabel>
+              {segments.length === 0 && (
+                <div className="px-2 py-3 text-xs text-muted-foreground">No segments saved yet.</div>
+              )}
+              {segments.map(s => (
+                <DropdownMenuItem
+                  key={s.id}
+                  onClick={() => applySegment(s)}
+                  className="flex items-center justify-between gap-2"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm truncate">{s.name}</div>
+                    <div className="text-[10px] text-muted-foreground">{s.count_at_save} users · {new Date(s.created_at).toLocaleDateString()}</div>
+                  </div>
+                  <Trash2
+                    className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive shrink-0"
+                    onClick={(e) => { e.stopPropagation(); removeSegment(s.id); }}
+                  />
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={openSaveSegment}>
+                <Bookmark className="w-3.5 h-3.5 mr-2" /> Save current filters…
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button onClick={handleMetaExport} disabled={!isSuperAdmin} variant="outline" size="sm">
             <Hash className="w-4 h-4 mr-2" />
             Meta audience CSV
@@ -312,7 +436,7 @@ export default function AdminUsers() {
                             variant="ghost"
                             size="sm"
                             disabled={!isSuperAdmin || revealed}
-                            onClick={() => handleReveal(r.id)}
+                            onClick={() => requestReveal(r)}
                             className="h-7 px-2"
                             title="Reveal full PII (logged)"
                           >
@@ -342,6 +466,64 @@ export default function AdminUsers() {
           </div>
         )}
       </Card>
+
+      {/* Reveal-with-reason modal */}
+      <Dialog open={!!revealTarget} onOpenChange={(o) => !o && setRevealTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reveal user PII</DialogTitle>
+            <DialogDescription>
+              This action is logged to the audit trail. Provide a reason (e.g. support ticket #, compliance request).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">User</Label>
+              <p className="text-sm font-mono text-muted-foreground">{revealTarget?.id}</p>
+            </div>
+            <div>
+              <Label htmlFor="reveal-reason" className="text-xs">Reason (min 5 chars)</Label>
+              <Textarea
+                id="reveal-reason"
+                value={revealReason}
+                onChange={e => setRevealReason(e.target.value)}
+                placeholder="Support ticket #1234 — user requested account deletion"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRevealTarget(null)}>Cancel</Button>
+            <Button onClick={confirmReveal}>Reveal & log</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Save segment modal */}
+      <Dialog open={segOpen} onOpenChange={setSegOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save current filters as segment</DialogTitle>
+            <DialogDescription>
+              Captures {filtered.length} matching users. You can re-apply these filters anytime.
+            </DialogDescription>
+          </DialogHeader>
+          <div>
+            <Label htmlFor="seg-name" className="text-xs">Segment name</Label>
+            <Input
+              id="seg-name"
+              value={segName}
+              onChange={e => setSegName(e.target.value)}
+              placeholder="e.g. Inactive Mumbai women, weight-loss"
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setSegOpen(false)}>Cancel</Button>
+            <Button onClick={confirmSaveSegment}>Save segment</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
