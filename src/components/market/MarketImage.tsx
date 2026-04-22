@@ -40,6 +40,10 @@ export default function MarketImage({ itemId, emoji, alt, size = 'md', className
       <img
         src={imageUrl}
         alt={alt}
+        loading="lazy"
+        decoding="async"
+        width={size === 'sm' ? 36 : size === 'md' ? 48 : 56}
+        height={size === 'sm' ? 36 : size === 'md' ? 48 : 56}
         onLoad={() => setLoaded(true)}
         onError={() => setError(true)}
         className={`w-full h-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}

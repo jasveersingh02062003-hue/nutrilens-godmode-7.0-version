@@ -19,6 +19,7 @@ export default function MarketBottomNav() {
 
   return (
     <motion.nav
+      aria-label="Market navigation"
       initial={{ y: 80, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.1 }}
@@ -34,6 +35,8 @@ export default function MarketBottomNav() {
             <button
               key={tab.path}
               onClick={() => navigate(tab.path)}
+              aria-label={tab.label}
+              aria-current={active ? 'page' : undefined}
               className="relative flex flex-col items-center justify-center gap-0.5 min-h-[48px]"
             >
               <motion.div

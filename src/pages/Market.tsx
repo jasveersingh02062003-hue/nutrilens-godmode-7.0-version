@@ -302,56 +302,59 @@ export default function Market() {
               </>
             )}
 
-            {/* Fresh / Packed Toggle */}
-            <div className="flex p-1 rounded-xl bg-muted">
-              <button
-                onClick={() => handleViewModeChange('fresh')}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
-                  viewMode === 'fresh' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Leaf className="w-3.5 h-3.5" /> Fresh Foods
-              </button>
-              <button
-                onClick={() => handleViewModeChange('packed')}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
-                  viewMode === 'packed' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Package className="w-3.5 h-3.5" /> Packed & Branded
-              </button>
-            </div>
-
-            {/* Filter & Sort Bar */}
-            <div className="space-y-2">
-              <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
-                {FILTER_CHIPS.map(f => (
-                  <button
-                    key={f.key}
-                    onClick={() => setFilter(filter === f.key ? 'all' : f.key)}
-                    className={`px-2.5 py-1.5 rounded-full text-[10px] font-semibold whitespace-nowrap transition-colors ${
-                      filter === f.key ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
+            {/* Sticky Fresh/Packed toggle + filter/sort bar — stays pinned beneath the header while scrolling */}
+            <div className="sticky top-[56px] z-10 -mx-4 px-4 py-2 bg-background/85 backdrop-blur-xl border-b border-border/40 space-y-2">
+              {/* Fresh / Packed Toggle */}
+              <div className="flex p-1 rounded-xl bg-muted">
+                <button
+                  onClick={() => handleViewModeChange('fresh')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    viewMode === 'fresh' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Leaf className="w-3.5 h-3.5" /> Fresh Foods
+                </button>
+                <button
+                  onClick={() => handleViewModeChange('packed')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    viewMode === 'packed' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Package className="w-3.5 h-3.5" /> Packed & Branded
+                </button>
               </div>
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-[10px] text-muted-foreground">Sort:</span>
-                {SORT_OPTIONS.map(opt => (
-                  <button
-                    key={opt.key}
-                    onClick={() => setSort(opt.key)}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-colors ${
-                      sort === opt.key ? 'bg-secondary text-secondary-foreground' : 'text-muted-foreground hover:bg-muted'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-                <span className="ml-auto text-[10px] text-muted-foreground">{filteredItems.length} items</span>
+
+              {/* Filter & Sort Bar */}
+              <div className="space-y-2">
+                <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
+                  {FILTER_CHIPS.map(f => (
+                    <button
+                      key={f.key}
+                      onClick={() => setFilter(filter === f.key ? 'all' : f.key)}
+                      className={`px-2.5 py-1.5 rounded-full text-[10px] font-semibold whitespace-nowrap transition-colors ${
+                        filter === f.key ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-[10px] text-muted-foreground">Sort:</span>
+                  {SORT_OPTIONS.map(opt => (
+                    <button
+                      key={opt.key}
+                      onClick={() => setSort(opt.key)}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-colors ${
+                        sort === opt.key ? 'bg-secondary text-secondary-foreground' : 'text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                  <span className="ml-auto text-[10px] text-muted-foreground">{filteredItems.length} items</span>
+                </div>
               </div>
             </div>
 

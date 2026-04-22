@@ -15,6 +15,9 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import PageTransition from "./components/PageTransition";
 import { MarketProvider } from "./contexts/MarketContext";
 import { attemptModuleImportRecovery, clearModuleImportRecovery, isRecoverableModuleError, preloadRouteSafely } from "./lib/module-recovery";
+import DashboardSkeleton from "./components/dashboard/DashboardSkeleton";
+import ProgressSkeleton from "./components/progress/ProgressSkeleton";
+import OfflineBanner from "./components/OfflineBanner";
 
 function lazyWithRetry<T extends React.ComponentType<any>>(
   importer: () => Promise<{ default: T }>,
@@ -81,6 +84,12 @@ const PageLoader = () => (
   </div>
 );
 
+// Wrap each route in its own ErrorBoundary so a crash on one page
+// doesn't take down the whole app.
+const RouteBoundary = ({ children }: { children: React.ReactNode }) => (
+  <ErrorBoundary>{children}</ErrorBoundary>
+);
+
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
   if (isLoading) return <PageLoader />;
@@ -88,13 +97,13 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ children, fallback }: { children: React.ReactNode; fallback?: React.ReactNode }) {
   const { user } = useAuth();
   const { profile, isLoaded, loadedUserId } = useUserProfile();
 
-  if (!isLoaded || !user || loadedUserId !== user.id) return <PageLoader />;
+  if (!isLoaded || !user || loadedUserId !== user.id) return <>{fallback ?? <PageLoader />}</>;
   if (!profile?.onboardingComplete) return <Navigate to="/onboarding" replace />;
-  return <Suspense fallback={<PageLoader />}>{children}</Suspense>;
+  return <Suspense fallback={fallback ?? <PageLoader />}>{children}</Suspense>;
 }
 
 const HIDE_NAV_ROUTES = ['/', '/onboarding', '/quicklog'];
@@ -147,28 +156,29 @@ function AppLayout() {
 
   return (
     <>
+      <OfflineBanner />
       <div className="ambient-mesh" />
       <Routes>
-        <Route path="/onboarding" element={<Suspense fallback={<PageLoader />}><PageTransition><Onboarding /></PageTransition></Suspense>} />
-        <Route path="/auth" element={<Suspense fallback={<PageLoader />}><PageTransition><Auth /></PageTransition></Suspense>} />
-        <Route path="/" element={<ProtectedRoute><CameraHome /></ProtectedRoute>} />
-        <Route path="/dashboard" element={<ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><Dashboard /></div></PageTransition></ProtectedRoute>} />
-        <Route path="/progress" element={<ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><Progress /></div></PageTransition></ProtectedRoute>} />
-        <Route path="/planner" element={<ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><MealPlanner /></div></PageTransition></ProtectedRoute>} />
+        <Route path="/onboarding" element={<RouteBoundary><Suspense fallback={<PageLoader />}><PageTransition><Onboarding /></PageTransition></Suspense></RouteBoundary>} />
+        <Route path="/auth" element={<RouteBoundary><Suspense fallback={<PageLoader />}><PageTransition><Auth /></PageTransition></Suspense></RouteBoundary>} />
+        <Route path="/" element={<RouteBoundary><ProtectedRoute><CameraHome /></ProtectedRoute></RouteBoundary>} />
+        <Route path="/dashboard" element={<RouteBoundary><ProtectedRoute fallback={<DashboardSkeleton />}><PageTransition><div className="max-w-lg mx-auto"><Dashboard /></div></PageTransition></ProtectedRoute></RouteBoundary>} />
+        <Route path="/progress" element={<RouteBoundary><ProtectedRoute fallback={<ProgressSkeleton />}><PageTransition><div className="max-w-lg mx-auto"><Progress /></div></PageTransition></ProtectedRoute></RouteBoundary>} />
+        <Route path="/planner" element={<RouteBoundary><ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><MealPlanner /></div></PageTransition></ProtectedRoute></RouteBoundary>} />
         <Route path="/groceries" element={<Navigate to="/planner" replace />} />
-        <Route path="/log" element={<ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><LogFood /></div></PageTransition></ProtectedRoute>} />
-        <Route path="/food-archive" element={<ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><FoodArchive /></div></PageTransition></ProtectedRoute>} />
-        <Route path="/pantry" element={<ProtectedRoute><PageTransition><Pantry /></PageTransition></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><Profile /></div></PageTransition></ProtectedRoute>} />
-        <Route path="/market" element={<ProtectedRoute><MarketProvider><PageTransition><Market /></PageTransition></MarketProvider></ProtectedRoute>} />
-        <Route path="/market/categories" element={<ProtectedRoute><MarketProvider><PageTransition><MarketCategories /></PageTransition></MarketProvider></ProtectedRoute>} />
-        <Route path="/market/deals" element={<ProtectedRoute><MarketProvider><PageTransition><MarketDeals /></PageTransition></MarketProvider></ProtectedRoute>} />
-        <Route path="/market/compare" element={<ProtectedRoute><MarketProvider><PageTransition><MarketCompare /></PageTransition></MarketProvider></ProtectedRoute>} />
-        <Route path="/market/list" element={<ProtectedRoute><MarketProvider><PageTransition><MarketList /></PageTransition></MarketProvider></ProtectedRoute>} />
-        <Route path="/admin/ads" element={<ProtectedRoute><PageTransition><AdAdmin /></PageTransition></ProtectedRoute>} />
-        <Route path="/quicklog" element={<ProtectedRoute><PageTransition><QuickLog /></PageTransition></ProtectedRoute>} />
+        <Route path="/log" element={<RouteBoundary><ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><LogFood /></div></PageTransition></ProtectedRoute></RouteBoundary>} />
+        <Route path="/food-archive" element={<RouteBoundary><ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><FoodArchive /></div></PageTransition></ProtectedRoute></RouteBoundary>} />
+        <Route path="/pantry" element={<RouteBoundary><ProtectedRoute><PageTransition><Pantry /></PageTransition></ProtectedRoute></RouteBoundary>} />
+        <Route path="/profile" element={<RouteBoundary><ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><Profile /></div></PageTransition></ProtectedRoute></RouteBoundary>} />
+        <Route path="/market" element={<RouteBoundary><ProtectedRoute><MarketProvider><PageTransition><Market /></PageTransition></MarketProvider></ProtectedRoute></RouteBoundary>} />
+        <Route path="/market/categories" element={<RouteBoundary><ProtectedRoute><MarketProvider><PageTransition><MarketCategories /></PageTransition></MarketProvider></ProtectedRoute></RouteBoundary>} />
+        <Route path="/market/deals" element={<RouteBoundary><ProtectedRoute><MarketProvider><PageTransition><MarketDeals /></PageTransition></MarketProvider></ProtectedRoute></RouteBoundary>} />
+        <Route path="/market/compare" element={<RouteBoundary><ProtectedRoute><MarketProvider><PageTransition><MarketCompare /></PageTransition></MarketProvider></ProtectedRoute></RouteBoundary>} />
+        <Route path="/market/list" element={<RouteBoundary><ProtectedRoute><MarketProvider><PageTransition><MarketList /></PageTransition></MarketProvider></ProtectedRoute></RouteBoundary>} />
+        <Route path="/admin/ads" element={<RouteBoundary><ProtectedRoute><PageTransition><AdAdmin /></PageTransition></ProtectedRoute></RouteBoundary>} />
+        <Route path="/quicklog" element={<RouteBoundary><ProtectedRoute><PageTransition><QuickLog /></PageTransition></ProtectedRoute></RouteBoundary>} />
         <Route path="/camera" element={<Navigate to="/" replace />} />
-        <Route path="*" element={<Suspense fallback={<PageLoader />}><PageTransition><NotFound /></PageTransition></Suspense>} />
+        <Route path="*" element={<RouteBoundary><Suspense fallback={<PageLoader />}><PageTransition><NotFound /></PageTransition></Suspense></RouteBoundary>} />
       </Routes>
       {!hideNav && <BottomNav />}
       <MarketBottomNav />

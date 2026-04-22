@@ -58,6 +58,10 @@ export default function FoodStoryStrip({ onOpenDate, refreshKey }: Props) {
               <img
                 src={m.meal.photo!}
                 alt={m.meal.items.map(i => i.name).join(', ')}
+                loading="lazy"
+                decoding="async"
+                width={64}
+                height={64}
                 className="w-full h-full object-cover"
               />
             </div>

@@ -47,6 +47,7 @@ import DashboardModals from '@/components/dashboard/DashboardModals';
 import CalorieCorrectionSection from '@/components/dashboard/CalorieCorrectionSection';
 import PlanBannerSection from '@/components/dashboard/PlanBannerSection';
 import { useDashboardInit } from '@/hooks/useDashboardInit';
+import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton';
 import { motion } from 'framer-motion';
 
 // Lazy-loaded conditional cards — only fetched when needed
@@ -72,7 +73,7 @@ export default function Dashboard() {
   const d = useDashboardInit();
   const creatineBoost = d.log ? shouldBoostWater(d.log) : null;
 
-  if (!d.profile) return null;
+  if (!d.profile) return <DashboardSkeleton />;
 
   return (
     <>

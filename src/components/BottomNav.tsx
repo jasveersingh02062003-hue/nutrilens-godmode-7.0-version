@@ -18,7 +18,7 @@ export default function BottomNav() {
   if (location.pathname.startsWith('/market')) return null;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/60 backdrop-blur-xl border-t border-border/50 pb-[env(safe-area-inset-bottom,0px)]">
+    <nav aria-label="Primary navigation" className="fixed bottom-0 left-0 right-0 z-50 bg-card/60 backdrop-blur-xl border-t border-border/50 pb-[env(safe-area-inset-bottom,0px)]">
       <div className="grid grid-cols-5 max-w-lg mx-auto h-16 px-1">
         {tabs.map((tab) => {
           const active = location.pathname === tab.path;
@@ -28,6 +28,8 @@ export default function BottomNav() {
               <button
                 key="camera-tab"
                 onClick={() => navigate(tab.path)}
+                aria-label={tab.label}
+                aria-current={active ? 'page' : undefined}
                 className="flex flex-col items-center justify-center -mt-5"
               >
                 <motion.div
@@ -55,6 +57,8 @@ export default function BottomNav() {
             <button
               key={tab.path}
               onClick={() => navigate(tab.path)}
+              aria-label={tab.label}
+              aria-current={active ? 'page' : undefined}
               className="flex flex-col items-center justify-center gap-1 min-h-[48px]"
             >
               <motion.div

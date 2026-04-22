@@ -199,6 +199,8 @@ export default function ProgressPage() {
   const logs = useMemo(() => getRecentLogs(30), [refreshKey]);
   const premium = isPremium();
 
+
+
   const refresh = useCallback(() => setRefreshKey(k => k + 1), []);
 
   const today = new Date();

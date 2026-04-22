@@ -188,6 +188,7 @@ export default function MarketItemCard({
             <motion.button
               whileTap={{ scale: 0.85 }}
               onClick={onAddToPlan}
+              aria-label={`Add ${name} to meal plan`}
               className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors"
               title="Add to Meal Plan"
             >
@@ -196,6 +197,8 @@ export default function MarketItemCard({
             <motion.button
               whileTap={{ scale: 0.85 }}
               onClick={onToggleCompare}
+              aria-label={isCompareSelected ? `Remove ${name} from compare` : `Add ${name} to compare`}
+              aria-pressed={isCompareSelected}
               className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
                 isCompareSelected ? 'bg-primary text-primary-foreground' : 'bg-muted/80 text-muted-foreground hover:bg-muted'
               }`}
