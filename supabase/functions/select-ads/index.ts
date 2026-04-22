@@ -60,6 +60,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Auto-pause overspent campaigns atomically (Phase 9)
+    const overspent = (campaigns ?? []).filter(
+      (c: any) => Number(c.budget_total) > 0 && Number(c.budget_spent) >= Number(c.budget_total),
+    );
+    if (overspent.length > 0) {
+      await supabase
+        .from("ad_campaigns")
+        .update({ status: "paused" })
+        .in("id", overspent.map((c: any) => c.id));
+    }
+
     const eligible = (campaigns ?? []).filter((c: any) => {
       const brand = Array.isArray(c.brand_accounts) ? c.brand_accounts[0] : c.brand_accounts;
       if (!brand || brand.status !== "active") return false;

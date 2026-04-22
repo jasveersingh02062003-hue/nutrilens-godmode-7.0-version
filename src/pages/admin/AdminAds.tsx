@@ -166,8 +166,8 @@ export default function AdminAds() {
                   {rows.map(r => {
                     const util = r.budget ? Math.round((r.spend / r.budget) * 100) : 0;
                     return (
-                      <tr key={r.id} className="border-b border-border hover:bg-muted/30">
-                        <td className="px-3 py-2 font-medium truncate max-w-[160px]">{r.name}</td>
+                      <tr key={r.id} className="border-b border-border hover:bg-muted/30 cursor-pointer" onClick={() => { window.location.href = `/admin/ads/${r.id}`; }}>
+                        <td className="px-3 py-2 font-medium truncate max-w-[160px] text-primary underline-offset-2 hover:underline">{r.name}</td>
                         <td className="px-3 py-2 text-xs text-muted-foreground">{r.brand}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{r.impressions.toLocaleString()}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{r.clicks}</td>
