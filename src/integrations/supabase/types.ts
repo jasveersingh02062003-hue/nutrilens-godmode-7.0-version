@@ -533,6 +533,45 @@ export type Database = {
         }
         Relationships: []
       }
+      price_alert_notifications: {
+        Row: {
+          alert_id: string | null
+          city: string
+          created_at: string
+          current_price: number
+          direction: string
+          id: string
+          is_read: boolean
+          item_name: string
+          threshold_price: number
+          user_id: string
+        }
+        Insert: {
+          alert_id?: string | null
+          city: string
+          created_at?: string
+          current_price: number
+          direction?: string
+          id?: string
+          is_read?: boolean
+          item_name: string
+          threshold_price: number
+          user_id: string
+        }
+        Update: {
+          alert_id?: string | null
+          city?: string
+          created_at?: string
+          current_price?: number
+          direction?: string
+          id?: string
+          is_read?: boolean
+          item_name?: string
+          threshold_price?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       price_alerts: {
         Row: {
           city: string
