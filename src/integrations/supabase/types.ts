@@ -1229,7 +1229,15 @@ export type Database = {
       is_brand_member: { Args: { _brand_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user" | "super_admin" | "brand_manager"
+      app_role:
+        | "admin"
+        | "moderator"
+        | "user"
+        | "super_admin"
+        | "brand_manager"
+        | "owner"
+        | "marketer"
+        | "support"
       packed_product_category:
         | "protein_drink"
         | "protein_bar"
@@ -1366,7 +1374,16 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "user", "super_admin", "brand_manager"],
+      app_role: [
+        "admin",
+        "moderator",
+        "user",
+        "super_admin",
+        "brand_manager",
+        "owner",
+        "marketer",
+        "support",
+      ],
       packed_product_category: [
         "protein_drink",
         "protein_bar",
