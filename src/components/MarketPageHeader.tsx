@@ -6,6 +6,7 @@ import { SUPPORTED_CITIES } from '@/lib/market-service';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { useMarket } from '@/contexts/MarketContext';
 import BarcodeScanner from '@/components/BarcodeScanner';
+import PriceAlertBell from '@/components/PriceAlertBell';
 
 interface MarketPageHeaderProps {
   title?: string;
@@ -64,6 +65,9 @@ export default function MarketPageHeader({
             <ChevronDown className={`w-3 h-3 transition-transform ${cityPickerOpen ? 'rotate-180' : ''}`} />
           </button>
         </div>
+
+        {/* Price alert bell */}
+        <PriceAlertBell />
 
         {/* Scan button */}
         <motion.button

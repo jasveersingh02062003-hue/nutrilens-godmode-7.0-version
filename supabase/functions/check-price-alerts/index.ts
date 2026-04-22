@@ -67,6 +67,24 @@ Deno.serve(async (req) => {
           }
         );
 
+        // Insert in-app notification row (Phase 2 — Step A)
+        await fetch(
+          `${supabaseUrl}/rest/v1/price_alert_notifications`,
+          {
+            method: 'POST',
+            headers: { ...headers, 'Prefer': 'return=minimal' },
+            body: JSON.stringify({
+              user_id: alert.user_id,
+              alert_id: alert.id,
+              item_name: alert.item_name,
+              city: alert.city,
+              current_price: currentPrice,
+              threshold_price: Number(alert.threshold_price),
+              direction: alert.comparison_type,
+            }),
+          }
+        );
+
         triggered++;
         console.log(JSON.stringify({
           event: 'price_alert_triggered',
