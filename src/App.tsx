@@ -156,6 +156,7 @@ function AppLayout() {
 
   return (
     <>
+      <OfflineBanner />
       <div className="ambient-mesh" />
       <Routes>
         <Route path="/onboarding" element={<RouteBoundary><Suspense fallback={<PageLoader />}><PageTransition><Onboarding /></PageTransition></Suspense></RouteBoundary>} />
