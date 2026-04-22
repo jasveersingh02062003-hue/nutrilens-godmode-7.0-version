@@ -318,12 +318,36 @@ serve(async (req) => {
     // Fetch active sponsored products for monika_contextual slot + gap-aware matching
     let sponsoredProducts: any[] = [];
     let gapAwareProducts: any[] = [];
+    let cityPrices: any[] = [];
+    const userCity: string | null = (userContext?.profile?.city || null)?.toString().toLowerCase().trim() || null;
     try {
       const supabase = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
       const today = new Date().toISOString().split("T")[0];
+
+      // Fetch live city prices for user's city (last 7 days)
+      if (userCity) {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+        const { data: cp } = await supabase
+          .from("city_prices")
+          .select("item_name, avg_price, min_price, max_price, price_date, source, updated_at")
+          .eq("city", userCity)
+          .gte("price_date", sevenDaysAgo)
+          .order("updated_at", { ascending: false })
+          .limit(30);
+        if (cp && cp.length > 0) {
+          // Deduplicate by item_name keeping freshest
+          const seen = new Set<string>();
+          cityPrices = cp.filter((row: any) => {
+            const key = row.item_name?.toLowerCase();
+            if (!key || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          }).slice(0, 20);
+        }
+      }
       const { data: campaigns } = await supabase
         .from("ad_campaigns")
         .select(`
