@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Scale, X } from 'lucide-react';
 import type { MarketItem } from '@/lib/market-service';
+import PriceFreshnessBadge from './PriceFreshnessBadge';
 
 interface MarketCompareBarProps {
   selected: MarketItem[];
@@ -32,7 +33,8 @@ export default function MarketCompareBar({ selected, onCompare, onClear, onRemov
             {selected.map(item => (
               <div key={item.id} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted shrink-0">
                 <span className="text-[10px] font-semibold text-foreground truncate max-w-[80px]">{item.name}</span>
-                <button onClick={() => onRemove(item.id)}>
+                <PriceFreshnessBadge lastUpdated={item.lastUpdated} compact />
+                <button onClick={() => onRemove(item.id)} aria-label={`Remove ${item.name} from compare`}>
                   <X className="w-3 h-3 text-muted-foreground" />
                 </button>
               </div>

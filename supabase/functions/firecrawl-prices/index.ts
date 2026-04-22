@@ -47,18 +47,19 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 3): P
   throw new Error('Exhausted retries');
 }
 
-// Volatile items that need live price tracking
+// Volatile items that need live price tracking — with sanity bounds (INR per kg/piece)
+// Bounds reject obvious garbage matches from cluttered search results
 const VOLATILE_ITEMS = [
-  { name: 'Chicken', searchTerms: ['chicken breast', 'chicken', 'broiler'] },
-  { name: 'Eggs', searchTerms: ['eggs', 'egg tray', 'hen eggs'] },
-  { name: 'Mutton', searchTerms: ['mutton', 'goat meat'] },
-  { name: 'Fish', searchTerms: ['fish', 'rohu', 'pomfret'] },
-  { name: 'Prawns', searchTerms: ['prawns', 'shrimp'] },
-  { name: 'Tomato', searchTerms: ['tomato', 'tamatar'] },
-  { name: 'Onion', searchTerms: ['onion', 'pyaaz'] },
-  { name: 'Green Chilli', searchTerms: ['green chilli'] },
-  { name: 'Coriander Leaves', searchTerms: ['coriander', 'dhania'] },
-  { name: 'Potato', searchTerms: ['potato', 'aloo'] },
+  { name: 'Chicken', searchTerms: ['chicken breast', 'chicken', 'broiler'], unit: 'kg', min: 100, max: 800 },
+  { name: 'Eggs', searchTerms: ['eggs', 'egg tray', 'hen eggs'], unit: 'piece', min: 4, max: 20 },
+  { name: 'Mutton', searchTerms: ['mutton', 'goat meat'], unit: 'kg', min: 400, max: 1500 },
+  { name: 'Fish', searchTerms: ['fish', 'rohu', 'pomfret'], unit: 'kg', min: 100, max: 1500 },
+  { name: 'Prawns', searchTerms: ['prawns', 'shrimp'], unit: 'kg', min: 200, max: 2000 },
+  { name: 'Tomato', searchTerms: ['tomato', 'tamatar'], unit: 'kg', min: 10, max: 200 },
+  { name: 'Onion', searchTerms: ['onion', 'pyaaz'], unit: 'kg', min: 10, max: 200 },
+  { name: 'Green Chilli', searchTerms: ['green chilli'], unit: 'kg', min: 20, max: 300 },
+  { name: 'Coriander Leaves', searchTerms: ['coriander', 'dhania'], unit: 'kg', min: 20, max: 400 },
+  { name: 'Potato', searchTerms: ['potato', 'aloo'], unit: 'kg', min: 10, max: 150 },
 ];
 
 const CITIES = [
@@ -79,7 +80,8 @@ async function scrapeGroceryPrices(city: string, firecrawlKey: string): Promise<
     return [];
   }
 
-  const searchQuery = `${city} today chicken egg vegetable price per kg site:bigbasket.com OR site:blinkit.com OR site:freshtohome.com`;
+  // Phase 2 Step D — extended to Zepto, Swiggy Instamart, JioMart (still 1 search credit)
+  const searchQuery = `${city} today chicken egg vegetable price per kg site:bigbasket.com OR site:blinkit.com OR site:freshtohome.com OR site:zeptonow.com OR site:swiggy.com/instamart OR site:jiomart.com`;
 
   const response = await fetchWithRetry('https://api.firecrawl.dev/v1/search', {
     method: 'POST',
@@ -89,7 +91,7 @@ async function scrapeGroceryPrices(city: string, firecrawlKey: string): Promise<
     },
     body: JSON.stringify({
       query: searchQuery,
-      limit: 5,
+      limit: 8, // bumped from 5 — more results to regex against, same credit cost
       scrapeOptions: { formats: ['markdown'] },
     }),
   });
@@ -116,14 +118,17 @@ async function scrapeGroceryPrices(city: string, firecrawlKey: string): Promise<
       const match = regex.exec(allContent);
       if (match) {
         const price = parseFloat(match[1]);
-        if (price > 0 && price < 5000) {
+        // Per-item sanity bounds — reject garbage matches
+        if (price >= item.min && price <= item.max) {
           prices.push({
             item: item.name,
             price,
-            unit: item.name === 'Eggs' ? 'piece' : 'kg',
+            unit: item.unit,
             source: 'firecrawl',
           });
           break;
+        } else {
+          console.warn(`Rejected ${item.name}=${price} (out of bounds ${item.min}-${item.max}) in ${city}`);
         }
       }
     }

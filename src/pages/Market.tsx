@@ -413,6 +413,7 @@ export default function Market() {
                       onToggleCompare={(e) => toggleCompare(item, e)}
                       index={i}
                       itemId={item.id}
+                      lastUpdated={item.lastUpdated}
                     />
                   ))}
                   {/* Load more sentinel */}

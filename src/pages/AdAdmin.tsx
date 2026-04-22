@@ -6,6 +6,7 @@ import { ArrowLeft, Plus, Pause, Play, CheckCircle, BarChart3, Eye, MousePointer
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import ScrapingHealthPanel from '@/components/admin/ScrapingHealthPanel';
 
 interface BrandAccount {
   id: string;
@@ -328,6 +329,9 @@ export default function AdAdmin() {
                   <p className="text-[9px] text-muted-foreground">Clicks</p>
                 </div>
               </div>
+
+              {/* Phase 2 Step B — Scraping Health */}
+              <ScrapingHealthPanel />
 
               {/* Tools — backfill barcodes from Open Food Facts */}
               <button
