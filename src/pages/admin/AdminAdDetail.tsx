@@ -63,12 +63,17 @@ export default function AdminAdDetail() {
       setBrandName(b.data?.brand_name ?? '—');
     }
     setCreatives((cr.data ?? []) as Creative[]);
-    const impDaily = bucketByDay(i.data ?? [], 30);
-    const clkDaily = bucketByDay(k.data ?? [], 30);
-    setDaily(impDaily.map((row, idx) => ({
-      day: row.day.slice(5),
-      impressions: row.count,
-      clicks: clkDaily[idx]?.count ?? 0,
+    const impDaily = bucketByDay((i.data ?? []).map((r: any) => r.created_at), 30);
+    const clkDaily = bucketByDay((k.data ?? []).map((r: any) => r.created_at), 30);
+    const buckets = Array.from({ length: 30 }, (_, idx) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (29 - idx));
+      return d.toISOString().slice(5, 10);
+    });
+    setDaily(buckets.map((day, idx) => ({
+      day,
+      impressions: impDaily[idx] ?? 0,
+      clicks: clkDaily[idx] ?? 0,
     })));
     setTotals({
       imp: i.data?.length ?? 0,
