@@ -474,6 +474,42 @@ Frame suggestions as: "You still need Xg protein — a ${gapAwareProducts[0]?.pr
 `;
     }
 
+    // Inject live city prices into system prompt
+    if (cityPrices.length > 0 && userCity) {
+      const todayStr = new Date().toISOString().split("T")[0];
+      const formatted = cityPrices.map((p: any) => {
+        const ageDays = Math.floor(
+          (Date.parse(todayStr) - Date.parse(p.price_date)) / (1000 * 60 * 60 * 24)
+        );
+        const freshness = ageDays === 0 ? "Live (today)"
+          : ageDays === 1 ? "1d old"
+          : ageDays <= 3 ? `${ageDays}d old`
+          : "Stale";
+        const range = (p.min_price && p.max_price && p.min_price !== p.max_price)
+          ? ` (range ₹${p.min_price}–₹${p.max_price})`
+          : "";
+        return `- ${p.item_name}: ₹${p.avg_price}/kg${range} — ${freshness} (${p.source})`;
+      }).join("\n");
+
+      systemPrompt += `
+
+═══════════════════════════════════════
+LIVE PRICE DATA — CITY: ${userCity.toUpperCase()}
+═══════════════════════════════════════
+
+These are the most recent crowdsourced/live grocery prices for the user's city (${userCity}). Updated within the last 7 days.
+
+${formatted}
+
+PRICE QUERY RULES:
+- When asked about a price, ONLY quote values from this list above.
+- Always include the freshness label (e.g., "Live (today)", "2d old") and city.
+- Format: "Chicken in ${userCity} is ₹X/kg (Live, today, crowdsourced)."
+- If the requested item is NOT in the list, say honestly: "I don't have a fresh price for [item] in ${userCity} — the data may be from older static estimates and may not reflect today's market."
+- NEVER invent prices. NEVER quote prices for cities other than ${userCity} unless the user explicitly asks about a different city.
+`;
+    }
+
     const apiMessages: any[] = [{ role: "system", content: systemPrompt }];
 
     for (const msg of messages) {
