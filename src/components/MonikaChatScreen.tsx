@@ -291,6 +291,11 @@ export default function MonikaChatScreen({ open, onClose, onDashboardRefresh }: 
       }
       // After stream, log impressions for any sponsor suggestions
       const { actions: finalActions } = parseActions(fullResponse);
+      // Cloud-sync the final assistant message (fire-and-forget)
+      if (fullResponse.trim()) {
+        const { cleanText } = parseActions(fullResponse);
+        cloudInsertMessage('assistant', cleanText);
+      }
       for (const action of finalActions) {
         if (action.type === 'sponsor_suggestion') {
           const sponsor = action as SponsorSuggestionAction;
@@ -333,6 +338,7 @@ export default function MonikaChatScreen({ open, onClose, onDashboardRefresh }: 
     const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: q };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
+    cloudInsertMessage('user', q);
     setInput('');
     setIsLoading(true);
     await streamChat(newMessages);
