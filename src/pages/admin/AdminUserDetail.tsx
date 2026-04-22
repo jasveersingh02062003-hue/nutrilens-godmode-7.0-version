@@ -4,7 +4,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Loader2, MessageSquare, Trophy, Utensils, Droplet, Pill, Scale, RefreshCw } from 'lucide-react';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  ArrowLeft, Loader2, MessageSquare, Trophy, Utensils, Droplet, Pill, Scale, RefreshCw,
+  CalendarPlus, IndianRupee,
+} from 'lucide-react';
 import { logAdminAction } from '@/lib/audit';
 import { useAdminRole } from '@/hooks/useAdminRole';
 import { daysAgoISO } from '@/lib/admin-metrics';
@@ -39,6 +48,12 @@ export default function AdminUserDetail() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [achs, setAchs] = useState<Achievement[]>([]);
   const [chats, setChats] = useState<ChatMsg[]>([]);
+
+  // Action modal state
+  const [extendPlan, setExtendPlan] = useState<Plan | null>(null);
+  const [extendDays, setExtendDays] = useState('7');
+  const [refundPlan, setRefundPlan] = useState<Plan | null>(null);
+  const [refundReason, setRefundReason] = useState('');
 
   useEffect(() => {
     if (!id) return;
@@ -76,8 +91,56 @@ export default function AdminUserDetail() {
     if (!reason) return;
     const { error } = await supabase.from('profiles').update({ onboarding_complete: false }).eq('id', id);
     if (error) return toast.error(error.message);
-    await logAdminAction({ action: 'user_view', target_table: 'profiles', target_user_id: id, metadata: { admin_action: 'reset_onboarding', reason } });
+    await logAdminAction({
+      action: 'onboarding_reset',
+      target_table: 'profiles',
+      target_user_id: id,
+      metadata: { reason },
+    });
     toast.success('Onboarding reset');
+  };
+
+  const confirmExtend = async () => {
+    if (!extendPlan || !id) return;
+    const days = parseInt(extendDays, 10);
+    if (!days || days < 1 || days > 365) return toast.error('Days must be 1–365');
+    const newEnd = new Date(extendPlan.end_date);
+    newEnd.setDate(newEnd.getDate() + days);
+    const newEndStr = newEnd.toISOString().slice(0, 10);
+    const { error } = await supabase
+      .from('event_plans')
+      .update({ end_date: newEndStr, status: 'active' })
+      .eq('id', extendPlan.id);
+    if (error) return toast.error(error.message);
+    setPlans(plans.map(p => p.id === extendPlan.id ? { ...p, end_date: newEndStr, status: 'active' } : p));
+    await logAdminAction({
+      action: 'plan_extend',
+      target_table: 'event_plans',
+      target_user_id: id,
+      metadata: { plan_id: extendPlan.id, plan_type: extendPlan.plan_type, days, new_end_date: newEndStr },
+    });
+    toast.success(`Plan extended by ${days} days`);
+    setExtendPlan(null);
+  };
+
+  const confirmRefund = async () => {
+    if (!refundPlan || !id) return;
+    if (refundReason.trim().length < 5) return toast.error('Reason must be at least 5 characters');
+    const { error } = await supabase
+      .from('event_plans')
+      .update({ status: 'refunded' })
+      .eq('id', refundPlan.id);
+    if (error) return toast.error(error.message);
+    setPlans(plans.map(p => p.id === refundPlan.id ? { ...p, status: 'refunded' } : p));
+    await logAdminAction({
+      action: 'plan_refund',
+      target_table: 'event_plans',
+      target_user_id: id,
+      metadata: { plan_id: refundPlan.id, plan_type: refundPlan.plan_type, reason: refundReason.trim() },
+    });
+    toast.success('Plan marked as refunded · audit logged');
+    setRefundPlan(null);
+    setRefundReason('');
   };
 
   if (loading) {
@@ -188,13 +251,38 @@ export default function AdminUserDetail() {
             <p className="text-xs uppercase text-muted-foreground mb-1">Plans</p>
             {plans.length === 0 && <p className="text-xs text-muted-foreground">None</p>}
             <div className="space-y-1">
-              {plans.map(p => (
-                <div key={p.id} className="flex items-center justify-between text-xs border-b border-border/40 py-1">
-                  <span className="font-medium">{p.plan_type}</span>
-                  <span className="text-muted-foreground">{p.start_date} → {p.end_date}</span>
-                  <Badge variant={p.status === 'active' ? 'default' : 'secondary'} className="text-[9px]">{p.status}</Badge>
-                </div>
-              ))}
+              {plans.map(p => {
+                const isActionable = p.status !== 'refunded';
+                return (
+                  <div key={p.id} className="flex items-center justify-between gap-2 text-xs border-b border-border/40 py-1">
+                    <span className="font-medium truncate">{p.plan_type}</span>
+                    <span className="text-muted-foreground whitespace-nowrap">{p.start_date} → {p.end_date}</span>
+                    <Badge variant={p.status === 'active' ? 'default' : 'secondary'} className="text-[9px]">{p.status}</Badge>
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-1.5"
+                        disabled={!isSuperAdmin || !isActionable}
+                        onClick={() => { setExtendDays('7'); setExtendPlan(p); }}
+                        title="Extend plan"
+                      >
+                        <CalendarPlus className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-1.5"
+                        disabled={!isSuperAdmin || !isActionable}
+                        onClick={() => { setRefundReason(''); setRefundPlan(p); }}
+                        title="Mark as refunded"
+                      >
+                        <IndianRupee className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
           <div>
@@ -224,6 +312,59 @@ export default function AdminUserDetail() {
           ))}
         </div>
       </Card>
+
+      {/* Extend plan dialog */}
+      <Dialog open={!!extendPlan} onOpenChange={(o) => !o && setExtendPlan(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Extend plan</DialogTitle>
+            <DialogDescription>
+              {extendPlan?.plan_type} · current end date {extendPlan?.end_date}
+            </DialogDescription>
+          </DialogHeader>
+          <div>
+            <Label htmlFor="extend-days" className="text-xs">Add days</Label>
+            <Input
+              id="extend-days"
+              type="number"
+              min={1}
+              max={365}
+              value={extendDays}
+              onChange={e => setExtendDays(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setExtendPlan(null)}>Cancel</Button>
+            <Button onClick={confirmExtend}>Extend & log</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Refund plan dialog */}
+      <Dialog open={!!refundPlan} onOpenChange={(o) => !o && setRefundPlan(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark plan as refunded</DialogTitle>
+            <DialogDescription>
+              {refundPlan?.plan_type} · this updates plan status only. Process the actual payment refund in your payment provider separately.
+            </DialogDescription>
+          </DialogHeader>
+          <div>
+            <Label htmlFor="refund-reason" className="text-xs">Reason (min 5 chars)</Label>
+            <Textarea
+              id="refund-reason"
+              value={refundReason}
+              onChange={e => setRefundReason(e.target.value)}
+              placeholder="Customer requested cancellation, ticket #..."
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRefundPlan(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmRefund}>Mark refunded & log</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
