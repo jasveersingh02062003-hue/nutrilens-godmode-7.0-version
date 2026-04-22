@@ -49,6 +49,53 @@ const loadChatHistory = (): ChatMessage[] => {
   } catch { return []; }
 };
 
+// Fire-and-forget cloud sync helpers — never block UI
+const cloudInsertMessage = (role: 'user' | 'assistant', content: string) => {
+  (async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await (supabase.from as any)('monika_conversations').insert({
+        user_id: user.id,
+        role,
+        content: content.slice(0, 8000),
+      });
+    } catch {}
+  })();
+};
+
+const cloudClearHistory = () => {
+  (async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await (supabase.from as any)('monika_conversations').delete().eq('user_id', user.id);
+    } catch {}
+  })();
+};
+
+const cloudFetchHistory = async (): Promise<ChatMessage[]> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+    const { data, error } = await (supabase.from as any)('monika_conversations')
+      .select('role, content, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (error || !data) return [];
+    return (data as Array<{ role: 'user' | 'assistant'; content: string }>)
+      .reverse()
+      .map(r => ({
+        id: crypto.randomUUID(),
+        role: r.role,
+        content: r.content,
+      }));
+  } catch {
+    return [];
+  }
+};
+
 interface Props {
   open: boolean;
   onClose: () => void;
