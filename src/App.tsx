@@ -94,13 +94,13 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ children, fallback }: { children: React.ReactNode; fallback?: React.ReactNode }) {
   const { user } = useAuth();
   const { profile, isLoaded, loadedUserId } = useUserProfile();
 
-  if (!isLoaded || !user || loadedUserId !== user.id) return <PageLoader />;
+  if (!isLoaded || !user || loadedUserId !== user.id) return <>{fallback ?? <PageLoader />}</>;
   if (!profile?.onboardingComplete) return <Navigate to="/onboarding" replace />;
-  return <Suspense fallback={<PageLoader />}>{children}</Suspense>;
+  return <Suspense fallback={fallback ?? <PageLoader />}>{children}</Suspense>;
 }
 
 const HIDE_NAV_ROUTES = ['/', '/onboarding', '/quicklog'];
