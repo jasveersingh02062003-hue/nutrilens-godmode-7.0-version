@@ -4,6 +4,7 @@ import { getTopMarketItems, type MarketItem } from '@/lib/market-service';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { ArrowRight, TrendingUp, Clock } from 'lucide-react';
 import PESBadge from './PESBadge';
+import PriceFreshnessBadge from './PriceFreshnessBadge';
 import type { PESColor } from '@/lib/pes-engine';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -72,7 +73,7 @@ export default function MarketCompactView() {
                   {item.brand ? `${item.brand} ` : ''}{item.name}
                 </p>
               </div>
-              <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                 <span className="text-[11px] text-muted-foreground">
                   {item.protein}g protein · ₹{item.price}{item.unit ? `/${item.unit}` : ''}
                 </span>
@@ -81,6 +82,7 @@ export default function MarketCompactView() {
                     {item.priceChange > 0 ? '↑' : '↓'}{Math.abs(item.priceChange)}%
                   </span>
                 )}
+                <PriceFreshnessBadge lastUpdated={item.lastUpdated} compact />
               </div>
             </div>
             <div className="flex flex-col items-end gap-1">

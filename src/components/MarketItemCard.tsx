@@ -3,6 +3,7 @@ import { PlusCircle, Scale, TrendingDown, TrendingUp, Minus, Info, Lightbulb } f
 import { useState } from 'react';
 import { getItemTip } from '@/lib/nutrition-tips';
 import MarketImage from '@/components/market/MarketImage';
+import PriceFreshnessBadge from '@/components/PriceFreshnessBadge';
 
 interface MarketItemCardProps {
   rank: number;
@@ -26,6 +27,7 @@ interface MarketItemCardProps {
   onToggleCompare: (e: React.MouseEvent) => void;
   index: number;
   itemId?: string;
+  lastUpdated?: string | null;
 }
 
 const PES_CONFIG = {
@@ -59,7 +61,7 @@ function getNutritionInsight(protein: number, calories: number, costPerGram: num
 }
 
 export default function MarketItemCard({
-  rank, name, emoji, price, unit, protein, calories, costPerGram, pesColor, pes, priceChange, servingDesc, isVeg, isCompareSelected, badge, badgeCity, onTap, onAddToPlan, onToggleCompare, index, itemId
+  rank, name, emoji, price, unit, protein, calories, costPerGram, pesColor, pes, priceChange, servingDesc, isVeg, isCompareSelected, badge, badgeCity, onTap, onAddToPlan, onToggleCompare, index, itemId, lastUpdated
 }: MarketItemCardProps) {
   const [showTip, setShowTip] = useState(false);
   const prefersReducedMotion = useReducedMotion();
@@ -116,7 +118,7 @@ export default function MarketItemCard({
           </div>
 
           {/* Price row */}
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className="text-sm font-bold text-foreground">
               ₹{price}
               <span className="text-[10px] font-normal text-muted-foreground">/{unit}</span>
@@ -133,6 +135,7 @@ export default function MarketItemCard({
                 {Math.abs(priceChange)}%
               </motion.span>
             )}
+            <PriceFreshnessBadge lastUpdated={lastUpdated} compact />
           </div>
 
           {/* Nutrition row */}
