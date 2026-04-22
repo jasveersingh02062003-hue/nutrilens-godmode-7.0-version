@@ -15,6 +15,7 @@ import { getStreaks } from '@/lib/streaks';
 import { getUnlockedBadges, computeAchievementStats } from '@/lib/achievements';
 import { getBudgetSettings } from '@/lib/expense-store';
 import { evaluateFood, compareFoods, bestUnderPrice, findFoodByName, dailyEfficiency } from '@/lib/pes-engine';
+import { buildConditionGuidance, getUserConditions } from '@/lib/condition-coach';
 
 // ─── Action types that Monica can propose ───
 
@@ -316,6 +317,19 @@ export function buildMonikaContext() {
   const baseTarget = profile?.dailyCalories || 0;
   const dailyBudget = Math.round((budgetSettings.weeklyBudget || 0) / 7);
 
+  // Build condition guidance from last 7 days of meals
+  const recent7 = recentLogs.slice(0, 7);
+  const recentItemNames: string[] = [];
+  for (const r of recent7) {
+    for (const m of (r.meals || [])) {
+      for (const it of (m.items || [])) {
+        if (it?.name) recentItemNames.push(it.name);
+      }
+    }
+  }
+  const conditionGuidance = buildConditionGuidance(profile, recentItemNames);
+  const userConditions = getUserConditions(profile);
+
   return {
     currentHour: new Date().getHours(),
     profile: profile ? {
@@ -408,6 +422,8 @@ export function buildMonikaContext() {
         };
       } catch { return null; }
     })(),
+    userConditions,
+    conditionGuidance,
   };
 }
 

@@ -597,3 +597,137 @@ export function getUserConditions(profile: UserProfile | null): string[] {
   });
   return Array.from(conditions);
 }
+
+// ── Condition Guidance Builder (for AI context) ──
+// Scans recent meals against keyword sets and returns deterministic
+// per-condition advice that gets injected into Monika's prompt.
+
+export interface ConditionGuidance {
+  condition: string;
+  recentlyAte: string[];
+  shouldAvoid: string[];
+  shouldPrefer: string[];
+  notes: string[];
+}
+
+function findRecentMatches(recentItemNames: string[], keywords: string[]): string[] {
+  const lower = recentItemNames.map(n => n.toLowerCase());
+  const matched = new Set<string>();
+  for (const kw of keywords) {
+    for (let i = 0; i < lower.length; i++) {
+      if (lower[i].includes(kw)) {
+        matched.add(recentItemNames[i]);
+        if (matched.size >= 5) return Array.from(matched);
+      }
+    }
+  }
+  return Array.from(matched);
+}
+
+export function buildConditionGuidance(
+  profile: UserProfile | null,
+  recentItemNames: string[],
+): ConditionGuidance[] {
+  if (!profile) return [];
+  const conditions = getUserConditions(profile);
+  if (conditions.length === 0) return [];
+
+  const out: ConditionGuidance[] = [];
+
+  for (const c of conditions) {
+    switch (c) {
+      case 'diabetes':
+      case 'pre-diabetes':
+        out.push({
+          condition: c,
+          recentlyAte: findRecentMatches(recentItemNames, HIGH_GI_KEYWORDS),
+          shouldAvoid: ['white rice', 'maida/refined flour', 'sugary sweets (jalebi, gulab jamun)', 'fruit juices', 'instant noodles'],
+          shouldPrefer: ['dal/lentils', 'brown rice', 'oats', 'millets (ragi, jowar)', 'sprouts', 'non-starchy veggies'],
+          notes: ['Aim for 45–60g carbs per meal', 'Pair carbs with protein + fiber to slow GI'],
+        });
+        break;
+      case 'pcos':
+        out.push({
+          condition: 'pcos',
+          recentlyAte: [
+            ...findRecentMatches(recentItemNames, HIGH_GI_KEYWORDS),
+            ...findRecentMatches(recentItemNames, SUGAR_KEYWORDS),
+          ],
+          shouldAvoid: ['refined sugar', 'white bread/maida', 'sugary drinks', 'excess dairy if acne-prone'],
+          shouldPrefer: ['high-protein meals (paneer, eggs, chicken, dal)', 'low-GI carbs (oats, quinoa)', 'anti-inflammatory foods (turmeric, flaxseed, berries)', 'omega-3 sources (walnuts, fatty fish)'],
+          notes: ['Protein at every meal helps insulin sensitivity', 'Paneer is GENERALLY OK in moderation — high protein, low GI'],
+        });
+        break;
+      case 'thyroid':
+      case 'hypothyroid':
+        out.push({
+          condition: c,
+          recentlyAte: findRecentMatches(recentItemNames, GOITROGENIC_RAW_KEYWORDS),
+          shouldAvoid: ['raw cruciferous in excess (raw cabbage, raw cauliflower, raw broccoli)', 'excess soy/tofu'],
+          shouldPrefer: ['iodine-rich foods (fish, eggs, dairy, iodized salt)', 'cooked cruciferous (cooking deactivates goitrogens)', 'selenium sources (brazil nuts, eggs)'],
+          notes: ['Cooked cruciferous is fine — only RAW in large quantities is a concern'],
+        });
+        break;
+      case 'hypertension':
+      case 'high-bp':
+        out.push({
+          condition: c,
+          recentlyAte: findRecentMatches(recentItemNames, HIGH_SODIUM_KEYWORDS),
+          shouldAvoid: ['pickle', 'papad', 'chips/namkeen', 'instant noodles', 'processed cheese', 'soy sauce'],
+          shouldPrefer: ['potassium-rich (banana, spinach, coconut water)', 'fresh home-cooked meals', 'unsalted nuts'],
+          notes: ['Aim for <2300mg sodium/day (~1 tsp salt total)'],
+        });
+        break;
+      case 'high-cholesterol':
+        out.push({
+          condition: c,
+          recentlyAte: [],
+          shouldAvoid: ['deep-fried foods', 'ghee/butter in excess', 'red meat', 'full-fat dairy'],
+          shouldPrefer: ['oats', 'flaxseed', 'almonds/walnuts', 'fatty fish', 'leafy greens'],
+          notes: ['Soluble fiber (oats, apples, dal) lowers LDL'],
+        });
+        break;
+      case 'lactose intolerance':
+        out.push({
+          condition: c,
+          recentlyAte: findRecentMatches(recentItemNames, DAIRY_KEYWORDS),
+          shouldAvoid: ['milk', 'cream', 'ice cream', 'kheer/rabri', 'rasmalai'],
+          shouldPrefer: ['curd/dahi (lower lactose)', 'paneer (very low lactose)', 'lactose-free milk', 'almond/soy milk'],
+          notes: ['Hard cheeses + fermented dairy (curd) are usually well tolerated'],
+        });
+        break;
+      case 'gluten-free':
+      case 'celiac':
+        out.push({
+          condition: c,
+          recentlyAte: findRecentMatches(recentItemNames, WHEAT_GLUTEN_KEYWORDS),
+          shouldAvoid: ['wheat roti', 'maida', 'pasta', 'naan', 'samosa', 'bread'],
+          shouldPrefer: ['rice', 'millet/jowar/ragi/bajra roti', 'dosa/idli', 'besan chilla'],
+          notes: ['Indian gluten-free swaps are easy: jowar/ragi roti, rice, millets'],
+        });
+        break;
+      case 'pregnancy':
+        out.push({
+          condition: c,
+          recentlyAte: [],
+          shouldAvoid: ['raw/undercooked eggs and meat', 'unpasteurized cheese', 'high-mercury fish', 'excess caffeine (>200mg)', 'papaya (raw)'],
+          shouldPrefer: ['folate-rich (spinach, dal, beetroot)', 'iron-rich (jaggery, dates, spinach + vit C)', 'calcium (curd, paneer, milk)', 'omega-3 (walnut, flaxseed)'],
+          notes: ['Take prenatal vitamins; eat small frequent meals'],
+        });
+        break;
+      case 'anemia':
+      case 'iron-deficiency':
+        out.push({
+          condition: c,
+          recentlyAte: [],
+          shouldAvoid: ['tea/coffee within 1h of meals (blocks iron absorption)'],
+          shouldPrefer: ['spinach', 'jaggery', 'dates', 'rajma', 'chana', 'beetroot — pair with vitamin C (lemon/orange)'],
+          notes: ['Vitamin C boosts iron absorption; tea/coffee blocks it'],
+        });
+        break;
+    }
+  }
+
+  return out;
+}
+

@@ -318,12 +318,36 @@ serve(async (req) => {
     // Fetch active sponsored products for monika_contextual slot + gap-aware matching
     let sponsoredProducts: any[] = [];
     let gapAwareProducts: any[] = [];
+    let cityPrices: any[] = [];
+    const userCity: string | null = (userContext?.profile?.city || null)?.toString().toLowerCase().trim() || null;
     try {
       const supabase = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
       const today = new Date().toISOString().split("T")[0];
+
+      // Fetch live city prices for user's city (last 7 days)
+      if (userCity) {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+        const { data: cp } = await supabase
+          .from("city_prices")
+          .select("item_name, avg_price, min_price, max_price, price_date, source, updated_at")
+          .eq("city", userCity)
+          .gte("price_date", sevenDaysAgo)
+          .order("updated_at", { ascending: false })
+          .limit(30);
+        if (cp && cp.length > 0) {
+          // Deduplicate by item_name keeping freshest
+          const seen = new Set<string>();
+          cityPrices = cp.filter((row: any) => {
+            const key = row.item_name?.toLowerCase();
+            if (!key || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          }).slice(0, 20);
+        }
+      }
       const { data: campaigns } = await supabase
         .from("ad_campaigns")
         .select(`
@@ -447,6 +471,63 @@ These products fit their gap AND budget. Suggest them naturally when discussing 
 ${JSON.stringify(gapAwareProducts, null, 2)}
 
 Frame suggestions as: "You still need Xg protein — a ${gapAwareProducts[0]?.productName || 'product'} (${gapAwareProducts[0]?.protein || '?'}g protein, ₹${gapAwareProducts[0]?.price || '?'}) would close that gap nicely."
+`;
+    }
+
+    // Inject live city prices into system prompt
+    if (cityPrices.length > 0 && userCity) {
+      const todayStr = new Date().toISOString().split("T")[0];
+      const formatted = cityPrices.map((p: any) => {
+        const ageDays = Math.floor(
+          (Date.parse(todayStr) - Date.parse(p.price_date)) / (1000 * 60 * 60 * 24)
+        );
+        const freshness = ageDays === 0 ? "Live (today)"
+          : ageDays === 1 ? "1d old"
+          : ageDays <= 3 ? `${ageDays}d old`
+          : "Stale";
+        const range = (p.min_price && p.max_price && p.min_price !== p.max_price)
+          ? ` (range ₹${p.min_price}–₹${p.max_price})`
+          : "";
+        return `- ${p.item_name}: ₹${p.avg_price}/kg${range} — ${freshness} (${p.source})`;
+      }).join("\n");
+
+      systemPrompt += `
+
+═══════════════════════════════════════
+LIVE PRICE DATA — CITY: ${userCity.toUpperCase()}
+═══════════════════════════════════════
+
+These are the most recent crowdsourced/live grocery prices for the user's city (${userCity}). Updated within the last 7 days.
+
+${formatted}
+
+PRICE QUERY RULES:
+- When asked about a price, ONLY quote values from this list above.
+- Always include the freshness label (e.g., "Live (today)", "2d old") and city.
+- Format: "Chicken in ${userCity} is ₹X/kg (Live, today, crowdsourced)."
+- If the requested item is NOT in the list, say honestly: "I don't have a fresh price for [item] in ${userCity} — the data may be from older static estimates and may not reflect today's market."
+- NEVER invent prices. NEVER quote prices for cities other than ${userCity} unless the user explicitly asks about a different city.
+`;
+    }
+
+    // Inject condition-specific guidance
+    const conditionGuidance = userContext?.conditionGuidance;
+    if (Array.isArray(conditionGuidance) && conditionGuidance.length > 0) {
+      systemPrompt += `
+
+═══════════════════════════════════════
+CONDITION-SPECIFIC GUIDANCE FOR THIS USER
+═══════════════════════════════════════
+
+The user has the following health conditions. Use this DETERMINISTIC guidance (computed from their last 7 days of meals) before answering ANY food/diet question:
+
+${JSON.stringify(conditionGuidance, null, 2)}
+
+RULES:
+- When user asks "Can I eat X?", check it against shouldAvoid / shouldPrefer for EACH active condition.
+- If "recentlyAte" has matches, gently mention the pattern (e.g., "I noticed you've had white rice 3x this week — for diabetes, let's swap one for brown rice or millets").
+- Personalize: cite the specific condition by name in your reply.
+- Never block the user — coach, don't lecture.
 `;
     }
 
