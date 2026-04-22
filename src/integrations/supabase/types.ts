@@ -451,6 +451,54 @@ export type Database = {
           },
         ]
       }
+      brand_intake: {
+        Row: {
+          brand_name: string
+          categories: string[] | null
+          contact_email: string
+          contact_name: string
+          created_at: string
+          id: string
+          monthly_budget_inr: number | null
+          notes: string | null
+          phone: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          website: string | null
+        }
+        Insert: {
+          brand_name: string
+          categories?: string[] | null
+          contact_email: string
+          contact_name: string
+          created_at?: string
+          id?: string
+          monthly_budget_inr?: number | null
+          notes?: string | null
+          phone?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          website?: string | null
+        }
+        Update: {
+          brand_name?: string
+          categories?: string[] | null
+          contact_email?: string
+          contact_name?: string
+          created_at?: string
+          id?: string
+          monthly_budget_inr?: number | null
+          notes?: string | null
+          phone?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       brand_members: {
         Row: {
           brand_id: string
@@ -587,6 +635,33 @@ export type Database = {
           purpose?: string
           source?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      cost_constants: {
+        Row: {
+          id: string
+          monthly_cost_inr: number
+          notes: string | null
+          updated_at: string
+          updated_by: string | null
+          vendor: string
+        }
+        Insert: {
+          id?: string
+          monthly_cost_inr?: number
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vendor: string
+        }
+        Update: {
+          id?: string
+          monthly_cost_inr?: number
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vendor?: string
         }
         Relationships: []
       }
@@ -1227,6 +1302,9 @@ export type Database = {
         Returns: boolean
       }
       is_brand_member: { Args: { _brand_id: string }; Returns: boolean }
+      is_marketer: { Args: { _user_id: string }; Returns: boolean }
+      is_owner: { Args: { _user_id: string }; Returns: boolean }
+      is_support: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role:
