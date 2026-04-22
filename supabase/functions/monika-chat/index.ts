@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { logApiUsage, estimateLovableAiCost } from "../_shared/api-usage.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -580,6 +581,15 @@ RULES:
       console.error("AI gateway error:", response.status, t);
       throw new Error(`AI gateway error: ${response.status}`);
     }
+
+    // Streamed response — we can't read usage; log a flat estimate.
+    void logApiUsage({
+      vendor: "lovable-ai",
+      endpoint: "monika-chat",
+      units: 1,
+      costInr: estimateLovableAiCost("google/gemini-2.5-flash", 2000),
+      metadata: { streamed: true, messageCount: apiMessages.length },
+    });
 
     return new Response(response.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },

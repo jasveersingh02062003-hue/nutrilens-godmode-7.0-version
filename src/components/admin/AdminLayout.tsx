@@ -1,29 +1,64 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, MessageSquare, ShieldAlert, ArrowLeft, LogOut,
-  Activity, BarChart3, IndianRupee, Megaphone, Building2, Database,
+  Activity, IndianRupee, Megaphone, Building2, Database, UserCog, Wallet, ListChecks,
 } from 'lucide-react';
-import { useAdminRole } from '@/hooks/useAdminRole';
+import { useAdminRole, type StaffRole } from '@/hooks/useAdminRole';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 
-const NAV = [
+type NavItem = {
+  to: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  end: boolean;
+  /** Roles allowed to see this item. Admin/owner/super_admin always see everything. */
+  roles?: Array<Exclude<StaffRole, 'brand_manager'>>;
+  ownerOnly?: boolean;
+  superOnly?: boolean;
+};
+
+// Visibility matrix from PDF §7.3
+const NAV: NavItem[] = [
   { to: '/admin', label: 'Overview', icon: LayoutDashboard, end: true },
-  { to: '/admin/users', label: 'Users', icon: Users, end: false },
-  { to: '/admin/retention', label: 'Retention', icon: Activity, end: false },
-  { to: '/admin/revenue', label: 'Revenue', icon: IndianRupee, end: false },
-  { to: '/admin/ads', label: 'Ads', icon: Megaphone, end: false },
-  { to: '/admin/brands', label: 'Brands', icon: Building2, end: false },
-  { to: '/admin/plans', label: 'Plans', icon: FileText, end: false },
-  { to: '/admin/feedback', label: 'Feedback', icon: MessageSquare, end: false },
-  { to: '/admin/scraping', label: 'Scraping', icon: Database, end: false },
+  { to: '/admin/users', label: 'Users', icon: Users, end: false, roles: ['owner', 'super_admin', 'admin', 'marketer', 'support'] },
+  { to: '/admin/staff', label: 'Staff & Roles', icon: UserCog, end: false, ownerOnly: true },
+  { to: '/admin/retention', label: 'Retention', icon: Activity, end: false, roles: ['owner', 'super_admin', 'admin', 'marketer'] },
+  { to: '/admin/revenue', label: 'Revenue', icon: IndianRupee, end: false, roles: ['owner', 'super_admin', 'admin'] },
+  { to: '/admin/costs', label: 'Costs & Profit', icon: Wallet, end: false, roles: ['owner', 'super_admin', 'admin'] },
+  { to: '/admin/ads', label: 'Ads', icon: Megaphone, end: false, roles: ['owner', 'super_admin', 'admin', 'marketer'] },
+  { to: '/admin/brands', label: 'Brands', icon: Building2, end: false, roles: ['owner', 'super_admin', 'admin', 'marketer'] },
+  { to: '/admin/plans', label: 'Plans', icon: FileText, end: false, roles: ['owner', 'super_admin', 'admin'] },
+  { to: '/admin/feedback', label: 'Feedback', icon: MessageSquare, end: false, roles: ['owner', 'super_admin', 'admin', 'support'] },
+  { to: '/admin/scraping', label: 'Scraping', icon: Database, end: false, roles: ['owner', 'super_admin', 'admin'] },
+  { to: '/admin/ops', label: 'Ops Checklist', icon: ListChecks, end: false, roles: ['owner', 'super_admin', 'admin'] },
   { to: '/admin/audit', label: 'Audit Logs', icon: ShieldAlert, end: false, superOnly: true },
 ];
 
+function canSee(item: NavItem, r: ReturnType<typeof useAdminRole>) {
+  if (item.ownerOnly) return r.isOwner;
+  if (item.superOnly) return r.isSuperAdmin || r.isOwner;
+  if (!item.roles) return true;
+  return (
+    (r.isOwner && item.roles.includes('owner')) ||
+    (r.isSuperAdmin && item.roles.includes('super_admin')) ||
+    (r.roles.includes('admin') && item.roles.includes('admin')) ||
+    (r.isMarketer && item.roles.includes('marketer')) ||
+    (r.isSupport && item.roles.includes('support'))
+  );
+}
+
 export default function AdminLayout() {
-  const { isSuperAdmin } = useAdminRole();
+  const role = useAdminRole();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  const badgeLabel = role.isOwner ? 'OWNER'
+    : role.isSuperAdmin ? 'SUPER ADMIN'
+    : role.roles.includes('admin') ? 'ADMIN'
+    : role.isMarketer ? 'MARKETER'
+    : role.isSupport ? 'SUPPORT'
+    : null;
 
   return (
     <div className="min-h-screen flex w-full bg-background text-foreground">
@@ -33,13 +68,13 @@ export default function AdminLayout() {
             <ShieldAlert className="w-5 h-5 text-primary" />
             <span className="font-bold text-sm">NutriLens Admin</span>
           </div>
-          {isSuperAdmin && (
-            <Badge variant="secondary" className="mt-2 text-[10px]">SUPER ADMIN</Badge>
+          {badgeLabel && (
+            <Badge variant="secondary" className="mt-2 text-[10px]">{badgeLabel}</Badge>
           )}
         </div>
 
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-          {NAV.filter(n => !n.superOnly || isSuperAdmin).map(item => (
+          {NAV.filter(n => canSee(n, role)).map(item => (
             <NavLink
               key={item.to}
               to={item.to}

@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { logApiUsage, estimateLovableAiCost } from "../_shared/api-usage.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -169,6 +170,16 @@ serve(async (req) => {
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "";
+
+    // Cost telemetry — fire-and-forget
+    const totalTokens = data.usage?.total_tokens ?? 0;
+    void logApiUsage({
+      vendor: "lovable-ai",
+      endpoint: "analyze-food",
+      units: totalTokens,
+      costInr: estimateLovableAiCost("google/gemini-2.5-flash-vision", totalTokens || 1500),
+      metadata: { hasImage: !!imageBase64, model: "gemini-2.5-flash" },
+    });
     
     // Extract JSON from the response (handle potential markdown wrapping)
     let jsonStr = content;

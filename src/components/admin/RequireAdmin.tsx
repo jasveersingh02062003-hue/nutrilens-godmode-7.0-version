@@ -5,12 +5,17 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function RequireAdmin({
   children,
   requireSuper = false,
+  requireOwner = false,
+  allowStaff = true,
 }: {
   children: React.ReactNode;
   requireSuper?: boolean;
+  requireOwner?: boolean;
+  /** When true, marketer & support staff can also access (in addition to admins). */
+  allowStaff?: boolean;
 }) {
   const { user, isLoading: authLoading } = useAuth();
-  const { isAdmin, isSuperAdmin, isLoading } = useAdminRole();
+  const { isAdmin, isSuperAdmin, isOwner, isStaff, isLoading } = useAdminRole();
 
   if (authLoading || isLoading) {
     return (
@@ -20,7 +25,10 @@ export default function RequireAdmin({
     );
   }
   if (!user) return <Navigate to="/auth" replace />;
-  if (!isAdmin) return <Navigate to="/dashboard" replace />;
-  if (requireSuper && !isSuperAdmin) return <Navigate to="/admin" replace />;
+
+  const hasAccess = allowStaff ? isStaff : isAdmin;
+  if (!hasAccess) return <Navigate to="/dashboard" replace />;
+  if (requireSuper && !isSuperAdmin && !isOwner) return <Navigate to="/admin" replace />;
+  if (requireOwner && !isOwner) return <Navigate to="/admin" replace />;
   return <>{children}</>;
 }
