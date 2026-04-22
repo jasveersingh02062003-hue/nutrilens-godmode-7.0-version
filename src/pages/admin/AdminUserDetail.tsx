@@ -91,8 +91,56 @@ export default function AdminUserDetail() {
     if (!reason) return;
     const { error } = await supabase.from('profiles').update({ onboarding_complete: false }).eq('id', id);
     if (error) return toast.error(error.message);
-    await logAdminAction({ action: 'user_view', target_table: 'profiles', target_user_id: id, metadata: { admin_action: 'reset_onboarding', reason } });
+    await logAdminAction({
+      action: 'onboarding_reset',
+      target_table: 'profiles',
+      target_user_id: id,
+      metadata: { reason },
+    });
     toast.success('Onboarding reset');
+  };
+
+  const confirmExtend = async () => {
+    if (!extendPlan || !id) return;
+    const days = parseInt(extendDays, 10);
+    if (!days || days < 1 || days > 365) return toast.error('Days must be 1–365');
+    const newEnd = new Date(extendPlan.end_date);
+    newEnd.setDate(newEnd.getDate() + days);
+    const newEndStr = newEnd.toISOString().slice(0, 10);
+    const { error } = await supabase
+      .from('event_plans')
+      .update({ end_date: newEndStr, status: 'active' })
+      .eq('id', extendPlan.id);
+    if (error) return toast.error(error.message);
+    setPlans(plans.map(p => p.id === extendPlan.id ? { ...p, end_date: newEndStr, status: 'active' } : p));
+    await logAdminAction({
+      action: 'plan_extend',
+      target_table: 'event_plans',
+      target_user_id: id,
+      metadata: { plan_id: extendPlan.id, plan_type: extendPlan.plan_type, days, new_end_date: newEndStr },
+    });
+    toast.success(`Plan extended by ${days} days`);
+    setExtendPlan(null);
+  };
+
+  const confirmRefund = async () => {
+    if (!refundPlan || !id) return;
+    if (refundReason.trim().length < 5) return toast.error('Reason must be at least 5 characters');
+    const { error } = await supabase
+      .from('event_plans')
+      .update({ status: 'refunded' })
+      .eq('id', refundPlan.id);
+    if (error) return toast.error(error.message);
+    setPlans(plans.map(p => p.id === refundPlan.id ? { ...p, status: 'refunded' } : p));
+    await logAdminAction({
+      action: 'plan_refund',
+      target_table: 'event_plans',
+      target_user_id: id,
+      metadata: { plan_id: refundPlan.id, plan_type: refundPlan.plan_type, reason: refundReason.trim() },
+    });
+    toast.success('Plan marked as refunded · audit logged');
+    setRefundPlan(null);
+    setRefundReason('');
   };
 
   if (loading) {
