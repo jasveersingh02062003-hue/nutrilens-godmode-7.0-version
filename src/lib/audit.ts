@@ -3,9 +3,17 @@ import { supabase } from '@/integrations/supabase/client';
 export type AuditAction =
   | 'pii_reveal'
   | 'csv_export'
+  | 'meta_audience_export'
+  | 'segment_save'
   | 'user_view'
   | 'feedback_resolved'
-  | 'admin_login';
+  | 'admin_login'
+  | 'role_change'
+  | 'plan_extend'
+  | 'plan_refund'
+  | 'onboarding_reset'
+  | 'brand_kyc_review'
+  | 'brand_wallet_topup';
 
 interface AuditPayload {
   action: AuditAction;

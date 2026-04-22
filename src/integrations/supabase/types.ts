@@ -410,6 +410,120 @@ export type Database = {
         }
         Relationships: []
       }
+      brand_documents: {
+        Row: {
+          brand_id: string
+          created_at: string
+          doc_type: string
+          id: string
+          notes: string | null
+          status: string
+          storage_path: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          doc_type: string
+          id?: string
+          notes?: string | null
+          status?: string
+          storage_path: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          doc_type?: string
+          id?: string
+          notes?: string | null
+          status?: string
+          storage_path?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_documents_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brand_members: {
+        Row: {
+          brand_id: string
+          created_at: string
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          id?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_members_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brand_transactions: {
+        Row: {
+          amount: number
+          brand_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          reference: string | null
+          type: string
+        }
+        Insert: {
+          amount: number
+          brand_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          reference?: string | null
+          type: string
+        }
+        Update: {
+          amount?: number
+          brand_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          reference?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_transactions_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brand_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       city_prices: {
         Row: {
           avg_price: number
@@ -446,6 +560,33 @@ export type Database = {
           report_count?: number | null
           source?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      consent_records: {
+        Row: {
+          created_at: string
+          granted: boolean
+          id: string
+          purpose: string
+          source: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          granted: boolean
+          id?: string
+          purpose: string
+          source?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          granted?: boolean
+          id?: string
+          purpose?: string
+          source?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -509,6 +650,30 @@ export type Database = {
           status?: string
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      events: {
+        Row: {
+          created_at: string
+          event_name: string
+          id: string
+          properties: Json
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_name: string
+          id?: string
+          properties?: Json
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_name?: string
+          id?: string
+          properties?: Json
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -1061,9 +1226,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_brand_member: { Args: { _brand_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user" | "super_admin"
+      app_role: "admin" | "moderator" | "user" | "super_admin" | "brand_manager"
       packed_product_category:
         | "protein_drink"
         | "protein_bar"
@@ -1200,7 +1366,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "user", "super_admin"],
+      app_role: ["admin", "moderator", "user", "super_admin", "brand_manager"],
       packed_product_category: [
         "protein_drink",
         "protein_bar",
