@@ -312,6 +312,59 @@ export default function AdminUserDetail() {
           ))}
         </div>
       </Card>
+
+      {/* Extend plan dialog */}
+      <Dialog open={!!extendPlan} onOpenChange={(o) => !o && setExtendPlan(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Extend plan</DialogTitle>
+            <DialogDescription>
+              {extendPlan?.plan_type} · current end date {extendPlan?.end_date}
+            </DialogDescription>
+          </DialogHeader>
+          <div>
+            <Label htmlFor="extend-days" className="text-xs">Add days</Label>
+            <Input
+              id="extend-days"
+              type="number"
+              min={1}
+              max={365}
+              value={extendDays}
+              onChange={e => setExtendDays(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setExtendPlan(null)}>Cancel</Button>
+            <Button onClick={confirmExtend}>Extend & log</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Refund plan dialog */}
+      <Dialog open={!!refundPlan} onOpenChange={(o) => !o && setRefundPlan(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark plan as refunded</DialogTitle>
+            <DialogDescription>
+              {refundPlan?.plan_type} · this updates plan status only. Process the actual payment refund in your payment provider separately.
+            </DialogDescription>
+          </DialogHeader>
+          <div>
+            <Label htmlFor="refund-reason" className="text-xs">Reason (min 5 chars)</Label>
+            <Textarea
+              id="refund-reason"
+              value={refundReason}
+              onChange={e => setRefundReason(e.target.value)}
+              placeholder="Customer requested cancellation, ticket #..."
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRefundPlan(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmRefund}>Mark refunded & log</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
