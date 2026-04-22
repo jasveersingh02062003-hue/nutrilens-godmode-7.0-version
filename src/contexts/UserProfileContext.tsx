@@ -15,8 +15,72 @@ import { profileToDbRow, dbRowToProfile } from '@/lib/profile-mapper';
 import { setScopedUserId } from '@/lib/scoped-storage';
 import type { Session } from '@supabase/supabase-js';
 import type { PCOSCondition } from '@/lib/pcos-score';
-...
-  // Load profile from cloud after auth session restoration completes
+
+// Extended conditions interface
+export interface UserConditions {
+  pcos?: PCOSCondition;
+  diabetes?: { has: boolean; type?: string };
+  hypertension?: { has: boolean };
+  lactoseIntolerance?: { has: boolean };
+  thyroid?: { has: boolean };
+  [key: string]: any;
+}
+
+// Context value type
+interface UserProfileContextValue {
+  profile: UserProfile | null;
+  isLoaded: boolean;
+  loadedUserId: string | null;
+  updateProfile: (partial: Partial<UserProfile>) => void;
+  updateConditions: (conditions: Partial<UserConditions>) => void;
+  updateBudget: (budget: any) => void;
+  refreshProfile: () => void;
+}
+
+const UserProfileContext = createContext<UserProfileContextValue>({
+  profile: null,
+  isLoaded: false,
+  loadedUserId: null,
+  updateProfile: () => {},
+  updateConditions: () => {},
+  updateBudget: () => {},
+  refreshProfile: () => {},
+});
+
+// Debounced cloud sync
+let syncTimeout: ReturnType<typeof setTimeout> | null = null;
+
+let syncFailCount = 0;
+const MAX_SYNC_FAILURES = 3;
+
+function syncToCloud(profile: UserProfile) {
+  if (syncTimeout) clearTimeout(syncTimeout);
+  // Stop retrying after repeated FK / auth failures
+  if (syncFailCount >= MAX_SYNC_FAILURES) return;
+
+  syncTimeout = setTimeout(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+
+    const row = profileToDbRow(profile, session.user.id);
+    const { error } = await supabase.from('profiles').upsert(row as any);
+    if (error) {
+      syncFailCount++;
+      if (syncFailCount < MAX_SYNC_FAILURES) {
+        console.warn('Profile sync failed (attempt ' + syncFailCount + '):', error.message);
+      } else {
+        console.error('Profile sync failed permanently after ' + MAX_SYNC_FAILURES + ' attempts. Will stop retrying until next login.');
+      }
+    } else {
+      syncFailCount = 0; // Reset on success
+    }
+  }, 2000);
+}
+
+export function UserProfileProvider({ children }: { children: React.ReactNode }) {
+  const [profile, setProfile] = useState<UserProfile | null>(() => getProfile());
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
   const hasRestoredSessionRef = useRef(false);
 
   useEffect(() => {
