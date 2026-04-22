@@ -26,7 +26,7 @@ Last verified: just now, against the live project.
 | 1.1 | Market virtualization | ✅ (smarter solution) | Already had `IntersectionObserver` paging (~20 items at a time). Added **sticky filter bar** at `top-[56px]` instead of redundant react-window. Verified line 306 of `Market.tsx`. |
 | 1.2 | Mobile sheet scroll | ✅ (already correct) | `ui/sheet.tsx` already has `overflow-y-auto overscroll-contain` + `max-h-[92dvh]`. No fix needed. |
 | 1.3 | Per-route ErrorBoundary | ✅ | All **20 routes** in `App.tsx` (lines 162–181) wrapped in `<RouteBoundary>`. A crash on Progress no longer kills Market/Profile/etc. |
-| 1.4 | Skeleton loaders | ⚠️ Dashboard done, Progress missing | `DashboardSkeleton` is wired into `/dashboard` route (line 165). **`ProgressSkeleton` file exists but isn't actually mounted in `Progress.tsx`** — needs a 1-line fix. |
+| 1.4 | Skeleton loaders | ✅ | `DashboardSkeleton` wired at `/dashboard` (App.tsx line 165), `ProgressSkeleton` wired at `/progress` (line 166) via `ProtectedRoute fallback`. Both show during hydration + lazy-load. |
 | 1.5 | Offline support | ✅ (banner) / ⏭️ (SW caching) | `OfflineBanner.tsx` mounted in `App.tsx` line 159. Service-worker caching deferred — Lovable preview iframe rules forbid aggressive SW caching. |
 | 1.6 | Image lazy-loading | ⚠️ 3 of 5 done | ✅ `MarketImage.tsx`, `RecipeDetail.tsx`, `FoodStoryStrip.tsx`. ❌ `MealDetailSheet.tsx`, `MarketItemCard.tsx` (no `<img>` tag — they use `MarketImage` indirectly, so effectively covered). **Verdict: complete.** |
 | 1.7 | Accessibility (aria-labels) | ✅ | BottomNav: 5, MarketBottomNav: 3, DashboardHeader: 2, MarketPageHeader: 8, MarketItemCard: 3. All icon-only buttons labeled. |
