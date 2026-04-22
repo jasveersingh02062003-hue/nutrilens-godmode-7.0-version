@@ -21,13 +21,13 @@ export async function logAdminAction(payload: AuditPayload): Promise<void> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return;
-    const { error } = await supabase.from('audit_logs').insert({
+    const { error } = await supabase.from('audit_logs').insert([{
       actor_id: session.user.id,
       action: payload.action,
       target_table: payload.target_table ?? null,
       target_user_id: payload.target_user_id ?? null,
-      metadata: payload.metadata ?? {},
-    });
+      metadata: (payload.metadata ?? {}) as any,
+    }]);
     if (error) console.error('[audit]', error.message);
   } catch (e) {
     console.error('[audit] failed', e);

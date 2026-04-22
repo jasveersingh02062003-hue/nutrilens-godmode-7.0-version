@@ -76,6 +76,14 @@ const MarketCompare = lazyWithRetry(preloadMarketCompare, "market-compare");
 const MarketList = lazyWithRetry(preloadMarketList, "market-list");
 const AdAdmin = lazyWithRetry(preloadAdAdmin, "ad-admin");
 
+const AdminLayout = lazyWithRetry(() => import("./components/admin/AdminLayout"), "admin-layout");
+const AdminDashboard = lazyWithRetry(() => import("./pages/admin/AdminDashboard"), "admin-dashboard");
+const AdminUsers = lazyWithRetry(() => import("./pages/admin/AdminUsers"), "admin-users");
+const AdminPlans = lazyWithRetry(() => import("./pages/admin/AdminPlans"), "admin-plans");
+const AdminFeedback = lazyWithRetry(() => import("./pages/admin/AdminFeedback"), "admin-feedback");
+const AdminAudit = lazyWithRetry(() => import("./pages/admin/AdminAudit"), "admin-audit");
+const RequireAdmin = lazyWithRetry(() => import("./components/admin/RequireAdmin"), "require-admin");
+
 const queryClient = new QueryClient();
 
 const PageLoader = () => (
@@ -176,6 +184,13 @@ function AppLayout() {
         <Route path="/market/compare" element={<RouteBoundary><ProtectedRoute><MarketProvider><PageTransition><MarketCompare /></PageTransition></MarketProvider></ProtectedRoute></RouteBoundary>} />
         <Route path="/market/list" element={<RouteBoundary><ProtectedRoute><MarketProvider><PageTransition><MarketList /></PageTransition></MarketProvider></ProtectedRoute></RouteBoundary>} />
         <Route path="/admin/ads" element={<RouteBoundary><ProtectedRoute><PageTransition><AdAdmin /></PageTransition></ProtectedRoute></RouteBoundary>} />
+        <Route path="/admin" element={<RouteBoundary><Suspense fallback={<PageLoader />}><RequireAdmin><AdminLayout /></RequireAdmin></Suspense></RouteBoundary>}>
+          <Route index element={<Suspense fallback={<PageLoader />}><AdminDashboard /></Suspense>} />
+          <Route path="users" element={<Suspense fallback={<PageLoader />}><AdminUsers /></Suspense>} />
+          <Route path="plans" element={<Suspense fallback={<PageLoader />}><AdminPlans /></Suspense>} />
+          <Route path="feedback" element={<Suspense fallback={<PageLoader />}><AdminFeedback /></Suspense>} />
+          <Route path="audit" element={<Suspense fallback={<PageLoader />}><RequireAdmin requireSuper><AdminAudit /></RequireAdmin></Suspense>} />
+        </Route>
         <Route path="/quicklog" element={<RouteBoundary><ProtectedRoute><PageTransition><QuickLog /></PageTransition></ProtectedRoute></RouteBoundary>} />
         <Route path="/camera" element={<Navigate to="/" replace />} />
         <Route path="*" element={<RouteBoundary><Suspense fallback={<PageLoader />}><PageTransition><NotFound /></PageTransition></Suspense></RouteBoundary>} />
