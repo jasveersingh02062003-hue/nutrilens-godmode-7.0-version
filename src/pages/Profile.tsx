@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Edit2, Bell, Activity, Download, HelpCircle, ChevronRight, Package, LogOut, Loader2, Heart, SlidersHorizontal, Crown, Zap, Star, ArrowRight, Dumbbell, Store } from 'lucide-react';
+import { ArrowLeft, Edit2, Bell, Activity, Download, HelpCircle, ChevronRight, Package, LogOut, Loader2, Heart, SlidersHorizontal, Crown, Zap, Star, ArrowRight, Dumbbell, Store, ShieldAlert } from 'lucide-react';
+import { useAdminRole } from '@/hooks/useAdminRole';
 import { getActivePlan, getActivePlanRaw, getPlanProgress, getPlanById } from '@/lib/event-plan-service';
 import { isReverseDietActive, getReverseDietWeek } from '@/lib/reverse-diet-service';
 import { useNavigate } from 'react-router-dom';
@@ -59,6 +60,7 @@ export default function Profile() {
   const profilePhoto = getProfilePhoto();
   const correctionCount = getCorrections().length;
   const coachSettings = getCoachSettings();
+  const { isAdmin } = useAdminRole();
 
   const handleLogout = async () => {
     if (!confirm('Are you sure you want to logout? Local data will be cleared.')) return;
@@ -109,6 +111,7 @@ export default function Profile() {
   ];
 
   const settings = [
+    ...(isAdmin ? [{ icon: ShieldAlert, label: 'Admin Console', sub: 'Manage users, plans, and audit logs', action: () => navigate('/admin') }] : []),
     { icon: Edit2, label: 'Edit Profile', sub: 'Update your personal data', action: () => setShowEditProfile(true) },
     { icon: Store, label: 'Smart Market', sub: `${(profile as any)?.city ? `Prices for ${(profile as any).city}` : 'Compare food prices & value'}`, action: () => navigate('/market') },
     { icon: Bell, label: 'Notifications', sub: 'Meal and water reminders', action: () => setShowNotifications(true) },
