@@ -1,73 +1,84 @@
 
 
-# Phase 2 Audit + Sequenced Implementation Plan
+# Phase 3 Audit + Sequenced Plan (Monika AI Upgrade)
 
-## Honest audit of your 5 Phase 2 tasks
+## Honest audit of your 6 Phase 3 tasks
 
-I went through `firecrawl-prices/index.ts`, `fetch-govt-prices/index.ts`, `check-price-alerts/index.ts`, `live-price-service.ts`, `MarketItemDetailSheet.tsx`, `Market.tsx`, the database, and cron jobs. Here's the truth:
+I read `monika-chat/index.ts` (513 lines), `analyze-food/index.ts` (195 lines), `MonikaChatScreen.tsx`, `condition-coach.ts`, and `NextMealCard.tsx`. Here's the truth — most of Phase 3 is already done:
 
-| # | Task | Senior dev says | Reality in your code/DB | Recommendation |
-|---|------|----------------|-------------------------|----------------|
-| 2.1 | Govt API integration | "Wire it up" | **DEFER.** `fetch-govt-prices` is fully scaffolded with retail markups, mandi→city map, upsert logic. Only the API call is stubbed (`GOVT_API_HOOK`). You said you don't have the data.gov.in key yet. **0 work possible without the key.** | **SKIP this round.** I'll leave a one-line note in the function header. Re-open when you have the key. |
-| 2.2 | Add Zepto / Instamart / JioMart | "Extend search" | **TRUE but RISKY.** Current `searchQuery` only targets bigbasket/blinkit/freshtohome (line 82). Adding 3 more domains = same 1 Firecrawl credit per call. **No cost increase.** Real risk: regex might match wrong prices from cluttered results. | **DO IT** with safeguards: add domains + a price-sanity filter (per-item min/max bounds). |
-| 2.3 | Price freshness badge | "Build the component" | **ALREADY BUILT** (`PriceFreshnessBadge.tsx`, 54 lines, Live/h ago/Stale/Estimate states). But it's only used in **ONE place** (`MarketItemDetailSheet.tsx` line 130). The Market list cards, Compare bar, and grocery rows show no freshness signal. | **DO IT but smaller** — wire existing component into 3 more surfaces. No new component needed. Saves you ~2 credits. |
-| 2.4 | Scraping health dashboard for admin | "Add to /admin/ads" | **TRUE.** No visibility today. You have 400 firecrawl rows in `city_prices` with timestamps — easy to derive "last scrape per city" + freshness. Circuit breaker state is in-memory only (resets per cold start), so I'll show the **derived** health, not the runtime breaker. | **DO IT** as a new collapsible section at top of `/admin/ads`. |
-| 2.5 | In-app price alert notifications | "Store + bell icon" | **TRUE.** `check-price-alerts` runs hourly and only updates `last_triggered_at` — no notification surface. Need a new table + bell UI on Market header. | **DO IT** — small table, edge function update, header bell with unread count. |
+| # | Task | Senior dev says | Reality in your code | Recommendation |
+|---|------|----------------|----------------------|----------------|
+| 3.1 | Enrich Monika's system prompt | "Add profile + meals + macros + budget + conditions" | **✅ ALREADY DONE.** 308-line system prompt already injects: full profile, today's meals, `realTimeStatus` (remainingCal/protein/budget), 30-day history, conditions, supplements, weather, skin concerns, streaks, achievements. **Better than spec.** | **SKIP.** Zero work needed. |
+| 3.2 | Food-specific Q&A with conditions | "Use condition-coach + allergen-engine" | **⚠️ PARTIAL.** Prompt has hand-coded condition rules (diabetes, PCOS, thyroid, etc.) but does **NOT** call your existing `condition-coach.ts` (599 lines) or `allergen-engine.ts`. So answers are generic, not driven by your tuned engines. | **DO IT** — wire the deterministic engines into context per-message. |
+| 3.3 | Live price awareness | "Query city_prices for user's city" | **❌ MISSING.** Monika has zero price data. If user asks "chicken price in Hyderabad?", she'll guess. | **DO IT** — fetch top 15 items for user's city + inject into context. |
+| 3.4 | Meal photo portion accuracy | "Add Indian portion sizes (1 roti=30g, 1 katori=180cal)" | **✅ ALREADY DONE.** `analyze-food` system prompt has 30+ Indian portion references (roti=40g, dal=150g, idli=50g, biryani=250g, etc.). **More accurate than spec** (40g roti is correct per IFCT2017, not 30g). | **SKIP.** Zero work needed. |
+| 3.5 | Conversation memory | "Store last 10 in `monika_conversations` table" | **⚠️ LOCAL ONLY.** History saved to `localStorage` (last 100 msgs) and **already passed in every API call** (`apiMessages.map`). So Monika DOES remember within a device. **Missing:** cross-device sync. | **DO IT (lite)** — small cloud table for last 20 messages, syncs on login. Don't break the local fast-path. |
+| 3.6 | Smart dinner gap suggestions | "If 30g protein short, suggest 3 dinner options in budget" | **⚠️ PARTIAL.** `NextMealCard.tsx` already does this for the *current* slot using `getRecipesForMeal(slot, budget, profile, remainingCal, remainingProt)`. Works for any slot, including dinner. **What's missing:** an explicit "Gap Filler" framing when protein deficit is large, plus showing 3 distinct options at once instead of one-at-a-time carousel. | **DO IT (small)** — add a gap-aware variant + show top 3 side-by-side when gap > 20g protein. |
 
-**Net result:** Of 5 tasks → **4 worth doing this round**, **1 deferred** (2.1, blocked on API key). Saves ~6 credits.
+**Net result:** Of 6 tasks → **3 already done**, **3 worth doing this round**. Saves ~10–15 credits vs. naive plan.
 
 ---
 
 ## Strict execution order (one at a time, verified after each)
 
-### **Step A — Task 2.5: Price-alert notifications + bell icon** (60 min, ~5 credits) ★ start here
-**Why first:** Highest user-visible value. The hourly cron is firing into the void today.
+### **Step A — Task 3.3: Live price awareness in Monika** (45 min, ~3 credits) ★ start here
+**Why first:** Highest visible upgrade. Takes Monika from "guessing prices" to "knows your city today".
 
-1. **DB migration:** new table `price_alert_notifications`
-   - columns: `id uuid pk`, `user_id uuid`, `alert_id uuid`, `item_name text`, `city text`, `current_price numeric`, `threshold_price numeric`, `direction text`, `is_read boolean default false`, `created_at timestamptz default now()`
-   - RLS: users SELECT/UPDATE/DELETE only their own; INSERT allowed for service role (edge function)
-   - Index: `(user_id, is_read, created_at desc)`
-2. **Update `check-price-alerts/index.ts`:** when threshold met, INSERT a notification row (in addition to setting `last_triggered_at`).
-3. **New component `src/components/PriceAlertBell.tsx`:**
-   - Polls `price_alert_notifications` for `is_read=false` count
-   - Bell icon with red dot + count badge
-   - Click → opens a Sheet listing recent notifications with "Mark all read" + per-item tap to open Market detail
-4. **Mount in `MarketPageHeader.tsx`** next to the city/search icons.
-5. **Realtime:** subscribe to `postgres_changes` on the table for the user — instant bell update.
-6. **Verify:** Manually insert a test notification via SQL → confirm bell badge updates live → click → mark read → bell clears.
+1. **In `monika-chat/index.ts`**, after the existing supabase client is created, add a fetch:
+   ```ts
+   const userCity = userContext?.profile?.city?.toLowerCase();
+   if (userCity) {
+     const { data: cityPrices } = await supabase
+       .from('city_prices')
+       .select('item_name, avg_price, price_date, source, updated_at')
+       .eq('city', userCity)
+       .gte('price_date', sevenDaysAgo)
+       .order('updated_at', { ascending: false })
+       .limit(30);
+   }
+   ```
+2. **Inject into system prompt** as a new block "LIVE PRICE DATA (CITY: X)" with each item, price, date, source, and a freshness label (`Live`/`2d old`/`Stale`).
+3. **Add prompt rule:** "When asked about a price, ONLY quote from this list. If item missing, say 'I don't have a fresh price for X in [city] — last reported value would be from static data, may not reflect today.'"
+4. **Verify:** Open Monika → ask "What's chicken priced at in [my city]?" → confirm she returns a real ₹/kg with date.
 
-### **Step B — Task 2.4: Admin scraping health panel** (45 min, ~4 credits)
-1. **In `AdAdmin.tsx`** add a collapsible card "Scraping Health" above campaigns.
-2. **Query:** `SELECT city, MAX(updated_at) latest, COUNT(*) FILTER (WHERE updated_at::date = CURRENT_DATE) today_count FROM city_prices WHERE source='firecrawl' GROUP BY city`
-3. **Render:** table with city · last scrape · #items today · status pill (green if <24h, amber <72h, red older)
-4. **Add a "Run scrape now" button** that calls `firecrawl-prices` with `{ scrapeAll: true }` — already supported by the function.
-5. **Verify:** Open `/admin/ads` → confirm 10 cities listed with timestamps from your 400 firecrawl rows → click "Run scrape now" → confirm toast + row updates.
+### **Step B — Task 3.2: Wire condition-coach into Monika** (45 min, ~3 credits)
+1. **Move `condition-coach.ts` keyword sets** (HIGH_GI, DAIRY, GLUTEN, etc.) to the edge function context, OR (cleaner) add a tiny inline classifier in `monika-actions.ts` `buildMonikaContext()` that runs **client-side** before each call.
+2. **Compute on every send:** for each user health condition, build a `conditionGuidance` block: `{ diabetes: { avoid: [...high-GI matches in last 7 days], prefer: [...low-GI alternatives] }, ... }` based on actual logged meals.
+3. **Inject** into system prompt as "CONDITION-SPECIFIC GUIDANCE FOR THIS USER".
+4. **Verify:** With a PCOS test profile, ask "Can I eat paneer for dinner?" → confirm response cites PCOS context (low-GI ✓, high protein ✓, dairy moderation note).
 
-### **Step C — Task 2.3: Wire freshness badge into 3 more surfaces** (20 min, ~2 credits)
-1. `src/components/MarketItemCard.tsx` — add `<PriceFreshnessBadge compact lastUpdated={item.lastUpdated} />` next to price.
-2. `src/components/MarketCompareBar.tsx` — same compact badge per row.
-3. `src/components/MarketCompactView.tsx` — same.
-4. **Verify:** Market grid shows "Live"/"3h ago"/"Est." chip on every card. No layout break on small screens.
+### **Step C — Task 3.6: Gap-Filler dinner card** (30 min, ~2 credits)
+1. **In `NextMealCard.tsx`**, when `slot === 'dinner'` AND `remainingProt > 20g`, switch to "Gap Filler" mode:
+   - Header changes to "🎯 Close your protein gap"
+   - Render top 3 recipes in a 1-column stacked list (not carousel) — easier to compare at a glance on mobile.
+   - Each shows: name, protein delta (`+22g`), kcal, ₹, "Log this" button.
+2. **Sort** by `protein desc` then `cost asc` within `getRecipesForMeal` results.
+3. **Verify:** Set a profile with 80g daily protein, log breakfast (10g) + lunch (15g) → dashboard at 6pm shows "Close your protein gap" card with 3 high-protein dinner options under remaining budget.
 
-### **Step D — Task 2.2: Extend Firecrawl to Zepto + Instamart** (30 min, ~3 credits)
-1. **In `firecrawl-prices/index.ts` line 82**, change query to include `site:zeptonow.com OR site:swiggy.com/instamart OR site:jiomart.com`.
-2. **Bump `limit: 5` → `limit: 8`** to give more results to regex against (still 1 search credit).
-3. **Add per-item sanity bounds** (line ~117) to reject obvious garbage: chicken ₹100–800/kg, eggs ₹4–15/piece, etc. Map kept inline.
-4. **Deploy + manual test:** call function with `{ city: 'mumbai' }` via test tool → confirm prices land for at least 5 of 10 items → check `city_prices` for fresh rows.
+### **Step D — Task 3.5: Cloud-synced conversation memory** (45 min, ~4 credits)
+1. **DB migration:** `monika_conversations` table
+   - `id uuid pk`, `user_id uuid`, `role text check ('user'|'assistant')`, `content text`, `created_at timestamptz`
+   - RLS: users SELECT/INSERT/DELETE own only
+   - Index: `(user_id, created_at desc)`
+2. **In `MonikaChatScreen.tsx`:**
+   - On first open per session, fetch last 20 messages from cloud → merge with localStorage (cloud wins on conflict).
+   - On every send/receive, fire-and-forget INSERT to cloud (don't block UI).
+   - Keep localStorage as the fast-path (offline still works).
+3. **Add "Clear chat" cloud sync** — when user clicks Trash icon, delete cloud rows too.
+4. **Verify:** Send 3 messages on desktop → log in on phone → confirm history appears within 2s.
 
-### **Step E — Task 2.1: Govt API** ⏭️ **SKIPPED**
-Leave `fetch-govt-prices` untouched. When you get the data.gov.in key, paste it as `GOVT_DATA_API_KEY` secret and ping me — that's a separate ~2 hr job replacing the `GOVT_API_HOOK` stub with real `fetch()`.
+### **Step E — Tasks 3.1 + 3.4** ⏭️ **SKIPPED**
+Already shipped and verified during prior phases. No-op.
 
 ### **Step F — Manual QA pass** (15 min, 0 credits)
 After A–D ship I will:
-1. Open `/market` → confirm freshness chips on cards
-2. Click an item → confirm freshness in detail sheet (already works)
-3. Open admin `/admin/ads` → confirm health panel shows 10 cities + click "Run scrape now"
-4. Insert a test notification via SQL → confirm bell badge appears on Market header within 2s (realtime)
-5. Click bell → confirm sheet lists it → mark read → confirm badge clears
-6. Call `firecrawl-prices` for one new city → confirm Zepto/Instamart hits land in `city_prices`
+1. Open Monika → ask "price of chicken in [city]?" → confirm real price with date
+2. Ask "Can I eat paneer with PCOS?" → confirm PCOS-specific reasoning
+3. Open Dashboard at dinner time with low protein → confirm Gap Filler card with 3 options
+4. Send a message → log in to a different browser session → confirm history loaded from cloud
+5. Send a meal photo → confirm portion sizes use the existing Indian rules (already working)
 
-I'll report each step ✅ or ❌ with screenshots.
+I'll report each ✅ or ❌.
 
 ---
 
@@ -75,36 +86,29 @@ I'll report each step ✅ or ❌ with screenshots.
 
 | Skipped | Reason |
 |---------|--------|
-| Real `data.gov.in` integration | No API key. Code scaffold already in place. 0 work possible. |
-| Push notifications for alerts | Out of scope. Senior dev's own task list said "in-app toast, not push" — bell + sheet covers it. |
-| Building a new `PriceFreshnessBadge` component | Already exists. Reusing saves credits. |
-| Storing circuit-breaker state in DB | In-memory state is fine for 1 edge function instance. Cross-instance sync is a 2-day refactor for marginal value. |
-| Caching layer for notifications poll | Realtime subscription handles freshness; polling is a fallback only. |
+| Re-writing system prompt for 3.1 | Already 308 lines, more comprehensive than spec asked |
+| Adding portion rules to analyze-food (3.4) | Already has 30+ rules, more accurate than spec values (40g roti vs spec's 30g) |
+| Switching default model to Pro | Flash is fine for chat; Pro adds latency without quality gain for this use case |
+| Per-message vector embeddings / true RAG | Overkill — direct context injection of city prices + conditions is faster and cheaper than embeddings for ~30 items |
+| Push notifications for Monika proactive nudges | Out of scope for Phase 3; was Phase 5 plan |
 
 ---
 
 ## Technical details
 
-**Files created**
-- `src/components/PriceAlertBell.tsx`
-- `src/components/PriceAlertNotificationsSheet.tsx`
+**Files to modify**
+- `supabase/functions/monika-chat/index.ts` — add city_prices fetch + condition-guidance block
+- `src/lib/monika-actions.ts` — `buildMonikaContext()` adds `conditionGuidance` derived from condition-coach keyword sets
+- `src/components/NextMealCard.tsx` — Gap Filler variant when dinner + protein gap >20g
+- `src/components/MonikaChatScreen.tsx` — cloud history fetch on mount + insert on send
 
-**Files modified**
-- `supabase/functions/check-price-alerts/index.ts` (insert notification row)
-- `supabase/functions/firecrawl-prices/index.ts` (query + sanity bounds)
-- `src/components/MarketPageHeader.tsx` (mount bell)
-- `src/components/MarketItemCard.tsx` (freshness chip)
-- `src/components/MarketCompareBar.tsx` (freshness chip)
-- `src/components/MarketCompactView.tsx` (freshness chip)
-- `src/pages/AdAdmin.tsx` (health panel + Run-scrape button)
+**Files to create**
+- *(no new components)*
 
 **DB migration (1)**
-- New table `price_alert_notifications` + RLS + index
-- Add `price_alert_notifications` to `supabase_realtime` publication
+- New table `monika_conversations` + RLS + index `(user_id, created_at desc)`
 
-**No new dependencies. No secret changes.**
+**No new dependencies. No secret changes. No new edge functions.**
 
-**Total estimate:** ~2.5 hrs of build, ~14 credits. Each step shipped + verified before moving to the next, in this order: **A → B → C → D → F**.
-
-After each step I will say: `Step A done, verified — moving to B` so you can stop me if anything looks off.
+**Total estimate:** ~2.5 hrs build, ~12 credits. Order: **A → B → C → D → F**. After each step I'll say `Step A done, verified — moving to B` so you can stop me if anything looks off.
 
