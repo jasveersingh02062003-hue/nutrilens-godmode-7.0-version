@@ -4,7 +4,7 @@
 // Single source of truth for user profile data.
 // All modules must access user data through this context.
 
-import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { UserProfile, getProfile, saveProfile } from '@/lib/store';
 import { supabase } from '@/integrations/supabase/client';
 import { restoreLogsFromCloud } from '@/lib/daily-log-sync';
@@ -13,80 +13,16 @@ import { clearEngineCache } from '@/lib/calorie-correction';
 import { initStorageCleanup } from '@/lib/storage-cleanup';
 import { profileToDbRow, dbRowToProfile } from '@/lib/profile-mapper';
 import { setScopedUserId } from '@/lib/scoped-storage';
+import type { Session } from '@supabase/supabase-js';
 import type { PCOSCondition } from '@/lib/pcos-score';
+...
+  // Load profile from cloud after auth session restoration completes
+  const hasRestoredSessionRef = useRef(false);
 
-// Extended conditions interface
-export interface UserConditions {
-  pcos?: PCOSCondition;
-  diabetes?: { has: boolean; type?: string };
-  hypertension?: { has: boolean };
-  lactoseIntolerance?: { has: boolean };
-  thyroid?: { has: boolean };
-  [key: string]: any;
-}
-
-// Context value type
-interface UserProfileContextValue {
-  profile: UserProfile | null;
-  isLoaded: boolean;
-  loadedUserId: string | null;
-  updateProfile: (partial: Partial<UserProfile>) => void;
-  updateConditions: (conditions: Partial<UserConditions>) => void;
-  updateBudget: (budget: any) => void;
-  refreshProfile: () => void;
-}
-
-const UserProfileContext = createContext<UserProfileContextValue>({
-  profile: null,
-  isLoaded: false,
-  loadedUserId: null,
-  updateProfile: () => {},
-  updateConditions: () => {},
-  updateBudget: () => {},
-  refreshProfile: () => {},
-});
-
-// Debounced cloud sync
-let syncTimeout: ReturnType<typeof setTimeout> | null = null;
-
-let syncFailCount = 0;
-const MAX_SYNC_FAILURES = 3;
-
-function syncToCloud(profile: UserProfile) {
-  if (syncTimeout) clearTimeout(syncTimeout);
-  // Stop retrying after repeated FK / auth failures
-  if (syncFailCount >= MAX_SYNC_FAILURES) return;
-
-  syncTimeout = setTimeout(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return;
-
-    const row = profileToDbRow(profile, session.user.id);
-    const { error } = await supabase.from('profiles').upsert(row as any);
-    if (error) {
-      syncFailCount++;
-      if (syncFailCount < MAX_SYNC_FAILURES) {
-        console.warn('Profile sync failed (attempt ' + syncFailCount + '):', error.message);
-      } else {
-        console.error('Profile sync failed permanently after ' + MAX_SYNC_FAILURES + ' attempts. Will stop retrying until next login.');
-      }
-    } else {
-      syncFailCount = 0; // Reset on success
-    }
-  }, 2000);
-}
-
-export function UserProfileProvider({ children }: { children: React.ReactNode }) {
-  const [profile, setProfile] = useState<UserProfile | null>(() => getProfile());
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
-
-  // Load profile from cloud, re-run whenever auth state changes
   useEffect(() => {
     let cancelled = false;
 
     async function loadFromCloud(userId: string) {
-      // Set scoped storage user ID on load
       setScopedUserId(userId);
 
       try {
@@ -109,7 +45,6 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
           return;
         }
 
-        // No cloud profile found — fall back to local
         const local = getProfile();
         setProfile(local);
         setLoadedUserId(userId);
@@ -123,40 +58,35 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
       }
     }
 
-    // Listen to auth state changes so we re-load on login
+    const handleSession = async (session: Session | null) => {
+      if (cancelled) return;
+
+      if (session?.user) {
+        setProfile(null);
+        setLoadedUserId(null);
+        setIsLoaded(false);
+        await loadFromCloud(session.user.id);
+        return;
+      }
+
+      clearEngineCache();
+      setScopedUserId(null);
+      setProfile(null);
+      setLoadedUserId(null);
+      setIsLoaded(true);
+    };
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (cancelled) return;
-      if (session?.user) {
-        setProfile(null);
-        setLoadedUserId(null);
-        setIsLoaded(false);
-        void loadFromCloud(session.user.id);
-      } else {
-        // Logged out — clear engine caches to prevent stale data
-        clearEngineCache();
-        setScopedUserId(null);
-        setProfile(null);
-        setLoadedUserId(null);
-        setIsLoaded(true);
-      }
+      if (cancelled || !hasRestoredSessionRef.current) return;
+      void handleSession(session);
     });
 
-    // Initial load
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    void supabase.auth.getSession().then(({ data: { session } }) => {
       if (cancelled) return;
-      if (session?.user) {
-        setLoadedUserId(null);
-        setIsLoaded(false);
-        void loadFromCloud(session.user.id);
-      } else {
-        const local = getProfile();
-        setProfile(local);
-        setLoadedUserId(null);
-        setIsLoaded(true);
-      }
+      hasRestoredSessionRef.current = true;
+      void handleSession(session);
     });
 
-    // Listen for budget and profile updates to trigger cloud sync
     const handleExternalSync = () => {
       const current = getProfile();
       if (current) syncToCloud(current);
