@@ -422,6 +422,8 @@ export function buildMonikaContext() {
         };
       } catch { return null; }
     })(),
+    userConditions,
+    conditionGuidance,
   };
 }
 
