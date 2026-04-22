@@ -77,8 +77,14 @@ const MarketList = lazyWithRetry(preloadMarketList, "market-list");
 const AdAdmin = lazyWithRetry(preloadAdAdmin, "ad-admin");
 
 const AdminLayout = lazyWithRetry(() => import("./components/admin/AdminLayout"), "admin-layout");
-const AdminDashboard = lazyWithRetry(() => import("./pages/admin/AdminDashboard"), "admin-dashboard");
+const AdminOverview = lazyWithRetry(() => import("./pages/admin/AdminOverview"), "admin-overview");
 const AdminUsers = lazyWithRetry(() => import("./pages/admin/AdminUsers"), "admin-users");
+const AdminUserDetail = lazyWithRetry(() => import("./pages/admin/AdminUserDetail"), "admin-user-detail");
+const AdminRetention = lazyWithRetry(() => import("./pages/admin/AdminRetention"), "admin-retention");
+const AdminRevenue = lazyWithRetry(() => import("./pages/admin/AdminRevenue"), "admin-revenue");
+const AdminAds = lazyWithRetry(() => import("./pages/admin/AdminAds"), "admin-ads");
+const AdminBrands = lazyWithRetry(() => import("./pages/admin/AdminBrands"), "admin-brands");
+const AdminScraping = lazyWithRetry(() => import("./pages/admin/AdminScraping"), "admin-scraping");
 const AdminPlans = lazyWithRetry(() => import("./pages/admin/AdminPlans"), "admin-plans");
 const AdminFeedback = lazyWithRetry(() => import("./pages/admin/AdminFeedback"), "admin-feedback");
 const AdminAudit = lazyWithRetry(() => import("./pages/admin/AdminAudit"), "admin-audit");
@@ -185,8 +191,14 @@ function AppLayout() {
         <Route path="/market/list" element={<RouteBoundary><ProtectedRoute><MarketProvider><PageTransition><MarketList /></PageTransition></MarketProvider></ProtectedRoute></RouteBoundary>} />
         <Route path="/admin/ads" element={<RouteBoundary><ProtectedRoute><PageTransition><AdAdmin /></PageTransition></ProtectedRoute></RouteBoundary>} />
         <Route path="/admin" element={<RouteBoundary><Suspense fallback={<PageLoader />}><RequireAdmin><AdminLayout /></RequireAdmin></Suspense></RouteBoundary>}>
-          <Route index element={<Suspense fallback={<PageLoader />}><AdminDashboard /></Suspense>} />
+          <Route index element={<Suspense fallback={<PageLoader />}><AdminOverview /></Suspense>} />
           <Route path="users" element={<Suspense fallback={<PageLoader />}><AdminUsers /></Suspense>} />
+          <Route path="users/:id" element={<Suspense fallback={<PageLoader />}><AdminUserDetail /></Suspense>} />
+          <Route path="retention" element={<Suspense fallback={<PageLoader />}><AdminRetention /></Suspense>} />
+          <Route path="revenue" element={<Suspense fallback={<PageLoader />}><AdminRevenue /></Suspense>} />
+          <Route path="ads" element={<Suspense fallback={<PageLoader />}><AdminAds /></Suspense>} />
+          <Route path="brands" element={<Suspense fallback={<PageLoader />}><AdminBrands /></Suspense>} />
+          <Route path="scraping" element={<Suspense fallback={<PageLoader />}><AdminScraping /></Suspense>} />
           <Route path="plans" element={<Suspense fallback={<PageLoader />}><AdminPlans /></Suspense>} />
           <Route path="feedback" element={<Suspense fallback={<PageLoader />}><AdminFeedback /></Suspense>} />
           <Route path="audit" element={<Suspense fallback={<PageLoader />}><RequireAdmin requireSuper><AdminAudit /></RequireAdmin></Suspense>} />
