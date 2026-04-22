@@ -1,3 +1,4 @@
+import { logApiUsage, COST_INR } from '../_shared/api-usage.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -168,6 +169,15 @@ Deno.serve(async (req) => {
         const prices = await scrapeGroceryPrices(c, firecrawlKey);
         allResults[c] = prices;
         totalScraped += prices.length;
+
+        // 1 Firecrawl /v1/search call = 1 search credit ≈ 1 page price
+        void logApiUsage({
+          vendor: 'firecrawl',
+          endpoint: 'firecrawl-prices',
+          units: 1,
+          costInr: COST_INR['firecrawl-page'],
+          metadata: { city: c, itemsFound: prices.length },
+        });
 
         for (const p of prices) {
           const upsertRes = await fetch(`${supabaseUrl}/rest/v1/city_prices`, {

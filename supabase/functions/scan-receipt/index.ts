@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { logApiUsage, estimateLovableAiCost } from "../_shared/api-usage.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -116,6 +117,15 @@ Return ONLY valid JSON using the tool provided.`;
 
     const aiData = await response.json();
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+
+    const totalTokens = aiData.usage?.total_tokens ?? 0;
+    void logApiUsage({
+      vendor: "lovable-ai",
+      endpoint: "scan-receipt",
+      units: totalTokens,
+      costInr: estimateLovableAiCost("google/gemini-2.5-flash-vision", totalTokens || 1200),
+      metadata: { model: "gemini-2.5-flash" },
+    });
     
     if (toolCall?.function?.arguments) {
       const parsed = JSON.parse(toolCall.function.arguments);
