@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Loader2, Plus, Building2 } from 'lucide-react';
+import { Loader2, Plus, Building2, ChevronRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { logAdminAction } from '@/lib/audit';
 import { inr } from '@/lib/admin-metrics';
 import { toast } from 'sonner';
@@ -154,6 +155,9 @@ export default function AdminBrands() {
                       <Button variant="outline" size="sm" onClick={() => adjustBalance(b)}>Balance</Button>
                       <Button variant="outline" size="sm" onClick={() => toggleStatus(b)}>
                         {b.status === 'active' ? 'Suspend' : 'Activate'}
+                      </Button>
+                      <Button asChild variant="outline" size="sm">
+                        <Link to={`/admin/brands/${b.id}`}>Open <ChevronRight className="w-3 h-3 ml-0.5" /></Link>
                       </Button>
                     </div>
                   </td>

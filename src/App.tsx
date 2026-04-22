@@ -82,7 +82,10 @@ const AdminRetention = lazyWithRetry(() => import("./pages/admin/AdminRetention"
 const AdminRevenue = lazyWithRetry(() => import("./pages/admin/AdminRevenue"), "admin-revenue");
 const AdminAds = lazyWithRetry(() => import("./pages/admin/AdminAds"), "admin-ads");
 const AdminBrands = lazyWithRetry(() => import("./pages/admin/AdminBrands"), "admin-brands");
+const AdminBrandDetail = lazyWithRetry(() => import("./pages/admin/AdminBrandDetail"), "admin-brand-detail");
 const AdminScraping = lazyWithRetry(() => import("./pages/admin/AdminScraping"), "admin-scraping");
+const BrandDashboard = lazyWithRetry(() => import("./pages/brand/BrandDashboard"), "brand-dashboard");
+const RequireBrand = lazyWithRetry(() => import("./components/admin/RequireBrand"), "require-brand");
 const AdminPlans = lazyWithRetry(() => import("./pages/admin/AdminPlans"), "admin-plans");
 const AdminFeedback = lazyWithRetry(() => import("./pages/admin/AdminFeedback"), "admin-feedback");
 const AdminAudit = lazyWithRetry(() => import("./pages/admin/AdminAudit"), "admin-audit");
@@ -122,7 +125,7 @@ const HIDE_NAV_ROUTES = ['/', '/onboarding', '/quicklog'];
 
 function AppLayout() {
   const location = useLocation();
-  const hideNav = HIDE_NAV_ROUTES.includes(location.pathname) || location.pathname.startsWith('/admin');
+  const hideNav = HIDE_NAV_ROUTES.includes(location.pathname) || location.pathname.startsWith('/admin') || location.pathname.startsWith('/brand');
 
   useEffect(() => {
     checkAndExpireTrial();
@@ -195,11 +198,13 @@ function AppLayout() {
           <Route path="revenue" element={<Suspense fallback={<PageLoader />}><AdminRevenue /></Suspense>} />
           <Route path="ads" element={<Suspense fallback={<PageLoader />}><AdminAds /></Suspense>} />
           <Route path="brands" element={<Suspense fallback={<PageLoader />}><AdminBrands /></Suspense>} />
+          <Route path="brands/:id" element={<Suspense fallback={<PageLoader />}><AdminBrandDetail /></Suspense>} />
           <Route path="scraping" element={<Suspense fallback={<PageLoader />}><AdminScraping /></Suspense>} />
           <Route path="plans" element={<Suspense fallback={<PageLoader />}><AdminPlans /></Suspense>} />
           <Route path="feedback" element={<Suspense fallback={<PageLoader />}><AdminFeedback /></Suspense>} />
           <Route path="audit" element={<Suspense fallback={<PageLoader />}><RequireAdmin requireSuper><AdminAudit /></RequireAdmin></Suspense>} />
         </Route>
+        <Route path="/brand" element={<RouteBoundary><Suspense fallback={<PageLoader />}><RequireBrand><BrandDashboard /></RequireBrand></Suspense></RouteBoundary>} />
         <Route path="/quicklog" element={<RouteBoundary><ProtectedRoute><PageTransition><QuickLog /></PageTransition></ProtectedRoute></RouteBoundary>} />
         <Route path="/camera" element={<Navigate to="/" replace />} />
         <Route path="*" element={<RouteBoundary><Suspense fallback={<PageLoader />}><PageTransition><NotFound /></PageTransition></Suspense></RouteBoundary>} />
