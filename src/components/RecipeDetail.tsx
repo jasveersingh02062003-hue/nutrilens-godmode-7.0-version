@@ -36,7 +36,7 @@ export default function RecipeDetail({ recipe, onBack }: Props) {
         {/* Hero with real image */}
         <div className="relative">
           <div className="h-52 overflow-hidden">
-            <img src={imageUrl} alt={recipe.name} className="w-full h-full object-cover" />
+            <img src={imageUrl} alt={recipe.name} loading="lazy" decoding="async" width={640} height={208} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
           </div>
           <button onClick={onBack} className="absolute top-4 left-4 w-9 h-9 rounded-xl bg-background/80 backdrop-blur border border-border flex items-center justify-center">
