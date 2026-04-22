@@ -120,6 +120,24 @@ export default function MonikaChatScreen({ open, onClose, onDashboardRefresh }: 
     if (messages.length > 0) saveChatHistory(messages);
   }, [messages]);
 
+  // One-time cloud sync on first open: merge cloud history with local (cloud-wins on dupes)
+  const cloudSyncedRef = useRef(false);
+  useEffect(() => {
+    if (!open || cloudSyncedRef.current) return;
+    cloudSyncedRef.current = true;
+    (async () => {
+      const cloudMsgs = await cloudFetchHistory();
+      if (cloudMsgs.length === 0) return;
+      setMessages(prev => {
+        // Build a content+role signature set from local for dedup
+        const sig = new Set(prev.map(m => `${m.role}::${m.content}`));
+        const merged = [...cloudMsgs.filter(m => !sig.has(`${m.role}::${m.content}`)), ...prev];
+        // Keep last 100
+        return merged.slice(-100);
+      });
+    })();
+  }, [open]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -127,6 +145,7 @@ export default function MonikaChatScreen({ open, onClose, onDashboardRefresh }: 
   const clearHistory = useCallback(() => {
     setMessages([]);
     scopedRemove(CHAT_HISTORY_KEY);
+    cloudClearHistory();
     toast.success('Chat history cleared');
   }, []);
 
