@@ -17,6 +17,7 @@ import { MarketProvider } from "./contexts/MarketContext";
 import { attemptModuleImportRecovery, clearModuleImportRecovery, isRecoverableModuleError, preloadRouteSafely } from "./lib/module-recovery";
 import DashboardSkeleton from "./components/dashboard/DashboardSkeleton";
 import ProgressSkeleton from "./components/progress/ProgressSkeleton";
+import OfflineBanner from "./components/OfflineBanner";
 
 function lazyWithRetry<T extends React.ComponentType<any>>(
   importer: () => Promise<{ default: T }>,
