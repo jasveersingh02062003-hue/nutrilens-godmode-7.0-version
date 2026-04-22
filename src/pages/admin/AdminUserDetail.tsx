@@ -251,13 +251,38 @@ export default function AdminUserDetail() {
             <p className="text-xs uppercase text-muted-foreground mb-1">Plans</p>
             {plans.length === 0 && <p className="text-xs text-muted-foreground">None</p>}
             <div className="space-y-1">
-              {plans.map(p => (
-                <div key={p.id} className="flex items-center justify-between text-xs border-b border-border/40 py-1">
-                  <span className="font-medium">{p.plan_type}</span>
-                  <span className="text-muted-foreground">{p.start_date} → {p.end_date}</span>
-                  <Badge variant={p.status === 'active' ? 'default' : 'secondary'} className="text-[9px]">{p.status}</Badge>
-                </div>
-              ))}
+              {plans.map(p => {
+                const isActionable = p.status !== 'refunded';
+                return (
+                  <div key={p.id} className="flex items-center justify-between gap-2 text-xs border-b border-border/40 py-1">
+                    <span className="font-medium truncate">{p.plan_type}</span>
+                    <span className="text-muted-foreground whitespace-nowrap">{p.start_date} → {p.end_date}</span>
+                    <Badge variant={p.status === 'active' ? 'default' : 'secondary'} className="text-[9px]">{p.status}</Badge>
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-1.5"
+                        disabled={!isSuperAdmin || !isActionable}
+                        onClick={() => { setExtendDays('7'); setExtendPlan(p); }}
+                        title="Extend plan"
+                      >
+                        <CalendarPlus className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-1.5"
+                        disabled={!isSuperAdmin || !isActionable}
+                        onClick={() => { setRefundReason(''); setRefundPlan(p); }}
+                        title="Mark as refunded"
+                      >
+                        <IndianRupee className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
           <div>
