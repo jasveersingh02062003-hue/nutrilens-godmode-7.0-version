@@ -143,7 +143,7 @@ export default function AdminAdDetail() {
           <p className="text-xs text-destructive mt-2">⚠ Pacing 20%+ above daily target — will exhaust early.</p>
         )}
         {todaySpend < dailyTarget * 0.5 && campaign.status === 'active' && (
-          <p className="text-xs text-amber-600 mt-2">Underspending — campaign may not deliver full budget.</p>
+          <p className="text-xs text-muted-foreground mt-2">Underspending — campaign may not deliver full budget.</p>
         )}
       </Card>
 
