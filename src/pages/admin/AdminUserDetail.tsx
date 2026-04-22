@@ -49,6 +49,12 @@ export default function AdminUserDetail() {
   const [achs, setAchs] = useState<Achievement[]>([]);
   const [chats, setChats] = useState<ChatMsg[]>([]);
 
+  // Action modal state
+  const [extendPlan, setExtendPlan] = useState<Plan | null>(null);
+  const [extendDays, setExtendDays] = useState('7');
+  const [refundPlan, setRefundPlan] = useState<Plan | null>(null);
+  const [refundReason, setRefundReason] = useState('');
+
   useEffect(() => {
     if (!id) return;
     (async () => {
