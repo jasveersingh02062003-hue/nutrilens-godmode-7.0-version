@@ -40,7 +40,11 @@ export default function DashboardHeader({ profile, weather }: Props) {
         <div className={`absolute inset-0 bg-gradient-to-r ${gradient} pointer-events-none rounded-2xl`} />
 
         <div className="flex items-center gap-3 relative z-10">
-          <button onClick={() => navigate('/profile')} className="relative w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
+          <button
+            onClick={() => navigate('/profile')}
+            aria-label="Open profile"
+            className="relative w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden"
+          >
             <span className="text-sm font-bold text-primary">{(profile.name || 'U')[0].toUpperCase()}</span>
             <span className="absolute inset-0 rounded-xl border-2 border-primary/40 animate-notification-pulse pointer-events-none" />
           </button>
@@ -87,6 +91,7 @@ export default function DashboardHeader({ profile, weather }: Props) {
             transition={{ type: 'spring', stiffness: 400, damping: 25, delay: 0.2 }}
             whileTap={{ scale: 0.92 }}
             onClick={() => setSidebarOpen(true)}
+            aria-label="Open menu"
             className="w-10 h-10 rounded-xl glass-card flex items-center justify-center relative"
           >
             <Menu className="w-4.5 h-4.5 text-muted-foreground" />

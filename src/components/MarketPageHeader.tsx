@@ -42,6 +42,7 @@ export default function MarketPageHeader({
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={() => navigate('/dashboard')}
+          aria-label="Back to dashboard"
           className="w-9 h-9 rounded-xl bg-muted/80 flex items-center justify-center hover:bg-muted transition-colors"
         >
           <ArrowLeft className="w-4 h-4 text-foreground" />
@@ -54,6 +55,8 @@ export default function MarketPageHeader({
           </h1>
           <button
             onClick={() => setCityPickerOpen(!cityPickerOpen)}
+            aria-label={`Change city, current: ${displayCity}`}
+            aria-expanded={cityPickerOpen}
             className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors mt-0.5"
           >
             <MapPin className="w-3 h-3 text-primary/70" />
@@ -76,6 +79,8 @@ export default function MarketPageHeader({
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={() => setVegOnly(!vegOnly)}
+          aria-label="Filter veg only"
+          aria-pressed={vegOnly}
           className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[10px] font-bold transition-all border ${
             vegOnly
               ? 'bg-green-500/15 text-green-600 border-green-500/30'
@@ -91,6 +96,8 @@ export default function MarketPageHeader({
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={() => setSearchOpen(!searchOpen)}
+            aria-label={searchOpen ? 'Close search' : 'Open search'}
+            aria-expanded={searchOpen}
             className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
               searchOpen ? 'bg-primary/10 text-primary' : 'bg-muted/80 text-muted-foreground hover:bg-muted'
             }`}
