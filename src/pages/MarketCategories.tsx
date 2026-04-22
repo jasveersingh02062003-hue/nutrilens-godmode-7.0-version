@@ -382,6 +382,7 @@ export default function MarketCategories() {
                               onToggleCompare={() => {}}
                               index={i}
                               itemId={item.id}
+                              lastUpdated={item.lastUpdated}
                             />
                             {/* Insert sponsored card after 2nd item */}
                             {i === 1 && categoryAd && (
