@@ -189,7 +189,6 @@ function AppLayout() {
         <Route path="/market/deals" element={<RouteBoundary><ProtectedRoute><MarketProvider><PageTransition><MarketDeals /></PageTransition></MarketProvider></ProtectedRoute></RouteBoundary>} />
         <Route path="/market/compare" element={<RouteBoundary><ProtectedRoute><MarketProvider><PageTransition><MarketCompare /></PageTransition></MarketProvider></ProtectedRoute></RouteBoundary>} />
         <Route path="/market/list" element={<RouteBoundary><ProtectedRoute><MarketProvider><PageTransition><MarketList /></PageTransition></MarketProvider></ProtectedRoute></RouteBoundary>} />
-        <Route path="/admin/ads" element={<RouteBoundary><ProtectedRoute><PageTransition><AdAdmin /></PageTransition></ProtectedRoute></RouteBoundary>} />
         <Route path="/admin" element={<RouteBoundary><Suspense fallback={<PageLoader />}><RequireAdmin><AdminLayout /></RequireAdmin></Suspense></RouteBoundary>}>
           <Route index element={<Suspense fallback={<PageLoader />}><AdminOverview /></Suspense>} />
           <Route path="users" element={<Suspense fallback={<PageLoader />}><AdminUsers /></Suspense>} />
