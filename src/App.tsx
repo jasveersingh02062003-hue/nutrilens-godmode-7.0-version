@@ -160,8 +160,8 @@ function AppLayout() {
         <Route path="/onboarding" element={<RouteBoundary><Suspense fallback={<PageLoader />}><PageTransition><Onboarding /></PageTransition></Suspense></RouteBoundary>} />
         <Route path="/auth" element={<RouteBoundary><Suspense fallback={<PageLoader />}><PageTransition><Auth /></PageTransition></Suspense></RouteBoundary>} />
         <Route path="/" element={<RouteBoundary><ProtectedRoute><CameraHome /></ProtectedRoute></RouteBoundary>} />
-        <Route path="/dashboard" element={<RouteBoundary><ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><Dashboard /></div></PageTransition></ProtectedRoute></RouteBoundary>} />
-        <Route path="/progress" element={<RouteBoundary><ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><Progress /></div></PageTransition></ProtectedRoute></RouteBoundary>} />
+        <Route path="/dashboard" element={<RouteBoundary><ProtectedRoute fallback={<DashboardSkeleton />}><PageTransition><div className="max-w-lg mx-auto"><Dashboard /></div></PageTransition></ProtectedRoute></RouteBoundary>} />
+        <Route path="/progress" element={<RouteBoundary><ProtectedRoute fallback={<ProgressSkeleton />}><PageTransition><div className="max-w-lg mx-auto"><Progress /></div></PageTransition></ProtectedRoute></RouteBoundary>} />
         <Route path="/planner" element={<RouteBoundary><ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><MealPlanner /></div></PageTransition></ProtectedRoute></RouteBoundary>} />
         <Route path="/groceries" element={<Navigate to="/planner" replace />} />
         <Route path="/log" element={<RouteBoundary><ProtectedRoute><PageTransition><div className="max-w-lg mx-auto"><LogFood /></div></PageTransition></ProtectedRoute></RouteBoundary>} />
