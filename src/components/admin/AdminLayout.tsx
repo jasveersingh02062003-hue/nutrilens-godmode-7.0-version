@@ -1,14 +1,22 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, FileText, MessageSquare, ShieldAlert, ArrowLeft, LogOut } from 'lucide-react';
+import {
+  LayoutDashboard, Users, FileText, MessageSquare, ShieldAlert, ArrowLeft, LogOut,
+  Activity, BarChart3, IndianRupee, Megaphone, Building2, Database,
+} from 'lucide-react';
 import { useAdminRole } from '@/hooks/useAdminRole';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 
 const NAV = [
-  { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/admin', label: 'Overview', icon: LayoutDashboard, end: true },
   { to: '/admin/users', label: 'Users', icon: Users, end: false },
+  { to: '/admin/retention', label: 'Retention', icon: Activity, end: false },
+  { to: '/admin/revenue', label: 'Revenue', icon: IndianRupee, end: false },
+  { to: '/admin/ads', label: 'Ads', icon: Megaphone, end: false },
+  { to: '/admin/brands', label: 'Brands', icon: Building2, end: false },
   { to: '/admin/plans', label: 'Plans', icon: FileText, end: false },
   { to: '/admin/feedback', label: 'Feedback', icon: MessageSquare, end: false },
+  { to: '/admin/scraping', label: 'Scraping', icon: Database, end: false },
   { to: '/admin/audit', label: 'Audit Logs', icon: ShieldAlert, end: false, superOnly: true },
 ];
 
@@ -30,7 +38,7 @@ export default function AdminLayout() {
           )}
         </div>
 
-        <nav className="flex-1 p-2 space-y-1">
+        <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
           {NAV.filter(n => !n.superOnly || isSuperAdmin).map(item => (
             <NavLink
               key={item.to}
