@@ -510,6 +510,27 @@ PRICE QUERY RULES:
 `;
     }
 
+    // Inject condition-specific guidance
+    const conditionGuidance = userContext?.conditionGuidance;
+    if (Array.isArray(conditionGuidance) && conditionGuidance.length > 0) {
+      systemPrompt += `
+
+═══════════════════════════════════════
+CONDITION-SPECIFIC GUIDANCE FOR THIS USER
+═══════════════════════════════════════
+
+The user has the following health conditions. Use this DETERMINISTIC guidance (computed from their last 7 days of meals) before answering ANY food/diet question:
+
+${JSON.stringify(conditionGuidance, null, 2)}
+
+RULES:
+- When user asks "Can I eat X?", check it against shouldAvoid / shouldPrefer for EACH active condition.
+- If "recentlyAte" has matches, gently mention the pattern (e.g., "I noticed you've had white rice 3x this week — for diabetes, let's swap one for brown rice or millets").
+- Personalize: cite the specific condition by name in your reply.
+- Never block the user — coach, don't lecture.
+`;
+    }
+
     const apiMessages: any[] = [{ role: "system", content: systemPrompt }];
 
     for (const msg of messages) {
