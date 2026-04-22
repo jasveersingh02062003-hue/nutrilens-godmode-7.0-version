@@ -118,7 +118,7 @@ const HIDE_NAV_ROUTES = ['/', '/onboarding', '/quicklog'];
 
 function AppLayout() {
   const location = useLocation();
-  const hideNav = HIDE_NAV_ROUTES.includes(location.pathname);
+  const hideNav = HIDE_NAV_ROUTES.includes(location.pathname) || location.pathname.startsWith('/admin');
 
   useEffect(() => {
     checkAndExpireTrial();
