@@ -38,7 +38,7 @@ interface ChatMsg { id: string; role: string; content: string; created_at: strin
 export default function AdminUserDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isSuperAdmin } = useAdminRole();
+  const { isSuperAdmin, isAdmin, isMarketer, isSupport } = useAdminRole();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [logs, setLogs] = useState<DailyLog[]>([]);
@@ -48,6 +48,7 @@ export default function AdminUserDetail() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [achs, setAchs] = useState<Achievement[]>([]);
   const [chats, setChats] = useState<ChatMsg[]>([]);
+  const useMaskedView = (isMarketer || isSupport) && !isAdmin;
 
   // Action modal state
   const [extendPlan, setExtendPlan] = useState<Plan | null>(null);
@@ -60,6 +61,32 @@ export default function AdminUserDetail() {
     (async () => {
       const since = daysAgoISO(30);
       logAdminAction({ action: 'user_view', target_table: 'profiles', target_user_id: id });
+
+      // Marketers/support get masked profile only and no health/log access
+      if (useMaskedView) {
+        const { data, error } = await (supabase.rpc as any)('get_masked_profile', { _user_id: id });
+        if (error) toast.error(error.message);
+        const row = Array.isArray(data) ? data[0] : data;
+        setProfile(row ? {
+          id: row.id,
+          name: row.first_name ?? null,
+          city: row.city ?? null,
+          goal: row.goal ?? null,
+          gender: row.gender ?? null,
+          age: null,
+          height_cm: null,
+          weight_kg: null,
+          target_weight: null,
+          daily_calories: null,
+          daily_protein: null,
+          conditions: null,
+          health_conditions: null,
+          onboarding_complete: row.onboarding_complete ?? null,
+          created_at: row.created_at ?? null,
+        } as Profile : null);
+        setLoading(false);
+        return;
+      }
 
       const [pr, dl, wl, wat, sup, pl, ac, ch] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', id).maybeSingle(),
@@ -82,7 +109,7 @@ export default function AdminUserDetail() {
       setChats((ch.data ?? []) as ChatMsg[]);
       setLoading(false);
     })();
-  }, [id]);
+  }, [id, useMaskedView]);
 
   const resetOnboarding = async () => {
     if (!isSuperAdmin) return toast.error('Super admin only');
