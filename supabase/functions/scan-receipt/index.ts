@@ -19,14 +19,22 @@ serve(async (req) => {
   }
 
   try {
-    const { imageBase64 } = await req.json();
+    // 1. Auth + quota check (server-side, can't be bypassed)
+    const { result: quota, userClient } = await checkQuota(req, "scan-receipt");
+    if (!quota.ok) return quotaErrorResponse(quota, corsHeaders);
 
-    if (!imageBase64) {
-      return new Response(JSON.stringify({ error: "No image provided" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // 2. Validate input
+    let body: unknown;
+    try { body = await req.json(); } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON body" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    const parsed = RequestSchema.safeParse(body);
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ error: "Invalid input", details: parsed.error.flatten() }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const { imageBase64 } = parsed.data;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {

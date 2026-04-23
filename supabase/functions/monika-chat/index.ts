@@ -361,7 +361,24 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, userContext, imageBase64 } = await req.json();
+    // 1. Auth + quota check (server-side; client tier is untrusted)
+    const { result: quota, userClient } = await checkQuota(req, "monika-chat");
+    if (!quota.ok) return quotaErrorResponse(quota, corsHeaders);
+
+    // 2. Validate input shape + size
+    let body: unknown;
+    try { body = await req.json(); } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON body" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const parsed = RequestSchema.safeParse(body);
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ error: "Invalid input", details: parsed.error.flatten() }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const { messages, imageBase64 } = parsed.data;
+    // 3. Sanitize the user context before letting it touch the system prompt
+    const userContext = sanitizeUserContext(parsed.data.userContext);
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 

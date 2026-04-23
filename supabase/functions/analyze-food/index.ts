@@ -125,7 +125,23 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { imageBase64, textDescription } = await req.json();
+    // 1. Auth + quota check
+    const { result: quota, userClient } = await checkQuota(req, "analyze-food");
+    if (!quota.ok) return quotaErrorResponse(quota, corsHeaders);
+
+    // 2. Validate input
+    let body: unknown;
+    try { body = await req.json(); } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON body" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const parsed = RequestSchema.safeParse(body);
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ error: "Invalid input", details: parsed.error.flatten() }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const { imageBase64, textDescription } = parsed.data;
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -144,12 +160,7 @@ serve(async (req) => {
     } else if (textDescription) {
       messages.push({
         role: "user",
-        content: `Analyze this meal description and identify all food items with accurate portion weight estimation: "${textDescription}". Use IFCT2017 nutrition data for Indian foods. Also predict the likely source (home, restaurant, street food, etc.).`,
-      });
-    } else {
-      return new Response(JSON.stringify({ error: "No image or text provided" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        content: `Analyze this meal description and identify all food items with accurate portion weight estimation: "${textDescription.replace(/[`$]/g, "")}". Use IFCT2017 nutrition data for Indian foods. Also predict the likely source (home, restaurant, street food, etc.).`,
       });
     }
 
