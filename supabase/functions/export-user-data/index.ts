@@ -46,6 +46,22 @@ Deno.serve(async (req) => {
 
     const userId = user.id;
 
+    // Per-user rate limit: max 3 exports/hour (DPDP allows access; this prevents abuse)
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: recentExports } = await svc
+      .from("audit_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("actor_id", userId)
+      .eq("action", "data_export")
+      .gte("created_at", oneHourAgo);
+
+    if ((recentExports ?? 0) >= 3) {
+      return new Response(
+        JSON.stringify({ error: "Too many export requests. Please try again in an hour." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": "3600" } }
+      );
+    }
+
     const tables = [
       { name: "profiles", filter: "id" },
       { name: "daily_logs", filter: "user_id" },
