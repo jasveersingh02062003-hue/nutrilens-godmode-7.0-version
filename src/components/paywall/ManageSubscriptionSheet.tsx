@@ -146,16 +146,64 @@ export default function ManageSubscriptionSheet({ open, onClose, onUpgradeClick 
                   onClick={() => setShowHistory(true)}
                   showChevron
                 />
+
+                {isPaused ? (
+                  <button
+                    onClick={performResume}
+                    disabled={pausing}
+                    className="w-full mt-2 py-3 rounded-xl border border-border bg-card text-sm font-semibold text-primary flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <PlayCircle className="w-4 h-4" />
+                    {pausing ? 'Resuming…' : 'Resume subscription'}
+                  </button>
+                ) : showPausePicker ? (
+                  <div className="mt-2 rounded-xl border border-border bg-card p-3">
+                    <p className="text-xs font-semibold text-foreground mb-2">Pause for how long?</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[7, 14, 30].map((d) => (
+                        <button
+                          key={d}
+                          onClick={() => performPause(d as 7 | 14 | 30)}
+                          disabled={pausing}
+                          className="py-2 rounded-lg bg-primary/10 text-primary text-xs font-bold disabled:opacity-50"
+                        >
+                          {d} days
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setShowPausePicker(false)}
+                      className="w-full mt-2 text-[11px] text-muted-foreground"
+                    >
+                      Never mind
+                    </button>
+                    <p className="text-[10px] text-muted-foreground mt-2">
+                      Your billing date moves out by the same amount — you don't lose any paid time.
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowPausePicker(true)}
+                    disabled={pausing || cancelling}
+                    className="w-full mt-2 py-3 rounded-xl border border-border bg-card text-sm font-semibold text-foreground flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <PauseCircle className="w-4 h-4" />
+                    Pause subscription
+                  </button>
+                )}
+
                 <button
                   onClick={() => setShowRetention(true)}
-                  disabled={cancelling}
-                  className="w-full mt-2 py-3 rounded-xl border border-border bg-card text-sm font-semibold text-destructive flex items-center justify-center gap-2 disabled:opacity-50"
+                  disabled={cancelling || pausing}
+                  className="w-full py-3 rounded-xl border border-border bg-card text-sm font-semibold text-destructive flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   <XCircle className="w-4 h-4" />
                   {cancelling ? 'Cancelling…' : 'Cancel subscription'}
                 </button>
                 <p className="text-[10px] text-muted-foreground text-center px-4">
-                  You'll keep Pro access until {renewDate}. No further charges.
+                  {isPaused
+                    ? `Paused — no charges until you resume.`
+                    : `You'll keep Pro access until ${renewDate}. No further charges.`}
                 </p>
               </>
             )}
