@@ -127,6 +127,8 @@ export default function BloodReportSheet({ open, onClose, onSaved }: Props) {
             <Save className="w-4 h-4" /> Save Report ({filledCount} values)
           </button>
         </div>
+          </>
+        )}
       </SheetContent>
     </Sheet>
   );
