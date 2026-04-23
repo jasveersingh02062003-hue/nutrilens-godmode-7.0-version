@@ -107,14 +107,19 @@ export default function ManageSubscriptionSheet({ open, onClose, onUpgradeClick 
               <div className="flex items-center gap-2 mb-1">
                 <Crown className="w-4 h-4" />
                 <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">Current plan</span>
+                {isPaused && (
+                  <span className="ml-auto text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary-foreground/20">
+                    Paused
+                  </span>
+                )}
               </div>
               <p className="text-xl font-display font-bold capitalize">{plan === 'free' ? 'Free' : `NutriLens ${plan === 'ultra' ? 'Ultra' : 'Pro'}`}</p>
               {plan !== 'free' && periodEnd && (
                 <p className="text-xs opacity-80 mt-1 flex items-center gap-1">
-                  <Calendar className="w-3 h-3" /> Renews {renewDate}
+                  <Calendar className="w-3 h-3" /> {isPaused ? 'Resumes on' : 'Renews'} {renewDate}
                 </p>
               )}
-              {plan !== 'free' && nextChargeAmount !== null && (
+              {plan !== 'free' && !isPaused && nextChargeAmount !== null && (
                 <p className="text-xs opacity-80 mt-1 flex items-center gap-1">
                   <IndianRupee className="w-3 h-3" /> ₹{nextChargeAmount.toLocaleString('en-IN')} on next renewal
                 </p>
