@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getRecentLogs } from '@/lib/store';
 import { scoreDayForPCOS, getPCOSCondition, getPCOSFoodRecommendations, userHasPCOS } from '@/lib/pcos-score';
 import { useUserProfile } from '@/contexts/UserProfileContext';
+import { useAgeTier } from '@/hooks/useAgeTier';
 
 const scoreColors = {
   green: 'text-primary',
@@ -23,10 +24,14 @@ interface Props {
 
 export default function PCOSHealthCard({ refreshKey }: Props) {
   const { profile } = useUserProfile();
+  const { hidePCOSFeatures } = useAgeTier();
   const [expanded, setExpanded] = useState(false);
   const pcos = getPCOSCondition(profile);
   const hasPCOS = userHasPCOS(profile);
   const logs = useMemo(() => hasPCOS ? getRecentLogs(7) : [], [refreshKey, hasPCOS]);
+
+  // Hidden for users under 18 — health diagnostics safeguard.
+  if (hidePCOSFeatures) return null;
 
   const weekScores = useMemo(() => {
     if (!hasPCOS) return [];

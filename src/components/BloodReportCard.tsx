@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Droplets, AlertTriangle, CheckCircle } from 'lucide-react';
 import { getLatestBloodReport, analyzeDeficiencies, getSupplementSuggestions } from '@/lib/blood-report-service';
 import { useUserProfile } from '@/contexts/UserProfileContext';
+import { useAgeTier } from '@/hooks/useAgeTier';
 
 const statusColors = {
   low: 'bg-destructive/10 text-destructive border-destructive/10',
@@ -16,11 +17,14 @@ interface Props {
 
 export default function BloodReportCard({ refreshKey }: Props) {
   const { profile } = useUserProfile();
+  const { hideBloodReportFeatures } = useAgeTier();
   const report = useMemo(() => getLatestBloodReport(), [refreshKey]);
   const deficiencies = useMemo(() => report ? analyzeDeficiencies(report, profile?.gender) : [], [report, profile]);
   const conditions = (profile as any)?.conditions || {};
   const supplements = useMemo(() => getSupplementSuggestions(report, conditions), [report, conditions]);
 
+  // Hidden for users under 18 — clinical-data safeguard.
+  if (hideBloodReportFeatures) return null;
   if (!report && supplements.length === 0) return null;
 
   return (

@@ -1,7 +1,9 @@
-import { useState } from 'react';
-import { Save } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Save, ShieldAlert } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { BloodReport, saveBloodReport } from '@/lib/blood-report-service';
+import { useAgeTier } from '@/hooks/useAgeTier';
+import { toast } from 'sonner';
 
 const FIELDS: Array<{ key: string; label: string; unit: string; placeholder: string; step?: string }> = [
   { key: 'hba1c', label: 'HbA1c', unit: '%', placeholder: '5.7', step: '0.1' },
