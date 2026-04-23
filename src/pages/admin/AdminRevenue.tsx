@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle, Crown, Calendar } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { bucketByDay, daysAgoISO, inr, todayISO } from '@/lib/admin-metrics';
 
@@ -16,12 +16,16 @@ const PLAN_PRICE_INR: Record<string, number> = {
 const planPrice = (t: string) => PLAN_PRICE_INR[t] ?? 999;
 
 interface Plan { id: string; user_id: string; plan_type: string; status: string; start_date: string; end_date: string; created_at: string | null; }
+interface PayEvent { id: string; user_id: string; event_type: string; amount_inr: number | null; created_at: string; }
 interface Loaded {
   byType: { type: string; active: number; revenue: number }[];
-  daily: { day: string; revenue: number }[];
+  daily: { day: string; eventPlans: number; subscriptions: number }[];
   arpu: number;
   arppu: number;
   churnRisk: { user_id: string; plan_type: string; daysSinceLog: number }[];
+  subRevenue: number;
+  eventRevenue: number;
+  payingSubs: number;
 }
 
 export default function AdminRevenue() {
@@ -30,16 +34,18 @@ export default function AdminRevenue() {
 
   useEffect(() => {
     (async () => {
-      const [plansRes, logsRes, profilesCntRes] = await Promise.all([
+      const [plansRes, logsRes, profilesCntRes, paysRes] = await Promise.all([
         supabase.from('event_plans').select('id, user_id, plan_type, status, start_date, end_date, created_at'),
         supabase.from('daily_logs').select('user_id, log_date').gte('log_date', daysAgoISO(7)),
         supabase.from('profiles').select('id', { count: 'exact', head: true }),
+        supabase.from('payment_events').select('id, user_id, event_type, amount_inr, created_at').gte('created_at', daysAgoISO(30)),
       ]);
       const plans = (plansRes.data ?? []) as Plan[];
       const logs = (logsRes.data ?? []) as { user_id: string; log_date: string }[];
+      const pays = (paysRes.data ?? []) as PayEvent[];
       const totalUsers = profilesCntRes.count ?? 0;
 
-      // By type
+      // Event plans by type
       const typeMap = new Map<string, { active: number; revenue: number }>();
       for (const p of plans) {
         if (!typeMap.has(p.plan_type)) typeMap.set(p.plan_type, { active: 0, revenue: 0 });
@@ -49,14 +55,26 @@ export default function AdminRevenue() {
       }
       const byType = Array.from(typeMap.entries()).map(([type, v]) => ({ type, ...v }));
 
-      // Daily revenue last 30 days
-      const buckets = bucketByDay(plans.map(p => p.created_at), 30);
-      const daily = buckets.map((c, i) => ({
+      // Subscription revenue (real from payment_events)
+      const subscribeEvents = pays.filter(p => p.event_type === 'subscribe');
+      const subRevenue = subscribeEvents.reduce((s, p) => s + (p.amount_inr ?? 0), 0);
+      const payingSubs = new Set(subscribeEvents.map(p => p.user_id)).size;
+
+      // Daily revenue split last 30 days
+      const eventBuckets = bucketByDay(plans.map(p => p.created_at), 30);
+      const subBuckets = new Array(30).fill(0);
+      for (const p of subscribeEvents) {
+        const d = new Date(p.created_at);
+        const idx = 29 - Math.floor((Date.now() - d.getTime()) / 86400000);
+        if (idx >= 0 && idx < 30) subBuckets[idx] += p.amount_inr ?? 0;
+      }
+      const daily = eventBuckets.map((c, i) => ({
         day: daysAgoISO(29 - i).slice(5),
-        revenue: c * 1500, // approx
+        eventPlans: c * 1500,
+        subscriptions: subBuckets[i],
       }));
 
-      // Churn risk: users with active plan and no log in 3+ days
+      // Churn risk
       const lastLogDay = new Map<string, string>();
       for (const l of logs) {
         const cur = lastLogDay.get(l.user_id);
@@ -76,12 +94,14 @@ export default function AdminRevenue() {
         .sort((a, b) => b.daysSinceLog - a.daysSinceLog)
         .slice(0, 20);
 
-      const totalRevenue = plans.reduce((s, p) => s + planPrice(p.plan_type), 0);
-      const payingUsers = new Set(plans.map(p => p.user_id)).size;
+      const eventRevenue = plans.reduce((s, p) => s + planPrice(p.plan_type), 0);
+      const totalRevenue = eventRevenue + subRevenue;
+      const payingPlans = new Set(plans.map(p => p.user_id)).size;
+      const totalPaying = new Set([...plans.map(p => p.user_id), ...subscribeEvents.map(p => p.user_id)]).size;
       const arpu = totalUsers ? Math.round(totalRevenue / totalUsers) : 0;
-      const arppu = payingUsers ? Math.round(totalRevenue / payingUsers) : 0;
+      const arppu = totalPaying ? Math.round(totalRevenue / totalPaying) : 0;
 
-      setData({ byType, daily, arpu, arppu, churnRisk });
+      setData({ byType, daily, arpu, arppu, churnRisk, subRevenue, eventRevenue, payingSubs });
       setLoading(false);
     })();
   }, []);
@@ -90,7 +110,7 @@ export default function AdminRevenue() {
     <div className="p-8 max-w-6xl">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Revenue</h1>
-        <p className="text-sm text-muted-foreground">Plan revenue (mock prices) · ARPU · churn risk</p>
+        <p className="text-sm text-muted-foreground">Subscription + event-plan revenue · ARPU · churn risk</p>
       </div>
 
       {loading || !data ? (
@@ -98,6 +118,22 @@ export default function AdminRevenue() {
       ) : (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            <Card className="p-4">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Crown className="w-3.5 h-3.5 text-primary" />
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Subscriptions</p>
+              </div>
+              <p className="text-2xl font-bold tabular-nums">{inr(data.subRevenue)}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{data.payingSubs} payers · last 30d</p>
+            </Card>
+            <Card className="p-4">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Calendar className="w-3.5 h-3.5 text-accent" />
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Event plans</p>
+              </div>
+              <p className="text-2xl font-bold tabular-nums">{inr(data.eventRevenue)}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">All time</p>
+            </Card>
             <Card className="p-4">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">ARPU</p>
               <p className="text-2xl font-bold tabular-nums mt-1">{inr(data.arpu)}</p>
@@ -108,19 +144,10 @@ export default function AdminRevenue() {
               <p className="text-2xl font-bold tabular-nums mt-1">{inr(data.arppu)}</p>
               <p className="text-[10px] text-muted-foreground mt-0.5">paying only</p>
             </Card>
-            <Card className="p-4">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Active plans</p>
-              <p className="text-2xl font-bold tabular-nums mt-1">{data.byType.reduce((s, b) => s + b.active, 0)}</p>
-            </Card>
-            <Card className="p-4">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Churn risk</p>
-              <p className="text-2xl font-bold tabular-nums mt-1 text-destructive">{data.churnRisk.length}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">no log 3d+</p>
-            </Card>
           </div>
 
           <Card className="p-4 mb-4">
-            <h3 className="text-sm font-bold mb-3">Revenue (last 30d, ₹)</h3>
+            <h3 className="text-sm font-bold mb-3">Revenue split · last 30 days (₹)</h3>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data.daily} margin={{ top: 10, right: 10, bottom: 10, left: 0 }}>
@@ -128,7 +155,8 @@ export default function AdminRevenue() {
                   <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 10 }} />
                   <YAxis stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 10 }} />
                   <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
-                  <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="subscriptions" stackId="rev" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="eventPlans" stackId="rev" fill="hsl(var(--accent))" radius={[0, 0, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -136,7 +164,7 @@ export default function AdminRevenue() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card className="p-4">
-              <h3 className="text-sm font-bold mb-3">By plan type</h3>
+              <h3 className="text-sm font-bold mb-3">Event plans by type</h3>
               <table className="w-full text-sm">
                 <thead className="text-xs text-muted-foreground">
                   <tr><th className="text-left py-1">Plan</th><th className="text-right">Active</th><th className="text-right">Revenue</th></tr>

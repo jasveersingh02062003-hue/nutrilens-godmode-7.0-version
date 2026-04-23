@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { FileText, Download } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface PaymentEvent {
@@ -24,10 +24,18 @@ export default function BillingHistorySheet({ open, onClose }: Props) {
     if (!open) return;
     setLoading(true);
     void (async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const uid = userData?.user?.id;
+      if (!uid) {
+        setEvents([]);
+        setLoading(false);
+        return;
+      }
       const { data } = await supabase
         .from('payment_events')
         .select('id, created_at, event_type, amount_inr, raw_payload')
-        .eq('event_type', 'subscribe')
+        .eq('user_id', uid)
+        .in('event_type', ['subscribe', 'admin_comp'])
         .order('created_at', { ascending: false })
         .limit(50);
       setEvents((data ?? []) as PaymentEvent[]);
@@ -52,18 +60,23 @@ export default function BillingHistorySheet({ open, onClose }: Props) {
           ) : (
             <div className="space-y-2">
               {events.map((e) => {
-                const method = e.raw_payload?.payment_method_display ?? 'Mock payment';
+                const isComp = e.event_type === 'admin_comp';
+                const method = isComp
+                  ? 'Granted by support'
+                  : (e.raw_payload?.payment_method_display ?? 'Mock payment');
                 const date = new Date(e.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
                 return (
                   <div key={e.id} className="rounded-xl bg-card border border-border p-3">
                     <div className="flex items-start justify-between">
                       <div>
-                        <p className="text-sm font-bold text-foreground">₹{(e.amount_inr ?? 0).toLocaleString('en-IN')}</p>
+                        <p className="text-sm font-bold text-foreground">
+                          {isComp ? 'Free comp' : `₹${(e.amount_inr ?? 0).toLocaleString('en-IN')}`}
+                        </p>
                         <p className="text-[11px] text-muted-foreground mt-0.5">{method}</p>
                         <p className="text-[10px] text-muted-foreground mt-0.5">{date}</p>
                       </div>
                       <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                        {e.raw_payload?.mock ? 'Test' : 'Paid'}
+                        {isComp ? 'Gift' : (e.raw_payload?.mock ? 'Test' : 'Paid')}
                       </span>
                     </div>
                   </div>
