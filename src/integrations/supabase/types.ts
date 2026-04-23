@@ -1601,6 +1601,7 @@ export type Database = {
         | "expired"
         | "trialing"
         | "past_due"
+        | "paused"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1756,6 +1757,7 @@ export const Constants = {
         "expired",
         "trialing",
         "past_due",
+        "paused",
       ],
     },
   },
