@@ -48,13 +48,13 @@ export async function saveMockMethod(input: {
 
   const { data, error } = await supabase
     .from('payment_methods')
-    .insert({
+    .insert([{
       user_id: user.id,
       type: input.type,
       display_name: input.display_name,
       is_default: false,
       metadata: input.metadata ?? {},
-    })
+    }])
     .select()
     .single();
   if (error) {
