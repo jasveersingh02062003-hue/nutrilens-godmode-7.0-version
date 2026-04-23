@@ -482,6 +482,7 @@ export default function AdminUsers() {
                 {filtered.map(r => {
                   const revealed = revealedIds.has(r.id);
                   const recentlyActive = activeUserIds.has(r.id);
+                  const sb = subBadge(subs.get(r.id));
                   return (
                     <tr key={r.id} className="border-b border-border hover:bg-muted/30">
                       <td className="px-4 py-3">
@@ -491,6 +492,9 @@ export default function AdminUsers() {
                         </div>
                       </td>
                       <td className="px-4 py-3">{r.city || '—'}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant={sb.variant} className="text-[10px]">{sb.label}</Badge>
+                      </td>
                       <td className="px-4 py-3">{r.goal || '—'}</td>
                       <td className="px-4 py-3">{r.age ?? '—'}</td>
                       <td className="px-4 py-3 tabular-nums">{r.daily_calories || '—'}</td>
