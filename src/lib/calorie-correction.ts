@@ -10,6 +10,7 @@ import { getActivePlan, getPlanProgress } from '@/lib/event-plan-service';
 import { getReverseDietTarget } from '@/lib/reverse-diet-service';
 import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON } from '@/lib/scoped-storage';
 import { isGymDay, getWeeklyConsistency, getGymBonus } from '@/lib/gym-service';
+import { getActiveCalorieFloor } from '@/lib/age-tier';
 
 // ── Types ──
 
