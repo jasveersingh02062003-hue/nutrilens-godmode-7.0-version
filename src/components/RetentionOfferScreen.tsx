@@ -1,8 +1,8 @@
-import { scopedGet, scopedSet } from '@/lib/scoped-storage';
+import { useState } from 'react';
+import { scopedSet } from '@/lib/scoped-storage';
 import { motion } from 'framer-motion';
 import { X, Sparkles, Clock, Zap, Gift } from 'lucide-react';
-import { mockSubscribe } from '@/lib/subscription-service';
-import { toast } from 'sonner';
+import PaywallScreen from './paywall/PaywallScreen';
 
 interface Props {
   onAccept: () => void;
@@ -10,21 +10,30 @@ interface Props {
 }
 
 export default function RetentionOfferScreen({ onAccept, onDismiss }: Props) {
-  const handleAccept = async () => {
-    const ok = await mockSubscribe('premium', 365);
+  const [showPaywall, setShowPaywall] = useState(false);
+
+  const handleAccept = () => {
     scopedSet('retention_offer_shown', 'true');
-    if (ok) {
-      toast.success('Welcome to NutriLens Pro! 🎉 Special offer activated');
-    } else {
-      toast.info('Payment integration coming soon — your offer is saved.');
-    }
-    onAccept();
+    // Open the proper plan-picker → payment → receipt flow so the user
+    // sees the same confetti + receipt experience as a normal purchase.
+    setShowPaywall(true);
   };
 
   const handleDismiss = () => {
     scopedSet('retention_offer_shown', 'true');
     onDismiss();
   };
+
+  if (showPaywall) {
+    return (
+      <PaywallScreen
+        open
+        startAtPlanPicker
+        onClose={() => { setShowPaywall(false); onAccept(); }}
+        onUpgraded={() => { setShowPaywall(false); onAccept(); }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden">
