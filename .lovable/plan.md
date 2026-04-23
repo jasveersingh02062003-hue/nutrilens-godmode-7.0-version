@@ -36,8 +36,8 @@ _Last updated: 2026-04-23 — context: 8F42B1C3-5D9E-4A7B-B2E1-9C3F4D5A6E7B_
 
 ### Sprint 2A — Reliability (~9h)
 - ❌ **W2-1** Offline queue for failed writes (IndexedDB + retry worker)
-- ❌ **W2-3** Sentry error tracking (DSN secret + init)
-- ❌ **SEC-3** Move pgvector out of `public` schema
+- ✅ **W2-3** Sentry error tracking — DSN hardcoded, initialized in main.tsx, ErrorBoundary reports via Sentry.captureException
+- ✅ **SEC-3** pgvector — N/A: extension not installed in this DB. pg_cron + pg_net now installed in `extensions` schema (not `public`)
 
 ### Sprint 2B — Retention (~13h)
 - ❌ **FB-3** Funnel events (signup, first_log, day_7_retained, first_paid_conversion)
@@ -53,7 +53,7 @@ _Last updated: 2026-04-23 — context: 8F42B1C3-5D9E-4A7B-B2E1-9C3F4D5A6E7B_
 
 ### Polish
 - ❌ Full E2E test: free → trial → premium → cancel → expire → free
-- ❌ `expire-subscriptions` not yet on pg_cron schedule
+- ✅ `expire-subscriptions` scheduled via pg_cron (`expire-subscriptions-nightly`, daily 02:00 UTC, job id 10)
 - ❌ Trial countdown UI not wired in some screens
 
 ---
