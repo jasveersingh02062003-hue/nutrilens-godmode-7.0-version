@@ -191,6 +191,34 @@ export async function cancelSubscription(): Promise<boolean> {
   return true;
 }
 
+/** Server-side pause. Extends period_end by the same window so the user
+ *  doesn't lose paid time. Allowed durations: 7, 14, 30 days. */
+export async function pauseSubscription(days: 7 | 14 | 30 = 30): Promise<boolean> {
+  const { error } = await supabase.rpc('pause_my_subscription', { p_days: days });
+  if (error) {
+    console.warn('[subscription] pause failed', error.message);
+    return false;
+  }
+  await refreshPlan();
+  return true;
+}
+
+/** Server-side resume from a paused subscription. */
+export async function resumeSubscription(): Promise<boolean> {
+  const { error } = await supabase.rpc('resume_my_subscription');
+  if (error) {
+    console.warn('[subscription] resume failed', error.message);
+    return false;
+  }
+  await refreshPlan();
+  return true;
+}
+
+/** True when the subscription is paused (still Pro, but renewal halted). */
+export function isPaused(): boolean {
+  return cache.status === 'paused';
+}
+
 /** Optional metadata captured during a mock charge so receipts and the
  *  Manage sheet can show the actual method/amount the user paid with. */
 export interface MockSubscribeMeta {
