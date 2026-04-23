@@ -25,7 +25,8 @@ interface PaymentRow {
   created_at: string;
 }
 
-const MONTHLY_PRICE = 149;
+const MONTHLY_PRICE_PREMIUM = 149;
+const MONTHLY_PRICE_ULTRA = 499;
 
 export default function AdminSubscriptions() {
   const [loading, setLoading] = useState(true);
