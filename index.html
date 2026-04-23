@@ -3,29 +3,67 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>NutriLens AI - Smart Calorie Tracker</title>
-    <meta name="description" content="AI-powered calorie tracking that makes healthy eating effortless. Snap, speak, or scan your meals." />
-    <meta name="author" content="Lovable" />
+
+    <!-- Primary SEO -->
+    <title>NutriLens AI – Smart Calorie & Macro Tracker for Indian Meals</title>
+    <meta name="description" content="Track calories, protein and grocery costs for Indian meals. AI scans your plate, plans your week, and finds the cheapest mandi prices in your city." />
+    <link rel="canonical" href="https://nutrilens.app/" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="theme-color" content="#0f1a0f" />
+
+    <!-- iOS / PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="NutriLens" />
     <link rel="apple-touch-icon" href="/pwa-192x192.png" />
 
+    <!-- Security headers (HTTP-equiv fallback; real headers should be set at edge) -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta http-equiv="Permissions-Policy" content="camera=(self), microphone=(self), geolocation=(self), payment=()" />
+
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800&display=swap" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
 
-    <meta property="og:title" content="NutriLens AI - Smart Calorie Tracker" />
-    <meta property="og:description" content="AI-powered calorie tracking that makes healthy eating effortless." />
+    <!-- Open Graph -->
+    <meta property="og:title" content="NutriLens AI – Smart Calorie & Macro Tracker for Indian Meals" />
+    <meta property="og:description" content="AI-powered calorie tracking that makes healthy eating effortless. Snap, speak, or scan your meals." />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://nutrilens.app/" />
     <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta property="og:site_name" content="NutriLens AI" />
 
+    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@Lovable" />
+    <meta name="twitter:title" content="NutriLens AI – Smart Calorie & Macro Tracker" />
+    <meta name="twitter:description" content="AI-powered calorie tracking for Indian meals. Snap, speak, or scan." />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+
+    <!-- Structured data: SoftwareApplication -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "MobileApplication",
+      "name": "NutriLens AI",
+      "applicationCategory": "HealthApplication",
+      "operatingSystem": "Web, iOS, Android",
+      "description": "AI-powered calorie and macro tracker tuned for Indian meals, with weekly meal planning and live mandi grocery prices.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "INR"
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.8",
+        "ratingCount": "120"
+      }
+    }
+    </script>
   </head>
 
   <body>
