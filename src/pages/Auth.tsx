@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -6,22 +6,35 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import heroImg from '@/assets/hero-nutrition.jpg';
+import MinorBlockedScreen from '@/components/MinorBlockedScreen';
+import MinorConsentNotice from '@/components/MinorConsentNotice';
+import { ageFromDob, tierForAge } from '@/lib/age-tier';
 
 
-type AuthMode = 'welcome' | 'login' | 'signup' | 'phone-otp';
+type AuthMode = 'welcome' | 'login' | 'signup' | 'phone-otp' | 'blocked-minor';
 
 const Auth = function Auth() {
   const [mode, setMode] = useState<AuthMode>('welcome');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [dob, setDob] = useState('');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [consentGiven, setConsentGiven] = useState(false);
+  const [minorConsent, setMinorConsent] = useState(false);
+  const [blockedAge, setBlockedAge] = useState<number | null>(null);
   const { signUpWithEmail, signInWithEmail, signInWithPhone, verifyOTP, signInWithGoogle } = useAuth();
+
+  // Compute age tier reactively from the DOB field.
+  const computedAge = useMemo(() => ageFromDob(dob), [dob]);
+  const computedTier = useMemo(() => tierForAge(computedAge), [computedAge]);
+  const isMinor = computedTier === 'minor';
+  const isBlocked = computedTier === 'blocked';
+  const dobMissing = !dob;
 
   const recordConsent = async () => {
     try {
@@ -29,12 +42,13 @@ const Auth = function Auth() {
       if (!user) return;
       await (supabase.from as any)('consent_records').insert({
         user_id: user.id,
-        purpose: 'terms_and_privacy',
+        purpose: isMinor ? 'terms_privacy_minor_guardian' : 'terms_and_privacy',
         granted: true,
         source: 'signup',
       });
     } catch {}
   };
+
 
   const handleEmailAuth = async (isSignUp: boolean) => {
     if (!email || !password) {
@@ -47,9 +61,29 @@ const Auth = function Auth() {
       return;
     }
 
-    if (isSignUp && !consentGiven) {
-      toast.error('Please accept the Terms & Privacy Policy to continue');
-      return;
+    if (isSignUp) {
+      if (dobMissing) {
+        toast.error('Please enter your date of birth to continue');
+        return;
+      }
+      if (computedAge === null) {
+        toast.error('Please enter a valid date of birth');
+        return;
+      }
+      if (isBlocked) {
+        // Hard stop — render the friendly blocked screen, do NOT call signUp.
+        setBlockedAge(computedAge);
+        setMode('blocked-minor');
+        return;
+      }
+      if (isMinor && !minorConsent) {
+        toast.error('Please confirm a parent/guardian knows you use this app');
+        return;
+      }
+      if (!isMinor && !consentGiven) {
+        toast.error('Please accept the Terms & Privacy Policy to continue');
+        return;
+      }
     }
 
     setLoading(true);
@@ -81,9 +115,17 @@ const Auth = function Auth() {
 
       setLoading(false);
       void recordConsent();
-      toast.success('Account created!');
+      // Persist DOB so onboarding pre-fills it and the engine picks the right floor.
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && dob) {
+          await (supabase.from as any)('profiles').upsert({ id: user.id, dob, age: computedAge });
+        }
+      } catch {}
+      toast.success(isMinor ? 'Account created — welcome!' : 'Account created!');
       return;
     }
+
 
     const { error } = await signInWithEmail(email, password);
     setLoading(false);
@@ -126,6 +168,14 @@ const Auth = function Auth() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <AnimatePresence mode="wait">
+        {mode === 'blocked-minor' && (
+          <motion.div key="blocked" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1">
+            <MinorBlockedScreen
+              age={blockedAge}
+              onBack={() => { setMode('welcome'); setDob(''); setBlockedAge(null); }}
+            />
+          </motion.div>
+        )}
         {mode === 'welcome' && (
           <motion.div key="welcome" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col">
             {/* Hero */}
@@ -204,6 +254,37 @@ const Auth = function Auth() {
               </div>
 
               {mode === 'signup' && (
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Date of Birth</label>
+                  <input
+                    type="date"
+                    value={dob}
+                    onChange={e => setDob(e.target.value)}
+                    max={new Date().toISOString().slice(0, 10)}
+                    className="input-field w-full"
+                  />
+                  {computedAge !== null && computedAge >= 13 && computedAge < 18 && (
+                    <p className="text-[10px] text-accent mt-1">
+                      You're {computedAge}. Some features will be limited for your safety.
+                    </p>
+                  )}
+                  {computedAge !== null && computedAge < 13 && (
+                    <p className="text-[10px] text-destructive mt-1">
+                      You must be at least 13 years old to use NutriLens AI.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {mode === 'signup' && isMinor && (
+                <MinorConsentNotice
+                  age={computedAge!}
+                  consent={minorConsent}
+                  onConsentChange={setMinorConsent}
+                />
+              )}
+
+              {mode === 'signup' && !isMinor && !isBlocked && (
                 <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -220,7 +301,18 @@ const Auth = function Auth() {
                 </label>
               )}
 
-              <button onClick={() => handleEmailAuth(mode === 'signup')} disabled={loading || (mode === 'signup' && !consentGiven)} className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50">
+              <button
+                onClick={() => handleEmailAuth(mode === 'signup')}
+                disabled={
+                  loading ||
+                  (mode === 'signup' && (
+                    isBlocked ||
+                    dobMissing ||
+                    (isMinor ? !minorConsent : !consentGiven)
+                  ))
+                }
+                className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+              >
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 {mode === 'signup' ? 'Create Account' : 'Sign In'}
               </button>

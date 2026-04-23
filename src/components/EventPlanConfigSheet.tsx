@@ -9,6 +9,7 @@ import { ArrowLeft, ArrowRight, CalendarIcon, Check, AlertTriangle, Zap, Coffee,
 import { format, addDays, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useUserProfile } from '@/contexts/UserProfileContext';
+import { useAgeTier } from '@/hooks/useAgeTier';
 import {
   calculateEventTargets,
   setActivePlan,
@@ -86,6 +87,7 @@ const BOOSTER_OPTIONS = [
 
 export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
   const { profile } = useUserProfile();
+  const { disableEventPlans } = useAgeTier();
   const [step, setStep] = useState(0);
 
   // Step 0 - Event

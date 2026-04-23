@@ -10,6 +10,7 @@ import { getActivePlan, getPlanProgress } from '@/lib/event-plan-service';
 import { getReverseDietTarget } from '@/lib/reverse-diet-service';
 import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON } from '@/lib/scoped-storage';
 import { isGymDay, getWeeklyConsistency, getGymBonus } from '@/lib/gym-service';
+import { getActiveCalorieFloor } from '@/lib/age-tier';
 
 // ── Types ──
 
@@ -405,11 +406,12 @@ function _buildAdjustmentMap(
     }
   }
 
-  // Floor protection
+  // Floor protection — uses the active floor (1200 adults / 1600 minors)
+  const floor = getActiveCalorieFloor();
   for (const date of dates) {
     const tentative = baseTarget + adjMap[date];
-    if (tentative < 1200) {
-      adjMap[date] = 1200 - baseTarget;
+    if (tentative < floor) {
+      adjMap[date] = floor - baseTarget;
     }
   }
 
@@ -531,7 +533,8 @@ export function computeAdjustedTarget(
   const pastLogs = allBalances.filter(b => b.date < date && b.actual >= 300);
   const adjMap = computeAdjustmentMap(pastLogs, baseTarget, tdee, mode);
   const adjustment = adjMap[date] || 0;
-  let target = Math.round(clamp(baseTarget + adjustment, 1200, baseTarget * 1.15));
+  const floor = getActiveCalorieFloor();
+  let target = Math.round(clamp(baseTarget + adjustment, floor, baseTarget * 1.15));
 
   // Gym bonus integration
   try {
@@ -547,8 +550,8 @@ export function computeAdjustedTarget(
       }
     }
   } catch {}
-  
-  return Math.round(Math.max(1200, target));
+
+  return Math.round(Math.max(getActiveCalorieFloor(), target));
 }
 
 /**
