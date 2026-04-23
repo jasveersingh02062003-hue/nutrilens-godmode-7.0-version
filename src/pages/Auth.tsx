@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -6,22 +6,35 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import heroImg from '@/assets/hero-nutrition.jpg';
+import MinorBlockedScreen from '@/components/MinorBlockedScreen';
+import MinorConsentNotice from '@/components/MinorConsentNotice';
+import { ageFromDob, tierForAge } from '@/lib/age-tier';
 
 
-type AuthMode = 'welcome' | 'login' | 'signup' | 'phone-otp';
+type AuthMode = 'welcome' | 'login' | 'signup' | 'phone-otp' | 'blocked-minor';
 
 const Auth = function Auth() {
   const [mode, setMode] = useState<AuthMode>('welcome');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [dob, setDob] = useState('');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [consentGiven, setConsentGiven] = useState(false);
+  const [minorConsent, setMinorConsent] = useState(false);
+  const [blockedAge, setBlockedAge] = useState<number | null>(null);
   const { signUpWithEmail, signInWithEmail, signInWithPhone, verifyOTP, signInWithGoogle } = useAuth();
+
+  // Compute age tier reactively from the DOB field.
+  const computedAge = useMemo(() => ageFromDob(dob), [dob]);
+  const computedTier = useMemo(() => tierForAge(computedAge), [computedAge]);
+  const isMinor = computedTier === 'minor';
+  const isBlocked = computedTier === 'blocked';
+  const dobMissing = !dob;
 
   const recordConsent = async () => {
     try {
@@ -29,12 +42,13 @@ const Auth = function Auth() {
       if (!user) return;
       await (supabase.from as any)('consent_records').insert({
         user_id: user.id,
-        purpose: 'terms_and_privacy',
+        purpose: isMinor ? 'terms_privacy_minor_guardian' : 'terms_and_privacy',
         granted: true,
         source: 'signup',
       });
     } catch {}
   };
+
 
   const handleEmailAuth = async (isSignUp: boolean) => {
     if (!email || !password) {
