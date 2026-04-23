@@ -1,10 +1,20 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Star, ArrowRight, Crown, Zap, Target } from 'lucide-react';
-import { PLAN_CATALOG, type PlanMeta, type PlanCategory, getActivePlan, getActivePlanRaw, getPlanProgress, getPlanById } from '@/lib/event-plan-service';
+import { Star, ArrowRight, Crown, Zap, Target, Lock } from 'lucide-react';
+import { PLAN_CATALOG, type PlanMeta, type PlanCategory, type PlanType, getActivePlan, getActivePlanRaw, getPlanProgress, getPlanById } from '@/lib/event-plan-service';
 import PlanDetailSheet from './PlanDetailSheet';
 import EventPlanConfigSheet from './EventPlanConfigSheet';
 import CurrentPlansTab from './CurrentPlansTab';
+import { useAgeTier } from '@/hooks/useAgeTier';
+import { toast } from 'sonner';
+
+// Plans hidden / locked for users under 18 — aggressive deficits and
+// strict eating-window protocols are unsafe during growth years.
+const RESTRICTED_PLAN_IDS: PlanType[] = [
+  'celebrity_transformation',
+  'sugar_cut',
+  'madhavan_21_day',
+];
 
 const FILTERS: { key: PlanCategory; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -20,8 +30,32 @@ export default function SpecialPlansTab() {
   const [selectedPlan, setSelectedPlan] = useState<PlanMeta | null>(null);
   const [eventSheetOpen, setEventSheetOpen] = useState(false);
   const [subTab, setSubTab] = useState<'available' | 'my'>(() => getActivePlanRaw() ? 'my' : 'available');
+  const { disableAggressivePlans, disableEventPlans, isMinor } = useAgeTier();
   const activePlan = getActivePlan();
   const progress = getPlanProgress();
+
+  const isPlanRestricted = (id: PlanType) =>
+    disableAggressivePlans && RESTRICTED_PLAN_IDS.includes(id);
+
+  const handlePlanClick = (plan: PlanMeta) => {
+    if (isPlanRestricted(plan.id)) {
+      toast.info('This plan is not available under 18 — for your safety.', {
+        description: 'Aggressive calorie cuts can affect growth and metabolism.',
+      });
+      return;
+    }
+    setSelectedPlan(plan);
+  };
+
+  const handleEventCtaClick = () => {
+    if (disableEventPlans) {
+      toast.info('Event plans are not available under 18 — for your safety.', {
+        description: 'Deadline-driven goals can encourage unsafe eating patterns.',
+      });
+      return;
+    }
+    setEventSheetOpen(true);
+  };
 
   const filtered = filter === 'all' ? PLAN_CATALOG : PLAN_CATALOG.filter(p => p.category === filter);
 
@@ -102,6 +136,19 @@ export default function SpecialPlansTab() {
         );
       })()}
 
+      {/* Minor safety notice */}
+      {isMinor && (
+        <div className="rounded-2xl bg-accent/10 border border-accent/20 p-3 flex items-start gap-2.5">
+          <Lock className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <p className="text-[11px] font-bold text-foreground">Some plans are locked for under-18s</p>
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              Aggressive deficits, sugar-cut challenges, and event countdowns are hidden for your safety. Stick to balanced eating — your body's still growing. 💪
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="text-center">
         <h3 className="text-base font-bold text-foreground flex items-center justify-center gap-2">
@@ -131,25 +178,47 @@ export default function SpecialPlansTab() {
       <motion.button
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        onClick={() => setEventSheetOpen(true)}
-        className="w-full rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 p-5 text-center space-y-2 active:scale-[0.99] transition-transform"
+        onClick={handleEventCtaClick}
+        className={`w-full rounded-2xl border-2 border-dashed p-5 text-center space-y-2 active:scale-[0.99] transition-transform relative ${
+          disableEventPlans
+            ? 'border-muted bg-muted/30 opacity-60'
+            : 'border-primary/30 bg-primary/5'
+        }`}
       >
+        {disableEventPlans && (
+          <div className="absolute top-3 right-3 w-7 h-7 rounded-full bg-muted flex items-center justify-center">
+            <Lock className="w-3.5 h-3.5 text-muted-foreground" />
+          </div>
+        )}
         <span className="text-3xl">🎯</span>
         <p className="text-sm font-bold text-foreground">Create Event Plan</p>
-        <p className="text-[10px] text-muted-foreground">Wedding, vacation, meeting — get a custom deadline-driven plan</p>
+        <p className="text-[10px] text-muted-foreground">
+          {disableEventPlans
+            ? 'Locked — not available under 18'
+            : 'Wedding, vacation, meeting — get a custom deadline-driven plan'}
+        </p>
       </motion.button>
 
       {/* Plan Cards */}
       <div className="space-y-3">
-        {filtered.filter(p => p.id !== 'event_based').map((plan, i) => (
+        {filtered.filter(p => p.id !== 'event_based').map((plan, i) => {
+          const restricted = isPlanRestricted(plan.id);
+          return (
           <motion.button
             key={plan.id}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.08 }}
-            onClick={() => setSelectedPlan(plan)}
-            className="w-full card-subtle p-4 text-left hover:shadow-md transition-shadow active:scale-[0.99]"
+            onClick={() => handlePlanClick(plan)}
+            className={`w-full card-subtle p-4 text-left hover:shadow-md transition-shadow active:scale-[0.99] relative ${
+              restricted ? 'opacity-60' : ''
+            }`}
           >
+            {restricted && (
+              <div className="absolute top-3 right-3 w-7 h-7 rounded-full bg-muted flex items-center justify-center">
+                <Lock className="w-3.5 h-3.5 text-muted-foreground" />
+              </div>
+            )}
             <div className="flex items-start gap-3">
               <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-2xl flex-shrink-0">
                 {plan.emoji}
@@ -158,7 +227,9 @@ export default function SpecialPlansTab() {
                 <div className="flex items-center gap-2">
                   <h4 className="text-sm font-bold text-foreground truncate">{plan.name}</h4>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{plan.description}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">
+                  {restricted ? 'Locked — not available under 18 for safety reasons.' : plan.description}
+                </p>
                 <div className="flex items-center gap-3 mt-2">
                   <div className="flex items-center gap-0.5">
                     <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
@@ -169,7 +240,7 @@ export default function SpecialPlansTab() {
                   <span className="text-[10px] font-bold text-primary">₹{plan.price}</span>
                 </div>
               </div>
-              <ArrowRight className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1" />
+              {!restricted && <ArrowRight className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1" />}
             </div>
             <div className="flex gap-1.5 mt-3">
               {plan.rules.slice(0, 3).map(r => (
@@ -179,7 +250,8 @@ export default function SpecialPlansTab() {
               ))}
             </div>
           </motion.button>
-        ))}
+          );
+        })}
       </div>
 
       {/* Testimonial */}
