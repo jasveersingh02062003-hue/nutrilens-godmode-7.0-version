@@ -1294,6 +1294,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      campaign_brand_id: { Args: { _campaign_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
