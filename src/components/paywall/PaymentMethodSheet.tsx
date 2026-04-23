@@ -53,7 +53,11 @@ export default function PaymentMethodSheet({ open, onClose, amountPaise, duratio
     setStage('processing');
     // Realistic 2.5s delay so the spinner doesn't feel fake
     await new Promise((r) => setTimeout(r, 2500));
-    const ok = await mockSubscribe('premium', durationDays);
+    const ok = await mockSubscribe('premium', durationDays, {
+      payment_method_type: opts.type,
+      payment_method_display: opts.display,
+      amount_paise: amountPaise,
+    });
     if (!ok) {
       toast.error('Payment could not be completed. Please try again.');
       setStage('pick');
