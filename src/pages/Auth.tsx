@@ -61,9 +61,29 @@ const Auth = function Auth() {
       return;
     }
 
-    if (isSignUp && !consentGiven) {
-      toast.error('Please accept the Terms & Privacy Policy to continue');
-      return;
+    if (isSignUp) {
+      if (dobMissing) {
+        toast.error('Please enter your date of birth to continue');
+        return;
+      }
+      if (computedAge === null) {
+        toast.error('Please enter a valid date of birth');
+        return;
+      }
+      if (isBlocked) {
+        // Hard stop — render the friendly blocked screen, do NOT call signUp.
+        setBlockedAge(computedAge);
+        setMode('blocked-minor');
+        return;
+      }
+      if (isMinor && !minorConsent) {
+        toast.error('Please confirm a parent/guardian knows you use this app');
+        return;
+      }
+      if (!isMinor && !consentGiven) {
+        toast.error('Please accept the Terms & Privacy Policy to continue');
+        return;
+      }
     }
 
     setLoading(true);
@@ -95,9 +115,17 @@ const Auth = function Auth() {
 
       setLoading(false);
       void recordConsent();
-      toast.success('Account created!');
+      // Persist DOB so onboarding pre-fills it and the engine picks the right floor.
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && dob) {
+          await (supabase.from as any)('profiles').upsert({ id: user.id, dob, age: computedAge });
+        }
+      } catch {}
+      toast.success(isMinor ? 'Account created — welcome!' : 'Account created!');
       return;
     }
+
 
     const { error } = await signInWithEmail(email, password);
     setLoading(false);
