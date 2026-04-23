@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   ArrowLeft, Loader2, MessageSquare, Trophy, Utensils, Droplet, Pill, Scale, RefreshCw,
-  CalendarPlus, IndianRupee,
+  CalendarPlus, IndianRupee, Crown, XCircle, Gift,
 } from 'lucide-react';
 import { logAdminAction } from '@/lib/audit';
 import { useAdminRole } from '@/hooks/useAdminRole';
@@ -34,6 +34,18 @@ interface SuppLog { log_date: string; supplements: any; }
 interface Plan { id: string; plan_type: string; status: string; start_date: string; end_date: string; }
 interface Achievement { achievement_key: string; unlocked_at: string | null; }
 interface ChatMsg { id: string; role: string; content: string; created_at: string; }
+interface Subscription {
+  plan: 'free' | 'premium' | 'ultra';
+  status: string;
+  trial_end: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  has_used_trial: boolean;
+}
+interface PaymentEvent {
+  id: string; event_type: string; amount_inr: number | null;
+  created_at: string; raw_payload: any;
+}
 
 export default function AdminUserDetail() {
   const { id } = useParams<{ id: string }>();
