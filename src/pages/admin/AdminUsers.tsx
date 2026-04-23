@@ -36,6 +36,21 @@ interface ProfileRow {
   marketing_consent: boolean;
 }
 
+type SubInfo = {
+  plan: 'free' | 'premium' | 'ultra';
+  status: 'active' | 'trialing' | 'cancelled' | 'expired' | 'past_due';
+  cancel_at_period_end: boolean;
+  current_period_end: string | null;
+};
+
+function subBadge(s?: SubInfo) {
+  if (!s || s.plan === 'free') return { label: 'Free', variant: 'outline' as const };
+  if (s.status === 'trialing') return { label: 'Trial', variant: 'secondary' as const };
+  if (s.cancel_at_period_end) return { label: `${s.plan === 'ultra' ? 'Ultra' : 'Pro'} · cancelling`, variant: 'outline' as const };
+  if (s.status === 'cancelled' || s.status === 'expired') return { label: 'Lapsed', variant: 'outline' as const };
+  return { label: s.plan === 'ultra' ? 'Ultra' : 'Pro', variant: 'default' as const };
+}
+
 const AGE_BANDS = [
   { label: 'All ages', value: 'all' },
   { label: '< 25', value: 'lt25' },
@@ -60,6 +75,8 @@ export default function AdminUsers() {
   const [search, setSearch] = useState('');
   const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
   const [activeUserIds, setActiveUserIds] = useState<Set<string>>(new Set());
+  const [subs, setSubs] = useState<Map<string, SubInfo>>(new Map());
+  const [planFilter, setPlanFilter] = useState('all'); // all | paying | trial | free
   const [segments, setSegments] = useState<SavedSegment[]>(() => listSegments());
   // Marketers/support read PII-masked rows via RPC; admins read full table directly
   const useMaskedView = (isMarketer || isSupport) && !isAdmin;
@@ -121,6 +138,21 @@ export default function AdminUsers() {
       if (profileError) toast.error(profileError.message);
       setRows(profileRows);
       setActiveUserIds(new Set((recentLogsRes.data ?? []).map((r: any) => r.user_id)));
+
+      // Subscription overlay (admins only — RLS denies marketers)
+      if (!useMaskedView) {
+        const { data: subRows } = await supabase
+          .from('subscriptions')
+          .select('user_id, plan, status, cancel_at_period_end, current_period_end');
+        const map = new Map<string, SubInfo>();
+        (subRows ?? []).forEach((r: any) => map.set(r.user_id, {
+          plan: r.plan, status: r.status,
+          cancel_at_period_end: r.cancel_at_period_end,
+          current_period_end: r.current_period_end,
+        }));
+        setSubs(map);
+      }
+
       setLoading(false);
     })();
   }, [useMaskedView]);
@@ -156,9 +188,17 @@ export default function AdminUsers() {
       if (cutoff && (r.created_at ?? '').slice(0, 10) < cutoff) return false;
       if (activity === 'active7' && !activeUserIds.has(r.id)) return false;
       if (activity === 'inactive7' && activeUserIds.has(r.id)) return false;
+      if (planFilter !== 'all') {
+        const s = subs.get(r.id);
+        const plan = s?.plan ?? 'free';
+        const status = s?.status ?? 'active';
+        if (planFilter === 'paying' && plan === 'free') return false;
+        if (planFilter === 'trial' && status !== 'trialing') return false;
+        if (planFilter === 'free' && plan !== 'free') return false;
+      }
       return true;
     });
-  }, [rows, search, city, gender, goal, ageBand, signupWindow, activity, activeUserIds]);
+  }, [rows, search, city, gender, goal, ageBand, signupWindow, activity, activeUserIds, planFilter, subs]);
 
   const requestReveal = (r: ProfileRow) => {
     if (!isSuperAdmin) return toast.error('Super admin only');
@@ -404,6 +444,15 @@ export default function AdminUsers() {
               <SelectItem value="inactive7">Inactive 7d+</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={planFilter} onValueChange={setPlanFilter}>
+            <SelectTrigger><SelectValue placeholder="Plan" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All plans</SelectItem>
+              <SelectItem value="paying">Paying (Pro/Ultra)</SelectItem>
+              <SelectItem value="trial">Trialing</SelectItem>
+              <SelectItem value="free">Free only</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </Card>
 
@@ -419,6 +468,7 @@ export default function AdminUsers() {
                 <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="px-4 py-3">User</th>
                   <th className="px-4 py-3">City</th>
+                  <th className="px-4 py-3">Plan</th>
                   <th className="px-4 py-3">Goal</th>
                   <th className="px-4 py-3">Age</th>
                   <th className="px-4 py-3">Cal/day</th>
@@ -432,6 +482,7 @@ export default function AdminUsers() {
                 {filtered.map(r => {
                   const revealed = revealedIds.has(r.id);
                   const recentlyActive = activeUserIds.has(r.id);
+                  const sb = subBadge(subs.get(r.id));
                   return (
                     <tr key={r.id} className="border-b border-border hover:bg-muted/30">
                       <td className="px-4 py-3">
@@ -441,6 +492,9 @@ export default function AdminUsers() {
                         </div>
                       </td>
                       <td className="px-4 py-3">{r.city || '—'}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant={sb.variant} className="text-[10px]">{sb.label}</Badge>
+                      </td>
                       <td className="px-4 py-3">{r.goal || '—'}</td>
                       <td className="px-4 py-3">{r.age ?? '—'}</td>
                       <td className="px-4 py-3 tabular-nums">{r.daily_calories || '—'}</td>
@@ -485,7 +539,7 @@ export default function AdminUsers() {
                 })}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">No users match filters</td>
+                    <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">No users match filters</td>
                   </tr>
                 )}
               </tbody>

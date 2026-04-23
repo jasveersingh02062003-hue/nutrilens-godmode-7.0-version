@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   ArrowLeft, Loader2, MessageSquare, Trophy, Utensils, Droplet, Pill, Scale, RefreshCw,
-  CalendarPlus, IndianRupee,
+  CalendarPlus, IndianRupee, Crown, XCircle, Gift,
 } from 'lucide-react';
 import { logAdminAction } from '@/lib/audit';
 import { useAdminRole } from '@/hooks/useAdminRole';
@@ -34,6 +34,18 @@ interface SuppLog { log_date: string; supplements: any; }
 interface Plan { id: string; plan_type: string; status: string; start_date: string; end_date: string; }
 interface Achievement { achievement_key: string; unlocked_at: string | null; }
 interface ChatMsg { id: string; role: string; content: string; created_at: string; }
+interface Subscription {
+  plan: 'free' | 'premium' | 'ultra';
+  status: string;
+  trial_end: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  has_used_trial: boolean;
+}
+interface PaymentEvent {
+  id: string; event_type: string; amount_inr: number | null;
+  created_at: string; raw_payload: any;
+}
 
 export default function AdminUserDetail() {
   const { id } = useParams<{ id: string }>();
@@ -48,6 +60,8 @@ export default function AdminUserDetail() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [achs, setAchs] = useState<Achievement[]>([]);
   const [chats, setChats] = useState<ChatMsg[]>([]);
+  const [sub, setSub] = useState<Subscription | null>(null);
+  const [payEvents, setPayEvents] = useState<PaymentEvent[]>([]);
   const useMaskedView = (isMarketer || isSupport) && !isAdmin;
 
   // Action modal state
@@ -55,6 +69,11 @@ export default function AdminUserDetail() {
   const [extendDays, setExtendDays] = useState('7');
   const [refundPlan, setRefundPlan] = useState<Plan | null>(null);
   const [refundReason, setRefundReason] = useState('');
+
+  // Subscription action state
+  const [subAction, setSubAction] = useState<null | 'comp' | 'force_cancel' | 'end_trial'>(null);
+  const [subReason, setSubReason] = useState('');
+  const [subBusy, setSubBusy] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -88,7 +107,7 @@ export default function AdminUserDetail() {
         return;
       }
 
-      const [pr, dl, wl, wat, sup, pl, ac, ch] = await Promise.all([
+      const [pr, dl, wl, wat, sup, pl, ac, ch, sb, pe] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', id).maybeSingle(),
         supabase.from('daily_logs').select('log_date, log_data').eq('user_id', id).gte('log_date', since).order('log_date', { ascending: false }),
         supabase.from('weight_logs').select('log_date, weight, unit').eq('user_id', id).gte('log_date', since).order('log_date', { ascending: false }),
@@ -97,6 +116,8 @@ export default function AdminUserDetail() {
         supabase.from('event_plans').select('id, plan_type, status, start_date, end_date').eq('user_id', id).order('start_date', { ascending: false }),
         supabase.from('user_achievements').select('achievement_key, unlocked_at').eq('user_id', id).order('unlocked_at', { ascending: false }),
         supabase.from('monika_conversations').select('id, role, content, created_at').eq('user_id', id).order('created_at', { ascending: false }).limit(50),
+        supabase.from('subscriptions').select('plan, status, trial_end, current_period_end, cancel_at_period_end, has_used_trial').eq('user_id', id).maybeSingle(),
+        supabase.from('payment_events').select('id, event_type, amount_inr, created_at, raw_payload').eq('user_id', id).order('created_at', { ascending: false }).limit(20),
       ]);
 
       setProfile(pr.data as Profile | null);
@@ -107,6 +128,8 @@ export default function AdminUserDetail() {
       setPlans((pl.data ?? []) as Plan[]);
       setAchs((ac.data ?? []) as Achievement[]);
       setChats((ch.data ?? []) as ChatMsg[]);
+      setSub((sb.data as Subscription | null) ?? null);
+      setPayEvents((pe.data ?? []) as PaymentEvent[]);
       setLoading(false);
     })();
   }, [id, useMaskedView]);
@@ -170,6 +193,31 @@ export default function AdminUserDetail() {
     setRefundReason('');
   };
 
+  const confirmSubAction = async () => {
+    if (!subAction || !id) return;
+    if (subReason.trim().length < 5) return toast.error('Reason must be at least 5 characters');
+    setSubBusy(true);
+    let payload: any;
+    if (subAction === 'comp') {
+      payload = { p_user_id: id, p_plan: 'premium', p_status: 'active', p_period_days: 30, p_reason: subReason.trim() };
+    } else if (subAction === 'force_cancel') {
+      payload = { p_user_id: id, p_plan: 'free', p_status: 'cancelled', p_period_days: 0, p_reason: subReason.trim() };
+    } else {
+      payload = { p_user_id: id, p_plan: 'free', p_status: 'expired', p_period_days: 0, p_reason: subReason.trim() };
+    }
+    const { error } = await (supabase.rpc as any)('admin_set_subscription', payload);
+    setSubBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success('Subscription updated · audit logged');
+    // Refetch sub
+    const { data } = await supabase.from('subscriptions')
+      .select('plan, status, trial_end, current_period_end, cancel_at_period_end, has_used_trial')
+      .eq('user_id', id).maybeSingle();
+    setSub((data as Subscription | null) ?? null);
+    setSubAction(null);
+    setSubReason('');
+  };
+
   if (loading) {
     return (
       <div className="p-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
@@ -207,6 +255,57 @@ export default function AdminUserDetail() {
           </Button>
         </div>
       </div>
+
+      {/* Subscription panel */}
+      <Card className="p-4 mb-4">
+        <h3 className="text-sm font-bold mb-3 flex items-center gap-2">
+          <Crown className="w-4 h-4 text-primary" /> Subscription
+        </h3>
+        {!sub || sub.plan === 'free' ? (
+          <p className="text-xs text-muted-foreground">User is on the Free plan.</p>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+            <div><p className="text-muted-foreground uppercase text-[10px]">Plan</p><p className="font-bold capitalize">{sub.plan}</p></div>
+            <div><p className="text-muted-foreground uppercase text-[10px]">Status</p>
+              <Badge variant={sub.status === 'active' ? 'default' : 'secondary'} className="text-[10px] capitalize">{sub.status}</Badge>
+            </div>
+            <div><p className="text-muted-foreground uppercase text-[10px]">Period end</p>
+              <p className="font-medium">{sub.current_period_end ? new Date(sub.current_period_end).toLocaleDateString() : '—'}</p>
+            </div>
+            <div><p className="text-muted-foreground uppercase text-[10px]">Auto-renew</p>
+              <p className="font-medium">{sub.cancel_at_period_end ? 'Cancelling' : 'On'}</p>
+            </div>
+          </div>
+        )}
+        <div className="flex gap-2 mt-3 flex-wrap">
+          <Button size="sm" variant="outline" disabled={!isSuperAdmin}
+            onClick={() => { setSubReason(''); setSubAction('comp'); }}>
+            <Gift className="w-3.5 h-3.5 mr-1" /> Comp 1 month Pro
+          </Button>
+          <Button size="sm" variant="outline" disabled={!isSuperAdmin || !sub || sub.plan === 'free'}
+            onClick={() => { setSubReason(''); setSubAction('force_cancel'); }}>
+            <XCircle className="w-3.5 h-3.5 mr-1" /> Force cancel
+          </Button>
+          <Button size="sm" variant="outline" disabled={!isSuperAdmin || sub?.status !== 'trialing'}
+            onClick={() => { setSubReason(''); setSubAction('end_trial'); }}>
+            End trial early
+          </Button>
+        </div>
+        {payEvents.length > 0 && (
+          <div className="mt-4">
+            <p className="text-[10px] uppercase text-muted-foreground mb-2">Recent payment events</p>
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {payEvents.map(e => (
+                <div key={e.id} className="flex justify-between items-center text-xs border-b border-border/40 py-1">
+                  <Badge variant="outline" className="text-[9px]">{e.event_type}</Badge>
+                  <span className="text-muted-foreground">{new Date(e.created_at).toLocaleString()}</span>
+                  <span className="font-medium tabular-nums">{e.amount_inr ? `₹${e.amount_inr}` : '—'}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <Stat label="Height" value={profile.height_cm ? `${profile.height_cm} cm` : '—'} />

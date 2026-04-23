@@ -1461,6 +1461,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_set_subscription: {
+        Args: {
+          p_period_days?: number
+          p_plan: Database["public"]["Enums"]["subscription_plan"]
+          p_reason?: string
+          p_status: Database["public"]["Enums"]["subscription_status"]
+          p_user_id: string
+        }
+        Returns: {
+          cancel_at_period_end: boolean
+          current_period_end: string
+          plan: Database["public"]["Enums"]["subscription_plan"]
+          status: Database["public"]["Enums"]["subscription_status"]
+        }[]
+      }
       age_bucket: { Args: { _age: number }; Returns: string }
       apply_brand_transaction: {
         Args: {
