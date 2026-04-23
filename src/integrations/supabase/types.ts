@@ -1291,9 +1291,48 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      profiles_masked: {
+        Row: {
+          age_range: string | null
+          city: string | null
+          created_at: string | null
+          first_name: string | null
+          gender: string | null
+          goal: string | null
+          id: string | null
+          join_date: string | null
+          marketing_consent: boolean | null
+          onboarding_complete: boolean | null
+        }
+        Insert: {
+          age_range?: never
+          city?: string | null
+          created_at?: string | null
+          first_name?: never
+          gender?: string | null
+          goal?: string | null
+          id?: string | null
+          join_date?: string | null
+          marketing_consent?: boolean | null
+          onboarding_complete?: boolean | null
+        }
+        Update: {
+          age_range?: never
+          city?: string | null
+          created_at?: string | null
+          first_name?: never
+          gender?: string | null
+          goal?: string | null
+          id?: string | null
+          join_date?: string | null
+          marketing_consent?: boolean | null
+          onboarding_complete?: boolean | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      age_bucket: { Args: { _age: number }; Returns: string }
       apply_brand_transaction: {
         Args: {
           p_amount: number
