@@ -329,6 +329,33 @@ export type Database = {
           },
         ]
       }
+      ai_usage_quota: {
+        Row: {
+          count: number
+          endpoint: string
+          id: string
+          updated_at: string
+          usage_date: string
+          user_id: string
+        }
+        Insert: {
+          count?: number
+          endpoint: string
+          id?: string
+          updated_at?: string
+          usage_date?: string
+          user_id: string
+        }
+        Update: {
+          count?: number
+          endpoint?: string
+          id?: string
+          updated_at?: string
+          usage_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       api_usage: {
         Row: {
           cost_inr: number
@@ -1321,6 +1348,8 @@ export type Database = {
         Returns: string
       }
       campaign_brand_id: { Args: { _campaign_id: string }; Returns: string }
+      delete_my_account: { Args: never; Returns: undefined }
+      get_ai_quota: { Args: { p_endpoint: string }; Returns: number }
       get_masked_profile: {
         Args: { _user_id: string }
         Returns: {
@@ -1358,9 +1387,11 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_ai_quota: { Args: { p_endpoint: string }; Returns: number }
       is_brand_member: { Args: { _brand_id: string }; Returns: boolean }
       is_marketer: { Args: { _user_id: string }; Returns: boolean }
       is_owner: { Args: { _user_id: string }; Returns: boolean }
+      is_staff: { Args: { _user_id: string }; Returns: boolean }
       is_support: { Args: { _user_id: string }; Returns: boolean }
       upsert_daily_log: {
         Args: {

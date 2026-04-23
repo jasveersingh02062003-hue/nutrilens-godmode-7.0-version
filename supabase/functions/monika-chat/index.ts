@@ -1,11 +1,60 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { z } from "https://esm.sh/zod@3.23.8";
 import { logApiUsage, estimateLovableAiCost } from "../_shared/api-usage.ts";
+import { checkQuota, incrementQuota, quotaErrorResponse } from "../_shared/ai-quota.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+// ── Input validation ────────────────────────────────────────────────────
+// Caps protect us from a malicious caller stuffing 10MB of text per message
+// or sending 10,000 messages in one request.
+const MAX_MESSAGES = 30;
+const MAX_MESSAGE_CHARS = 4000;
+const MAX_IMAGE_BASE64_BYTES = 8 * 1024 * 1024; // 8MB
+
+const MessageSchema = z.object({
+  role: z.enum(["user", "assistant", "system"]),
+  content: z.string().max(MAX_MESSAGE_CHARS).optional().nullable(),
+  imageBase64: z.string().max(MAX_IMAGE_BASE64_BYTES).optional().nullable(),
+  imageAnalysis: z.unknown().optional().nullable(),
+});
+
+const RequestSchema = z.object({
+  messages: z.array(MessageSchema).min(1).max(MAX_MESSAGES),
+  userContext: z.unknown().optional().nullable(),
+  imageBase64: z.string().max(MAX_IMAGE_BASE64_BYTES).optional().nullable(),
+});
+
+// Strip control chars and prompt-injection markers from any user-provided
+// string before embedding it in the system prompt. We do NOT block the user —
+// we just neutralise the most common injection patterns.
+function sanitizeForPrompt(s: unknown): string {
+  if (typeof s !== "string") return "";
+  return s
+    .replace(/[\u0000-\u001F\u007F]/g, " ")
+    .replace(/(ignore|disregard|forget)\s+(all|previous|above|prior)\s+(instructions?|rules?|prompts?)/gi, "[filtered]")
+    .replace(/system\s*prompt/gi, "[filtered]")
+    .slice(0, 2000);
+}
+
+function sanitizeUserContext(ctx: any): any {
+  if (!ctx || typeof ctx !== "object") return ctx;
+  // Sanitize common free-text fields users control
+  const cloned = { ...ctx };
+  if (cloned.profile && typeof cloned.profile === "object") {
+    cloned.profile = { ...cloned.profile };
+    for (const key of ["name", "occupation", "medications", "city"]) {
+      if (typeof cloned.profile[key] === "string") {
+        cloned.profile[key] = sanitizeForPrompt(cloned.profile[key]);
+      }
+    }
+  }
+  return cloned;
+}
 
 function buildSystemPrompt(userContext: any) {
   const ctx = userContext ? JSON.stringify(userContext, null, 2) : "No context available";
@@ -312,7 +361,24 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, userContext, imageBase64 } = await req.json();
+    // 1. Auth + quota check (server-side; client tier is untrusted)
+    const { result: quota, userClient } = await checkQuota(req, "monika-chat");
+    if (!quota.ok) return quotaErrorResponse(quota, corsHeaders);
+
+    // 2. Validate input shape + size
+    let body: unknown;
+    try { body = await req.json(); } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON body" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const parsed = RequestSchema.safeParse(body);
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ error: "Invalid input", details: parsed.error.flatten() }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const { messages, imageBase64 } = parsed.data;
+    // 3. Sanitize the user context before letting it touch the system prompt
+    const userContext = sanitizeUserContext(parsed.data.userContext);
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -590,6 +656,7 @@ RULES:
       costInr: estimateLovableAiCost("google/gemini-2.5-flash", 2000),
       metadata: { streamed: true, messageCount: apiMessages.length },
     });
+    if (userClient) void incrementQuota(userClient, "monika-chat");
 
     return new Response(response.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },

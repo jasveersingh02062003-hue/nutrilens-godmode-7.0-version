@@ -1,10 +1,23 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { z } from "https://esm.sh/zod@3.23.8";
 import { logApiUsage, estimateLovableAiCost } from "../_shared/api-usage.ts";
+import { checkQuota, incrementQuota, quotaErrorResponse } from "../_shared/ai-quota.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+const MAX_IMAGE_BASE64_BYTES = 8 * 1024 * 1024; // 8MB
+const MAX_TEXT_CHARS = 2000;
+
+const RequestSchema = z.object({
+  imageBase64: z.string().max(MAX_IMAGE_BASE64_BYTES).optional().nullable(),
+  textDescription: z.string().max(MAX_TEXT_CHARS).optional().nullable(),
+}).refine(
+  (d) => Boolean(d.imageBase64) || Boolean(d.textDescription),
+  { message: "Either imageBase64 or textDescription is required." },
+);
 
 const SYSTEM_PROMPT = `You are NutriLens AI, an expert nutritionist specializing in Indian food analysis with deep knowledge of IFCT2017 (Indian Food Composition Tables).
 
@@ -112,7 +125,23 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { imageBase64, textDescription } = await req.json();
+    // 1. Auth + quota check
+    const { result: quota, userClient } = await checkQuota(req, "analyze-food");
+    if (!quota.ok) return quotaErrorResponse(quota, corsHeaders);
+
+    // 2. Validate input
+    let body: unknown;
+    try { body = await req.json(); } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON body" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const parsed = RequestSchema.safeParse(body);
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ error: "Invalid input", details: parsed.error.flatten() }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const { imageBase64, textDescription } = parsed.data;
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -131,12 +160,7 @@ serve(async (req) => {
     } else if (textDescription) {
       messages.push({
         role: "user",
-        content: `Analyze this meal description and identify all food items with accurate portion weight estimation: "${textDescription}". Use IFCT2017 nutrition data for Indian foods. Also predict the likely source (home, restaurant, street food, etc.).`,
-      });
-    } else {
-      return new Response(JSON.stringify({ error: "No image or text provided" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        content: `Analyze this meal description and identify all food items with accurate portion weight estimation: "${textDescription.replace(/[`$]/g, "")}". Use IFCT2017 nutrition data for Indian foods. Also predict the likely source (home, restaurant, street food, etc.).`,
       });
     }
 
@@ -180,6 +204,8 @@ serve(async (req) => {
       costInr: estimateLovableAiCost("google/gemini-2.5-flash-vision", totalTokens || 1500),
       metadata: { hasImage: !!imageBase64, model: "gemini-2.5-flash" },
     });
+    // Quota: only count successful calls so failures don't burn the user's allowance
+    if (userClient) void incrementQuota(userClient, "analyze-food");
     
     // Extract JSON from the response (handle potential markdown wrapping)
     let jsonStr = content;

@@ -1,10 +1,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { z } from "https://esm.sh/zod@3.23.8";
 import { logApiUsage, estimateLovableAiCost } from "../_shared/api-usage.ts";
+import { checkQuota, incrementQuota, quotaErrorResponse } from "../_shared/ai-quota.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+const MAX_IMAGE_BASE64_BYTES = 8 * 1024 * 1024;
+const RequestSchema = z.object({
+  imageBase64: z.string().min(1).max(MAX_IMAGE_BASE64_BYTES),
+});
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -12,14 +19,22 @@ serve(async (req) => {
   }
 
   try {
-    const { imageBase64 } = await req.json();
+    // 1. Auth + quota check (server-side, can't be bypassed)
+    const { result: quota, userClient } = await checkQuota(req, "scan-receipt");
+    if (!quota.ok) return quotaErrorResponse(quota, corsHeaders);
 
-    if (!imageBase64) {
-      return new Response(JSON.stringify({ error: "No image provided" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // 2. Validate input
+    let body: unknown;
+    try { body = await req.json(); } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON body" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    const parsed = RequestSchema.safeParse(body);
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ error: "Invalid input", details: parsed.error.flatten() }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const { imageBase64 } = parsed.data;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -126,6 +141,7 @@ Return ONLY valid JSON using the tool provided.`;
       costInr: estimateLovableAiCost("google/gemini-2.5-flash-vision", totalTokens || 1200),
       metadata: { model: "gemini-2.5-flash" },
     });
+    if (userClient) void incrementQuota(userClient, "scan-receipt");
     
     if (toolCall?.function?.arguments) {
       const parsed = JSON.parse(toolCall.function.arguments);
