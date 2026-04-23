@@ -1294,6 +1294,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_brand_transaction: {
+        Args: {
+          p_amount: number
+          p_brand_id: string
+          p_notes?: string
+          p_reference?: string
+          p_type: string
+        }
+        Returns: string
+      }
       campaign_brand_id: { Args: { _campaign_id: string }; Returns: string }
       has_role: {
         Args: {
