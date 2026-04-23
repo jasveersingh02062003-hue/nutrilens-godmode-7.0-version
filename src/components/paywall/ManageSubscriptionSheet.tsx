@@ -67,9 +67,28 @@ export default function ManageSubscriptionSheet({ open, onClose, onUpgradeClick 
     else toast.error('Could not cancel. Please try again.');
   }
 
+  async function performPause(days: 7 | 14 | 30) {
+    setPausing(true);
+    const ok = await pauseSubscription(days);
+    setPausing(false);
+    setShowPausePicker(false);
+    if (ok) toast.success(`Subscription paused for ${days} days. Your billing date moves out by the same amount.`);
+    else toast.error('Could not pause. Please try again.');
+  }
+
+  async function performResume() {
+    setPausing(true);
+    const ok = await resumeSubscription();
+    setPausing(false);
+    if (ok) toast.success('Subscription resumed.');
+    else toast.error('Could not resume. Please try again.');
+  }
+
   const renewDate = periodEnd
     ? new Date(periodEnd).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
     : '—';
+
+  const isPaused = status === 'paused';
 
   return (
     <>
