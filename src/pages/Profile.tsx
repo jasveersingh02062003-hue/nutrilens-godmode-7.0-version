@@ -559,7 +559,20 @@ export default function Profile() {
               {(['free', 'premium', 'ultra'] as Plan[]).map(p => (
                 <button
                   key={p}
-                  onClick={() => { setPlan(p); setCurrentPlan(p); toast.success(`Plan set to ${p}`); }}
+                  onClick={async () => {
+                    try {
+                      if (p === 'free') {
+                        await cancelSubscription();
+                      } else {
+                        await mockSubscribe(p);
+                      }
+                      await refreshPlan();
+                      setCurrentPlan(getPlan());
+                      toast.success(`Plan set to ${p}`);
+                    } catch (e: any) {
+                      toast.error(e?.message ?? 'Failed to set plan');
+                    }
+                  }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${currentPlan === p ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
                 >
                   {p.charAt(0).toUpperCase() + p.slice(1)}
