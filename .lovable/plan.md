@@ -1,113 +1,137 @@
 
 
-# 📊 NutriLens AI — Status Report (Post Custom Sprint)
+# 💳 Payment Wiring Without an Account — Best Path Forward
 
-## Part 1 — What just shipped (verified live)
+## The situation
 
-| Item | Evidence | Status |
-|---|---|---|
-| **SEC-1** Tighten 9 permissive RLS | New migration `20260423102029_*.sql` replaced `WITH CHECK (true)` policies on `city_prices`, `packed_products`, `price_history`, `ad_creatives`, `price_alert_notifications` with `is_staff()` / `is_brand_member()` guards. Confirmed in live schema dump. | ✅ Done |
-| **SEC-2** HIBP leaked-password protection | Toggled ON in Cloud auth config | ✅ Done |
-| **W2-2** `/healthz` edge fn | Deployed; returns `{status, db, latency_ms, ts}`; 503 on DB failure; CORS ok | ✅ Done |
+You don't have a Razorpay or Stripe account yet. You want to:
+1. Build the **subscription framework** now (DB tables, server-side plan check, paywall logic)
+2. Plug in the actual payment processor **later** when you create an account
+3. Still close the two 🚨 client-side bypass holes (FB-1, FB-2) immediately
 
-Linter went from **11 → 1 warn** (only the low-risk `vector` extension in `public` remains).
-
----
-
-## Part 2 — Full progress checklist
-
-### ✅ Already done
-- Week 1 (13/13): AI quota, Zod (5 fns), prompt sanitizer, age-gating, account-deletion UI, branded 404, safe reload, RPC delete cascade
-- Sprint 2A partial: SEC-1 ✅, SEC-2 ✅, W2-2 ✅
-
-### ⬜ Sprint 2A leftovers (~10h)
-- **W2-1** Offline meal-log queue (IndexedDB + replay) — 8h
-- **W2-3** Sentry email alerts — 30m (dashboard config)
-- **SEC-3** Move `vector` extension to `extensions` schema — 30m
-
-### ⬜ Sprint 2B (~13h)
-- **W2-4** Wire funnel events at 6 call sites — 4h
-- **W2-5** Activation event `logged_3_meals_day_1` — 1h
-- **W2-6** OneSignal/FCM backend + `push_tokens` table + edge fn — 8h
-
-### ⬜ Sprint 2C (~6h) — legal/email
-- **W2-7** grievance@/support@ DNS+mailbox — 2h
-- **W2-8** 7-day refund policy in Terms — 1h
-- **W2-9** Cross-border disclosure in Privacy §5 — 30m
-- **W2-10** `BREACH_RESPONSE.md` — 2h
-- **W2-11** `INCIDENTS.md` — 1h
-
-### ⬜ Front/Back consistency gaps (still open — 4 items)
-- **FB-1** Subscription plan in localStorage → needs `subscriptions` table (folded into L-1 Razorpay)
-- **FB-2** Paid-tier check client-side → folded into L-1
-- **FB-3** Funnel events not fired → covered by W2-4/5
-- **FB-4** Push notifications stub-only → covered by W2-6
-
-### ⬜ Pre-public launch (~104h) — see existing `.lovable/plan.md`
-- **L-1..L-4** Razorpay + subscriptions + verify-payment + dunning — 20h
-- **L-5..L-9** Performance — 21h
-- **L-10..L-13** Security hardening (private meal-photos, CSP, CORS, sponsored badges) — 8h
-- **L-14..L-18** Ops & store launch — 39h
+**Good news:** This is the *right* order to do it in. The hardest part of monetization isn't the payment SDK — it's the server-side subscription state, webhook handling, and quota enforcement. We can build all of that **today**, mock the checkout step, and swap in Razorpay/Stripe later in ~2 hours when you're ready.
 
 ---
 
-## Part 3 — Updated launch gates
+## Recommended approach: "Provider-agnostic monetization core"
 
-| Gate | Status | Remaining blockers |
-|---|---|---|
-| 🟢 Closed beta (≤500) | **GO** | None hard. W2-6 (push) recommended for retention. |
-| 🚨 Public launch | **NO-GO** | L-1 (payment + server-side plan check) is the single biggest blocker; without it the freemium gate is bypass-able. |
+Build the entire backend as if a payment provider exists. Use a **mock checkout** in dev that flips the user's plan server-side (gated behind a dev flag) so we can test the full free→paid→cancel→expire flow end-to-end without a real account.
 
----
-
-## Part 4 — Recommended next sprint
-
-The fastest path to **public-launch-ready** is **Razorpay (L-1→L-4)** because it also fixes FB-1 + FB-2 (the two 🚨 client-side bypass issues). Without it, no closed beta should ever take payment.
-
-Order of execution I recommend:
-
-1. **L-1 Razorpay foundation** (~16h)
-   - Create `subscriptions` table (`user_id`, `plan`, `status`, `current_period_end`, `razorpay_subscription_id`, `razorpay_customer_id`)
-   - Create `payment_events` audit table
-   - Edge fn `create-razorpay-subscription` (server-side plan creation, RAZORPAY_KEY_ID + RAZORPAY_KEY_SECRET as secrets)
-   - Edge fn `razorpay-webhook` (verify HMAC signature, write to `subscriptions` + `payment_events`)
-   - Edge fn `cancel-subscription` (one-click, no dark patterns)
-   - Rewrite `subscription-service.ts` to call new RPC `get_my_active_plan()` (security definer, reads from `subscriptions`)
-   - Update `canSendMonicaMessage`, `canUseCameraScan`, etc. to await server check
-   - Subscription screen UI updates (Razorpay Checkout SDK)
-
-2. **L-2/L-3** server-side plan check + cancellation flow (folded into L-1)
-
-3. **L-4 Dunning emails** (~4h) — 3 emails: `payment_failed`, `payment_retry_3_days`, `subscription_cancelled` via Resend (already a Lovable connector)
-
-4. Then either **W2-6 push** (retention) or jump to **L-5 perf**.
+When you're ready to plug in a real processor, we add ONE edge function (`razorpay-webhook` or `stripe-webhook`) and one frontend SDK call. Everything else stays.
 
 ---
 
-## Part 5 — Tasks I'll create when we switch to default mode
+## What gets built now (~10h)
 
-1. Create `subscriptions` + `payment_events` tables with RLS
-2. Add Razorpay secrets (`RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`) via add_secret
-3. Build `create-razorpay-subscription` edge fn
-4. Build `razorpay-webhook` edge fn (signature-verified)
-5. Build `cancel-subscription` edge fn
-6. Rewrite `subscription-service.ts` to use server-side `get_my_active_plan()` RPC
-7. Update Subscription Screen with Razorpay Checkout
-8. Build dunning email flow via Resend
-9. End-to-end test: subscribe → cancel → expire → verify quota change
+### Phase 1 — Server-side subscription core (~6h)
 
-Estimated total: **~20 hours** to close the monetization + bypass gap and unlock public-launch path.
+**1. New DB tables (migration):**
+```text
+subscriptions
+  ├─ user_id (uuid, unique)
+  ├─ plan ('free' | 'premium' | 'ultra')
+  ├─ status ('active' | 'cancelled' | 'expired' | 'trialing' | 'past_due')
+  ├─ current_period_start / current_period_end (timestamptz)
+  ├─ trial_end (timestamptz, nullable)
+  ├─ provider ('mock' | 'razorpay' | 'stripe', default 'mock')
+  ├─ provider_subscription_id (text, nullable)
+  ├─ provider_customer_id (text, nullable)
+  ├─ cancel_at_period_end (boolean)
+  ├─ created_at / updated_at
+  └─ RLS: users read own; only service_role writes
+
+payment_events  (audit log)
+  ├─ user_id, subscription_id
+  ├─ event_type ('subscribe' | 'cancel' | 'renew' | 'payment_failed' | 'expired' | 'trial_started')
+  ├─ provider, provider_event_id (for idempotency)
+  ├─ amount_inr, raw_payload (jsonb)
+  └─ RLS: users read own; only service_role writes
+```
+
+**2. Database functions (security definer):**
+- `get_my_active_plan()` → returns `{plan, status, trial_end, current_period_end}`. Single source of truth.
+- `start_trial()` → atomically creates a `trialing` row if user has never used trial. Replaces `startFreeTrial()` localStorage logic.
+
+**3. Edge functions:**
+- `mock-subscribe` (dev-only, gated by `DEV_MOCK_PAYMENTS=true` secret) — flips a user to `premium`/`ultra` instantly. Lets us test paywalls without a real card.
+- `cancel-subscription` — sets `cancel_at_period_end = true`. Works for both mock and future real provider.
+- `expire-subscriptions` (cron-style, can run via pg_cron later) — flips expired rows to `status='expired'`, plan to `free`.
+
+### Phase 2 — Frontend rewrite (~3h)
+
+**Rewrite `src/lib/subscription-service.ts`:**
+- Replace ALL localStorage reads with cached calls to `get_my_active_plan()` RPC
+- Cache for 60s in memory (React Query) so we're not hammering the DB on every render
+- Listen to a Supabase realtime channel on `subscriptions` so plan changes propagate instantly
+- Trial flow: `startFreeTrial()` calls the `start_trial()` RPC instead of writing localStorage
+- Daily counters (camera/monika/voice/barcode) **stay in localStorage** — they're already enforced server-side by `ai_usage_quota` for AI calls; non-AI counters are UX hints only
+
+**Update gate functions:**
+- `canSendMonicaMessage()`, `canUseCameraScan()`, etc. become `async` and await the cached server plan
+- All call sites already `await` the limit check before opening AI flows, so this is a localized change
+
+**Subscription Screen UI:**
+- Add a "Start Mock Subscription (Dev)" button visible only when `import.meta.env.DEV`
+- Replace the current upgrade buttons with disabled state + "Coming soon — payment integration in progress" tooltip
+- Keep the trial CTA fully functional (it works without a payment processor)
+
+### Phase 3 — Closes the bypass (~1h)
+
+- Fix FB-1: plan no longer in localStorage → can't be spoofed
+- Fix FB-2: AI tier checks now server-side → spoofed clients get rejected by edge fn
+- Edge functions `monika-chat`, `analyze-food`, `scan-receipt` get a 2-line addition: read plan via `get_my_active_plan()`, raise daily cap for premium/ultra
 
 ---
 
-## Part 6 — How to proceed
+## What gets added LATER when you have an account (~2h per provider)
+
+When you create your Razorpay account:
+1. Add `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` as secrets
+2. New edge fn `create-razorpay-order` — replaces `mock-subscribe`
+3. New edge fn `razorpay-webhook` — verifies HMAC, writes to `subscriptions` + `payment_events`
+4. Subscription Screen: swap mock button for Razorpay Checkout SDK call
+
+When you create Stripe account: same pattern, different SDK. Database schema does NOT change.
+
+**OR — simpler option:** Use Lovable's **built-in Stripe payments** (`enable_stripe_payments`). It's a one-click integration that scaffolds the subscription table, webhook, and customer portal automatically. You still don't need a Stripe account upfront — Lovable runs everything in test mode until you claim the account. ~6h instead of building Razorpay manually.
+
+---
+
+## My recommendation
+
+**Build the provider-agnostic core today (Phase 1 + 2 + 3, ~10h).** This:
+- ✅ Closes the 🚨 client-side bypass holes immediately (FB-1, FB-2)
+- ✅ Lets you test the whole freemium flow end-to-end with mock payments
+- ✅ Gives you a working subscription system you can demo
+- ✅ Adding Razorpay/Stripe later becomes a 2-hour swap, not a rebuild
+
+Then, when you're ready to take real money, you have two options:
+- **Easy path:** Use Lovable's built-in Stripe (recommended) — works in India for cards + UPI, no account creation friction
+- **India-first path:** Build custom Razorpay (better UPI/netbanking, native INR subscriptions)
+
+You can decide that later. The framework we build today supports both.
+
+---
+
+## Tasks I'll create when we move to default mode
+
+1. Create `subscriptions` + `payment_events` tables + RLS + indexes
+2. Create `get_my_active_plan()` and `start_trial()` RPCs
+3. Build `mock-subscribe` + `cancel-subscription` + `expire-subscriptions` edge fns
+4. Rewrite `subscription-service.ts` to call RPC + React Query cache + realtime sync
+5. Update `monika-chat`, `analyze-food`, `scan-receipt` to read plan server-side for tier-based quotas
+6. Update Subscription Screen UI (mock button in dev, "coming soon" in prod)
+7. End-to-end test: mock subscribe → check premium quota raise → cancel → expire → verify back to free
+
+Estimated total: **~10 hours** to ship a fully working subscription system that just lacks a real payment SDK.
+
+---
+
+## How to proceed
 
 Reply with one of:
-- **"Razorpay"** → I'll implement L-1 → L-4 (recommended; also fixes FB-1 + FB-2)
-- **"Sprint 2A finish"** → W2-1 offline queue + W2-3 Sentry + SEC-3 (~9h)
-- **"Sprint 2B"** → W2-4/5/6 funnel + push (~13h, retention)
-- **"Sprint 2C"** → legal/email runbooks (~6h, low-risk paperwork)
-- **"Custom: <codes>"** → e.g. `"Custom: W2-3, SEC-3, W2-8"` for quick wins (~2h)
-
-My recommendation: **"Razorpay"** — it's the only thing standing between you and a paid public launch, and it closes the two highest-severity bypass issues in the same sprint.
+- **"Build the framework"** → I'll do all 7 tasks above (~10h). Recommended.
+- **"Build framework + use Lovable Stripe later"** → Same as above, plus I'll document the exact 4 lines to flip to Lovable's built-in Stripe when you're ready (~10h + future 30min)
+- **"Just close the bypass, skip mock UI"** → Minimal version: build `subscriptions` table + RPC + rewrite `subscription-service.ts`, no mock checkout (~6h)
+- **"Wait, do something else first"** → Pivot to Sprint 2A finish (offline queue) or Sprint 2B (push notifications) instead
 
