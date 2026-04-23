@@ -70,20 +70,58 @@ Deno.serve(async (req) => {
   const start = new Date();
   const end = new Date(start.getTime() + duration_days * 24 * 60 * 60 * 1000);
 
-  const { data: sub, error: subErr } = await admin
+  // Find the most recent subscription for this user (any status). The
+  // subscriptions table doesn't have a unique constraint on user_id (it
+  // supports multiple rows per user for re-subscribes/plan changes), so
+  // we update-or-insert manually instead of relying on upsert/onConflict.
+  const { data: existing } = await admin
     .from("subscriptions")
-    .upsert({
-      user_id: user.id,
-      plan,
-      status: "active",
-      current_period_start: start.toISOString(),
-      current_period_end: end.toISOString(),
-      cancel_at_period_end: false,
-      provider: "mock",
-      provider_subscription_id: `mock_${crypto.randomUUID()}`,
-    }, { onConflict: "user_id" })
-    .select()
-    .single();
+    .select("id")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  let sub: any = null;
+  let subErr: any = null;
+
+  if (existing?.id) {
+    const { data, error } = await admin
+      .from("subscriptions")
+      .update({
+        plan,
+        status: "active",
+        current_period_start: start.toISOString(),
+        current_period_end: end.toISOString(),
+        cancel_at_period_end: false,
+        provider: "mock",
+        provider_subscription_id: `mock_${crypto.randomUUID()}`,
+        environment: "live",
+      })
+      .eq("id", existing.id)
+      .select()
+      .single();
+    sub = data;
+    subErr = error;
+  } else {
+    const { data, error } = await admin
+      .from("subscriptions")
+      .insert({
+        user_id: user.id,
+        plan,
+        status: "active",
+        current_period_start: start.toISOString(),
+        current_period_end: end.toISOString(),
+        cancel_at_period_end: false,
+        provider: "mock",
+        provider_subscription_id: `mock_${crypto.randomUUID()}`,
+        environment: "live",
+      })
+      .select()
+      .single();
+    sub = data;
+    subErr = error;
+  }
 
   if (subErr) {
     return new Response(JSON.stringify({ error: "db_error", message: subErr.message }), {
