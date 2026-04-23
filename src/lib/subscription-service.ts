@@ -20,7 +20,8 @@ export type SubscriptionStatus =
   | 'cancelled'
   | 'expired'
   | 'trialing'
-  | 'past_due';
+  | 'past_due'
+  | 'paused';
 
 interface ServerPlan {
   plan: Plan;
