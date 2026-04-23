@@ -43,14 +43,17 @@
 ---
 
 
-## ⬜ WEEK 2 (~29h)
+## ⬜ WEEK 2 (~28h)
 
 ### Sprint 2A — Reliability (~10h)
 | # | Task | Sev | Eff | File |
 |---|---|---|---|---|
 | W2-1 | Offline meal-log queue (IndexedDB, replay on reconnect) | 8 | 8h | `src/lib/cloud-sync.ts`, `src/lib/daily-log-sync.ts` |
-| W2-2 | `/healthz` edge fn + UptimeRobot ping every 5min | 5 | 1h | new `supabase/functions/healthz/` |
+| ✅ W2-2 | `/healthz` edge fn — deployed, returns DB latency + 503 on failure | 5 | done | `supabase/functions/healthz/` |
 | W2-3 | Sentry email alerts (new issue + error-rate spike) | 6 | 30m | Sentry dashboard |
+| ✅ SEC-1 | Tightened 9 permissive RLS policies on city_prices, packed_products, price_history, ad_creatives, price_alert_notifications → staff/brand-member only (service-role bypasses for edge fns) | 8 | done | migration |
+| ✅ SEC-2 | Leaked-password (HIBP) protection enabled | 4 | done | auth config |
+| SEC-3 | Move public-schema extension to `extensions` schema (low risk) | 3 | 30m | migration |
 
 ### Sprint 2B — Analytics & Retention (~13h)
 | # | Task | Sev | Eff | File |
