@@ -35,6 +35,14 @@ interface Loaded {
   topCity: string;
 
   openFeedback: number;
+
+  // 30-day funnel from `events` table
+  funnel: {
+    signup: number;
+    firstMeal: number;
+    planStarted: number;
+    subscriptionStarted: number;
+  };
 }
 
 const PLAN_PRICE_INR: Record<string, number> = {
@@ -58,7 +66,7 @@ export default function AdminOverview() {
         const d14 = daysAgoISO(14);
         const d30 = daysAgoISO(30);
 
-        const [profilesAll, logs30, plans, feedbackOpen, apiUsage30] = await Promise.all([
+        const [profilesAll, logs30, plans, feedbackOpen, apiUsage30, events30] = await Promise.all([
           supabase
             .from('profiles')
             .select('id, created_at, onboarding_complete, city')
@@ -79,6 +87,12 @@ export default function AdminOverview() {
             .from('api_usage')
             .select('cost_inr, created_at')
             .gte('created_at', d30),
+          supabase
+            .from('events')
+            .select('user_id, event_name, created_at')
+            .gte('created_at', `${d30}T00:00:00Z`)
+            .in('event_name', ['signup', 'first_meal_logged', 'plan_started', 'subscription_started'])
+            .limit(20000),
         ]);
 
         const profiles = profilesAll.data ?? [];
