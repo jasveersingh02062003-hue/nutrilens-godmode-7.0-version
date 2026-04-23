@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import heroImg from '@/assets/hero-nutrition.jpg';
 
 
@@ -18,7 +20,21 @@ const Auth = function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
+  const [consentGiven, setConsentGiven] = useState(false);
   const { signUpWithEmail, signInWithEmail, signInWithPhone, verifyOTP, signInWithGoogle } = useAuth();
+
+  const recordConsent = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await (supabase.from as any)('consent_records').insert({
+        user_id: user.id,
+        purpose: 'terms_and_privacy',
+        granted: true,
+        source: 'signup',
+      });
+    } catch {}
+  };
 
   const handleEmailAuth = async (isSignUp: boolean) => {
     if (!email || !password) {
@@ -28,6 +44,11 @@ const Auth = function Auth() {
 
     if (isSignUp && password.length < 6) {
       toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    if (isSignUp && !consentGiven) {
+      toast.error('Please accept the Terms & Privacy Policy to continue');
       return;
     }
 
@@ -59,6 +80,7 @@ const Auth = function Auth() {
       }
 
       setLoading(false);
+      void recordConsent();
       toast.success('Account created!');
       return;
     }
