@@ -13,6 +13,7 @@
 
 import { scopedGet, scopedSet } from './scoped-storage';
 import { supabase } from '@/integrations/supabase/client';
+import { logEvent } from './events';
 
 export type Plan = 'free' | 'premium' | 'ultra';
 export type SubscriptionStatus =
@@ -60,6 +61,8 @@ function notify() {
 }
 
 function applyServerRow(row: Partial<ServerPlan> | null | undefined) {
+  const prevPlan = cache.plan;
+  const prevStatus = cache.status;
   cache = {
     plan: (row?.plan as Plan) ?? 'free',
     status: (row?.status as SubscriptionStatus) ?? 'active',
@@ -69,6 +72,16 @@ function applyServerRow(row: Partial<ServerPlan> | null | undefined) {
     has_used_trial: row?.has_used_trial ?? false,
   };
   cacheLoadedAt = Date.now();
+
+  // Funnel: fire `subscription_started` when status becomes active and plan
+  // is paid. Skip on first hydrate (prevPlan==='free' && prevStatus==='active'
+  // is the default), so we only fire on real upgrades within this session.
+  const becameActive = cache.status === 'active' && cache.plan !== 'free';
+  const wasNotActivePaid = !(prevStatus === 'active' && prevPlan !== 'free');
+  if (becameActive && wasNotActivePaid && currentUserId) {
+    void logEvent({ name: 'subscription_started', properties: { plan: cache.plan } });
+  }
+
   notify();
 }
 

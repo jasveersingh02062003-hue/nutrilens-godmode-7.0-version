@@ -1,5 +1,6 @@
 // Event Plan Service — plan catalog, target calculation, active plan state
 import { scopedGet, scopedSet, scopedRemove, scopedGetJSON, scopedSetJSON } from '@/lib/scoped-storage';
+import { logEvent } from '@/lib/events';
 
 export type PlanType = 'celebrity_transformation' | 'sugar_cut' | 'gym_fat_loss' | 'gym_muscle_gain' | 'gym_optimization' | 'supplement_optimization' | 'madhavan_21_day' | 'event_based';
 export type PlanCategory = 'weight_loss' | 'sugar_free' | 'muscle' | 'gym' | 'circadian' | 'event' | 'all';
@@ -403,8 +404,27 @@ export function getActivePlan(): ActivePlan | null {
 }
 
 export function setActivePlan(plan: ActivePlan): void {
+  // Funnel: only fire `plan_started` when this is a brand-new activation
+  // (no existing plan or different plan id). Pause/resume just rewrites the
+  // same row and should not re-fire.
+  const existing = scopedGet(STORAGE_KEY);
+  let isNewActivation = true;
+  if (existing) {
+    try {
+      const prev = JSON.parse(existing) as ActivePlan;
+      if (prev.planId === plan.planId && prev.startDate === plan.startDate) {
+        isNewActivation = false;
+      }
+    } catch { /* treat as new */ }
+  }
   scopedSetJSON(STORAGE_KEY, plan);
   window.dispatchEvent(new Event('nutrilens:plan_changed'));
+  if (isNewActivation) {
+    void logEvent({
+      name: 'plan_started',
+      properties: { plan_id: plan.planId, duration: plan.duration, daily_calories: plan.dailyCalories },
+    });
+  }
 }
 
 export function clearActivePlan(): void {
