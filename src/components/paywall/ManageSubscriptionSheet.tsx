@@ -85,6 +85,23 @@ export default function ManageSubscriptionSheet({ open, onClose, onUpgradeClick 
     else toast.error('Could not resume. Please try again.');
   }
 
+  async function openCustomerPortal() {
+    try {
+      const environment = getPaddleEnvironment();
+      const { data, error } = await supabase.functions.invoke('customer-portal', {
+        body: { environment },
+      });
+      if (error || !data?.url) {
+        toast.error('Could not open billing portal. Please try again.');
+        return;
+      }
+      window.open(data.url as string, '_blank', 'noopener,noreferrer');
+    } catch (e) {
+      console.error('[customer-portal] failed', e);
+      toast.error('Could not open billing portal. Please try again.');
+    }
+  }
+
   const renewDate = periodEnd
     ? new Date(periodEnd).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
     : '—';

@@ -190,6 +190,33 @@ export default function PaymentMethodSheet({ open, onClose, amountPaise, duratio
                 </div>
               ) : (
                 <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+                  {/* Paddle real checkout — only when configured */}
+                  {paddleMode && (
+                    <Section title="Secure checkout" subtitle="Recommended">
+                      <button
+                        onClick={handlePaddleCheckout}
+                        className="w-full flex items-center gap-3 px-3.5 py-3.5 active:bg-muted/50 transition-colors text-left"
+                      >
+                        <div
+                          className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 text-primary-foreground"
+                          style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%)' }}
+                        >
+                          <ShieldCheck className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-semibold text-foreground">Pay with card / UPI</span>
+                            <Sparkles className="w-3 h-3 text-primary" />
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            Secure checkout · Cards, UPI, wallets, net banking
+                          </p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                      </button>
+                    </Section>
+                  )}
+
                   {/* Saved */}
                   {saved.length > 0 && (
                     <Section title="Saved methods">
