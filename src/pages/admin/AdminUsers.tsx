@@ -539,7 +539,7 @@ export default function AdminUsers() {
                 })}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">No users match filters</td>
+                    <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">No users match filters</td>
                   </tr>
                 )}
               </tbody>
