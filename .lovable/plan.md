@@ -34,18 +34,14 @@
 - ✅ DashboardSkeleton + ProgressSkeleton
 - ✅ Daily auto-backups (Lovable Cloud)
 
----
-
-## ⬜ WEEK 1 LEFTOVERS (~5h)
-
-| # | Task | Sev | Eff | File |
-|---|---|---|---|---|
-| W1-A | Account-deletion UI in Profile (call `delete_my_account` RPC, double-confirm modal, sign-out + redirect) | 9 | 2h | `src/pages/Profile.tsx` |
-| W1-B | Brand the 404 page (use `<Link>`, branded illustration, helpful suggestions) | 5 | 1h | `src/pages/NotFound.tsx` |
-| W1-C | Safe reload guard in `useDashboardInit` (max 3 reloads/session via sessionStorage) | 7 | 1h | `src/hooks/useDashboardInit.ts:174-182` |
-| W1-D | Zod validation on `log-ad-event` + `export-user-data` | 7 | 1h | `supabase/functions/log-ad-event/`, `export-user-data/` |
+### 🏁 Week 1 Leftovers (closed 2026-04-23)
+- ✅ **W1-A** Account-deletion UI in Profile — Danger Zone + type-DELETE confirm dialog → `delete_my_account` RPC → clear scoped storage → sign out → `/auth`
+- ✅ **W1-B** Branded 404 page — gradient bg, primary brand 404, `<Link>` (SPA-safe), suggested routes
+- ✅ **W1-C** Safe reload guard — `safeReload()` caps at 3 reloads/session via `sessionStorage('nl_reload_count')`, resets on legit `nutrilens:update`
+- ✅ **W1-D** Zod validation on `log-ad-event` (full schema, JSON-parse guard, 405 on non-POST) and `export-user-data` (405 on non-POST/GET, 3-exports/hour rate limit via `audit_logs`)
 
 ---
+
 
 ## ⬜ WEEK 2 (~29h)
 
