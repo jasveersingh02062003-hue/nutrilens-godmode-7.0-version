@@ -164,6 +164,28 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[92vh] rounded-t-3xl p-0 overflow-y-auto">
+        {disableEventPlans ? (
+          <div className="p-8 text-center space-y-4 mt-12">
+            <div className="w-16 h-16 rounded-2xl bg-muted mx-auto flex items-center justify-center">
+              <AlertTriangle className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <div className="space-y-2 px-4">
+              <h3 className="text-lg font-bold text-foreground">Not available under 18</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed max-w-sm mx-auto">
+                Deadline-driven transformation plans are disabled for users under 18. Aggressive calorie deficits and event-based weight goals can be unsafe during growth years.
+              </p>
+              <p className="text-[11px] text-muted-foreground/80 max-w-sm mx-auto pt-2">
+                Focus on consistent meal logging, water tracking, and balanced nutrition — your body is doing important work right now. 💪
+              </p>
+            </div>
+            <button
+              onClick={() => onOpenChange(false)}
+              className="mx-auto px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold active:scale-[0.98] transition-transform"
+            >
+              Got it
+            </button>
+          </div>
+        ) : (
         <div className="p-5 space-y-5">
           {/* Header */}
           <SheetHeader>
@@ -541,6 +563,7 @@ export default function EventPlanConfigSheet({ open, onOpenChange }: Props) {
             )}
           </AnimatePresence>
         </div>
+        )}
       </SheetContent>
     </Sheet>
   );
