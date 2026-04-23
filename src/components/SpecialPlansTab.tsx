@@ -1,10 +1,20 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Star, ArrowRight, Crown, Zap, Target } from 'lucide-react';
-import { PLAN_CATALOG, type PlanMeta, type PlanCategory, getActivePlan, getActivePlanRaw, getPlanProgress, getPlanById } from '@/lib/event-plan-service';
+import { Star, ArrowRight, Crown, Zap, Target, Lock } from 'lucide-react';
+import { PLAN_CATALOG, type PlanMeta, type PlanCategory, type PlanType, getActivePlan, getActivePlanRaw, getPlanProgress, getPlanById } from '@/lib/event-plan-service';
 import PlanDetailSheet from './PlanDetailSheet';
 import EventPlanConfigSheet from './EventPlanConfigSheet';
 import CurrentPlansTab from './CurrentPlansTab';
+import { useAgeTier } from '@/hooks/useAgeTier';
+import { toast } from 'sonner';
+
+// Plans hidden / locked for users under 18 — aggressive deficits and
+// strict eating-window protocols are unsafe during growth years.
+const RESTRICTED_PLAN_IDS: PlanType[] = [
+  'celebrity_transformation',
+  'sugar_cut',
+  'madhavan_21_day',
+];
 
 const FILTERS: { key: PlanCategory; label: string }[] = [
   { key: 'all', label: 'All' },
