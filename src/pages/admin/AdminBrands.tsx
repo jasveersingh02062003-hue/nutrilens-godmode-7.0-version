@@ -75,10 +75,18 @@ export default function AdminBrands() {
     if (v == null) return;
     const num = Number(v);
     if (Number.isNaN(num)) return toast.error('Invalid number');
-    const { error } = await supabase.from('brand_accounts').update({ balance: num }).eq('id', b.id);
+    const delta = num - Number(b.balance);
+    if (delta === 0) return toast.info('No change');
+    const { data: txnId, error } = await supabase.rpc('apply_brand_transaction', {
+      p_brand_id: b.id,
+      p_amount: delta,
+      p_type: 'adjustment',
+      p_reference: 'admin_manual',
+      p_notes: `Manual balance adjustment: ${b.balance} → ${num}`,
+    });
     if (error) return toast.error(error.message);
-    await logAdminAction({ action: 'feedback_resolved', target_table: 'brand_accounts', metadata: { admin_action: 'balance_adjusted', id: b.id, from: b.balance, to: num } });
-    toast.success('Balance updated');
+    await logAdminAction({ action: 'feedback_resolved', target_table: 'brand_accounts', metadata: { admin_action: 'balance_adjusted', id: b.id, from: b.balance, to: num, delta, txn_id: txnId } });
+    toast.success(`Balance updated · txn ${String(txnId).slice(0, 8)}…`);
     load();
   };
 

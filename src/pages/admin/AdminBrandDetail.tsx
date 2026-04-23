@@ -69,22 +69,24 @@ export default function AdminBrandDetail() {
     load();
   };
 
+  const [topupBusy, setTopupBusy] = useState(false);
+
   const addTopup = async () => {
     if (!id || !brand) return;
     const amt = Number(topup.amount);
     if (!amt || amt <= 0) return toast.error('Enter a positive amount');
-    const { error: txErr } = await supabase.from('brand_transactions').insert([{
-      brand_id: id, type: 'topup', amount: amt,
-      reference: topup.reference || null, notes: topup.notes || null,
-    }]);
-    if (txErr) return toast.error(txErr.message);
-    const { error: balErr } = await supabase
-      .from('brand_accounts')
-      .update({ balance: Number(brand.balance) + amt })
-      .eq('id', id);
-    if (balErr) return toast.error(balErr.message);
-    await logAdminAction({ action: 'brand_wallet_topup', target_table: 'brand_accounts', metadata: { brand_id: id, amount: amt, reference: topup.reference } });
-    toast.success(`Wallet topped up by ${inr(amt)}`);
+    setTopupBusy(true);
+    const { data: txnId, error } = await supabase.rpc('apply_brand_transaction', {
+      p_brand_id: id,
+      p_amount: amt,
+      p_type: 'topup',
+      p_reference: topup.reference || null,
+      p_notes: topup.notes || null,
+    });
+    setTopupBusy(false);
+    if (error) return toast.error(error.message);
+    await logAdminAction({ action: 'brand_wallet_topup', target_table: 'brand_accounts', metadata: { brand_id: id, amount: amt, reference: topup.reference, txn_id: txnId } });
+    toast.success(`Wallet topped up by ${inr(amt)} · txn ${String(txnId).slice(0, 8)}…`);
     setTopup({ amount: 0, reference: '', notes: '' });
     load();
   };
