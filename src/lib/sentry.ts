@@ -30,11 +30,8 @@ let initialized = false;
 
 export function initSentry() {
   if (initialized) return;
-  const dsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
-  if (!dsn) {
-    if (import.meta.env.DEV) console.info('[sentry] VITE_SENTRY_DSN not set — skipping init');
-    return;
-  }
+  // Hardcoded DSN — Sentry DSNs are safe to expose in client bundles (rate-limited per project).
+  const dsn = 'https://194b42c6aebe1efaff048139e709b11b@o4511268463181824.ingest.us.sentry.io/4511268464820224';
 
   Sentry.init({
     dsn,
