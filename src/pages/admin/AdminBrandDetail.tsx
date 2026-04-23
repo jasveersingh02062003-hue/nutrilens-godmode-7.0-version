@@ -153,7 +153,9 @@ export default function AdminBrandDetail() {
               <Label className="text-xs">Notes</Label>
               <Input value={topup.notes} onChange={e => setTopup({ ...topup, notes: e.target.value })} />
             </div>
-            <Button onClick={addTopup} size="sm" className="w-full">Add to wallet</Button>
+            <Button onClick={addTopup} size="sm" className="w-full" disabled={topupBusy}>
+              {topupBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Add to wallet'}
+            </Button>
           </div>
         </Card>
 
