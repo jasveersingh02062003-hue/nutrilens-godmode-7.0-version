@@ -173,6 +173,20 @@ export default function AdminOverview() {
         }
         const topCity = Array.from(cityCounts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—';
 
+        // 30-day funnel from `events` table (distinct users per milestone)
+        const evRows = (events30.data ?? []) as Array<{ user_id: string | null; event_name: string }>;
+        const distinctByEvent = (name: string) => {
+          const set = new Set<string>();
+          for (const r of evRows) if (r.event_name === name && r.user_id) set.add(r.user_id);
+          return set.size;
+        };
+        const funnel = {
+          signup: distinctByEvent('signup'),
+          firstMeal: distinctByEvent('first_meal_logged'),
+          planStarted: distinctByEvent('plan_started'),
+          subscriptionStarted: distinctByEvent('subscription_started'),
+        };
+
         setD({
           signupsTotal,
           signupsSpark,
@@ -192,6 +206,7 @@ export default function AdminOverview() {
           adRevenueSpark,
           topCity,
           openFeedback: feedbackOpen.count ?? 0,
+          funnel,
         });
       } catch (e) {
         console.error('[AdminOverview]', e);
@@ -232,6 +247,42 @@ export default function AdminOverview() {
           <StatCard label="Open feedback" value={d.openFeedback} icon={MessageSquare} hint="awaiting reply" accent="text-destructive" />
         </div>
       )}
+
+      {/* Activation funnel — last 30 days, distinct users per milestone */}
+      {!loading && d && (
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold mb-3">Activation funnel · last 30 days</h2>
+          <div className="rounded-xl border bg-card p-5">
+            <FunnelRow label="Signed up" value={d.funnel.signup} base={d.funnel.signup} accent="bg-blue-500" />
+            <FunnelRow label="Logged first meal" value={d.funnel.firstMeal} base={d.funnel.signup} accent="bg-emerald-500" />
+            <FunnelRow label="Started a plan" value={d.funnel.planStarted} base={d.funnel.signup} accent="bg-purple-500" />
+            <FunnelRow label="Started a subscription" value={d.funnel.subscriptionStarted} base={d.funnel.signup} accent="bg-amber-500" last />
+            <p className="text-[11px] text-muted-foreground mt-3">
+              Counts distinct users firing each milestone. 0% bars mean the event isn't being fired yet by the relevant flow.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FunnelRow({
+  label, value, base, accent, last,
+}: { label: string; value: number; base: number; accent: string; last?: boolean }) {
+  const pct = base > 0 ? Math.min(100, Math.round((value / base) * 100)) : 0;
+  return (
+    <div className={last ? '' : 'mb-3'}>
+      <div className="flex items-center justify-between text-xs mb-1">
+        <span className="font-medium text-foreground">{label}</span>
+        <span className="text-muted-foreground tabular-nums">
+          <span className="font-semibold text-foreground">{value.toLocaleString()}</span>
+          {base > 0 && <> · {pct}%</>}
+        </span>
+      </div>
+      <div className="h-2 rounded-full bg-muted overflow-hidden">
+        <div className={`h-full ${accent} transition-all`} style={{ width: `${pct}%` }} />
+      </div>
     </div>
   );
 }
