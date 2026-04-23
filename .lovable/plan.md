@@ -1,137 +1,79 @@
 
 
-# 💳 Payment Wiring Without an Account — Best Path Forward
+# 🔧 Fix Build + Finish Sprint Wrap-Up
 
-## The situation
+## Part 1 — Fix the build error (5 min)
 
-You don't have a Razorpay or Stripe account yet. You want to:
-1. Build the **subscription framework** now (DB tables, server-side plan check, paywall logic)
-2. Plug in the actual payment processor **later** when you create an account
-3. Still close the two 🚨 client-side bypass holes (FB-1, FB-2) immediately
+**File:** `src/pages/Profile.tsx` (line 562)
 
-**Good news:** This is the *right* order to do it in. The hardest part of monetization isn't the payment SDK — it's the server-side subscription state, webhook handling, and quota enforcement. We can build all of that **today**, mock the checkout step, and swap in Razorpay/Stripe later in ~2 hours when you're ready.
+The dev panel's "set plan" buttons reference `setPlan` (which no longer exists as a real setter — it's a deprecated no-op in `subscription-service.ts`). In the new server-backed model, plan flips must go through the `mock-subscribe` edge function.
 
----
+**Change** the dev panel buttons to:
+- `'free'` → call `cancelSubscription()` (already async, immediate downgrade)
+- `'premium' | 'ultra'` → call `await mockSubscribe(p)`
+- After success, call `await refreshPlan()` then `setCurrentPlan(getPlan())` so UI reflects server state
+- Wrap in async handler with try/catch + toast
 
-## Recommended approach: "Provider-agnostic monetization core"
+No new imports needed — `mockSubscribe`, `cancelSubscription`, `refreshPlan` are already imported on line 27.
 
-Build the entire backend as if a payment provider exists. Use a **mock checkout** in dev that flips the user's plan server-side (gated behind a dev flag) so we can test the full free→paid→cancel→expire flow end-to-end without a real account.
+## Part 2 — Wire server-side tier check into AI edge functions (~20 min)
 
-When you're ready to plug in a real processor, we add ONE edge function (`razorpay-webhook` or `stripe-webhook`) and one frontend SDK call. Everything else stays.
+**File:** `supabase/functions/_shared/ai-quota.ts` (lines 85-89)
 
----
+Replace the hardcoded `const tier: QuotaTier = "free"` with a real lookup:
 
-## What gets built now (~10h)
-
-### Phase 1 — Server-side subscription core (~6h)
-
-**1. New DB tables (migration):**
-```text
-subscriptions
-  ├─ user_id (uuid, unique)
-  ├─ plan ('free' | 'premium' | 'ultra')
-  ├─ status ('active' | 'cancelled' | 'expired' | 'trialing' | 'past_due')
-  ├─ current_period_start / current_period_end (timestamptz)
-  ├─ trial_end (timestamptz, nullable)
-  ├─ provider ('mock' | 'razorpay' | 'stripe', default 'mock')
-  ├─ provider_subscription_id (text, nullable)
-  ├─ provider_customer_id (text, nullable)
-  ├─ cancel_at_period_end (boolean)
-  ├─ created_at / updated_at
-  └─ RLS: users read own; only service_role writes
-
-payment_events  (audit log)
-  ├─ user_id, subscription_id
-  ├─ event_type ('subscribe' | 'cancel' | 'renew' | 'payment_failed' | 'expired' | 'trial_started')
-  ├─ provider, provider_event_id (for idempotency)
-  ├─ amount_inr, raw_payload (jsonb)
-  └─ RLS: users read own; only service_role writes
+```ts
+const { data: planRow } = await userClient.rpc("get_my_active_plan");
+const row = Array.isArray(planRow) ? planRow[0] : planRow;
+const isActiveOrTrial = row?.status === "active" || row?.status === "trialing";
+const tier: QuotaTier = isActiveOrTrial && (row?.plan === "premium" || row?.plan === "ultra")
+  ? row.plan
+  : "free";
 ```
 
-**2. Database functions (security definer):**
-- `get_my_active_plan()` → returns `{plan, status, trial_end, current_period_end}`. Single source of truth.
-- `start_trial()` → atomically creates a `trialing` row if user has never used trial. Replaces `startFreeTrial()` localStorage logic.
+This closes **FB-2** (paid-tier spoofing) — `monika-chat`, `analyze-food`, `scan-receipt` all import `checkQuota`, so this single change tier-gates all three.
 
-**3. Edge functions:**
-- `mock-subscribe` (dev-only, gated by `DEV_MOCK_PAYMENTS=true` secret) — flips a user to `premium`/`ultra` instantly. Lets us test paywalls without a real card.
-- `cancel-subscription` — sets `cancel_at_period_end = true`. Works for both mock and future real provider.
-- `expire-subscriptions` (cron-style, can run via pg_cron later) — flips expired rows to `status='expired'`, plan to `free`.
+## Part 3 — Set the dev mock-payments secret (1 min)
 
-### Phase 2 — Frontend rewrite (~3h)
+The `mock-subscribe` edge function is currently gated by a `DEV_MOCK_PAYMENTS=true` secret. We need to add it so the dev panel can flip plans. (For closed beta we keep this enabled; for public launch we remove it.)
 
-**Rewrite `src/lib/subscription-service.ts`:**
-- Replace ALL localStorage reads with cached calls to `get_my_active_plan()` RPC
-- Cache for 60s in memory (React Query) so we're not hammering the DB on every render
-- Listen to a Supabase realtime channel on `subscriptions` so plan changes propagate instantly
-- Trial flow: `startFreeTrial()` calls the `start_trial()` RPC instead of writing localStorage
-- Daily counters (camera/monika/voice/barcode) **stay in localStorage** — they're already enforced server-side by `ai_usage_quota` for AI calls; non-AI counters are UX hints only
+Use `add_secret` to set:
+- `DEV_MOCK_PAYMENTS` = `true`
 
-**Update gate functions:**
-- `canSendMonicaMessage()`, `canUseCameraScan()`, etc. become `async` and await the cached server plan
-- All call sites already `await` the limit check before opening AI flows, so this is a localized change
+## Part 4 — End-to-end smoke test (~10 min)
 
-**Subscription Screen UI:**
-- Add a "Start Mock Subscription (Dev)" button visible only when `import.meta.env.DEV`
-- Replace the current upgrade buttons with disabled state + "Coming soon — payment integration in progress" tooltip
-- Keep the trial CTA fully functional (it works without a payment processor)
+After deploy, run via `supabase--curl_edge_functions`:
 
-### Phase 3 — Closes the bypass (~1h)
+1. `GET /healthz` → expect 200, `{status:"ok"}`
+2. `POST /mock-subscribe` with `{"plan":"premium"}` → expect 200
+3. `supabase--read_query`: `SELECT plan, status FROM subscriptions WHERE user_id = auth.uid()` → expect `premium / active`
+4. `POST /monika-chat` with a sample message → expect 200 (now using premium quota of 200/day instead of free 5/day)
+5. `POST /cancel-subscription` → expect 200, row shows `cancel_at_period_end=true`
 
-- Fix FB-1: plan no longer in localStorage → can't be spoofed
-- Fix FB-2: AI tier checks now server-side → spoofed clients get rejected by edge fn
-- Edge functions `monika-chat`, `analyze-food`, `scan-receipt` get a 2-line addition: read plan via `get_my_active_plan()`, raise daily cap for premium/ultra
+## Part 5 — Update plan doc + create tracking tasks
 
----
+- Tick W2 (subscription core) items as ✅ done in `.lovable/plan.md`
+- Note remaining gaps: real payment provider (deferred), Sprint 2A leftovers (W2-1 offline queue, W2-3 Sentry, SEC-3 vector schema move), Sprint 2B (funnel events + push)
 
-## What gets added LATER when you have an account (~2h per provider)
+## Files touched
 
-When you create your Razorpay account:
-1. Add `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` as secrets
-2. New edge fn `create-razorpay-order` — replaces `mock-subscribe`
-3. New edge fn `razorpay-webhook` — verifies HMAC, writes to `subscriptions` + `payment_events`
-4. Subscription Screen: swap mock button for Razorpay Checkout SDK call
+| File | Change |
+|---|---|
+| `src/pages/Profile.tsx` | Dev panel: `setPlan` → `mockSubscribe` / `cancelSubscription` + `refreshPlan` |
+| `supabase/functions/_shared/ai-quota.ts` | Server-side tier lookup via `get_my_active_plan()` |
+| `.lovable/plan.md` | Tick subscription-core complete |
 
-When you create Stripe account: same pattern, different SDK. Database schema does NOT change.
+Plus: add `DEV_MOCK_PAYMENTS=true` runtime secret, redeploy 3 AI edge fns + mock-subscribe, run end-to-end test.
 
-**OR — simpler option:** Use Lovable's **built-in Stripe payments** (`enable_stripe_payments`). It's a one-click integration that scaffolds the subscription table, webhook, and customer portal automatically. You still don't need a Stripe account upfront — Lovable runs everything in test mode until you claim the account. ~6h instead of building Razorpay manually.
+**Estimated total: ~40 minutes** to ship the fix + close FB-2 + verify the whole subscription pipeline works end-to-end.
 
----
+## What this leaves on the board
 
-## My recommendation
+- 🟢 FB-1 (subscription in localStorage) — closed
+- 🟢 FB-2 (client-side tier check) — closed after Part 2
+- ⬜ FB-3 (funnel events not fired) — Sprint 2B
+- ⬜ FB-4 (push notifications stub) — Sprint 2B
+- ⬜ Real payment provider (Razorpay/Stripe) — when account ready
 
-**Build the provider-agnostic core today (Phase 1 + 2 + 3, ~10h).** This:
-- ✅ Closes the 🚨 client-side bypass holes immediately (FB-1, FB-2)
-- ✅ Lets you test the whole freemium flow end-to-end with mock payments
-- ✅ Gives you a working subscription system you can demo
-- ✅ Adding Razorpay/Stripe later becomes a 2-hour swap, not a rebuild
-
-Then, when you're ready to take real money, you have two options:
-- **Easy path:** Use Lovable's built-in Stripe (recommended) — works in India for cards + UPI, no account creation friction
-- **India-first path:** Build custom Razorpay (better UPI/netbanking, native INR subscriptions)
-
-You can decide that later. The framework we build today supports both.
-
----
-
-## Tasks I'll create when we move to default mode
-
-1. Create `subscriptions` + `payment_events` tables + RLS + indexes
-2. Create `get_my_active_plan()` and `start_trial()` RPCs
-3. Build `mock-subscribe` + `cancel-subscription` + `expire-subscriptions` edge fns
-4. Rewrite `subscription-service.ts` to call RPC + React Query cache + realtime sync
-5. Update `monika-chat`, `analyze-food`, `scan-receipt` to read plan server-side for tier-based quotas
-6. Update Subscription Screen UI (mock button in dev, "coming soon" in prod)
-7. End-to-end test: mock subscribe → check premium quota raise → cancel → expire → verify back to free
-
-Estimated total: **~10 hours** to ship a fully working subscription system that just lacks a real payment SDK.
-
----
-
-## How to proceed
-
-Reply with one of:
-- **"Build the framework"** → I'll do all 7 tasks above (~10h). Recommended.
-- **"Build framework + use Lovable Stripe later"** → Same as above, plus I'll document the exact 4 lines to flip to Lovable's built-in Stripe when you're ready (~10h + future 30min)
-- **"Just close the bypass, skip mock UI"** → Minimal version: build `subscriptions` table + RPC + rewrite `subscription-service.ts`, no mock checkout (~6h)
-- **"Wait, do something else first"** → Pivot to Sprint 2A finish (offline queue) or Sprint 2B (push notifications) instead
+After this lands, the next recommended sprint is **Sprint 2B (analytics + push)** for retention, or **"Plug in Lovable Stripe"** when you're ready to take real money (~30 min once you say go).
 
