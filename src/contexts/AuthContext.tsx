@@ -5,6 +5,7 @@ import { UserProfile, saveProfile } from '@/lib/store';
 import { profileToDbRow, dbRowToProfile } from '@/lib/profile-mapper';
 import { setScopedUserId, clearScopedData } from '@/lib/scoped-storage';
 import { setSentryUser } from '@/lib/sentry';
+import { initSubscriptionService } from '@/lib/subscription-service';
 
 interface AuthContextValue {
   user: User | null;
@@ -34,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(nextSession?.user ?? null);
       setScopedUserId(nextSession?.user?.id ?? null);
       setSentryUser(nextSession?.user?.id ?? null);
+      initSubscriptionService(nextSession?.user?.id ?? null);
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {

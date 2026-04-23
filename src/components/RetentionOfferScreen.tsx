@@ -1,7 +1,7 @@
 import { scopedGet, scopedSet } from '@/lib/scoped-storage';
 import { motion } from 'framer-motion';
 import { X, Sparkles, Clock, Zap, Gift } from 'lucide-react';
-import { setPlan } from '@/lib/subscription-service';
+import { mockSubscribe } from '@/lib/subscription-service';
 import { toast } from 'sonner';
 
 interface Props {
@@ -10,10 +10,14 @@ interface Props {
 }
 
 export default function RetentionOfferScreen({ onAccept, onDismiss }: Props) {
-  const handleAccept = () => {
-    setPlan('premium');
+  const handleAccept = async () => {
+    const ok = await mockSubscribe('premium', 365);
     scopedSet('retention_offer_shown', 'true');
-    toast.success('Welcome to NutriLens Pro! 🎉 Special offer activated');
+    if (ok) {
+      toast.success('Welcome to NutriLens Pro! 🎉 Special offer activated');
+    } else {
+      toast.info('Payment integration coming soon — your offer is saved.');
+    }
     onAccept();
   };
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Crown, Check, Sparkles, Camera, Brain, Utensils, Dumbbell, Archive, BarChart3, Shield, ChevronDown } from 'lucide-react';
-import { setPlan, type Plan } from '@/lib/subscription-service';
+import { mockSubscribe, type Plan } from '@/lib/subscription-service';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
@@ -26,9 +26,13 @@ export default function UpgradeModal({ open, onClose, onUpgraded }: Props) {
   const [selectedDuration, setSelectedDuration] = useState<Duration>('12months');
   const [showAllFeatures, setShowAllFeatures] = useState(false);
 
-  const handleUpgrade = () => {
-    setPlan('premium');
-    toast.success('Upgraded to NutriLens Pro! 🎉');
+  const handleUpgrade = async () => {
+    const ok = await mockSubscribe('premium', selectedDuration === '12months' ? 365 : 30);
+    if (ok) {
+      toast.success('Upgraded to NutriLens Pro! 🎉');
+    } else {
+      toast.info('Payment integration coming soon. Real checkout will be available after we connect Razorpay/Stripe.');
+    }
     onUpgraded?.();
     onClose();
   };

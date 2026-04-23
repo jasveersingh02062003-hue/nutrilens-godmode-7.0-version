@@ -24,7 +24,7 @@ import HealthCardSheet from '@/components/HealthCardSheet';
 import { getCoachSettings } from '@/lib/coach';
 import { Sparkles, Brain, Flower2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { getPlan, setPlan, resetDailyCounters, checkAndExpireTrial, isTrialActive, hasTrialExpired, hasUsedTrial, getTrialDaysRemaining, type Plan } from '@/lib/subscription-service';
+import { getPlan, mockSubscribe, cancelSubscription, resetDailyCounters, checkAndExpireTrial, isTrialActive, hasTrialExpired, hasUsedTrial, getTrialDaysRemaining, refreshPlan, type Plan } from '@/lib/subscription-service';
 import UpgradeModal from '@/components/UpgradeModal';
 import PlansPage from '@/components/PlansPage';
 import SubscriptionBadge from '@/components/SubscriptionBadge';

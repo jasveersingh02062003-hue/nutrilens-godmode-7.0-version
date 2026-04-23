@@ -926,6 +926,50 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_events: {
+        Row: {
+          amount_inr: number | null
+          created_at: string
+          event_type: string
+          id: string
+          provider: Database["public"]["Enums"]["payment_provider"]
+          provider_event_id: string | null
+          raw_payload: Json
+          subscription_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount_inr?: number | null
+          created_at?: string
+          event_type: string
+          id?: string
+          provider?: Database["public"]["Enums"]["payment_provider"]
+          provider_event_id?: string | null
+          raw_payload?: Json
+          subscription_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount_inr?: number | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          provider?: Database["public"]["Enums"]["payment_provider"]
+          provider_event_id?: string | null
+          raw_payload?: Json
+          subscription_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_events_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       price_alert_notifications: {
         Row: {
           alert_id: string | null
@@ -1214,6 +1258,57 @@ export type Database = {
         }
         Relationships: []
       }
+      subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          has_used_trial: boolean
+          id: string
+          plan: Database["public"]["Enums"]["subscription_plan"]
+          provider: Database["public"]["Enums"]["payment_provider"]
+          provider_customer_id: string | null
+          provider_subscription_id: string | null
+          status: Database["public"]["Enums"]["subscription_status"]
+          trial_end: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          has_used_trial?: boolean
+          id?: string
+          plan?: Database["public"]["Enums"]["subscription_plan"]
+          provider?: Database["public"]["Enums"]["payment_provider"]
+          provider_customer_id?: string | null
+          provider_subscription_id?: string | null
+          status?: Database["public"]["Enums"]["subscription_status"]
+          trial_end?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          has_used_trial?: boolean
+          id?: string
+          plan?: Database["public"]["Enums"]["subscription_plan"]
+          provider?: Database["public"]["Enums"]["payment_provider"]
+          provider_customer_id?: string | null
+          provider_subscription_id?: string | null
+          status?: Database["public"]["Enums"]["subscription_status"]
+          trial_end?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       supplement_logs: {
         Row: {
           id: string
@@ -1348,6 +1443,14 @@ export type Database = {
         Returns: string
       }
       campaign_brand_id: { Args: { _campaign_id: string }; Returns: string }
+      cancel_my_subscription: {
+        Args: never
+        Returns: {
+          cancel_at_period_end: boolean
+          current_period_end: string
+          status: Database["public"]["Enums"]["subscription_status"]
+        }[]
+      }
       delete_my_account: { Args: never; Returns: undefined }
       get_ai_quota: { Args: { p_endpoint: string }; Returns: number }
       get_masked_profile: {
@@ -1380,6 +1483,17 @@ export type Database = {
           onboarding_complete: boolean
         }[]
       }
+      get_my_active_plan: {
+        Args: never
+        Returns: {
+          cancel_at_period_end: boolean
+          current_period_end: string
+          has_used_trial: boolean
+          plan: Database["public"]["Enums"]["subscription_plan"]
+          status: Database["public"]["Enums"]["subscription_status"]
+          trial_end: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1393,6 +1507,14 @@ export type Database = {
       is_owner: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
       is_support: { Args: { _user_id: string }; Returns: boolean }
+      start_trial: {
+        Args: never
+        Returns: {
+          plan: Database["public"]["Enums"]["subscription_plan"]
+          status: Database["public"]["Enums"]["subscription_status"]
+          trial_end: string
+        }[]
+      }
       upsert_daily_log: {
         Args: {
           p_expected_updated_at: string
@@ -1426,6 +1548,14 @@ export type Database = {
         | "supplement"
         | "beverage"
         | "snack"
+      payment_provider: "mock" | "razorpay" | "stripe"
+      subscription_plan: "free" | "premium" | "ultra"
+      subscription_status:
+        | "active"
+        | "cancelled"
+        | "expired"
+        | "trialing"
+        | "past_due"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1572,6 +1702,15 @@ export const Constants = {
         "supplement",
         "beverage",
         "snack",
+      ],
+      payment_provider: ["mock", "razorpay", "stripe"],
+      subscription_plan: ["free", "premium", "ultra"],
+      subscription_status: [
+        "active",
+        "cancelled",
+        "expired",
+        "trialing",
+        "past_due",
       ],
     },
   },

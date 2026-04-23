@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, Mic, Brain, Utensils, BarChart3, Dumbbell, Sun, Heart, Archive, ChevronDown, Star, Users, TrendingUp, Sparkles, Shield, Check } from 'lucide-react';
-import { setPlan } from '@/lib/subscription-service';
+import { mockSubscribe } from '@/lib/subscription-service';
 import { toast } from 'sonner';
 
 interface Props {
@@ -33,9 +33,13 @@ export default function SubscriptionScreen({ name, onUpgrade, onSkip }: Props) {
   const [selectedPlan, setSelectedPlan] = useState<PlanDuration>('12months');
   const [showAllFeatures, setShowAllFeatures] = useState(false);
 
-  const handleUpgrade = () => {
-    setPlan('premium');
-    toast.success('Welcome to NutriLens Pro! 🎉');
+  const handleUpgrade = async () => {
+    const ok = await mockSubscribe('premium', selectedPlan === '12months' ? 365 : 30);
+    if (ok) {
+      toast.success('Welcome to NutriLens Pro! 🎉');
+    } else {
+      toast.info('Payment integration coming soon. We will notify you once it\'s live.');
+    }
     onUpgrade();
   };
 
