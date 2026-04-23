@@ -1347,6 +1347,19 @@ export type Database = {
       is_marketer: { Args: { _user_id: string }; Returns: boolean }
       is_owner: { Args: { _user_id: string }; Returns: boolean }
       is_support: { Args: { _user_id: string }; Returns: boolean }
+      upsert_daily_log: {
+        Args: {
+          p_expected_updated_at: string
+          p_log_data: Json
+          p_log_date: string
+        }
+        Returns: {
+          id: string
+          log_data: Json
+          log_date: string
+          updated_at: string
+        }[]
+      }
     }
     Enums: {
       app_role:
