@@ -23,7 +23,7 @@ export function DailyPaywallProvider() {
     // Check every 5 minutes — cheap, all in-memory
     const tick = () => {
       try {
-        const log = getTodaysLog();
+        const log = getDailyLog();
         const mealsLogged = (log?.meals ?? []).length > 0;
         if (shouldShowDailyPaywall({ isPremium, hasLoggedMealToday: mealsLogged })) {
           markPaywallShown();
