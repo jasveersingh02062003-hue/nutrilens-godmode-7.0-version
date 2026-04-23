@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { z } from "https://esm.sh/zod@3.23.8";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,9 +21,25 @@ function pruneRecent() {
   }
 }
 
+const BodySchema = z.object({
+  event_type: z.enum(["impression", "click", "conversion"]),
+  campaign_id: z.string().uuid(),
+  creative_id: z.string().uuid().optional(),
+  placement_slot: z.string().max(64).optional(),
+  user_id: z.string().uuid(),
+  product_id: z.string().max(128).optional(),
+  conversion_type: z.string().max(64).optional(),
+});
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {
@@ -31,22 +48,24 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const body = await req.json();
-    const { event_type, campaign_id, creative_id, placement_slot, user_id, product_id, conversion_type } = body;
+    let raw: unknown;
+    try {
+      raw = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    if (!event_type || !campaign_id || !user_id) {
+    const parsed = BodySchema.safeParse(raw);
+    if (!parsed.success) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields: event_type, campaign_id, user_id" }),
+        JSON.stringify({ error: "Validation failed", details: parsed.error.flatten() }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (!["impression", "click", "conversion"].includes(event_type)) {
-      return new Response(
-        JSON.stringify({ error: "event_type must be 'impression', 'click', or 'conversion'" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const { event_type, campaign_id, creative_id, placement_slot, user_id, product_id, conversion_type } = parsed.data;
 
     // ----- FRAUD GUARDS -----
     pruneRecent();
@@ -109,7 +128,7 @@ Deno.serve(async (req) => {
         is_suspicious: false,
       });
 
-      if (campaign.pricing_model === "cpm" && campaign.cpm_rate > 0) {
+      if (campaign.pricing_model === "cpm" && campaign.cpm_rate && campaign.cpm_rate > 0) {
         const cost = campaign.cpm_rate / 1000;
         await supabase
           .from("ad_campaigns")
@@ -156,7 +175,7 @@ Deno.serve(async (req) => {
       });
 
       // Only deduct budget for legitimate clicks
-      if (!isSuspicious && campaign.pricing_model === "cpc" && campaign.cpc_rate > 0) {
+      if (!isSuspicious && campaign.pricing_model === "cpc" && campaign.cpc_rate && campaign.cpc_rate > 0) {
         await supabase
           .from("ad_campaigns")
           .update({ budget_spent: campaign.budget_spent + campaign.cpc_rate })

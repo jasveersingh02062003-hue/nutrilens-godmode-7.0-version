@@ -31,6 +31,15 @@ import SubscriptionBadge from '@/components/SubscriptionBadge';
 
 import { runAllDiagnostics, type TestResult } from '@/lib/calorie-correction-diagnostic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
+import { Trash2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { clearScopedData } from '@/lib/scoped-storage';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -58,7 +67,29 @@ export default function Profile() {
   const [diagnosticResults, setDiagnosticResults] = useState<TestResult[]>([]);
   const devTapRef = useRef({ count: 0, timer: null as any });
   const [downloadingData, setDownloadingData] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
   const profilePhoto = getProfilePhoto();
+
+  async function handleDeleteAccount() {
+    if (deleteConfirmText !== 'DELETE') return;
+    try {
+      setDeleting(true);
+      const userId = user?.id;
+      const { error } = await supabase.rpc('delete_my_account');
+      if (error) throw error;
+      if (userId) {
+        try { clearScopedData(userId); } catch { /* ignore */ }
+      }
+      await supabase.auth.signOut();
+      toast.success('Your account and data have been permanently deleted.');
+      navigate('/auth', { replace: true });
+    } catch (err) {
+      toast.error((err as Error).message || 'Failed to delete account');
+      setDeleting(false);
+    }
+  }
 
   async function handleDownloadAllData() {
     if (!user) {
@@ -450,6 +481,59 @@ export default function Profile() {
           {loggingOut ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
           {loggingOut ? 'Logging out...' : 'Logout'}
         </button>
+
+        {/* Danger Zone — Account deletion (DPDP) */}
+        <div className="mt-6 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+          <div className="flex items-start gap-3 mb-3">
+            <ShieldAlert className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+            <div>
+              <h3 className="text-sm font-semibold text-destructive">Danger Zone</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Under India's DPDP Act 2023 you can permanently erase every byte of personal data we hold. This action is irreversible.
+              </p>
+            </div>
+          </div>
+
+          <AlertDialog open={showDeleteDialog} onOpenChange={(o) => { setShowDeleteDialog(o); if (!o) setDeleteConfirmText(''); }}>
+            <AlertDialogTrigger asChild>
+              <button
+                className="w-full py-3 rounded-lg bg-destructive text-destructive-foreground font-medium text-sm flex items-center justify-center gap-2 hover:bg-destructive/90 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete my account
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Permanently delete your account?</AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <p>This will erase your profile, meals, weight history, plans, supplements, water logs, achievements, conversations with Monika, price alerts, and your sign-in. We cannot recover any of it later.</p>
+                    <p>Type <span className="font-mono font-semibold text-destructive">DELETE</span> below to confirm.</p>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <Input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="Type DELETE to confirm"
+                autoComplete="off"
+                disabled={deleting}
+                className="font-mono"
+              />
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={deleteConfirmText !== 'DELETE' || deleting}
+                  onClick={(e) => { e.preventDefault(); handleDeleteAccount(); }}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {deleting ? (<><Loader2 className="w-4 h-4 animate-spin mr-2" />Deleting…</>) : 'Delete forever'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
 
         {/* Version + Developer Mode */}
         <p
