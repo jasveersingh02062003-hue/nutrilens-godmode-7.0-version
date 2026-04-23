@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { onPlanChange } from '@/lib/subscription-service';
 import { shouldShowDailyPaywall, markPaywallShown, markPaywallDismissed, markAppOpened } from '@/lib/paywall-triggers';
-import { getTodaysLog } from '@/lib/store';
+import { getDailyLog } from '@/lib/store';
 import PaywallScreen from '@/components/paywall/PaywallScreen';
 
 /**
