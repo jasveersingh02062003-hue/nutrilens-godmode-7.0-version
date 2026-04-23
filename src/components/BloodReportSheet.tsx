@@ -27,6 +27,7 @@ export default function BloodReportSheet({ open, onClose, onSaved }: Props) {
   const now = new Date();
   const [date, setDate] = useState(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`);
   const [values, setValues] = useState<Record<string, string>>({});
+  const { hideBloodReportFeatures } = useAgeTier();
 
   const set = (key: string, val: string) => setValues(prev => ({ ...prev, [key]: val }));
 

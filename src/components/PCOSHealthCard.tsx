@@ -28,13 +28,15 @@ export default function PCOSHealthCard({ refreshKey }: Props) {
   const [expanded, setExpanded] = useState(false);
   const pcos = getPCOSCondition(profile);
   const hasPCOS = userHasPCOS(profile);
-  const logs = useMemo(() => hasPCOS ? getRecentLogs(7) : [], [refreshKey, hasPCOS]);
 
-  // Hidden for users under 18 — health diagnostics safeguard.
-  if (hidePCOSFeatures) return null;
+  // All hooks must run unconditionally before any early return — React hook rules.
+  const logs = useMemo(
+    () => (hasPCOS && !hidePCOSFeatures ? getRecentLogs(7) : []),
+    [refreshKey, hasPCOS, hidePCOSFeatures],
+  );
 
   const weekScores = useMemo(() => {
-    if (!hasPCOS) return [];
+    if (!hasPCOS || hidePCOSFeatures) return [];
     return logs
       .filter(l => l.meals.length > 0)
       .map(l => {
@@ -47,12 +49,14 @@ export default function PCOSHealthCard({ refreshKey }: Props) {
         }));
         return scoreDayForPCOS(meals, profile);
       });
-  }, [logs, refreshKey, hasPCOS]);
+  }, [logs, refreshKey, hasPCOS, hidePCOSFeatures, profile]);
 
   const avgScore = weekScores.length > 0
     ? Math.round(weekScores.reduce((s, d) => s + d.avgScore, 0) / weekScores.length)
     : 0;
 
+  // Hidden for users under 18 — health diagnostics safeguard.
+  if (hidePCOSFeatures) return null;
   if (!hasPCOS) return null;
 
   const avgColor: 'green' | 'yellow' | 'red' =
