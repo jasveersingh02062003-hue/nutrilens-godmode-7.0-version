@@ -54,6 +54,26 @@ export default function BloodReportSheet({ open, onClose, onSaved }: Props) {
   return (
     <Sheet open={open} onOpenChange={v => !v && onClose()}>
       <SheetContent side="bottom" className="max-h-[85vh] rounded-t-3xl overflow-y-auto">
+        {hideBloodReportFeatures ? (
+          <div className="py-10 text-center space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-muted mx-auto flex items-center justify-center">
+              <ShieldAlert className="w-7 h-7 text-muted-foreground" />
+            </div>
+            <div className="space-y-1.5 px-6">
+              <h3 className="text-base font-bold text-foreground">Not available under 18</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Blood report tracking is disabled for users under 18. Please share lab results with your doctor or guardian instead — they can interpret them safely for your age and growth stage.
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="mx-auto px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold active:scale-[0.98] transition-transform"
+            >
+              Got it
+            </button>
+          </div>
+        ) : (
+          <>
         <SheetHeader className="pb-2">
           <SheetTitle className="text-base font-bold">Enter Blood Report</SheetTitle>
           <p className="text-[11px] text-muted-foreground">Enter values you have. Leave unknown fields empty.</p>
