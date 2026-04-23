@@ -296,10 +296,26 @@ export default function AdminUserDetail() {
             <p className="text-[10px] uppercase text-muted-foreground mb-2">Recent payment events</p>
             <div className="space-y-1 max-h-48 overflow-y-auto">
               {payEvents.map(e => (
-                <div key={e.id} className="flex justify-between items-center text-xs border-b border-border/40 py-1">
+                <div key={e.id} className="flex justify-between items-center text-xs border-b border-border/40 py-1 gap-2">
                   <Badge variant="outline" className="text-[9px]">{e.event_type}</Badge>
-                  <span className="text-muted-foreground">{new Date(e.created_at).toLocaleString()}</span>
+                  <span className="text-muted-foreground flex-1 truncate">{new Date(e.created_at).toLocaleString()}</span>
                   <span className="font-medium tabular-nums">{e.amount_inr ? `₹${e.amount_inr}` : '—'}</span>
+                  {e.event_type === 'subscribe' && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-2 text-[10px]"
+                      onClick={async () => {
+                        const { error } = await supabase.functions.invoke('resend-receipt', {
+                          body: { event_id: e.id, target_user_id: id },
+                        });
+                        if (error) toast.error('Could not queue receipt');
+                        else toast.success('Receipt queued (stub — real email on provider day)');
+                      }}
+                    >
+                      Resend
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>

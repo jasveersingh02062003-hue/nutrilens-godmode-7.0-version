@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Crown, Calendar, CreditCard, FileText, XCircle, ChevronRight, IndianRupee } from 'lucide-react';
-import { onPlanChange, cancelSubscription, type Plan } from '@/lib/subscription-service';
+import { Crown, Calendar, CreditCard, FileText, XCircle, ChevronRight, IndianRupee, PauseCircle, PlayCircle } from 'lucide-react';
+import {
+  onPlanChange, cancelSubscription, pauseSubscription, resumeSubscription,
+  type Plan, type SubscriptionStatus,
+} from '@/lib/subscription-service';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import BillingHistorySheet from './BillingHistorySheet';
@@ -15,16 +18,20 @@ interface Props {
 
 export default function ManageSubscriptionSheet({ open, onClose, onUpgradeClick }: Props) {
   const [plan, setPlan] = useState<Plan>('free');
+  const [status, setStatus] = useState<SubscriptionStatus>('active');
   const [periodEnd, setPeriodEnd] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [pausing, setPausing] = useState(false);
   const [methodLabel, setMethodLabel] = useState<string>('—');
   const [nextChargeAmount, setNextChargeAmount] = useState<number | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [showRetention, setShowRetention] = useState(false);
+  const [showPausePicker, setShowPausePicker] = useState(false);
 
   useEffect(() => {
     const off = onPlanChange((p) => {
       setPlan(p.plan);
+      setStatus(p.status);
       setPeriodEnd(p.current_period_end);
     });
     return off;
@@ -60,9 +67,28 @@ export default function ManageSubscriptionSheet({ open, onClose, onUpgradeClick 
     else toast.error('Could not cancel. Please try again.');
   }
 
+  async function performPause(days: 7 | 14 | 30) {
+    setPausing(true);
+    const ok = await pauseSubscription(days);
+    setPausing(false);
+    setShowPausePicker(false);
+    if (ok) toast.success(`Subscription paused for ${days} days. Your billing date moves out by the same amount.`);
+    else toast.error('Could not pause. Please try again.');
+  }
+
+  async function performResume() {
+    setPausing(true);
+    const ok = await resumeSubscription();
+    setPausing(false);
+    if (ok) toast.success('Subscription resumed.');
+    else toast.error('Could not resume. Please try again.');
+  }
+
   const renewDate = periodEnd
     ? new Date(periodEnd).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
     : '—';
+
+  const isPaused = status === 'paused';
 
   return (
     <>
@@ -81,14 +107,19 @@ export default function ManageSubscriptionSheet({ open, onClose, onUpgradeClick 
               <div className="flex items-center gap-2 mb-1">
                 <Crown className="w-4 h-4" />
                 <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">Current plan</span>
+                {isPaused && (
+                  <span className="ml-auto text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary-foreground/20">
+                    Paused
+                  </span>
+                )}
               </div>
               <p className="text-xl font-display font-bold capitalize">{plan === 'free' ? 'Free' : `NutriLens ${plan === 'ultra' ? 'Ultra' : 'Pro'}`}</p>
               {plan !== 'free' && periodEnd && (
                 <p className="text-xs opacity-80 mt-1 flex items-center gap-1">
-                  <Calendar className="w-3 h-3" /> Renews {renewDate}
+                  <Calendar className="w-3 h-3" /> {isPaused ? 'Resumes on' : 'Renews'} {renewDate}
                 </p>
               )}
-              {plan !== 'free' && nextChargeAmount !== null && (
+              {plan !== 'free' && !isPaused && nextChargeAmount !== null && (
                 <p className="text-xs opacity-80 mt-1 flex items-center gap-1">
                   <IndianRupee className="w-3 h-3" /> ₹{nextChargeAmount.toLocaleString('en-IN')} on next renewal
                 </p>
@@ -115,16 +146,64 @@ export default function ManageSubscriptionSheet({ open, onClose, onUpgradeClick 
                   onClick={() => setShowHistory(true)}
                   showChevron
                 />
+
+                {isPaused ? (
+                  <button
+                    onClick={performResume}
+                    disabled={pausing}
+                    className="w-full mt-2 py-3 rounded-xl border border-border bg-card text-sm font-semibold text-primary flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <PlayCircle className="w-4 h-4" />
+                    {pausing ? 'Resuming…' : 'Resume subscription'}
+                  </button>
+                ) : showPausePicker ? (
+                  <div className="mt-2 rounded-xl border border-border bg-card p-3">
+                    <p className="text-xs font-semibold text-foreground mb-2">Pause for how long?</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[7, 14, 30].map((d) => (
+                        <button
+                          key={d}
+                          onClick={() => performPause(d as 7 | 14 | 30)}
+                          disabled={pausing}
+                          className="py-2 rounded-lg bg-primary/10 text-primary text-xs font-bold disabled:opacity-50"
+                        >
+                          {d} days
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setShowPausePicker(false)}
+                      className="w-full mt-2 text-[11px] text-muted-foreground"
+                    >
+                      Never mind
+                    </button>
+                    <p className="text-[10px] text-muted-foreground mt-2">
+                      Your billing date moves out by the same amount — you don't lose any paid time.
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowPausePicker(true)}
+                    disabled={pausing || cancelling}
+                    className="w-full mt-2 py-3 rounded-xl border border-border bg-card text-sm font-semibold text-foreground flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <PauseCircle className="w-4 h-4" />
+                    Pause subscription
+                  </button>
+                )}
+
                 <button
                   onClick={() => setShowRetention(true)}
-                  disabled={cancelling}
-                  className="w-full mt-2 py-3 rounded-xl border border-border bg-card text-sm font-semibold text-destructive flex items-center justify-center gap-2 disabled:opacity-50"
+                  disabled={cancelling || pausing}
+                  className="w-full py-3 rounded-xl border border-border bg-card text-sm font-semibold text-destructive flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   <XCircle className="w-4 h-4" />
                   {cancelling ? 'Cancelling…' : 'Cancel subscription'}
                 </button>
                 <p className="text-[10px] text-muted-foreground text-center px-4">
-                  You'll keep Pro access until {renewDate}. No further charges.
+                  {isPaused
+                    ? `Paused — no charges until you resume.`
+                    : `You'll keep Pro access until ${renewDate}. No further charges.`}
                 </p>
               </>
             )}

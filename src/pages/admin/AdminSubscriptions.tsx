@@ -25,7 +25,8 @@ interface PaymentRow {
   created_at: string;
 }
 
-const MONTHLY_PRICE = 149;
+const MONTHLY_PRICE_PREMIUM = 149;
+const MONTHLY_PRICE_ULTRA = 499;
 
 export default function AdminSubscriptions() {
   const [loading, setLoading] = useState(true);
@@ -57,8 +58,9 @@ export default function AdminSubscriptions() {
   // (≥ ₹1,000) are amortised across 12 months; monthly plans count as-is.
   // Users without a payment row fall back to the standard monthly price.
   const mrr = paying.reduce((sum, u) => {
+    const fallback = u.plan === 'ultra' ? MONTHLY_PRICE_ULTRA : MONTHLY_PRICE_PREMIUM;
     const last = payments.find(p => p.user_id === u.user_id && p.event_type === 'subscribe');
-    if (!last || last.amount_inr == null) return sum + MONTHLY_PRICE;
+    if (!last || last.amount_inr == null) return sum + fallback;
     return sum + (last.amount_inr >= 1000 ? Math.round(last.amount_inr / 12) : last.amount_inr);
   }, 0);
   const arr = mrr * 12;
