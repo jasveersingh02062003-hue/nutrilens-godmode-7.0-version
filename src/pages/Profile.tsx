@@ -613,6 +613,7 @@ export default function Profile() {
         <GymSettingsPage open={showGymSettings} onClose={() => setShowGymSettings(false)} />
         <UpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} onUpgraded={() => setCurrentPlan(getPlan())} />
         <PlansPage open={showPlans} onClose={() => setShowPlans(false)} onPlanChanged={() => setCurrentPlan(getPlan())} />
+        <ManageSubscriptionSheet open={showManage} onClose={() => setShowManage(false)} onUpgradeClick={() => { setShowManage(false); setShowUpgrade(true); }} />
 
         {/* Calorie Engine Diagnostic Modal */}
         <Dialog open={showDiagnostic} onOpenChange={setShowDiagnostic}>
