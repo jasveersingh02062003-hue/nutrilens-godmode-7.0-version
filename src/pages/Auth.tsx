@@ -168,6 +168,14 @@ const Auth = function Auth() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <AnimatePresence mode="wait">
+        {mode === 'blocked-minor' && (
+          <motion.div key="blocked" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1">
+            <MinorBlockedScreen
+              age={blockedAge}
+              onBack={() => { setMode('welcome'); setDob(''); setBlockedAge(null); }}
+            />
+          </motion.div>
+        )}
         {mode === 'welcome' && (
           <motion.div key="welcome" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col">
             {/* Hero */}
