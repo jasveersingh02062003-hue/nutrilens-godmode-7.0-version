@@ -1,133 +1,285 @@
-# 📊 NutriLens AI — Progress Report & Recovery Plan
 
-_Last updated: 2026-04-23 — context: 8F42B1C3-5D9E-4A7B-B2E1-9C3F4D5A6E7B_
 
----
+# 💳 Phase 2 — Real-feeling Subscription Flow (no Stripe/Razorpay account yet)
 
-## ✅ COMPLETED
+## The core idea
 
-### Security & RLS (Sprint 1)
-- ✅ SEC-1: 9 permissive RLS policies tightened (city_prices, packed_products, price_history, ad_creatives, price_alert_notifications) — `WITH CHECK (true)` → `is_staff()`
-- ✅ SEC-2: Role escalation hole closed — `user_roles` requires admin
-- ✅ W2-2: Server-side AI quota wired into `monika-chat`, `analyze-food`, `scan-receipt` via `increment_ai_quota`
-- ✅ Zod validation on AI edge function inputs
+You don't have a payment provider account yet. That's fine — we build the **entire user-facing subscription journey** (paywall, plan selector, payment method picker, "processing" screen, success state, receipt, manage subscription) using the existing `mock-subscribe` edge function as the backend. When you create a Razorpay/Stripe account later, we swap **one function call** and the whole UI keeps working.
 
-### Monetization Framework (Sprint W2)
-- ✅ DB tables `subscriptions` + `payment_events` with RLS
-- ✅ RPCs: `get_my_active_plan()`, `start_trial()`, `cancel_my_subscription()`
-- ✅ Trigger: auto-creates 'free' plan row for every new user
-- ✅ Edge fns: `mock-subscribe`, `cancel-subscription`, `expire-subscriptions`
-- ✅ `subscription-service.ts` rewritten for server-backed cache + realtime sync
-- ✅ `AuthContext` hydrates plan on login
-- ✅ UI refactored: UpgradeModal, PlansPage, SubscriptionScreen, UpgradePrompt, RetentionOfferScreen, Profile dev panel
-- ✅ **FB-1 closed**: subscription state out of localStorage
-- ✅ **FB-2 closed**: AI edge fns read tier from `get_my_active_plan` RPC
-- ✅ Secret `DEV_MOCK_PAYMENTS=true` set
-- ✅ Smoke test: mock-subscribe → premium/active confirmed in DB
+This unblocks:
+- Real UX testing today
+- Conversion-rate measurement today
+- Screenshots for app store / marketing today
+- Real money tomorrow (30-min swap)
 
 ---
 
-## ❌ INCOMPLETE
+## Part 1 — How we ship payments without a provider account
 
-### Payments
-- ❌ Real payment provider (Razorpay/Stripe) — deferred
-- ❌ Webhook handler — waits on provider
-- ❌ Customer portal / billing history UI — waits on provider
+### Strategy: "Provider-shaped mock"
 
-### Sprint 2A — Reliability (~9h)
-- ❌ **W2-1** Offline queue for failed writes (IndexedDB + retry worker)
-- ✅ **W2-3** Sentry error tracking — DSN hardcoded, initialized in main.tsx, ErrorBoundary reports via Sentry.captureException
-- ✅ **SEC-3** pgvector — N/A: extension not installed in this DB. pg_cron + pg_net now installed in `extensions` schema (not `public`)
+Build the UI exactly as it would look with Razorpay UPI Intent flow. Behind the scenes, instead of calling Razorpay's checkout, we call our `mock-subscribe` function after a realistic 2-second "processing" animation.
 
-### Sprint 2B — Retention (~13h)
-- ❌ **FB-3** Funnel events (signup, first_log, day_7_retained, first_paid_conversion)
-- ❌ **FB-4** Push notifications (FCM + permission flow)
-- ❌ Daily reminder push
-- ❌ Weekly progress digest email
+```text
+User taps "Pay ₹125"
+   ↓
+Show payment method sheet (UPI / Card / NetBanking / Wallet)
+   ↓
+User picks UPI → enter UPI ID OR pick installed app (GPay/PhonePe/Paytm)
+   ↓
+"Confirming payment..." spinner (2.5s realistic delay)
+   ↓
+mock-subscribe edge fn flips plan to premium
+   ↓
+Success screen with confetti + receipt
+   ↓
+Email-style receipt saved to Profile → Billing History
+```
 
-### Sprint 2C — Compliance (~6h)
-- ❌ Privacy/Terms real content (pages are placeholder)
-- ❌ GDPR data export endpoint surfaced in UI
-- ❌ Account deletion flow UI
-- ❌ Transactional email runbook
+### Why this is honest, not scammy
 
-### Polish
-- ❌ Full E2E test: free → trial → premium → cancel → expire → free
-- ✅ `expire-subscriptions` scheduled via pg_cron (`expire-subscriptions-nightly`, daily 02:00 UTC, job id 10)
-- ❌ Trial countdown UI not wired in some screens
+- Show a small **"Test mode"** badge in the top-right of the payment sheet (only visible while `DEV_MOCK_PAYMENTS=true`)
+- The success screen says "Subscription activated" — true, the DB row really flips
+- Receipt shows ₹0 charged with a "Test Transaction" watermark
+- When we flip to real Stripe later, the badge + watermark auto-disappear (gated by the same env flag)
 
----
+### The one-line swap later
 
-## 📈 Overall completion: ~72%
+In `subscription-service.ts`:
+```ts
+// today
+await supabase.functions.invoke('mock-subscribe', { body: { plan, days } })
 
-| Area | % |
-|---|---|
-| Core app features | 95% |
-| Security & RLS | 90% |
-| Monetization framework | 85% |
-| Reliability | 30% |
-| Analytics & retention | 15% |
-| Legal/compliance | 25% |
-| Real payments | 0% |
-
-**Top blockers:** No real payment provider · No error tracking · No offline queue · No funnel analytics
+// tomorrow (after enable_stripe_payments)
+await supabase.functions.invoke('create-checkout', { body: { plan, days } })
+```
+That's it. Every screen, animation, and component stays.
 
 ---
 
-## 🎯 Prioritised To-Do
+## Part 2 — The subscription journey (inspired by Cred / Spotify / Cult.fit / Headspace)
 
-| Priority | Item | Effort |
+### 2.1 Trigger points (when paywall appears)
+
+| Trigger | Where | Frequency |
 |---|---|---|
-| P0 | Sentry error tracking (W2-3) | S (2h) |
-| P0 | SEC-3 move pgvector out of public | S (1h) |
-| P0 | Schedule `expire-subscriptions` via pg_cron | S (30m) |
-| P1 | Offline queue (W2-1) | L (5h) |
-| P1 | Funnel events (FB-3) | M (3h) |
-| P1 | Plug in Lovable Stripe | M (3h) |
-| P2 | Push notifications (FB-4) | L (4h) |
-| P2 | Daily reminder + weekly digest | M (3h) |
-| P2 | Privacy/Terms real content | M (2h) |
-| P3 | GDPR export + account deletion UI | M (3h) |
-| P3 | Customer portal / billing history | M (2h) |
+| Soft nudge | Dashboard banner | Always visible for free users (existing `UpgradeBanner`) |
+| Hard wall | After 3rd AI scan in a day | Modal blocks further scans |
+| Daily prompt | App open, max 1×/day | Bottom sheet, dismissible, 7-day cooldown after dismiss |
+| Feature gate | Tapping locked feature (meal plans, exports) | Modal with that feature highlighted |
+| Profile tap | Profile → "Upgrade to Pro" row | Full-screen plan page |
+
+**Daily prompt rule:** stored in `localStorage` as `lastPaywallShown=YYYY-MM-DD`. If user dismisses, push next show date by 7 days.
+
+### 2.2 The 4-screen flow
+
+```text
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│ 1. PAYWALL      │ →  │ 2. PLAN PICKER  │ →  │ 3. PAYMENT      │ →  │ 4. SUCCESS      │
+│                 │    │                 │    │    METHOD       │    │                 │
+│ "Why Pro"       │    │ Monthly ₹149    │    │ UPI / Card /    │    │ Confetti        │
+│ social proof    │    │ Yearly ₹125/mo  │    │ NetBank / Wallet│    │ "You're Pro"    │
+│ before/after    │    │ SAVE 70% badge  │    │ Saved methods   │    │ Receipt link    │
+│ 6 feature icons │    │ 3-day free trial│    │ "Test mode"     │    │ Next-step CTA   │
+│ [Start trial]   │    │ [Continue]      │    │ [Pay ₹X]        │    │ [Open dashboard]│
+└─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+### 2.3 Screen 1 — Paywall (the convincer)
+
+What we put on it (in scroll order):
+1. **Hero:** "Reach your goal 2× faster with AI" + animated calorie ring
+2. **Social proof bar:** "12,847 Indians upgraded this month" (we'll fake-but-honest count from `subscriptions` table)
+3. **Before/after card:** "Free: 3 scans/day · Pro: Unlimited"
+4. **Feature grid (6 tiles):** Unlimited scans, Meal plans, Monika AI, Exercise tuning, Full archive, Priority support
+5. **Trust strip:** ⭐ 4.7 · 🇮🇳 Made in India · 🔒 Cancel anytime · 🆓 3-day free trial
+6. **Sticky CTA:** "Start 3-day free trial" (primary) + "Maybe later" (ghost, smaller)
+
+### 2.4 Screen 2 — Plan picker
+
+Two cards side by side (existing UpgradeModal layout, polished):
+- **Yearly ₹1,499** (= ₹125/mo) — "BEST VALUE · SAVE 70%" badge, glow border
+- **Monthly ₹149** — plain card
+
+Below: "✓ 3-day free trial · ✓ Cancel anytime · ✓ No charges during trial"
+
+### 2.5 Screen 3 — Payment method (the Indian-native part)
+
+Bottom sheet that mimics Razorpay/PhonePe checkout:
+
+```text
+┌──────────────────────────────────────┐
+│  Pay ₹1,499              [Test mode] │
+│  NutriLens Pro · Yearly              │
+├──────────────────────────────────────┤
+│  💳 SAVED METHODS                    │
+│  └─ (empty for first time)           │
+│                                      │
+│  ⚡ UPI                               │
+│  ├─ 📱 Google Pay        [Recommended]│
+│  ├─ 📱 PhonePe                       │
+│  ├─ 📱 Paytm                         │
+│  └─ ✏️  Enter UPI ID                  │
+│                                      │
+│  💳 Cards                             │
+│  └─ Add Debit / Credit Card          │
+│                                      │
+│  🏦 Netbanking                        │
+│  └─ Choose bank                      │
+│                                      │
+│  👛 Wallets                           │
+│  └─ Amazon Pay, Mobikwik, Freecharge │
+└──────────────────────────────────────┘
+[          Pay ₹1,499 securely        ]
+🔒 256-bit encrypted · Powered by Lovable
+```
+
+When user picks any option → 2.5s "Confirming with bank..." spinner → success.
+
+### 2.6 Screen 4 — Success
+
+- Lottie/CSS confetti burst (existing `ConfettiCelebration` component)
+- Big checkmark, "Welcome to NutriLens Pro 🎉"
+- "Your trial ends on April 26 · You'll be charged ₹1,499 then"
+- "View receipt" button → opens receipt sheet
+- "Take me to my dashboard" primary CTA
+
+### 2.7 Manage subscription (Profile → Subscription)
+
+- Current plan card (Pro · Yearly · Renews May 23, 2026)
+- Payment method on file (masked: "UPI · ****@ybl")
+- Billing history list (each entry → tap for receipt)
+- "Pause subscription" (1 month, retention lever)
+- "Cancel subscription" (opens existing `RetentionOfferScreen`)
+- "Update payment method"
+
+### 2.8 Autopay / recurring — recommendation
+
+**Yes, default to autopay** (industry standard, lower churn). But:
+- Show "✓ Auto-renews on Apr 26 · cancel anytime in 1 tap" prominently
+- Send email + push **3 days before renewal** (compliance + trust)
+- One-tap cancel from Profile (no support email gauntlet)
+
+For UPI autopay specifically, this requires Razorpay/Stripe later — for now we mock the consent screen so the flow is identical.
 
 ---
 
-## 🔁 Recovery Prompt (paste this when you return)
+## Part 3 — File-level implementation plan
 
+### New files
+
+```text
+src/components/paywall/
+  ├── PaywallScreen.tsx          # Screen 1 (full-screen modal)
+  ├── PlanPickerScreen.tsx       # Screen 2
+  ├── PaymentMethodSheet.tsx     # Screen 3 (the big one)
+  ├── PaymentProcessing.tsx      # Spinner + status messages
+  ├── PaymentSuccessScreen.tsx   # Screen 4
+  ├── ReceiptSheet.tsx           # Tax-invoice style receipt
+  ├── BillingHistorySheet.tsx    # Profile → past payments
+  ├── ManageSubscriptionSheet.tsx # Profile → manage
+  └── TestModeBadge.tsx          # Yellow "Test mode" pill
+
+src/lib/
+  ├── paywall-triggers.ts        # Daily-prompt logic, cooldown rules
+  ├── payment-flow.ts            # State machine for the 4-screen flow
+  └── mock-payment-methods.ts    # Saved methods stub (localStorage)
+
+src/hooks/
+  └── useDailyPaywall.ts         # Hook for app-open daily prompt
 ```
-Resume NutriLens AI build. Context: 8F42B1C3-5D9E-4A7B-B2E1-9C3F4D5A6E7B
 
-Read .lovable/plan.md first. Status when I left:
-- Monetization framework SHIPPED (mock-subscribe works, FB-1 + FB-2 closed)
-- DEV_MOCK_PAYMENTS=true secret set
-- Premium tier quota enforcement live in monika-chat / analyze-food / scan-receipt
+### Modified files
 
-Execute in this order, do NOT skip steps. Create a task tracker entry for
-each numbered item, mark in_progress one at a time, add notes as you
-discover things.
+- `src/components/UpgradeModal.tsx` → replace contents with `<PaywallScreen />` (preserves all existing call sites)
+- `src/lib/subscription-service.ts` → add `recordPayment()` writing to `payment_events` for receipt history
+- `src/pages/Profile.tsx` → add "Subscription" section linking to `ManageSubscriptionSheet`
+- `src/App.tsx` → mount `<DailyPaywallProvider />` once, fires sheet on app open
 
-PHASE 1 — P0 fixes (~3.5h)
-1. Add Sentry error tracking (W2-3): create SENTRY_DSN secret, init in
-   main.tsx, wrap ErrorBoundary, send unhandled rejections.
-2. Move pgvector extension out of public schema (SEC-3): migration to
-   dedicated `extensions` schema, update any callers.
-3. Schedule expire-subscriptions via pg_cron to run daily at 02:00 UTC.
+### Database (one migration)
 
-PAUSE after Phase 1 and show me a status update before continuing.
-
-PHASE 2 — P1 monetization + retention (~11h)
-4. Plug in Lovable Stripe via payments--enable_stripe_payments — replace
-   mock-subscribe call sites with real Stripe Checkout, keep mock as dev
-   fallback gated by DEV_MOCK_PAYMENTS.
-5. Offline queue (W2-1): IndexedDB queue for failed Supabase writes,
-   retry worker on reconnect, surface "X items pending sync" UI.
-6. Funnel events (FB-3): fire signup / first_log / day_7_retained /
-   first_paid_conversion into a new `analytics_events` table.
-
-PHASE 3 — verify & ship (~1h)
-7. Full E2E test: new user → trial → premium → cancel → expire → free.
-8. Update .lovable/plan.md, ticking completed items.
-9. Run supabase--linter, confirm zero high-severity findings.
-
-Begin with Phase 1, item 1 (Sentry).
+```sql
+-- payment_methods table for mock saved methods (real provider tokens later)
+CREATE TABLE public.payment_methods (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  type text NOT NULL CHECK (type IN ('upi','card','netbanking','wallet')),
+  display_name text NOT NULL,    -- "UPI · ****@ybl" or "HDFC ****1234"
+  is_default boolean DEFAULT false,
+  metadata jsonb DEFAULT '{}',
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE public.payment_methods ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users own their methods" ON public.payment_methods
+  FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
 ```
+
+### Mock-subscribe enhancement
+
+Update `supabase/functions/mock-subscribe/index.ts` to accept and store:
+- `payment_method_type` (upi/card/etc.)
+- `display_name`
+- `amount_paise`
+Returns receipt object the success screen renders.
+
+---
+
+## Part 4 — Daily prompt rules (anti-annoyance)
+
+| Rule | Value |
+|---|---|
+| Max shows per day | 1 |
+| Min hours since app open | 2 (don't interrupt active session) |
+| Trigger condition | User has logged ≥1 meal that day (engaged user) |
+| Cooldown after dismiss | 7 days |
+| Cooldown after "Maybe later" | 3 days |
+| Cooldown after starting trial then cancelling | 30 days |
+| Permanently silenced if | User taps "Don't show again" |
+
+Store in `localStorage`: `paywall_state = { lastShown, dismissCount, silenced }`.
+
+---
+
+## Part 5 — Tasks (will be created when you approve)
+
+1. DB migration for `payment_methods` table
+2. Build `PaywallScreen` (Screen 1) with social proof + features
+3. Build `PlanPickerScreen` (Screen 2)
+4. Build `PaymentMethodSheet` (Screen 3) — UPI/Card/NetBanking/Wallet
+5. Build `PaymentProcessing` + `PaymentSuccessScreen`
+6. Build `ReceiptSheet` + `BillingHistorySheet`
+7. Build `ManageSubscriptionSheet` for Profile
+8. Wire `useDailyPaywall` hook with cooldown rules
+9. Enhance `mock-subscribe` to store payment method + return receipt
+10. Replace `UpgradeModal` internals, keep existing call sites working
+11. Add `TestModeBadge` gated by `DEV_MOCK_PAYMENTS` env flag
+12. Smoke test full flow: paywall → plan → payment → success → receipt → cancel
+
+**Total effort: ~6–7 hours**
+
+After this lands, swapping to real Razorpay/Stripe is a 30-minute job: change one function name, remove the test-mode badge, done.
+
+---
+
+## Part 6 — Defer to "real provider day"
+
+These wait for when you create your Razorpay/Stripe account:
+- Real UPI Intent deeplinks (gpay://, phonepe://)
+- Card tokenization
+- Webhook handler for payment events
+- Real autopay mandate consent (UPI AutoPay / e-mandate)
+- GST invoice with company details
+- Refund processing
+
+Everything else ships now.
+
+---
+
+## What I need from you
+
+Reply with one of:
+- **"Approved, build it"** → I'll execute Parts 3–5 (~6–7h)
+- **"Smaller — skip the daily prompt"** → drop the daily nudge, keep the rest (~5h)
+- **"Just the payment sheet for now"** → only Screen 3 + success, hook into existing UpgradeModal (~3h)
+- **"Change something"** → tell me what to adjust
+
