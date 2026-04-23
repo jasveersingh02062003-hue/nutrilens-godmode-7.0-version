@@ -26,7 +26,6 @@ interface PaymentRow {
 }
 
 const MONTHLY_PRICE = 149;
-const YEARLY_PRICE = 1499;
 
 export default function AdminSubscriptions() {
   const [loading, setLoading] = useState(true);
