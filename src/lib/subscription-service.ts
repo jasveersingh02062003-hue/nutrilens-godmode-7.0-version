@@ -190,10 +190,28 @@ export async function cancelSubscription(): Promise<boolean> {
   return true;
 }
 
+/** Optional metadata captured during a mock charge so receipts and the
+ *  Manage sheet can show the actual method/amount the user paid with. */
+export interface MockSubscribeMeta {
+  payment_method_type?: 'upi' | 'card' | 'netbanking' | 'wallet';
+  payment_method_display?: string;
+  amount_paise?: number;
+}
+
 /** Dev-only: flip plan via mock-subscribe edge fn (only works when DEV_MOCK_PAYMENTS=true). */
-export async function mockSubscribe(plan: 'premium' | 'ultra', durationDays = 30): Promise<boolean> {
+export async function mockSubscribe(
+  plan: 'premium' | 'ultra',
+  durationDays = 30,
+  meta?: MockSubscribeMeta,
+): Promise<boolean> {
   const { error } = await supabase.functions.invoke('mock-subscribe', {
-    body: { plan, duration_days: durationDays },
+    body: {
+      plan,
+      duration_days: durationDays,
+      ...(meta?.payment_method_type ? { payment_method_type: meta.payment_method_type } : {}),
+      ...(meta?.payment_method_display ? { payment_method_display: meta.payment_method_display } : {}),
+      ...(typeof meta?.amount_paise === 'number' ? { amount_paise: meta.amount_paise } : {}),
+    },
   });
   if (error) {
     console.warn('[subscription] mock subscribe failed', error.message);
