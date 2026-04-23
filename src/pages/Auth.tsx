@@ -163,6 +163,12 @@ const Auth = function Auth() {
                 </button>
               </div>
 
+              <p className="text-center text-[10px] text-muted-foreground pt-2">
+                By continuing you agree to our{' '}
+                <Link to="/terms" className="text-primary underline">Terms</Link>
+                {' '}and{' '}
+                <Link to="/privacy" className="text-primary underline">Privacy Policy</Link>.
+              </p>
             </div>
           </motion.div>
         )}
@@ -197,7 +203,24 @@ const Auth = function Auth() {
                 </div>
               </div>
 
-              <button onClick={() => handleEmailAuth(mode === 'signup')} disabled={loading} className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50">
+              {mode === 'signup' && (
+                <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={consentGiven}
+                    onChange={e => setConsentGiven(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded border-border accent-primary cursor-pointer shrink-0"
+                  />
+                  <span>
+                    I agree to the{' '}
+                    <Link to="/terms" target="_blank" className="text-primary underline">Terms of Service</Link>
+                    {' '}and{' '}
+                    <Link to="/privacy" target="_blank" className="text-primary underline">Privacy Policy</Link>.
+                  </span>
+                </label>
+              )}
+
+              <button onClick={() => handleEmailAuth(mode === 'signup')} disabled={loading || (mode === 'signup' && !consentGiven)} className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50">
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 {mode === 'signup' ? 'Create Account' : 'Sign In'}
               </button>
