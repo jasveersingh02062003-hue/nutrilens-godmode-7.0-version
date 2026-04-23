@@ -444,6 +444,15 @@ export default function AdminUsers() {
               <SelectItem value="inactive7">Inactive 7d+</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={planFilter} onValueChange={setPlanFilter}>
+            <SelectTrigger><SelectValue placeholder="Plan" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All plans</SelectItem>
+              <SelectItem value="paying">Paying (Pro/Ultra)</SelectItem>
+              <SelectItem value="trial">Trialing</SelectItem>
+              <SelectItem value="free">Free only</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </Card>
 
@@ -459,6 +468,7 @@ export default function AdminUsers() {
                 <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="px-4 py-3">User</th>
                   <th className="px-4 py-3">City</th>
+                  <th className="px-4 py-3">Plan</th>
                   <th className="px-4 py-3">Goal</th>
                   <th className="px-4 py-3">Age</th>
                   <th className="px-4 py-3">Cal/day</th>
