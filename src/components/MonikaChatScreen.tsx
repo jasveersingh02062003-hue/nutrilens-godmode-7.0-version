@@ -11,6 +11,7 @@ import ContextPickerSheet from '@/components/ContextPickerSheet';
 import { getDefaultCategory } from '@/lib/context-learning';
 import { canSendMonicaMessage, incrementMonicaMessage, getRemainingMonicaMessages } from '@/lib/subscription-service';
 import UpgradePrompt from '@/components/UpgradePrompt';
+import HealthDisclaimerBanner from '@/components/HealthDisclaimerBanner';
 
 const quickQuestions = [
   { label: 'Log a meal', icon: '🍽️' },
@@ -636,6 +637,10 @@ export default function MonikaChatScreen({ open, onClose, onDashboardRefresh }: 
 
       {/* Input area */}
       <div className="px-4 pb-4 pt-2 border-t border-border bg-card">
+        {/* Per-session medical disclaimer */}
+        <div className="mb-2">
+          <HealthDisclaimerBanner surface="monika" compact />
+        </div>
         <div className="flex items-center gap-2">
           {/* Image upload */}
           <input
@@ -688,6 +693,9 @@ export default function MonikaChatScreen({ open, onClose, onDashboardRefresh }: 
             <Send className="w-3.5 h-3.5 text-primary-foreground" />
           </button>
         </div>
+        <p className="text-[9px] text-muted-foreground text-center mt-1.5">
+          AI suggestions — not medical advice.
+        </p>
       </div>
       {/* Context Picker for meal actions */}
       <ContextPickerSheet
