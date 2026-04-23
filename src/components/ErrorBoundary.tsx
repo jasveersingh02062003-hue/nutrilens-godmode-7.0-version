@@ -1,6 +1,7 @@
 import { Component, type ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { attemptModuleImportRecovery, clearRuntimeCaches, isRecoverableModuleError } from '@/lib/module-recovery';
+import { Sentry } from '@/lib/sentry';
 
 interface Props {
   children: ReactNode;
@@ -37,6 +38,13 @@ export default class ErrorBoundary extends Component<Props, State> {
     }
 
     console.error('[ErrorBoundary] Uncaught error:', error, info.componentStack);
+    try {
+      Sentry.captureException(error, {
+        contexts: { react: { componentStack: info.componentStack } },
+      });
+    } catch {
+      // never let monitoring break the boundary
+    }
   }
 
   handleReload = async () => {
