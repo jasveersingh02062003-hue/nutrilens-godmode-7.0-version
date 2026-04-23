@@ -1,144 +1,145 @@
 
 
-# Two-App Blueprint v3 — Gap Analysis & Build Plan
+# Phase 11 — Security Hardening (7 Blockers)
 
-The user wants every PDF feature inside **this single app** (no separate Lovable project). Below is the honest checklist of what exists vs. what's missing, then a prioritized 5-phase plan.
+Lock down the 7 critical vulnerabilities found in the audit. One migration per blocker so each is reviewable and reversible. Order: most dangerous first.
 
----
-
-## Part 1 — Checklist (PDF v3 vs current app)
-
-Legend: ✅ done · 🟡 partial · ❌ missing
-
-### Section 6 — Security
-| Item | Status | Notes |
-|---|---|---|
-| `user_roles` table + `has_role()` | ✅ | Working |
-| RLS on all 21 tables | ✅ | Verified in schema |
-| `audit_logs` table + super-admin read | ✅ | Wired in `src/lib/audit.ts` |
-| PII masking in lists + reveal-with-reason | ✅ | `AdminUsers.tsx` reveal modal |
-| `marketing_consent` column on profiles | ✅ | Already in profiles |
-| `consent_records` per-purpose table | ✅ | Created Phase 1 |
-
-### Section 7 — Staff roles (owner/admin/marketer/support/brand)
-| Role | Status | Notes |
-|---|---|---|
-| `admin` / `super_admin` | ✅ | In enum |
-| `brand_manager` | ✅ | Added Phase 1 (PDF calls it `brand`) |
-| `owner` | ❌ | Missing from enum |
-| `marketer` | ❌ | Missing — needed for export-only access |
-| `support` | ❌ | Missing — single-user view, no exports |
-| Staff management UI (`/admin/staff`) to assign roles | ❌ | No UI exists |
-| Per-role nav visibility (matrix in PDF §7.3) | 🟡 | Sidebar shows all admin items regardless |
-| RLS policies referencing new roles | ❌ | Need policies for marketer/support |
-
-### Section 8 — Brand onboarding
-| Item | Status |
-|---|---|
-| Manual brand create (admin) | ✅ |
-| `brand_accounts`, `brand_members`, `brand_transactions`, `brand_documents` | ✅ |
-| KYC doc upload to private bucket | ✅ |
-| Wallet top-up + ledger | ✅ |
-| Brand intake form on consumer site (8 questions) | ❌ |
-| `/brand/dashboard` self-serve KPIs | ✅ |
-| `/brand/campaigns` list/pause/resume/edit | ❌ |
-| `/brand/new` campaign wizard | ❌ |
-| `/brand/billing` top-up + invoice download | ❌ |
-| `/brand/products` submit packed_products | ❌ |
-
-### Section 9 — Ad lifecycle
-| Item | Status |
-|---|---|
-| `select-ads` edge function (server-side ranking) | ✅ |
-| Impression / click / conversion tables | ✅ |
-| Auto-pause when `budget_spent >= budget_total` | ❌ Missing — flips to paused never enforced |
-| Spend pacing card (today vs daily budget) on `/admin/ads/[id]` | ❌ |
-| CTR / CR per-campaign detail page `/admin/ads/[id]` | 🟡 List exists; no detail page |
-
-### Section 10 — Cost dashboard
-| Item | Status |
-|---|---|
-| `api_usage` table | ✅ Exists, RLS = admin read |
-| Edge functions logging to `api_usage` (analyze-food, monika-chat, firecrawl-prices, scan-receipt) | ❌ None of them insert |
-| `/admin/costs` page (today, this month, top user, profit/loss) | ❌ Page doesn't exist |
-| Firecrawl credits-left card | ❌ |
-| Cost-per-MAU card | ❌ |
-| Profit/loss today (revenue − cost) on Overview | ❌ |
-
-### Section 12 — Performance (PDF says "do this BEFORE admin work")
-| Bottleneck | Status |
-|---|---|
-| Route-level lazy-loading for consumer routes | 🟡 Admin routes lazy; consumer Plans/Market/Pantry/Profile not |
-| `supabase.channel` cleanup audit | ❓ unverified |
-| Dashboard 8+ queries → batched `Promise.all` | ❓ unverified |
-| Defer localStorage scan to `requestIdleCallback` | ❌ |
-| `useMemo` calorie/PES engines by date+log signature | ❓ unverified |
-| `react-window` for >50-item lists (Pantry, history) | ❌ |
-
-### Section 13 — Ops (admin nav)
-| Item | Status |
-|---|---|
-| `/admin/support` (feedback queue) | ✅ AdminFeedback exists |
-| Daily/weekly/monthly checklist surface | ❌ No `/admin/ops` page |
-
-### Skipped (per "one app" decision)
-- Separate `admin.nutrilens.in` subdomain
-- App Store / Play Store wrapping
-- Razorpay (deferred until charging starts)
+> **Note on blocker #6:** Backend rate-limiting primitives don't exist yet in this stack. I'll implement a lightweight ad-hoc check using `api_usage` row counts as you specified, but flagging it as best-effort (not bulletproof against burst attacks). All other blockers are clean RLS fixes.
 
 ---
 
-## Part 2 — Prioritized build plan (5 phases)
+## Blocker #4 — `user_roles` privilege escalation 🔴 CRITICAL
 
-### Phase 6 — Staff roles & nav gating (~1 session) **[foundation]**
-1. Migration: extend `app_role` enum with `owner`, `marketer`, `support`. Add `is_marketer()` / `is_support()` helper fns.
-2. Update `useAdminRole` hook → return `{ isOwner, isAdmin, isMarketer, isSupport, isBrand }`.
-3. `AdminLayout` sidebar — apply PDF §7.3 visibility matrix per role.
-4. New page `/admin/staff` — list users with roles, owner-only assign/revoke role UI, writes to `audit_logs.role_change`.
-5. RLS: marketer can SELECT profiles (mask still applied client-side); support gets per-row read via target_user_id only on demand.
+**Problem:** Current policy `Admins can manage roles` lets anyone with `admin` role grant themselves `owner`. No audit trail on role changes.
 
-### Phase 7 — Cost dashboard end-to-end (~1.5 sessions) **[founder visibility]**
-6. Add `logApiUsage()` server helper in each edge function (`analyze-food`, `monika-chat`, `firecrawl-prices`, `scan-receipt`, `select-ads`) — INSERT vendor + units + cost_inr + user_id after every external call. Constants for INR/unit live in one shared file.
-7. New page `/admin/costs`: cards for today's spend, MTD spend, top user by AI cost, Firecrawl credits left (manual constant for now), cost-per-MAU, profit-today (sum of `event_plans` revenue map − api_usage.cost_inr).
-8. Add **Profit today** card to Overview (just reuses queries).
-9. `cost_constants` table (admin-editable) for non-API costs (Supabase, WhatsApp) — optional but in scope.
-
-### Phase 8 — Brand portal completion + intake (~2 sessions) **[B2B]**
-10. `/brand/campaigns` — list of brand's campaigns, pause/resume buttons, edit budget.
-11. `/brand/new` — 5-step wizard (name → targeting → creative → budget → preview → submit). Writes to `ad_campaigns` + `ad_creatives` + `ad_targeting` with brand_id locked.
-12. `/brand/billing` — current balance, transactions ledger, invoice PDF generator (per month).
-13. `/brand/products` — submit form → row in `packed_products` with `is_verified=false` for admin approval.
-14. Public **Brand Intake page** at `/advertise` (consumer-facing, no auth) — 8-question form, submits to `brand_intake` (new table) for admin to convert into a real `brand_accounts` row.
-
-### Phase 9 — Ad lifecycle automation + detail page (~1 session) **[ops]**
-15. `/admin/ads/[id]` campaign detail page: funnel, daily spend chart, pacing card (today's spend vs `budget_total/days_left`), creative preview, audit trail.
-16. Update `select-ads` edge fn: skip campaigns where `budget_spent >= budget_total` and auto-update `status='paused'` atomically when threshold crossed.
-17. Cron-triggered edge function `nightly-ad-health` (pg_cron `0 0 * * *`): pause overspent, alert via `feedback`-style queue when CTR < 0.3%.
-
-### Phase 10 — Performance hardening + Ops page (~1.5 sessions) **[PDF §12]**
-18. Lazy-load consumer routes: Plans, Market, Pantry, Profile, Progress, MealPlanner.
-19. Audit every `supabase.channel(...).subscribe()` — add `removeChannel` in cleanup.
-20. Batch Dashboard mount queries into a single `Promise.all`; verify with React Profiler.
-21. `useMemo` calorie/PES engines keyed on `(date, logHash)`.
-22. `react-window` for Pantry list and Food Archive when >50 items.
-23. New page `/admin/ops` — read-only checklist mirroring PDF §13.1/§13.2/§13.3 with live "✓ done today" markers driven by `audit_logs` events (e.g., "exported segment today" = green).
+**Fix (migration 1):**
+- DROP `Admins can manage roles` and `Admins can read all roles` policies.
+- Keep only: `Owners manage roles` (ALL) + `Users can read own roles` (SELECT) + new `Admins read all roles` (SELECT only, no write).
+- Add `BEFORE INSERT/UPDATE/DELETE` trigger `audit_user_role_changes()` → writes actor, target, old/new role to `audit_logs`.
 
 ---
 
-## Part 3 — Technical notes
+## Blocker #1 — `ad_campaigns` cross-brand tampering
 
-- **Roles**: enum-extension migrations are non-destructive but irreversible — add all four (`owner`, `marketer`, `support`) in one transaction.
-- **Cost logging contract**: every edge function will call a shared `logApiUsage(supabase, {vendor, endpoint, units, cost_inr, user_id, metadata})` helper colocated in `supabase/functions/_shared/api-usage.ts`.
-- **Brand intake**: consumer-facing `/advertise` route uses anon insert into a new `brand_intake` table (RLS: anon insert allowed, only admins read).
-- **Auto-pause**: handled both reactively (in `select-ads` before serving) and proactively (nightly cron) for safety.
-- **Performance**: lazy routes wrap in `<Suspense>` with the existing `PageTransition` skeleton.
-- **No new app**: every page lives under `/admin/*`, `/brand/*`, or one consumer `/advertise` route.
+**Problem:** `Authenticated can update campaigns` lets ANY logged-in user edit ANY brand's budget/status.
+
+**Fix (migration 2):**
+- DROP `Authenticated can update campaigns` and `Authenticated can insert campaigns`.
+- ADD `Brand members manage own campaigns` (INSERT/UPDATE) using `is_brand_member(brand_id)`.
+- ADD `Admins manage all campaigns` (ALL) using `has_role` checks.
+- Edge function `select-ads` uses service-role, unaffected.
 
 ---
 
-## Part 4 — What ships per phase
+## Blocker #2 — `ad_targeting` cross-brand tampering
 
-Each phase = approved migration (where needed) + edits + working UI. Stoppable boundary after every phase.
+**Problem:** Same issue — anyone can rewrite any campaign's targeting.
 
-**Recommendation**: approve **Phase 6 + 7 together** (roles + cost dashboard) — biggest founder-visibility win. Then iterate.
+**Fix (migration 3):**
+- DROP `Authenticated can insert targeting` + `Authenticated can update targeting`.
+- ADD scoped policies that check the parent campaign's `brand_id` via subquery to `ad_campaigns` + `is_brand_member`.
+
+---
+
+## Blocker #3 — `brand_accounts.balance` writable
+
+**Problem:** `Authenticated can update brands` lets brand members directly edit `balance` (bypassing `brand_transactions` ledger).
+
+**Fix (migration 4):**
+- DROP `Authenticated can update brands` + `Authenticated can insert brands`.
+- ADD `Brand members update brand profile` (UPDATE) but with column-level grant: revoke UPDATE on `balance` from authenticated; only admins/service-role can touch balance.
+- ADD trigger `block_balance_direct_write()` → raises exception unless `current_setting('role') = 'service_role'` or actor has admin role.
+- Balance changes must flow through a new SECURITY DEFINER function `apply_brand_transaction(brand_id, amount, type, ref)` that inserts into `brand_transactions` AND updates `balance` atomically.
+
+---
+
+## Blocker #5 — `profiles` PII leak to marketers
+
+**Problem:** `Marketers read all profiles` returns unmasked email/phone/health data.
+
+**Fix (migration 5):**
+- DROP `Marketers read all profiles` policy.
+- CREATE SECURITY DEFINER view `public.profiles_masked` exposing only: `id, name, city, gender, age, goal, marketing_consent, join_date` + `mask_email(email)` helper.
+- GRANT SELECT on view to authenticated.
+- Add view-level policy: only marketers/support/admins can SELECT.
+- Update `src/pages/admin/AdminUsers.tsx` and `AdminUserDetail.tsx` to query `profiles_masked` when `isMarketer && !isAdmin`.
+
+---
+
+## Blocker #6 — Rate limit `analyze-food` + `monika-chat` ⚠️ ad-hoc
+
+**Caveat:** No proper rate-limit infrastructure exists. Implementing a soft cap by counting recent `api_usage` rows for the user.
+
+**Fix (no migration, edge-function edit):**
+- Add helper `supabase/functions/_shared/rate-limit.ts`:
+  - Query `api_usage` WHERE `metadata->>'user_id' = X AND endpoint = Y AND created_at > now() - interval '1 minute'`.
+  - If count ≥ 10, return 429 with `Retry-After: 60`.
+- Wire helper at top of `analyze-food/index.ts` and `monika-chat/index.ts`.
+- Client toast on 429: "You're going a bit fast — try again in a moment."
+
+---
+
+## Blocker #7 — `daily_logs` optimistic locking
+
+**Problem:** Concurrent multi-device writes silently overwrite each other (last-write-wins on JSONB blob).
+
+**Fix (migration 6 + client edit):**
+- Add SECURITY DEFINER function `upsert_daily_log(p_user uuid, p_date text, p_data jsonb, p_expected_updated_at timestamptz)`:
+  - If row exists and `updated_at != p_expected_updated_at` → RAISE 'CONFLICT' with code `P0409`.
+  - Else upsert and return new row with fresh `updated_at`.
+- Update `src/lib/cloud-sync.ts`:
+  - Track last-known `updated_at` per log_date.
+  - Call new RPC instead of direct upsert.
+  - On `P0409`: re-fetch server row, deep-merge with local pending changes (server wins on conflicting meal IDs, local wins on new entries), retry once.
+
+---
+
+## Execution Order
+
+1. Migration 1 — `user_roles` lockdown + audit trigger
+2. Migration 2 — `ad_campaigns` brand-scoped RLS
+3. Migration 3 — `ad_targeting` brand-scoped RLS
+4. Migration 4 — `brand_accounts` balance protection + `apply_brand_transaction` RPC
+5. Migration 5 — `profiles_masked` view + revoke marketer raw SELECT
+6. Edge edits — `analyze-food` + `monika-chat` rate limit
+7. Migration 6 — `upsert_daily_log` RPC + `cloud-sync.ts` retry logic
+8. Re-run security scanner after migrations 1, 4, 5, 6 (the structural ones)
+9. Mark fixed findings in scanner; report final verdict
+
+---
+
+## Files Touched
+
+**Migrations (6 new):** one per blocker as listed.
+
+**Edge functions:**
+- `supabase/functions/_shared/rate-limit.ts` (new)
+- `supabase/functions/analyze-food/index.ts` (edit)
+- `supabase/functions/monika-chat/index.ts` (edit)
+
+**Client code:**
+- `src/lib/cloud-sync.ts` (optimistic-lock retry)
+- `src/pages/admin/AdminUsers.tsx` (use masked view for marketers)
+- `src/pages/admin/AdminUserDetail.tsx` (same)
+- `src/pages/brand/BrandBilling.tsx` (call `apply_brand_transaction` RPC instead of direct balance update — if any such call exists)
+- `src/pages/admin/AdminBrandDetail.tsx` (same)
+
+---
+
+## What I will NOT touch (saved for Phase 12/13)
+
+- Razorpay integration
+- Privacy Policy / ToS pages
+- Sentry / error monitoring
+- Health disclaimers
+- Pagination on Progress / FoodArchive
+
+---
+
+## Stop Condition
+
+After all 7 blockers + final scanner run, I'll report:
+- 🟢 fixed count
+- 🟡 anything that surfaced new findings
+- Updated launch verdict (expect: "ready for closed beta of ≤100 users pending Phase 12 legal/monitoring")
 
