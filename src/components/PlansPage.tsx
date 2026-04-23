@@ -4,7 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { motion, AnimatePresence } from 'framer-motion';
 import { Crown, Check, ChevronDown, ChevronUp, ArrowRight, Star, Zap, Clock, X, Gift } from 'lucide-react';
 import { mobileOverlayMotion, mobileOverlayTransition, mobileSheetMotion, mobileSheetTransition, useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
-import { getPlan, setPlan, isTrialActive, hasUsedTrial, startFreeTrial, getTrialDaysRemaining, hasTrialExpired, checkAndExpireTrial, type Plan } from '@/lib/subscription-service';
+import { getPlan, mockSubscribe, isTrialActive, hasUsedTrial, startFreeTrial, getTrialDaysRemaining, hasTrialExpired, checkAndExpireTrial, type Plan } from '@/lib/subscription-service';
 import { toast } from 'sonner';
 
 interface Props {
@@ -122,26 +122,32 @@ export default function PlansPage({ open, onClose, onPlanChanged }: Props) {
     return () => clearInterval(interval);
   }, [open]);
 
-  const handleSelectPlan = (planId: Plan) => {
+  const handleSelectPlan = async (planId: Plan) => {
     if (planId === currentPlan) return;
     didUpgrade.current = true;
     if (planId === 'free') {
-      setPlan('free');
-      toast.success('Switched to Free plan');
+      toast.info('To downgrade, please cancel your active subscription from Profile.');
     } else {
-      setPlan(planId);
-      toast.success(`Upgraded to ${planId === 'premium' ? 'Pro' : 'Ultra'}! 🎉`);
+      const ok = await mockSubscribe(planId, duration === '12months' ? 365 : 30);
+      if (ok) {
+        toast.success(`Upgraded to ${planId === 'premium' ? 'Pro' : 'Ultra'}! 🎉`);
+      } else {
+        toast.info('Payment integration coming soon. Real checkout will go live with Razorpay/Stripe.');
+      }
     }
     onPlanChanged();
     onClose();
   };
 
-  const handleStartTrial = () => {
-    if (startFreeTrial()) {
+  const handleStartTrial = async () => {
+    const ok = await startFreeTrial();
+    if (ok) {
       didUpgrade.current = true;
       toast.success('Premium trial started! Enjoy 3 days of Pro features 🎉');
       onPlanChanged();
       onClose();
+    } else {
+      toast.error('Trial unavailable — you may have used it already.');
     }
   };
 
@@ -159,10 +165,11 @@ export default function PlansPage({ open, onClose, onPlanChanged }: Props) {
     onClose();
   };
 
-  const handleRetentionUpgrade = () => {
+  const handleRetentionUpgrade = async () => {
     didUpgrade.current = true;
-    setPlan('premium');
-    toast.success('Special offer applied! Upgraded to Pro 🎉');
+    const ok = await mockSubscribe('premium', 365);
+    if (ok) toast.success('Special offer applied! Upgraded to Pro 🎉');
+    else toast.info('Payment integration coming soon — your offer is saved.');
     onPlanChanged();
     setShowRetention(false);
     onClose();

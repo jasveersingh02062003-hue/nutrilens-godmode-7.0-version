@@ -28,10 +28,13 @@ export default function UpgradePrompt({ feature, remaining, onUpgraded }: Props)
   const msg = messages[feature];
   const trialAvailable = !hasUsedTrial();
 
-  const handleStartTrial = () => {
-    if (startFreeTrial()) {
+  const handleStartTrial = async () => {
+    const ok = await startFreeTrial();
+    if (ok) {
       toast.success('Premium trial started! Enjoy 3 days free 🎉');
       onUpgraded?.();
+    } else {
+      toast.error('Trial unavailable — you may have used it already.');
     }
   };
 
