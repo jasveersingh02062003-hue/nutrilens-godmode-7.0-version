@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import type { FoodItem } from '@/lib/store';
+import { fireOnce } from '@/lib/funnel';
 
 interface Props {
   open: boolean;
@@ -76,6 +77,7 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
     }
 
     onAdd(finalItem);
+    void fireOnce('first_meal_logged', { source: 'add_food_sheet', food: food.name });
     setQuery('');
   };
 
@@ -89,6 +91,7 @@ export default function AddFoodSheet({ open, onOpenChange, onAdd }: Props) {
     }
 
     onAdd(pendingItem.item);
+    void fireOnce('first_meal_logged', { source: 'add_food_sheet', food: pendingItem.food?.name });
     setPendingItem(null);
     setShowSevereConfirm(false);
     setQuery('');

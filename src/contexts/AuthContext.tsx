@@ -6,6 +6,28 @@ import { profileToDbRow, dbRowToProfile } from '@/lib/profile-mapper';
 import { setScopedUserId, clearScopedData } from '@/lib/scoped-storage';
 import { setSentryUser } from '@/lib/sentry';
 import { initSubscriptionService } from '@/lib/subscription-service';
+import { logEvent } from '@/lib/events';
+
+// Module-scoped guard so `signup` only fires the very first time we see this user
+// in this browser session (created_at within the last few minutes).
+const SEEN_USERS_KEY = 'nutrilens_seen_user_ids';
+function hasSeenUser(id: string): boolean {
+  try {
+    const raw = localStorage.getItem(SEEN_USERS_KEY);
+    const ids: string[] = raw ? JSON.parse(raw) : [];
+    return ids.includes(id);
+  } catch { return false; }
+}
+function markUserSeen(id: string) {
+  try {
+    const raw = localStorage.getItem(SEEN_USERS_KEY);
+    const ids: string[] = raw ? JSON.parse(raw) : [];
+    if (!ids.includes(id)) {
+      ids.push(id);
+      localStorage.setItem(SEEN_USERS_KEY, JSON.stringify(ids.slice(-50)));
+    }
+  } catch { /* noop */ }
+}
 
 interface AuthContextValue {
   user: User | null;
@@ -38,8 +60,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       initSubscriptionService(nextSession?.user?.id ?? null);
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
       applySession(nextSession);
+      // Funnel: SIGNED_IN fires both for fresh signups and restored sessions.
+      // Treat first-ever sighting of a user_id in this browser as the signup;
+      // every subsequent sign-in counts as an app_opened.
+      const uid = nextSession?.user?.id;
+      if (uid && event === 'SIGNED_IN') {
+        if (!hasSeenUser(uid)) {
+          markUserSeen(uid);
+          void logEvent({ name: 'signup', properties: { method: nextSession?.user?.app_metadata?.provider ?? 'email' } });
+        }
+        void logEvent({ name: 'app_opened' });
+      }
       if (hasRestoredSessionRef.current) {
         setIsLoading(false);
       }
@@ -48,6 +81,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void supabase.auth.getSession().then(({ data: { session: nextSession } }) => {
       hasRestoredSessionRef.current = true;
       applySession(nextSession);
+      const uid = nextSession?.user?.id;
+      if (uid) {
+        if (!hasSeenUser(uid)) markUserSeen(uid);
+        void logEvent({ name: 'app_opened' });
+      }
       setIsLoading(false);
     });
 
