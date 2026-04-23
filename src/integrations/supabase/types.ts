@@ -1294,6 +1294,48 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      age_bucket: { Args: { _age: number }; Returns: string }
+      apply_brand_transaction: {
+        Args: {
+          p_amount: number
+          p_brand_id: string
+          p_notes?: string
+          p_reference?: string
+          p_type: string
+        }
+        Returns: string
+      }
+      campaign_brand_id: { Args: { _campaign_id: string }; Returns: string }
+      get_masked_profile: {
+        Args: { _user_id: string }
+        Returns: {
+          age_range: string
+          city: string
+          created_at: string
+          first_name: string
+          gender: string
+          goal: string
+          id: string
+          join_date: string
+          marketing_consent: boolean
+          onboarding_complete: boolean
+        }[]
+      }
+      get_masked_profiles: {
+        Args: never
+        Returns: {
+          age_range: string
+          city: string
+          created_at: string
+          first_name: string
+          gender: string
+          goal: string
+          id: string
+          join_date: string
+          marketing_consent: boolean
+          onboarding_complete: boolean
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1305,6 +1347,19 @@ export type Database = {
       is_marketer: { Args: { _user_id: string }; Returns: boolean }
       is_owner: { Args: { _user_id: string }; Returns: boolean }
       is_support: { Args: { _user_id: string }; Returns: boolean }
+      upsert_daily_log: {
+        Args: {
+          p_expected_updated_at: string
+          p_log_data: Json
+          p_log_date: string
+        }
+        Returns: {
+          id: string
+          log_data: Json
+          log_date: string
+          updated_at: string
+        }[]
+      }
     }
     Enums: {
       app_role:

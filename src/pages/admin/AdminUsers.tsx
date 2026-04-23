@@ -53,7 +53,7 @@ function bandFor(age: number | null) {
 }
 
 export default function AdminUsers() {
-  const { isSuperAdmin } = useAdminRole();
+  const { isSuperAdmin, isAdmin, isMarketer, isSupport } = useAdminRole();
   const navigate = useNavigate();
   const [rows, setRows] = useState<ProfileRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,6 +61,8 @@ export default function AdminUsers() {
   const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
   const [activeUserIds, setActiveUserIds] = useState<Set<string>>(new Set());
   const [segments, setSegments] = useState<SavedSegment[]>(() => listSegments());
+  // Marketers/support read PII-masked rows via RPC; admins read full table directly
+  const useMaskedView = (isMarketer || isSupport) && !isAdmin;
 
   // Reveal modal state
   const [revealTarget, setRevealTarget] = useState<ProfileRow | null>(null);
@@ -80,23 +82,48 @@ export default function AdminUsers() {
 
   useEffect(() => {
     (async () => {
-      const [profilesRes, recentLogsRes] = await Promise.all([
-        supabase
+      const recentLogsPromise = supabase
+        .from('daily_logs')
+        .select('user_id')
+        .gte('log_date', daysAgoISO(7));
+
+      let profileRows: ProfileRow[] = [];
+      let profileError: any = null;
+
+      if (useMaskedView) {
+        const { data, error } = await (supabase.rpc as any)('get_masked_profiles');
+        profileError = error;
+        // Map masked shape → ProfileRow shape (sensitive fields blank)
+        profileRows = ((data ?? []) as any[]).map((r) => ({
+          id: r.id,
+          name: r.first_name ?? null,
+          city: r.city ?? null,
+          goal: r.goal ?? null,
+          gender: r.gender ?? null,
+          age: null, // exact age hidden — age_range available in r.age_range
+          weight_kg: null,
+          daily_calories: null,
+          onboarding_complete: r.onboarding_complete ?? null,
+          created_at: r.created_at ?? null,
+          marketing_consent: r.marketing_consent ?? false,
+        }));
+      } else {
+        const { data, error } = await supabase
           .from('profiles')
           .select('id, name, city, goal, gender, age, weight_kg, daily_calories, onboarding_complete, created_at, marketing_consent')
           .order('created_at', { ascending: false })
-          .limit(2000),
-        supabase
-          .from('daily_logs')
-          .select('user_id')
-          .gte('log_date', daysAgoISO(7)),
-      ]);
-      if (profilesRes.error) toast.error(profilesRes.error.message);
-      setRows((profilesRes.data ?? []) as ProfileRow[]);
+          .limit(2000);
+        profileError = error;
+        profileRows = (data ?? []) as ProfileRow[];
+      }
+
+      const recentLogsRes = await recentLogsPromise;
+      if (profileError) toast.error(profileError.message);
+      setRows(profileRows);
       setActiveUserIds(new Set((recentLogsRes.data ?? []).map((r: any) => r.user_id)));
       setLoading(false);
     })();
-  }, []);
+  }, [useMaskedView]);
 
   const cities = useMemo(
     () => Array.from(new Set(rows.map(r => r.city).filter(Boolean) as string[])).sort(),
