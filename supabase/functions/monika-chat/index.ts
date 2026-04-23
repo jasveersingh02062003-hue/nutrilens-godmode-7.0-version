@@ -656,6 +656,7 @@ RULES:
       costInr: estimateLovableAiCost("google/gemini-2.5-flash", 2000),
       metadata: { streamed: true, messageCount: apiMessages.length },
     });
+    if (userClient) void incrementQuota(userClient, "monika-chat");
 
     return new Response(response.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },

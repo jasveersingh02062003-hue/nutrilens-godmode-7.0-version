@@ -141,6 +141,7 @@ Return ONLY valid JSON using the tool provided.`;
       costInr: estimateLovableAiCost("google/gemini-2.5-flash-vision", totalTokens || 1200),
       metadata: { model: "gemini-2.5-flash" },
     });
+    if (userClient) void incrementQuota(userClient, "scan-receipt");
     
     if (toolCall?.function?.arguments) {
       const parsed = JSON.parse(toolCall.function.arguments);

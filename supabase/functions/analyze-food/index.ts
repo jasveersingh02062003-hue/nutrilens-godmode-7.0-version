@@ -204,6 +204,8 @@ serve(async (req) => {
       costInr: estimateLovableAiCost("google/gemini-2.5-flash-vision", totalTokens || 1500),
       metadata: { hasImage: !!imageBase64, model: "gemini-2.5-flash" },
     });
+    // Quota: only count successful calls so failures don't burn the user's allowance
+    if (userClient) void incrementQuota(userClient, "analyze-food");
     
     // Extract JSON from the response (handle potential markdown wrapping)
     let jsonStr = content;
