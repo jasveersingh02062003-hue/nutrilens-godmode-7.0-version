@@ -26,7 +26,6 @@ interface PaymentRow {
 }
 
 const MONTHLY_PRICE = 149;
-const YEARLY_PRICE = 1499;
 
 export default function AdminSubscriptions() {
   const [loading, setLoading] = useState(true);
@@ -54,9 +53,14 @@ export default function AdminSubscriptions() {
   const cancelling = subs.filter(s => s.cancel_at_period_end && s.status === 'active');
   const ultra = subs.filter(s => s.plan === 'ultra' && s.status === 'active');
 
-  // Estimate MRR: each active premium = ₹149/mo (yearly amortized = ₹125/mo, but mock can't tell, so use last payment amount)
-  // For now, count active paying users × monthly equivalent
-  const mrr = paying.length * MONTHLY_PRICE;
+  // True MRR: derive from last subscribe payment per user. Yearly plans
+  // (≥ ₹1,000) are amortised across 12 months; monthly plans count as-is.
+  // Users without a payment row fall back to the standard monthly price.
+  const mrr = paying.reduce((sum, u) => {
+    const last = payments.find(p => p.user_id === u.user_id && p.event_type === 'subscribe');
+    if (!last || last.amount_inr == null) return sum + MONTHLY_PRICE;
+    return sum + (last.amount_inr >= 1000 ? Math.round(last.amount_inr / 12) : last.amount_inr);
+  }, 0);
   const arr = mrr * 12;
 
   const subscribeEvents = payments.filter(p => p.event_type === 'subscribe');
