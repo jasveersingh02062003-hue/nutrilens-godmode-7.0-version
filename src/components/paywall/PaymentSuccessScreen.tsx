@@ -35,7 +35,7 @@ export default function PaymentSuccessScreen({ receipt, planLabel, durationDays,
       exit={{ opacity: 0 }}
       className="h-full flex flex-col bg-background relative overflow-hidden"
     >
-      <ConfettiCelebration trigger={true} />
+      <ConfettiCelebration show={true} />
 
       <div className="flex-1 overflow-y-auto px-6 pt-12 pb-32 flex flex-col items-center text-center">
         <motion.div
