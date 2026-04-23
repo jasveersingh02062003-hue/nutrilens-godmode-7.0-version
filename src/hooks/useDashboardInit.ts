@@ -171,9 +171,28 @@ export function useDashboardInit() {
 
   // ── Polling & reactive sync ──
   useEffect(() => {
+    // Safe reload guard — prevents infinite reload loops if state ever
+    // gets stuck at midnight rollover. Caps automatic reloads at 3/session.
+    const safeReload = (reason: string) => {
+      try {
+        const raw = sessionStorage.getItem('nl_reload_count');
+        const count = raw ? parseInt(raw, 10) || 0 : 0;
+        if (count >= 3) {
+          console.warn(`[useDashboardInit] safeReload skipped (${reason}): cap reached (${count})`);
+          // Best-effort: refresh local state without a hard reload
+          setLog(getDailyLog());
+          return;
+        }
+        sessionStorage.setItem('nl_reload_count', String(count + 1));
+        window.location.reload();
+      } catch (err) {
+        console.warn('[useDashboardInit] safeReload failed', err);
+      }
+    };
+
     const interval = setInterval(() => {
       const nowKey = getTodayKey();
-      if (nowKey !== log.date) window.location.reload();
+      if (nowKey !== log.date) safeReload('date_rollover');
       setLog(getDailyLog());
       setBudgetAlert(getLatestBudgetAlert());
       const { milestones } = checkAndUpdateStreaks();
@@ -191,7 +210,12 @@ export function useDashboardInit() {
     };
     onCalorieBankUpdate(handleBankUpdate);
 
-    const handleGlobalUpdate = () => setLog(getDailyLog());
+    const handleGlobalUpdate = () => {
+      // Legitimate user-driven update — reset reload counter so future
+      // rollovers aren't penalized by an unrelated earlier glitch.
+      try { sessionStorage.removeItem('nl_reload_count'); } catch { /* ignore */ }
+      setLog(getDailyLog());
+    };
     window.addEventListener('nutrilens:update', handleGlobalUpdate);
     window.addEventListener('storage', handleGlobalUpdate);
     window.addEventListener('focus', handleGlobalUpdate);
