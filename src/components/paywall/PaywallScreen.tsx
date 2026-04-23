@@ -84,7 +84,7 @@ export default function PaywallScreen({ open, onClose, onUpgraded, startAtPlanPi
                     <span className="text-primary">2× faster</span> with AI
                   </h1>
                   <p className="text-sm text-muted-foreground mt-2">
-                    Join {proCount.toLocaleString('en-IN')}+ Indians already on Pro
+                    Join {proCount >= 1000 ? `${(proCount / 1000).toFixed(1)}k+` : proCount.toLocaleString('en-IN')} Indians already on Pro
                   </p>
                 </motion.div>
 
