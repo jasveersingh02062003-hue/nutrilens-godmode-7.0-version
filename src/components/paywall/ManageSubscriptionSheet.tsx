@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Crown, Calendar, CreditCard, FileText, XCircle, ChevronRight, IndianRupee } from 'lucide-react';
-import { onPlanChange, cancelSubscription, type Plan } from '@/lib/subscription-service';
+import { Crown, Calendar, CreditCard, FileText, XCircle, ChevronRight, IndianRupee, PauseCircle, PlayCircle } from 'lucide-react';
+import {
+  onPlanChange, cancelSubscription, pauseSubscription, resumeSubscription,
+  type Plan, type SubscriptionStatus,
+} from '@/lib/subscription-service';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import BillingHistorySheet from './BillingHistorySheet';
