@@ -1552,6 +1552,21 @@ export type Database = {
       is_owner: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
       is_support: { Args: { _user_id: string }; Returns: boolean }
+      pause_my_subscription: {
+        Args: { p_days?: number }
+        Returns: {
+          current_period_end: string
+          paused_until: string
+          status: Database["public"]["Enums"]["subscription_status"]
+        }[]
+      }
+      resume_my_subscription: {
+        Args: never
+        Returns: {
+          current_period_end: string
+          status: Database["public"]["Enums"]["subscription_status"]
+        }[]
+      }
       start_trial: {
         Args: never
         Returns: {
