@@ -18,6 +18,7 @@ import { attemptModuleImportRecovery, clearModuleImportRecovery, isRecoverableMo
 import DashboardSkeleton from "./components/dashboard/DashboardSkeleton";
 import ProgressSkeleton from "./components/progress/ProgressSkeleton";
 import OfflineBanner from "./components/OfflineBanner";
+import { DailyPaywallProvider } from "./hooks/useDailyPaywall";
 
 function lazyWithRetry<T extends React.ComponentType<any>>(
   importer: () => Promise<{ default: T }>,
@@ -241,6 +242,7 @@ function AppLayout() {
       </Routes>
       {!hideNav && <BottomNav />}
       <MarketBottomNav />
+      <DailyPaywallProvider />
     </>
   );
 }
