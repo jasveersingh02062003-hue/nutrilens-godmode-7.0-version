@@ -1291,45 +1291,7 @@ export type Database = {
       }
     }
     Views: {
-      profiles_masked: {
-        Row: {
-          age_range: string | null
-          city: string | null
-          created_at: string | null
-          first_name: string | null
-          gender: string | null
-          goal: string | null
-          id: string | null
-          join_date: string | null
-          marketing_consent: boolean | null
-          onboarding_complete: boolean | null
-        }
-        Insert: {
-          age_range?: never
-          city?: string | null
-          created_at?: string | null
-          first_name?: never
-          gender?: string | null
-          goal?: string | null
-          id?: string | null
-          join_date?: string | null
-          marketing_consent?: boolean | null
-          onboarding_complete?: boolean | null
-        }
-        Update: {
-          age_range?: never
-          city?: string | null
-          created_at?: string | null
-          first_name?: never
-          gender?: string | null
-          goal?: string | null
-          id?: string | null
-          join_date?: string | null
-          marketing_consent?: boolean | null
-          onboarding_complete?: boolean | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       age_bucket: { Args: { _age: number }; Returns: string }
@@ -1344,6 +1306,36 @@ export type Database = {
         Returns: string
       }
       campaign_brand_id: { Args: { _campaign_id: string }; Returns: string }
+      get_masked_profile: {
+        Args: { _user_id: string }
+        Returns: {
+          age_range: string
+          city: string
+          created_at: string
+          first_name: string
+          gender: string
+          goal: string
+          id: string
+          join_date: string
+          marketing_consent: boolean
+          onboarding_complete: boolean
+        }[]
+      }
+      get_masked_profiles: {
+        Args: never
+        Returns: {
+          age_range: string
+          city: string
+          created_at: string
+          first_name: string
+          gender: string
+          goal: string
+          id: string
+          join_date: string
+          marketing_consent: boolean
+          onboarding_complete: boolean
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
