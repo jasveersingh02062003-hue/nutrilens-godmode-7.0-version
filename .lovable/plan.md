@@ -1,104 +1,91 @@
 
 
-# Status Check + Phase 12/13 Implementation Plan
+# Phase 12 Wrap-Up + Phase 14 (Polish) — Skipping Razorpay
 
-## ✅ COMPLETED (Phases 1–11)
-
-| # | Item | Status |
-|---|---|---|
-| 1 | RLS: `ad_campaigns` brand-scoped | ✅ Migration 2 |
-| 2 | RLS: `ad_targeting` brand-scoped | ✅ Migration 3 |
-| 3 | `brand_accounts.balance` direct-write blocked + `apply_brand_transaction` RPC | ✅ Migration 4 + admin pages wired |
-| 4 | `user_roles` lockdown + audit trigger | ✅ Migration 1 |
-| 5 | PII masking via `get_masked_profiles` / `get_masked_profile` RPCs | ✅ Migration 5 + admin UI swapped |
-| 7 | `daily_logs` optimistic locking via `upsert_daily_log` RPC | ✅ Migration 6 + `daily-log-sync.ts` |
-| — | Phases 1–10 (roles, costs, brand portal, ad automation, ops, perf) | ✅ All shipped |
-
-## ❌ INCOMPLETE
-
-### 🔴 P0 — known gap
-| # | Item | Why blocked |
-|---|---|---|
-| 6 | Backend rate-limiting on `analyze-food` + `monika-chat` | Platform policy: no rate-limit primitives yet. Deferred to infra. |
-
-### 🟡 P1 — Phase 12 (Legal + Monitoring)
-| # | Item | Effort |
-|---|---|---|
-| 9 | Privacy Policy + Terms of Service pages + footer links | M |
-| 10 | Sentry error tracking + alerting | S |
-| 11 | Health/medical disclaimer banner (Dashboard + Monika) | S |
-| 12 | Pagination on `Progress` + `FoodArchive` (1000-row silent cap) | S |
-
-### 🟡 P1 — Phase 13 (Payments)
-| # | Item | Effort |
-|---|---|---|
-| 8 | Razorpay (or Stripe) integration for brand wallet top-ups | L |
-
-### 🟢 P2 — Phase 14 (Post-launch polish)
-| # | Item | Effort |
-|---|---|---|
-| 13 | GST invoice PDF generation | M |
-| 14 | Ad fraud / click-bomb protection | M |
-| 15 | DPDP data-export endpoint | M |
-| 16 | Backup restore drill | S |
-
-## 📊 Reality Check
-- Overall completion: **~88%** (was 78% before Phase 11)
-- Security blockers: 🟢 closed (except #6, deferred by policy)
-- Production-ready: **75%** (legal + payments + monitoring still missing)
-- Verdict: **🔴 NO LAUNCH** → flips to 🟢 after Phase 12 + 13
+Per your direction: leave Razorpay/Phase 13 untouched. Close the remaining Phase 12 verification gaps, then move into Phase 14 post-launch polish items that don't depend on payments.
 
 ---
 
-## 🚀 Implementation Plan — Phase 12 (Legal & Monitoring)
+## Part A — Phase 12 Verification & Loose Ends
 
-Recommend doing Phase 12 first (smaller, unblocks closed beta) before Phase 13 (payments).
+### A1. Consent records table check
+Verify `consent_records` table exists with proper schema (the signup flow in `Auth.tsx` writes to it). If missing, add migration:
+- Columns: `id uuid pk`, `user_id uuid → auth.users`, `consent_type text` (e.g., `terms_privacy`), `version text`, `granted_at timestamptz`, `ip_address text nullable`, `user_agent text nullable`.
+- RLS: users can insert/select their own; admins can select all.
 
-### Step 1 — Health/medical disclaimer (#11)
-- New `src/components/HealthDisclaimerBanner.tsx`: dismissible (per-session) banner — *"NutriLens provides general wellness guidance, not medical advice. Consult a doctor for health decisions."*
-- Mount on `Dashboard.tsx` (top) and `MonikaChatScreen.tsx` (above input).
-- Persistent footer line in Monika chat: *"AI suggestions — not medical advice."*
+### A2. Pagination on `Progress` page (#12 follow-up)
+Audit found `Progress.tsx` reads from local storage so Supabase 1000-row cap doesn't apply — but add a defensive `LIMIT` to any direct `daily_logs` queries elsewhere (e.g., `cloud-sync.ts` history fetches) to prevent silent truncation as users mature past 1000 days.
 
-### Step 2 — Privacy Policy + Terms of Service (#9)
-- New routes `/privacy` and `/terms` in `App.tsx` (lazy-loaded).
-- New pages `src/pages/Privacy.tsx`, `src/pages/Terms.tsx` — DPDP-aligned content covering: data collected, purpose, retention, user rights (access/delete/export), grievance officer placeholder, marketing consent, third-party processors (Lovable AI, Firecrawl).
-- Footer links added to `Auth.tsx`, `Onboarding` welcome screen, `Profile.tsx`, and brand `/advertise` intake.
-- Checkbox on signup: *"I agree to Terms & Privacy Policy"* (required, persisted to `consent_records`).
-
-### Step 3 — Pagination guards (#12)
-- `src/pages/Progress.tsx`: replace single `select(...)` with `.range(offset, offset+99)` paged loader, "Load more" button.
-- `src/pages/FoodArchive.tsx`: same pattern, 50 per page.
-- Default sort: `log_date desc` so most recent always loads first.
-
-### Step 4 — Sentry (#10)
-- Install `@sentry/react`.
-- Init in `src/main.tsx` with `VITE_SENTRY_DSN` env var (request via `add_secret`).
-- Wrap router with `Sentry.ErrorBoundary`.
-- Tag user id (non-PII) on auth state change.
-- Filter PII fields (email, phone, weight, health_conditions) in `beforeSend`.
-- Add to `supabase/functions/_shared/sentry.ts` for edge-function error capture (Deno SDK).
-
-### Step 5 — Verification
-- Re-run security scanner.
-- Manual smoke test: signup flow shows consent checkbox; disclaimer visible; `/privacy` + `/terms` reachable; Sentry test event fires; Progress loads page-by-page.
+### A3. Sentry DSN status
+Already wired in code; just confirms with you that you'll add `VITE_SENTRY_DSN` in Workspace → Build Secrets when ready. No-op until then (safe default).
 
 ---
 
-## 🚀 Phase 13 (after Phase 12 ships)
+## Part B — Phase 14 Post-Launch Polish (Razorpay-independent)
 
-Razorpay integration for brand wallet top-ups:
-- New edge function `razorpay-create-order` (creates order, returns `order_id`).
-- New edge function `razorpay-webhook` (verifies signature, calls `apply_brand_transaction(..., 'topup')`).
-- `BrandBilling.tsx`: "Top up wallet" → Razorpay checkout → success → ledger refresh.
-- Admin manual top-up path stays as fallback.
-- Requires user to add `RAZORPAY_KEY_ID` + `RAZORPAY_KEY_SECRET` + `RAZORPAY_WEBHOOK_SECRET`.
+### B1. GST invoice PDF generation (#13)
+- New `src/lib/gst-invoice.ts`: builds a compliant Indian GST invoice (invoice no., date, brand GSTIN placeholder, HSN/SAC for "Online Advertising Services" = 998365, CGST/SGST/IGST split, QR code area).
+- Replace CSV download in `BrandBilling.tsx` with PDF (using `jspdf` already in deps if present, else add).
+- Configurable: GSTIN per `brand_accounts` (add column `gstin text nullable`), and a single `seller_gstin` env constant for NutriLens.
+- Migration: `ALTER TABLE brand_accounts ADD COLUMN gstin text, billing_address jsonb`.
+
+### B2. Ad fraud / click-bomb protection (#14)
+- New edge function `log-ad-event` already exists — extend it:
+  - Reject duplicate `(user_id, ad_id, event_type)` within 30 seconds (in-memory + DB lookup against `ad_events`).
+  - Reject more than 5 clicks/min per user across all ads (uses `ad_events` count).
+  - Reject events from same `user_id` on same `campaign_id` after `daily_click_cap` (new column on `ad_campaigns`, default 10).
+- Migration: `ALTER TABLE ad_campaigns ADD COLUMN daily_click_cap int DEFAULT 10`.
+- Add `is_suspicious boolean` to `ad_events` so fraud-flagged events are excluded from billing in `select-ads` cost rollup.
+
+### B3. DPDP data-export endpoint (#15)
+- New edge function `export-user-data`:
+  - Auth: requires logged-in user; only exports own data.
+  - Aggregates: `profiles`, `daily_logs`, `weight_logs`, `water_logs`, `supplement_logs`, `consent_records`, `ad_events` (own).
+  - Returns ZIP-streamed JSON files (one per table) + a `manifest.json`.
+  - Audit-log the export to `audit_logs`.
+- New button in `src/pages/Profile.tsx` → "Download my data" → calls function → triggers download.
+
+### B4. Backup restore drill (#16)
+- Documentation only: add `docs/BACKUP_RESTORE.md` with quarterly drill checklist (Lovable Cloud auto-backups, manual SQL export via `pg_dump`, restore-test procedure on a remix project).
+- Calendar reminder is on you — no code change needed.
 
 ---
 
-## Stop conditions
-- Phase 12 ends when: scanner clean, all 4 items shipped, smoke test passes → verdict flips to 🟡 *"ready for closed beta ≤500 users"*.
-- Phase 13 ends when: live Razorpay payment lands in `brand_transactions` end-to-end → verdict flips to 🟢 *"public launch ready pending P2 polish"*.
+## Execution Order
 
-## Recommended next action
-Approve **Phase 12** first — fastest path off 🔴. I'll start with Step 1 (disclaimer) since it's a 5-minute change and immediately reduces liability, then Steps 2 → 3 → 4.
+1. **A1** — consent table migration (verify/create)
+2. **A2** — defensive `LIMIT` on `daily_logs` history queries
+3. **B1** — GST invoice (migration + PDF generator + BrandBilling swap)
+4. **B2** — fraud protection (migration + edge function update)
+5. **B3** — data export edge function + Profile button
+6. **B4** — `docs/BACKUP_RESTORE.md`
+7. Final: re-run security scanner, summarize verdict
+
+---
+
+## Files Touched
+
+**Migrations:** consent_records (if missing), brand_accounts GST cols, ad_campaigns click cap, ad_events suspicious flag.
+
+**New:**
+- `src/lib/gst-invoice.ts`
+- `supabase/functions/export-user-data/index.ts`
+- `docs/BACKUP_RESTORE.md`
+
+**Edited:**
+- `supabase/functions/log-ad-event/index.ts`
+- `src/pages/brand/BrandBilling.tsx`
+- `src/pages/Profile.tsx`
+- `src/lib/cloud-sync.ts` (defensive limits)
+
+---
+
+## Out of scope (per your instruction)
+
+- Phase 13 Razorpay integration — space reserved, not implemented. `BrandBilling.tsx` will keep "Contact account manager to top up" copy.
+
+## Stop condition
+
+After B4 ships and scanner passes, verdict flips to:
+**🟢 Closed beta ready (≤500 users) + post-launch polish complete. Public launch gated only on Razorpay (Phase 13) when you're ready.**
 
