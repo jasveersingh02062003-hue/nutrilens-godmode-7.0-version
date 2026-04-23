@@ -18,16 +18,20 @@ interface Props {
 
 export default function ManageSubscriptionSheet({ open, onClose, onUpgradeClick }: Props) {
   const [plan, setPlan] = useState<Plan>('free');
+  const [status, setStatus] = useState<SubscriptionStatus>('active');
   const [periodEnd, setPeriodEnd] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [pausing, setPausing] = useState(false);
   const [methodLabel, setMethodLabel] = useState<string>('—');
   const [nextChargeAmount, setNextChargeAmount] = useState<number | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [showRetention, setShowRetention] = useState(false);
+  const [showPausePicker, setShowPausePicker] = useState(false);
 
   useEffect(() => {
     const off = onPlanChange((p) => {
       setPlan(p.plan);
+      setStatus(p.status);
       setPeriodEnd(p.current_period_end);
     });
     return off;
