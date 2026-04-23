@@ -15,23 +15,28 @@ interface MonthGroup {
   logs: DailyLog[];
 }
 
+const PAGE_SIZE = 60;
+
 export default function FoodArchive() {
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [memoryState, setMemoryState] = useState<{ date: string; mealId: string } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const plan = getPlan();
   const isFree = plan === 'free';
 
-  const monthGroups = useMemo(() => {
-    const dates = getAllLogDates().sort().reverse();
-    const groups: Record<string, DailyLog[]> = {};
+  const { monthGroups, totalDates, hasMore } = useMemo(() => {
+    const allDates = getAllLogDates().sort().reverse();
 
     // Free users: only last 7 days
     const cutoff = isFree ? (() => { const d = new Date(Date.now() - 7 * 86400000); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })() : '';
 
+    const eligibleDates = isFree ? allDates.filter(d => d >= cutoff) : allDates;
+    const dates = eligibleDates.slice(0, visibleCount);
+    const groups: Record<string, DailyLog[]> = {};
+
     for (const date of dates) {
-      if (isFree && date < cutoff) continue;
       const log = getDailyLog(date);
       const hasPhotos = log.meals.some(m => m.photo);
       if (!hasPhotos) continue;
@@ -41,13 +46,19 @@ export default function FoodArchive() {
       groups[monthKey].push(log);
     }
 
-    return Object.entries(groups)
+    const ordered = Object.entries(groups)
       .sort((a, b) => b[0].localeCompare(a[0]))
       .map(([key, logs]): MonthGroup => ({
         label: new Date(key + '-15T12:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
         logs,
       }));
-  }, [refreshKey]);
+
+    return {
+      monthGroups: ordered,
+      totalDates: eligibleDates.length,
+      hasMore: visibleCount < eligibleDates.length,
+    };
+  }, [refreshKey, visibleCount, isFree]);
 
   const scrollInsights = useMemo(() => {
     const allLogs = monthGroups.flatMap(g => g.logs);
@@ -55,6 +66,7 @@ export default function FoodArchive() {
   }, [monthGroups]);
 
   const refresh = () => setRefreshKey(k => k + 1);
+  const loadMore = () => setVisibleCount(c => c + PAGE_SIZE);
 
   if (monthGroups.length === 0) {
     return (
