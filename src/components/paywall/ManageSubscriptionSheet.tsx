@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Crown, Calendar, CreditCard, FileText, XCircle, ChevronRight } from 'lucide-react';
+import { Crown, Calendar, CreditCard, FileText, XCircle, ChevronRight, IndianRupee } from 'lucide-react';
 import { onPlanChange, cancelSubscription, type Plan } from '@/lib/subscription-service';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import BillingHistorySheet from './BillingHistorySheet';
+import RetentionOfferScreen from '../RetentionOfferScreen';
 
 interface Props {
   open: boolean;
@@ -17,7 +18,9 @@ export default function ManageSubscriptionSheet({ open, onClose, onUpgradeClick 
   const [periodEnd, setPeriodEnd] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [methodLabel, setMethodLabel] = useState<string>('—');
+  const [nextChargeAmount, setNextChargeAmount] = useState<number | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [showRetention, setShowRetention] = useState(false);
 
   useEffect(() => {
     const off = onPlanChange((p) => {
@@ -30,22 +33,29 @@ export default function ManageSubscriptionSheet({ open, onClose, onUpgradeClick 
   useEffect(() => {
     if (!open) return;
     void (async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const uid = userData?.user?.id;
+      if (!uid) return;
       const { data } = await supabase
         .from('payment_events')
-        .select('raw_payload')
+        .select('raw_payload, amount_inr')
+        .eq('user_id', uid)
         .eq('event_type', 'subscribe')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
       const display = (data as any)?.raw_payload?.payment_method_display;
       if (display) setMethodLabel(display);
+      const amt = (data as any)?.amount_inr;
+      if (typeof amt === 'number') setNextChargeAmount(amt);
     })();
   }, [open]);
 
-  async function handleCancel() {
+  async function performCancel() {
     setCancelling(true);
     const ok = await cancelSubscription();
     setCancelling(false);
+    setShowRetention(false);
     if (ok) toast.success('Subscription cancelled. You keep Pro until the end of your billing period.');
     else toast.error('Could not cancel. Please try again.');
   }
@@ -56,7 +66,7 @@ export default function ManageSubscriptionSheet({ open, onClose, onUpgradeClick 
 
   return (
     <>
-      <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+      <Sheet open={open && !showRetention} onOpenChange={(v) => !v && onClose()}>
         <SheetContent side="bottom" className="h-[85dvh] rounded-t-3xl">
           <SheetHeader>
             <SheetTitle className="text-base font-display">Manage subscription</SheetTitle>
@@ -76,6 +86,11 @@ export default function ManageSubscriptionSheet({ open, onClose, onUpgradeClick 
               {plan !== 'free' && periodEnd && (
                 <p className="text-xs opacity-80 mt-1 flex items-center gap-1">
                   <Calendar className="w-3 h-3" /> Renews {renewDate}
+                </p>
+              )}
+              {plan !== 'free' && nextChargeAmount !== null && (
+                <p className="text-xs opacity-80 mt-1 flex items-center gap-1">
+                  <IndianRupee className="w-3 h-3" /> ₹{nextChargeAmount.toLocaleString('en-IN')} on next renewal
                 </p>
               )}
             </div>
@@ -101,7 +116,7 @@ export default function ManageSubscriptionSheet({ open, onClose, onUpgradeClick 
                   showChevron
                 />
                 <button
-                  onClick={handleCancel}
+                  onClick={() => setShowRetention(true)}
                   disabled={cancelling}
                   className="w-full mt-2 py-3 rounded-xl border border-border bg-card text-sm font-semibold text-destructive flex items-center justify-center gap-2 disabled:opacity-50"
                 >
@@ -116,6 +131,13 @@ export default function ManageSubscriptionSheet({ open, onClose, onUpgradeClick 
           </div>
         </SheetContent>
       </Sheet>
+
+      {showRetention && (
+        <RetentionOfferScreen
+          onAccept={() => { setShowRetention(false); onClose(); }}
+          onDismiss={performCancel}
+        />
+      )}
 
       <BillingHistorySheet open={showHistory} onClose={() => setShowHistory(false)} />
     </>

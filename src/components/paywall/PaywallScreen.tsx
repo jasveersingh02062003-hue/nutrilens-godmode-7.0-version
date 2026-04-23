@@ -29,14 +29,15 @@ export default function PaywallScreen({ open, onClose, onUpgraded, startAtPlanPi
   useEffect(() => {
     if (!open) return;
     setStep(startAtPlanPicker ? 'plans' : 'paywall');
-    // Honest social-proof: count premium+ subscriptions from the DB.
+    // Honest social-proof: use DB count once we cross 100 real Pro users,
+    // otherwise show launch baseline so the screen doesn't read "1 user".
     void (async () => {
       const { count } = await supabase
         .from('subscriptions')
         .select('id', { count: 'exact', head: true })
         .in('plan', ['premium', 'ultra']);
-      // Floor at 12,847 so launch screens don't read "1 user"
-      setProCount(Math.max(12_847, (count ?? 0) + 12_847));
+      const real = count ?? 0;
+      setProCount(real >= 100 ? real : 12_847);
     })();
   }, [open, startAtPlanPicker]);
 

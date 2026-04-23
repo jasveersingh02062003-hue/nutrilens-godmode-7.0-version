@@ -466,6 +466,45 @@ export default function AdminUserDetail() {
         </DialogContent>
       </Dialog>
 
+      {/* Subscription action dialog */}
+      <Dialog open={!!subAction} onOpenChange={(o) => !o && setSubAction(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {subAction === 'comp' && 'Comp 1 month of Pro'}
+              {subAction === 'force_cancel' && 'Force-cancel subscription'}
+              {subAction === 'end_trial' && 'End trial early'}
+            </DialogTitle>
+            <DialogDescription>
+              {subAction === 'comp' && 'Grants this user Premium for 30 days. They will not be charged.'}
+              {subAction === 'force_cancel' && 'Immediately cancels this user\'s plan and downgrades them to Free.'}
+              {subAction === 'end_trial' && 'Ends the active trial now and reverts the user to Free.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div>
+            <Label htmlFor="sub-reason" className="text-xs">Reason (min 5 chars · audit logged)</Label>
+            <Textarea
+              id="sub-reason"
+              value={subReason}
+              onChange={e => setSubReason(e.target.value)}
+              placeholder="Customer support ticket #..., goodwill comp, etc."
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setSubAction(null)} disabled={subBusy}>Cancel</Button>
+            <Button
+              variant={subAction === 'comp' ? 'default' : 'destructive'}
+              onClick={confirmSubAction}
+              disabled={subBusy}
+            >
+              {subBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
+              Confirm & log
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Refund plan dialog */}
       <Dialog open={!!refundPlan} onOpenChange={(o) => !o && setRefundPlan(null)}>
         <DialogContent>
