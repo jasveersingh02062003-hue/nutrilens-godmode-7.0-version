@@ -1,10 +1,23 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { z } from "https://esm.sh/zod@3.23.8";
 import { logApiUsage, estimateLovableAiCost } from "../_shared/api-usage.ts";
+import { checkQuota, incrementQuota, quotaErrorResponse } from "../_shared/ai-quota.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+const MAX_IMAGE_BASE64_BYTES = 8 * 1024 * 1024; // 8MB
+const MAX_TEXT_CHARS = 2000;
+
+const RequestSchema = z.object({
+  imageBase64: z.string().max(MAX_IMAGE_BASE64_BYTES).optional().nullable(),
+  textDescription: z.string().max(MAX_TEXT_CHARS).optional().nullable(),
+}).refine(
+  (d) => Boolean(d.imageBase64) || Boolean(d.textDescription),
+  { message: "Either imageBase64 or textDescription is required." },
+);
 
 const SYSTEM_PROMPT = `You are NutriLens AI, an expert nutritionist specializing in Indian food analysis with deep knowledge of IFCT2017 (Indian Food Composition Tables).
 
