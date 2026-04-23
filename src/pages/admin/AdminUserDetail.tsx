@@ -256,6 +256,57 @@ export default function AdminUserDetail() {
         </div>
       </div>
 
+      {/* Subscription panel */}
+      <Card className="p-4 mb-4">
+        <h3 className="text-sm font-bold mb-3 flex items-center gap-2">
+          <Crown className="w-4 h-4 text-primary" /> Subscription
+        </h3>
+        {!sub || sub.plan === 'free' ? (
+          <p className="text-xs text-muted-foreground">User is on the Free plan.</p>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+            <div><p className="text-muted-foreground uppercase text-[10px]">Plan</p><p className="font-bold capitalize">{sub.plan}</p></div>
+            <div><p className="text-muted-foreground uppercase text-[10px]">Status</p>
+              <Badge variant={sub.status === 'active' ? 'default' : 'secondary'} className="text-[10px] capitalize">{sub.status}</Badge>
+            </div>
+            <div><p className="text-muted-foreground uppercase text-[10px]">Period end</p>
+              <p className="font-medium">{sub.current_period_end ? new Date(sub.current_period_end).toLocaleDateString() : '—'}</p>
+            </div>
+            <div><p className="text-muted-foreground uppercase text-[10px]">Auto-renew</p>
+              <p className="font-medium">{sub.cancel_at_period_end ? 'Cancelling' : 'On'}</p>
+            </div>
+          </div>
+        )}
+        <div className="flex gap-2 mt-3 flex-wrap">
+          <Button size="sm" variant="outline" disabled={!isSuperAdmin}
+            onClick={() => { setSubReason(''); setSubAction('comp'); }}>
+            <Gift className="w-3.5 h-3.5 mr-1" /> Comp 1 month Pro
+          </Button>
+          <Button size="sm" variant="outline" disabled={!isSuperAdmin || !sub || sub.plan === 'free'}
+            onClick={() => { setSubReason(''); setSubAction('force_cancel'); }}>
+            <XCircle className="w-3.5 h-3.5 mr-1" /> Force cancel
+          </Button>
+          <Button size="sm" variant="outline" disabled={!isSuperAdmin || sub?.status !== 'trialing'}
+            onClick={() => { setSubReason(''); setSubAction('end_trial'); }}>
+            End trial early
+          </Button>
+        </div>
+        {payEvents.length > 0 && (
+          <div className="mt-4">
+            <p className="text-[10px] uppercase text-muted-foreground mb-2">Recent payment events</p>
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {payEvents.map(e => (
+                <div key={e.id} className="flex justify-between items-center text-xs border-b border-border/40 py-1">
+                  <Badge variant="outline" className="text-[9px]">{e.event_type}</Badge>
+                  <span className="text-muted-foreground">{new Date(e.created_at).toLocaleString()}</span>
+                  <span className="font-medium tabular-nums">{e.amount_inr ? `₹${e.amount_inr}` : '—'}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <Stat label="Height" value={profile.height_cm ? `${profile.height_cm} cm` : '—'} />
         <Stat label="Weight" value={profile.weight_kg ? `${profile.weight_kg} kg` : '—'} />
