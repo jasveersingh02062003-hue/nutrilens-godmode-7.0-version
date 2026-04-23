@@ -1,6 +1,7 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { ArrowRight, Sparkles, Smartphone } from 'lucide-react';
 import { useRef } from 'react';
+import { Link } from 'react-router-dom';
 import heroImg from '@/assets/hero-nutrition.jpg';
 
 interface WelcomeScreenProps {
@@ -134,6 +135,19 @@ export default function WelcomeScreen({ onGetStarted, onSignIn }: WelcomeScreenP
             Phone
           </motion.button>
         </motion.div>
+
+        {/* Legal footer */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.7 }}
+          className="text-center text-[10px] text-muted-foreground mt-5"
+        >
+          By continuing you agree to our{' '}
+          <Link to="/terms" className="text-primary underline">Terms</Link>
+          {' '}&amp;{' '}
+          <Link to="/privacy" className="text-primary underline">Privacy Policy</Link>.
+        </motion.p>
       </div>
     </div>
   );

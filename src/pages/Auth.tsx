@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import heroImg from '@/assets/hero-nutrition.jpg';
 
 
@@ -18,7 +20,21 @@ const Auth = function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
+  const [consentGiven, setConsentGiven] = useState(false);
   const { signUpWithEmail, signInWithEmail, signInWithPhone, verifyOTP, signInWithGoogle } = useAuth();
+
+  const recordConsent = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await (supabase.from as any)('consent_records').insert({
+        user_id: user.id,
+        purpose: 'terms_and_privacy',
+        granted: true,
+        source: 'signup',
+      });
+    } catch {}
+  };
 
   const handleEmailAuth = async (isSignUp: boolean) => {
     if (!email || !password) {
@@ -28,6 +44,11 @@ const Auth = function Auth() {
 
     if (isSignUp && password.length < 6) {
       toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    if (isSignUp && !consentGiven) {
+      toast.error('Please accept the Terms & Privacy Policy to continue');
       return;
     }
 
@@ -59,6 +80,7 @@ const Auth = function Auth() {
       }
 
       setLoading(false);
+      void recordConsent();
       toast.success('Account created!');
       return;
     }
@@ -141,6 +163,12 @@ const Auth = function Auth() {
                 </button>
               </div>
 
+              <p className="text-center text-[10px] text-muted-foreground pt-2">
+                By continuing you agree to our{' '}
+                <Link to="/terms" className="text-primary underline">Terms</Link>
+                {' '}and{' '}
+                <Link to="/privacy" className="text-primary underline">Privacy Policy</Link>.
+              </p>
             </div>
           </motion.div>
         )}
@@ -175,7 +203,24 @@ const Auth = function Auth() {
                 </div>
               </div>
 
-              <button onClick={() => handleEmailAuth(mode === 'signup')} disabled={loading} className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50">
+              {mode === 'signup' && (
+                <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={consentGiven}
+                    onChange={e => setConsentGiven(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded border-border accent-primary cursor-pointer shrink-0"
+                  />
+                  <span>
+                    I agree to the{' '}
+                    <Link to="/terms" target="_blank" className="text-primary underline">Terms of Service</Link>
+                    {' '}and{' '}
+                    <Link to="/privacy" target="_blank" className="text-primary underline">Privacy Policy</Link>.
+                  </span>
+                </label>
+              )}
+
+              <button onClick={() => handleEmailAuth(mode === 'signup')} disabled={loading || (mode === 'signup' && !consentGiven)} className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50">
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 {mode === 'signup' ? 'Create Account' : 'Sign In'}
               </button>

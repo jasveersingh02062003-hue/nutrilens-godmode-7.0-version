@@ -43,6 +43,7 @@ import SmartProductNudge from '@/components/SmartProductNudge';
 import { shouldBoostWater } from '@/lib/supplement-service';
 
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import HealthDisclaimerBanner from '@/components/HealthDisclaimerBanner';
 import DashboardModals from '@/components/dashboard/DashboardModals';
 import CalorieCorrectionSection from '@/components/dashboard/CalorieCorrectionSection';
 import PlanBannerSection from '@/components/dashboard/PlanBannerSection';
@@ -96,6 +97,9 @@ export default function Dashboard() {
       >
         {/* 1. Header */}
         <DashboardHeader profile={d.profile} weather={d.weather} />
+
+        {/* Medical disclaimer (per-session dismissible) */}
+        <motion.div variants={fadeUp}><HealthDisclaimerBanner surface="dashboard" /></motion.div>
 
         {/* Daily Plan Popup */}
         <DailyPlanCard profile={d.profile} open={d.showDailyPlan} onDismiss={() => d.setShowDailyPlan(false)} />

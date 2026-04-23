@@ -100,6 +100,8 @@ const AdminCosts = lazyWithRetry(() => import("./pages/admin/AdminCosts"), "admi
 const AdminOps = lazyWithRetry(() => import("./pages/admin/AdminOps"), "admin-ops");
 const Advertise = lazyWithRetry(() => import("./pages/Advertise"), "advertise");
 const RequireAdmin = lazyWithRetry(() => import("./components/admin/RequireAdmin"), "require-admin");
+const Privacy = lazyWithRetry(() => import("./pages/Privacy"), "privacy");
+const Terms = lazyWithRetry(() => import("./pages/Terms"), "terms");
 
 const queryClient = new QueryClient();
 
@@ -115,8 +117,13 @@ const RouteBoundary = ({ children }: { children: React.ReactNode }) => (
   <ErrorBoundary>{children}</ErrorBoundary>
 );
 
+// Routes that should remain reachable without an authenticated session
+const PUBLIC_ROUTES = ['/privacy', '/terms', '/advertise'];
+
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
+  const location = useLocation();
+  if (PUBLIC_ROUTES.includes(location.pathname)) return <>{children}</>;
   if (isLoading) return <PageLoader />;
   if (!user) return <Suspense fallback={<PageLoader />}><Auth /></Suspense>;
   return <>{children}</>;
@@ -131,7 +138,7 @@ function ProtectedRoute({ children, fallback }: { children: React.ReactNode; fal
   return <Suspense fallback={fallback ?? <PageLoader />}>{children}</Suspense>;
 }
 
-const HIDE_NAV_ROUTES = ['/', '/onboarding', '/quicklog'];
+const HIDE_NAV_ROUTES = ['/', '/onboarding', '/quicklog', '/privacy', '/terms'];
 
 function AppLayout() {
   const location = useLocation();
@@ -226,6 +233,8 @@ function AppLayout() {
           <Route path="products" element={<Suspense fallback={<PageLoader />}><BrandProducts /></Suspense>} />
         </Route>
         <Route path="/advertise" element={<RouteBoundary><Suspense fallback={<PageLoader />}><Advertise /></Suspense></RouteBoundary>} />
+        <Route path="/privacy" element={<RouteBoundary><Suspense fallback={<PageLoader />}><Privacy /></Suspense></RouteBoundary>} />
+        <Route path="/terms" element={<RouteBoundary><Suspense fallback={<PageLoader />}><Terms /></Suspense></RouteBoundary>} />
         <Route path="/quicklog" element={<RouteBoundary><ProtectedRoute><PageTransition><QuickLog /></PageTransition></ProtectedRoute></RouteBoundary>} />
         <Route path="/camera" element={<Navigate to="/" replace />} />
         <Route path="*" element={<RouteBoundary><Suspense fallback={<PageLoader />}><PageTransition><NotFound /></PageTransition></Suspense></RouteBoundary>} />
