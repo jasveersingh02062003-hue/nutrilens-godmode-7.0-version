@@ -246,6 +246,37 @@ const Auth = function Auth() {
               </div>
 
               {mode === 'signup' && (
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Date of Birth</label>
+                  <input
+                    type="date"
+                    value={dob}
+                    onChange={e => setDob(e.target.value)}
+                    max={new Date().toISOString().slice(0, 10)}
+                    className="input-field w-full"
+                  />
+                  {computedAge !== null && computedAge >= 13 && computedAge < 18 && (
+                    <p className="text-[10px] text-accent mt-1">
+                      You're {computedAge}. Some features will be limited for your safety.
+                    </p>
+                  )}
+                  {computedAge !== null && computedAge < 13 && (
+                    <p className="text-[10px] text-destructive mt-1">
+                      You must be at least 13 years old to use NutriLens AI.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {mode === 'signup' && isMinor && (
+                <MinorConsentNotice
+                  age={computedAge!}
+                  consent={minorConsent}
+                  onConsentChange={setMinorConsent}
+                />
+              )}
+
+              {mode === 'signup' && !isMinor && !isBlocked && (
                 <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -262,7 +293,18 @@ const Auth = function Auth() {
                 </label>
               )}
 
-              <button onClick={() => handleEmailAuth(mode === 'signup')} disabled={loading || (mode === 'signup' && !consentGiven)} className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50">
+              <button
+                onClick={() => handleEmailAuth(mode === 'signup')}
+                disabled={
+                  loading ||
+                  (mode === 'signup' && (
+                    isBlocked ||
+                    dobMissing ||
+                    (isMinor ? !minorConsent : !consentGiven)
+                  ))
+                }
+                className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+              >
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 {mode === 'signup' ? 'Create Account' : 'Sign In'}
               </button>
