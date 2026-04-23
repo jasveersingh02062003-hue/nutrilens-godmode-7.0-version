@@ -82,10 +82,20 @@ export async function checkQuota(
   }
   const userId = userData.user.id;
 
-  // Resolve tier server-side. We don't have a subscriptions table yet, so
-  // every authenticated user is "free" for now. When Razorpay lands, look up
-  // an active row in `subscriptions` here.
-  const tier: QuotaTier = "free";
+  // Resolve tier server-side via get_my_active_plan RPC. Closes FB-2:
+  // a malicious client can't spoof their tier because the edge fn doesn't
+  // trust client-side state — it asks the DB.
+  let tier: QuotaTier = "free";
+  try {
+    const { data: planRow } = await userClient.rpc("get_my_active_plan");
+    const row = Array.isArray(planRow) ? planRow[0] : planRow;
+    const isActiveOrTrial = row?.status === "active" || row?.status === "trialing";
+    if (isActiveOrTrial && (row?.plan === "premium" || row?.plan === "ultra")) {
+      tier = row.plan as QuotaTier;
+    }
+  } catch (e) {
+    console.error("[ai-quota] get_my_active_plan failed, defaulting to free:", e);
+  }
   const limit = LIMITS[endpoint][tier];
 
   // Read current count without mutating
