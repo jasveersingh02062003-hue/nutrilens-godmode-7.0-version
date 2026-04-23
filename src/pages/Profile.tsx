@@ -57,7 +57,43 @@ export default function Profile() {
   const [showDiagnostic, setShowDiagnostic] = useState(false);
   const [diagnosticResults, setDiagnosticResults] = useState<TestResult[]>([]);
   const devTapRef = useRef({ count: 0, timer: null as any });
+  const [downloadingData, setDownloadingData] = useState(false);
   const profilePhoto = getProfilePhoto();
+
+  async function handleDownloadAllData() {
+    if (!user) {
+      toast.error('Please log in first');
+      return;
+    }
+    try {
+      setDownloadingData(true);
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No session');
+
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-user-data`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+      });
+      if (!res.ok) throw new Error(`Export failed (${res.status})`);
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objUrl;
+      a.download = `nutrilens-my-data-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(objUrl);
+      toast.success('Your data has been downloaded');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to download data');
+    } finally {
+      setDownloadingData(false);
+    }
+  }
   const correctionCount = getCorrections().length;
   const coachSettings = getCoachSettings();
   const { isAdmin } = useAdminRole();
@@ -127,6 +163,7 @@ export default function Profile() {
     { icon: Crown, label: 'Subscription', sub: currentPlan === 'free' ? (hasUsedTrial() && hasTrialExpired() ? 'Trial expired – Upgrade' : 'Free plan – Upgrade') : (isTrialActive() ? `Pro trial – ${getTrialDaysRemaining()} days left` : `${currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1)} plan`), action: () => setShowPlans(true) },
     { icon: Activity, label: 'Google Fit', sub: 'Sync steps and activity', action: () => setShowGoogleFit(true) },
     { icon: Download, label: 'Export Data', sub: 'Download your logs', action: () => setShowExport(true) },
+    { icon: ShieldAlert, label: 'Download All My Data', sub: downloadingData ? 'Preparing…' : 'DPDP — full personal data export', action: handleDownloadAllData },
     { icon: HelpCircle, label: 'Help & Support', sub: 'FAQ and contact', action: () => setShowHelp(true) },
   ];
 

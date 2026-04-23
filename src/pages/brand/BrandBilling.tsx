@@ -6,8 +6,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, Download } from "lucide-react";
 import { inr } from "@/lib/admin-metrics";
+import { generateGstInvoicePdf, DEFAULT_SELLER, type InvoiceTxn } from "@/lib/gst-invoice";
 
-interface Brand { id: string; brand_name: string; balance: number; }
+interface Brand {
+  id: string;
+  brand_name: string;
+  balance: number;
+  gstin?: string | null;
+  billing_address?: { line?: string; city?: string; state?: string; state_code?: string; pincode?: string } | null;
+}
 interface Tx {
   id: string;
   brand_id: string;
@@ -34,7 +41,7 @@ export default function BrandBilling() {
         return;
       }
       const [b, t] = await Promise.all([
-        supabase.from("brand_accounts").select("id, brand_name, balance").in("id", ids),
+        supabase.from("brand_accounts").select("id, brand_name, balance, gstin, billing_address").in("id", ids),
         supabase.from("brand_transactions").select("*").in("brand_id", ids).order("created_at", { ascending: false }).limit(100),
       ]);
       setBrands((b.data ?? []) as Brand[]);
@@ -43,24 +50,46 @@ export default function BrandBilling() {
     })();
   }, [user]);
 
-  const exportInvoiceCsv = (brand: Brand) => {
-    const month = new Date().toISOString().slice(0, 7);
+  const exportInvoicePdf = (brand: Brand) => {
+    const now = new Date();
+    const month = now.toISOString().slice(0, 7);
     const monthTxs = txs.filter((tx) => tx.brand_id === brand.id && tx.created_at.startsWith(month));
-    const total = monthTxs.reduce((s, t) => s + (t.type === "debit" ? -Number(t.amount) : Number(t.amount)), 0);
-    const rows = [
-      ["Invoice", brand.brand_name, month],
-      [],
-      ["Date", "Type", "Amount", "Reference", "Notes"],
-      ...monthTxs.map((t) => [t.created_at.slice(0, 10), t.type, String(t.amount), t.reference ?? "", t.notes ?? ""]),
-      [],
-      ["Net", "", String(total)],
-    ];
-    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
+    // Only debits (= advertising spend) qualify as taxable supply
+    const debits: InvoiceTxn[] = monthTxs
+      .filter((t) => t.type === "debit")
+      .map((t) => ({
+        date: t.created_at.slice(0, 10),
+        description: t.notes || t.reference || "Advertising spend",
+        amount: Math.abs(Number(t.amount)),
+        reference: t.reference ?? undefined,
+      }));
+
+    if (debits.length === 0) {
+      alert("No billable advertising spend in this month yet.");
+      return;
+    }
+
+    const periodLabel = now.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+    const addr = brand.billing_address ?? {};
+    const buyerAddress = [addr.line, addr.city, addr.state, addr.pincode].filter(Boolean).join(", ");
+
+    const blob = generateGstInvoicePdf({
+      invoiceNo: `NL-${brand.id.slice(0, 8).toUpperCase()}-${month.replace("-", "")}`,
+      invoiceDate: now.toISOString().slice(0, 10),
+      periodLabel,
+      ...DEFAULT_SELLER,
+      buyerName: brand.brand_name,
+      buyerGstin: brand.gstin ?? null,
+      buyerAddress: buyerAddress || null,
+      buyerStateCode: addr.state_code ?? null,
+      txns: debits,
+      gstRate: 18,
+    });
+
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${brand.brand_name}-invoice-${month}.csv`;
+    a.download = `${brand.brand_name.replace(/\s+/g, "-")}-invoice-${month}.pdf`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -85,8 +114,8 @@ export default function BrandBilling() {
               <p className="text-2xl font-bold tabular-nums mt-1">{inr(Number(b.balance))}</p>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Wallet balance</p>
             </div>
-            <Button size="sm" variant="outline" onClick={() => exportInvoiceCsv(b)}>
-              <Download className="w-3.5 h-3.5 mr-1" /> Invoice
+            <Button size="sm" variant="outline" onClick={() => exportInvoicePdf(b)}>
+              <Download className="w-3.5 h-3.5 mr-1" /> GST Invoice
             </Button>
           </Card>
         ))}
