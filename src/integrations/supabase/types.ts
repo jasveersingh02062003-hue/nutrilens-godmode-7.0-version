@@ -970,6 +970,36 @@ export type Database = {
           },
         ]
       }
+      payment_methods: {
+        Row: {
+          created_at: string
+          display_name: string
+          id: string
+          is_default: boolean
+          metadata: Json
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          id?: string
+          is_default?: boolean
+          metadata?: Json
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          id?: string
+          is_default?: boolean
+          metadata?: Json
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       price_alert_notifications: {
         Row: {
           alert_id: string | null
