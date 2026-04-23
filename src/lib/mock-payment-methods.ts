@@ -53,7 +53,7 @@ export async function saveMockMethod(input: {
       type: input.type,
       display_name: input.display_name,
       is_default: false,
-      metadata: input.metadata ?? {},
+      metadata: (input.metadata ?? {}) as never,
     }])
     .select()
     .single();
