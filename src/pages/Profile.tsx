@@ -28,6 +28,7 @@ import { getPlan, mockSubscribe, cancelSubscription, resetDailyCounters, checkAn
 import UpgradeModal from '@/components/UpgradeModal';
 import PlansPage from '@/components/PlansPage';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
+import ManageSubscriptionSheet from '@/components/paywall/ManageSubscriptionSheet';
 
 import { runAllDiagnostics, type TestResult } from '@/lib/calorie-correction-diagnostic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -62,6 +63,7 @@ export default function Profile() {
   const [autoAdjustState, setAutoAdjustState] = useState(getAutoAdjust());
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showPlans, setShowPlans] = useState(false);
+  const [showManage, setShowManage] = useState(false);
   const [devMode, setDevMode] = useState(false);
   const [showDiagnostic, setShowDiagnostic] = useState(false);
   const [diagnosticResults, setDiagnosticResults] = useState<TestResult[]>([]);
@@ -191,7 +193,7 @@ export default function Profile() {
     { icon: SlidersHorizontal, label: 'Tracking Mode', sub: trackingModeState === 'flex' ? 'Flex – gentle adjustments' : 'Strict – tighter limits', action: handleTrackingModeToggle },
     { icon: Zap, label: 'Correction Mode', sub: `${correctionModeState.charAt(0).toUpperCase() + correctionModeState.slice(1)} – ${correctionModeState === 'aggressive' ? 'fast recovery' : correctionModeState === 'relaxed' ? 'minimal correction' : 'moderate'}`, action: handleCorrectionModeChange },
     { icon: SlidersHorizontal, label: 'Calorie Carry-Forward', sub: autoAdjustState ? 'On – spread surplus/deficit across future days' : 'Off – no carry-forward adjustments', action: handleAutoAdjustToggle },
-    { icon: Crown, label: 'Subscription', sub: currentPlan === 'free' ? (hasUsedTrial() && hasTrialExpired() ? 'Trial expired – Upgrade' : 'Free plan – Upgrade') : (isTrialActive() ? `Pro trial – ${getTrialDaysRemaining()} days left` : `${currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1)} plan`), action: () => setShowPlans(true) },
+    { icon: Crown, label: 'Subscription', sub: currentPlan === 'free' ? (hasUsedTrial() && hasTrialExpired() ? 'Trial expired – Upgrade' : 'Free plan – Upgrade') : (isTrialActive() ? `Pro trial – ${getTrialDaysRemaining()} days left` : `${currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1)} plan`), action: () => currentPlan === 'free' ? setShowUpgrade(true) : setShowManage(true) },
     { icon: Activity, label: 'Google Fit', sub: 'Sync steps and activity', action: () => setShowGoogleFit(true) },
     { icon: Download, label: 'Export Data', sub: 'Download your logs', action: () => setShowExport(true) },
     { icon: ShieldAlert, label: 'Download All My Data', sub: downloadingData ? 'Preparing…' : 'DPDP — full personal data export', action: handleDownloadAllData },
@@ -611,6 +613,7 @@ export default function Profile() {
         <GymSettingsPage open={showGymSettings} onClose={() => setShowGymSettings(false)} />
         <UpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} onUpgraded={() => setCurrentPlan(getPlan())} />
         <PlansPage open={showPlans} onClose={() => setShowPlans(false)} onPlanChanged={() => setCurrentPlan(getPlan())} />
+        <ManageSubscriptionSheet open={showManage} onClose={() => setShowManage(false)} onUpgradeClick={() => { setShowManage(false); setShowUpgrade(true); }} />
 
         {/* Calorie Engine Diagnostic Modal */}
         <Dialog open={showDiagnostic} onOpenChange={setShowDiagnostic}>
