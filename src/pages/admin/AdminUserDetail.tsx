@@ -193,6 +193,31 @@ export default function AdminUserDetail() {
     setRefundReason('');
   };
 
+  const confirmSubAction = async () => {
+    if (!subAction || !id) return;
+    if (subReason.trim().length < 5) return toast.error('Reason must be at least 5 characters');
+    setSubBusy(true);
+    let payload: any;
+    if (subAction === 'comp') {
+      payload = { p_user_id: id, p_plan: 'premium', p_status: 'active', p_period_days: 30, p_reason: subReason.trim() };
+    } else if (subAction === 'force_cancel') {
+      payload = { p_user_id: id, p_plan: 'free', p_status: 'cancelled', p_period_days: 0, p_reason: subReason.trim() };
+    } else {
+      payload = { p_user_id: id, p_plan: 'free', p_status: 'expired', p_period_days: 0, p_reason: subReason.trim() };
+    }
+    const { error } = await (supabase.rpc as any)('admin_set_subscription', payload);
+    setSubBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success('Subscription updated · audit logged');
+    // Refetch sub
+    const { data } = await supabase.from('subscriptions')
+      .select('plan, status, trial_end, current_period_end, cancel_at_period_end, has_used_trial')
+      .eq('user_id', id).maybeSingle();
+    setSub((data as Subscription | null) ?? null);
+    setSubAction(null);
+    setSubReason('');
+  };
+
   if (loading) {
     return (
       <div className="p-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
