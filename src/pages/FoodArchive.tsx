@@ -131,6 +131,15 @@ export default function FoodArchive() {
           </div>
         ))}
 
+        {hasMore && !isFree && (
+          <button
+            onClick={loadMore}
+            className="w-full py-3 rounded-2xl border border-border bg-card text-sm font-semibold text-foreground hover:bg-muted/50 transition-colors"
+          >
+            Load older memories ({totalDates - visibleCount} more days)
+          </button>
+        )}
+
         {isFree && (
           <div className="rounded-2xl border border-accent/30 bg-accent/5 p-4 text-center space-y-2">
             <Crown className="w-5 h-5 text-accent mx-auto" />
