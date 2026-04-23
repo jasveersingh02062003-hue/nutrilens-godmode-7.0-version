@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { onPlanChange } from '@/lib/subscription-service';
 import { shouldShowDailyPaywall, markPaywallShown, markPaywallDismissed, markAppOpened } from '@/lib/paywall-triggers';
-import { getTodaysLog } from '@/lib/store';
+import { getDailyLog } from '@/lib/store';
 import PaywallScreen from '@/components/paywall/PaywallScreen';
 
 /**
@@ -23,7 +23,7 @@ export function DailyPaywallProvider() {
     // Check every 5 minutes — cheap, all in-memory
     const tick = () => {
       try {
-        const log = getTodaysLog();
+        const log = getDailyLog();
         const mealsLogged = (log?.meals ?? []).length > 0;
         if (shouldShowDailyPaywall({ isPremium, hasLoggedMealToday: mealsLogged })) {
           markPaywallShown();
