@@ -14,7 +14,10 @@ const corsHeaders = {
 
 const BodySchema = z.object({
   plan: z.enum(["premium", "ultra"]),
-  duration_days: z.number().int().min(1).max(365).default(30),
+  duration_days: z.number().int().min(1).max(366).default(30),
+  payment_method_type: z.enum(["upi", "card", "netbanking", "wallet"]).optional(),
+  payment_method_display: z.string().max(120).optional(),
+  amount_paise: z.number().int().min(0).max(100_000_00).optional(),
 });
 
 Deno.serve(async (req) => {
@@ -61,7 +64,7 @@ Deno.serve(async (req) => {
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
-  const { plan, duration_days } = parsed.data;
+  const { plan, duration_days, payment_method_type, payment_method_display, amount_paise } = parsed.data;
 
   const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
   const start = new Date();
@@ -89,18 +92,47 @@ Deno.serve(async (req) => {
     });
   }
 
+  const inferredAmount = amount_paise ?? (plan === "ultra" ? 49900 : (duration_days >= 300 ? 149900 : 14900));
+  const receiptId = `MOCK-${Date.now().toString(36).toUpperCase()}`;
+
   await admin.from("payment_events").insert({
     user_id: user.id,
     subscription_id: sub.id,
     event_type: "subscribe",
     provider: "mock",
-    provider_event_id: `mock_evt_${crypto.randomUUID()}`,
-    amount_inr: plan === "ultra" ? 499 : 199,
-    raw_payload: { plan, duration_days, mock: true },
+    provider_event_id: receiptId,
+    amount_inr: Math.round(inferredAmount / 100),
+    raw_payload: {
+      plan,
+      duration_days,
+      mock: true,
+      payment_method_type: payment_method_type ?? null,
+      payment_method_display: payment_method_display ?? null,
+      receipt_id: receiptId,
+      amount_paise: inferredAmount,
+    },
   });
 
-  return new Response(JSON.stringify({ ok: true, subscription: sub }), {
-    status: 200,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({
+      ok: true,
+      subscription: sub,
+      receipt: {
+        id: receiptId,
+        plan,
+        duration_days,
+        amount_paise: inferredAmount,
+        amount_inr: Math.round(inferredAmount / 100),
+        period_start: start.toISOString(),
+        period_end: end.toISOString(),
+        payment_method_type: payment_method_type ?? null,
+        payment_method_display: payment_method_display ?? null,
+        provider: "mock",
+      },
+    }),
+    {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    },
+  );
 });
