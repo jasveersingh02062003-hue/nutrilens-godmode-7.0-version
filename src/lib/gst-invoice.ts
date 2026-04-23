@@ -1,6 +1,8 @@
 // ============================================
-// GST Invoice PDF Generator (India)
-// HSN/SAC: 998365 — Online Advertising Services
+// Invoice PDF Generator (India)
+// Supports two modes:
+//   1) GST-registered (Tax Invoice with HSN/SAC 998365 — Online Advertising)
+//   2) GST-exempt (plain Invoice, supplier turnover < ₹20L per Section 22 CGST Act)
 // ============================================
 
 import { jsPDF } from 'jspdf';
@@ -18,9 +20,9 @@ export interface InvoiceParams {
   periodLabel: string;          // e.g. "November 2026"
   // Seller (NutriLens)
   sellerName: string;
-  sellerGstin: string;
+  sellerGstin: string | null;
   sellerAddress: string;
-  sellerStateCode: string;      // e.g. "29" for Karnataka
+  sellerStateCode: string | null;      // e.g. "29" for Karnataka
   // Buyer (brand)
   buyerName: string;
   buyerGstin?: string | null;
@@ -28,7 +30,9 @@ export interface InvoiceParams {
   buyerStateCode?: string | null;
   // Lines
   txns: InvoiceTxn[];
-  gstRate?: number;             // default 18% for advertising services
+  gstRate?: number;             // default 18% for advertising services (ignored when gstExempt)
+  /** If true: render plain "INVOICE", skip GST math, GSTIN rows & HSN line. */
+  gstExempt?: boolean;
 }
 
 const fmtINR = (n: number) =>
@@ -40,20 +44,21 @@ export function generateGstInvoicePdf(p: InvoiceParams): Blob {
   const margin = 40;
   let y = margin;
 
+  const exempt = !!p.gstExempt;
   const rate = p.gstRate ?? 18;
-  const sameState = !!p.buyerStateCode && p.buyerStateCode === p.sellerStateCode;
+  const sameState = !exempt && !!p.buyerStateCode && p.buyerStateCode === p.sellerStateCode;
 
   const subtotal = p.txns.reduce((s, t) => s + t.amount, 0);
-  const taxTotal = (subtotal * rate) / 100;
+  const taxTotal = exempt ? 0 : (subtotal * rate) / 100;
   const cgst = sameState ? taxTotal / 2 : 0;
   const sgst = sameState ? taxTotal / 2 : 0;
-  const igst = sameState ? 0 : taxTotal;
+  const igst = !exempt && !sameState ? taxTotal : 0;
   const grandTotal = subtotal + taxTotal;
 
   // Header
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
-  doc.text('TAX INVOICE', W / 2, y, { align: 'center' });
+  doc.text(exempt ? 'INVOICE' : 'TAX INVOICE', W / 2, y, { align: 'center' });
   y += 22;
 
   doc.setFontSize(10);
@@ -62,7 +67,9 @@ export function generateGstInvoicePdf(p: InvoiceParams): Blob {
   doc.text(`Date: ${p.invoiceDate}`, W - margin, y, { align: 'right' });
   y += 14;
   doc.text(`Billing Period: ${p.periodLabel}`, margin, y);
-  doc.text(`HSN/SAC: 998365`, W - margin, y, { align: 'right' });
+  if (!exempt) {
+    doc.text(`HSN/SAC: 998365`, W - margin, y, { align: 'right' });
+  }
   y += 20;
 
   // Seller block
@@ -71,21 +78,28 @@ export function generateGstInvoicePdf(p: InvoiceParams): Blob {
   doc.setFont('helvetica', 'normal');
   y += 14;
   doc.text(p.sellerName, margin, y); y += 12;
-  doc.text(`GSTIN: ${p.sellerGstin}`, margin, y); y += 12;
-  doc.text(`State Code: ${p.sellerStateCode}`, margin, y); y += 12;
+  if (!exempt && p.sellerGstin) {
+    doc.text(`GSTIN: ${p.sellerGstin}`, margin, y); y += 12;
+    doc.text(`State Code: ${p.sellerStateCode ?? '—'}`, margin, y); y += 12;
+  } else if (exempt) {
+    doc.text('GST Status: Not Registered (Section 22, CGST Act)', margin, y); y += 12;
+  }
   const sellerAddrLines = doc.splitTextToSize(p.sellerAddress, (W - margin * 2) / 2);
   doc.text(sellerAddrLines, margin, y); y += sellerAddrLines.length * 12 + 8;
 
-  // Buyer block
-  let by = y - sellerAddrLines.length * 12 - 8 - 36;
+  // Buyer block (right column, aligned to seller header)
+  const buyerHeaderRows = exempt ? 1 : 2;
+  let by = y - sellerAddrLines.length * 12 - 8 - (buyerHeaderRows * 12) - 24;
   const bx = W / 2 + 10;
   doc.setFont('helvetica', 'bold');
   doc.text('To (Recipient):', bx, by);
   doc.setFont('helvetica', 'normal');
   by += 14;
   doc.text(p.buyerName, bx, by); by += 12;
-  doc.text(`GSTIN: ${p.buyerGstin || 'Unregistered'}`, bx, by); by += 12;
-  doc.text(`State Code: ${p.buyerStateCode || '—'}`, bx, by); by += 12;
+  if (!exempt) {
+    doc.text(`GSTIN: ${p.buyerGstin || 'Unregistered'}`, bx, by); by += 12;
+    doc.text(`State Code: ${p.buyerStateCode || '—'}`, bx, by); by += 12;
+  }
   if (p.buyerAddress) {
     const buyerAddrLines = doc.splitTextToSize(p.buyerAddress, (W - margin * 2) / 2);
     doc.text(buyerAddrLines, bx, by);
@@ -129,11 +143,13 @@ export function generateGstInvoicePdf(p: InvoiceParams): Blob {
     y += 14;
   };
   row('Subtotal', fmtINR(subtotal));
-  if (sameState) {
-    row(`CGST (${rate / 2}%)`, fmtINR(cgst));
-    row(`SGST (${rate / 2}%)`, fmtINR(sgst));
-  } else {
-    row(`IGST (${rate}%)`, fmtINR(igst));
+  if (!exempt) {
+    if (sameState) {
+      row(`CGST (${rate / 2}%)`, fmtINR(cgst));
+      row(`SGST (${rate / 2}%)`, fmtINR(sgst));
+    } else {
+      row(`IGST (${rate}%)`, fmtINR(igst));
+    }
   }
   y += 4;
   doc.setLineWidth(0.8);
@@ -145,16 +161,23 @@ export function generateGstInvoicePdf(p: InvoiceParams): Blob {
   y += 30;
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(9);
-  const footer = 'This is a computer-generated invoice. SAC 998365 — Online Advertising Services. Reverse charge: No.';
+  const footer = exempt
+    ? 'GST not applicable. Supplier is not registered under GST (turnover below ₹20 lakh threshold per Section 22 of CGST Act, 2017). This is a computer-generated invoice and does not require a signature.'
+    : 'This is a computer-generated invoice. SAC 998365 — Online Advertising Services. Reverse charge: No.';
   doc.text(doc.splitTextToSize(footer, W - margin * 2), margin, y);
 
   return doc.output('blob');
 }
 
-/** Default seller (NutriLens) details — replace with real values in env if needed. */
+/**
+ * Default seller details — currently configured for GST-EXEMPT mode.
+ * When you register your business and obtain a GSTIN, update these values
+ * and flip `gstExempt` to false. See TODO_BUSINESS_REGISTRATION.md at the project root.
+ */
 export const DEFAULT_SELLER = {
-  sellerName: 'NutriLens Technologies',
-  sellerGstin: '29ABCDE1234F1Z5',
-  sellerAddress: 'Bangalore, Karnataka, India',
-  sellerStateCode: '29',
+  sellerName: 'Nutrilens',
+  sellerGstin: null as string | null,
+  sellerAddress: 'India',
+  sellerStateCode: null as string | null,
+  gstExempt: true,
 };
