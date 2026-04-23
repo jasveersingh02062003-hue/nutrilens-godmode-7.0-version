@@ -30,8 +30,32 @@ export default function SpecialPlansTab() {
   const [selectedPlan, setSelectedPlan] = useState<PlanMeta | null>(null);
   const [eventSheetOpen, setEventSheetOpen] = useState(false);
   const [subTab, setSubTab] = useState<'available' | 'my'>(() => getActivePlanRaw() ? 'my' : 'available');
+  const { disableAggressivePlans, disableEventPlans, isMinor } = useAgeTier();
   const activePlan = getActivePlan();
   const progress = getPlanProgress();
+
+  const isPlanRestricted = (id: PlanType) =>
+    disableAggressivePlans && RESTRICTED_PLAN_IDS.includes(id);
+
+  const handlePlanClick = (plan: PlanMeta) => {
+    if (isPlanRestricted(plan.id)) {
+      toast.info('This plan is not available under 18 — for your safety.', {
+        description: 'Aggressive calorie cuts can affect growth and metabolism.',
+      });
+      return;
+    }
+    setSelectedPlan(plan);
+  };
+
+  const handleEventCtaClick = () => {
+    if (disableEventPlans) {
+      toast.info('Event plans are not available under 18 — for your safety.', {
+        description: 'Deadline-driven goals can encourage unsafe eating patterns.',
+      });
+      return;
+    }
+    setEventSheetOpen(true);
+  };
 
   const filtered = filter === 'all' ? PLAN_CATALOG : PLAN_CATALOG.filter(p => p.category === filter);
 
