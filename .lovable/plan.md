@@ -1,91 +1,141 @@
 
 
-# Phase 12 Wrap-Up + Phase 14 (Polish) — Skipping Razorpay
+# Production Readiness Audit — Post Phase 11/12/14
 
-Per your direction: leave Razorpay/Phase 13 untouched. Close the remaining Phase 12 verification gaps, then move into Phase 14 post-launch polish items that don't depend on payments.
-
----
-
-## Part A — Phase 12 Verification & Loose Ends
-
-### A1. Consent records table check
-Verify `consent_records` table exists with proper schema (the signup flow in `Auth.tsx` writes to it). If missing, add migration:
-- Columns: `id uuid pk`, `user_id uuid → auth.users`, `consent_type text` (e.g., `terms_privacy`), `version text`, `granted_at timestamptz`, `ip_address text nullable`, `user_agent text nullable`.
-- RLS: users can insert/select their own; admins can select all.
-
-### A2. Pagination on `Progress` page (#12 follow-up)
-Audit found `Progress.tsx` reads from local storage so Supabase 1000-row cap doesn't apply — but add a defensive `LIMIT` to any direct `daily_logs` queries elsewhere (e.g., `cloud-sync.ts` history fetches) to prevent silent truncation as users mature past 1000 days.
-
-### A3. Sentry DSN status
-Already wired in code; just confirms with you that you'll add `VITE_SENTRY_DSN` in Workspace → Build Secrets when ready. No-op until then (safe default).
+Re-audit after the security/legal/polish work. Verifies what's actually in place vs the original 12 blockers, flags what's still open, and prioritizes the remaining work. **Razorpay (#9) and government Mandi API are explicitly excluded** per your instructions.
 
 ---
 
-## Part B — Phase 14 Post-Launch Polish (Razorpay-independent)
+## ✅ VERIFIED IMPLEMENTED (evidence-backed)
 
-### B1. GST invoice PDF generation (#13)
-- New `src/lib/gst-invoice.ts`: builds a compliant Indian GST invoice (invoice no., date, brand GSTIN placeholder, HSN/SAC for "Online Advertising Services" = 998365, CGST/SGST/IGST split, QR code area).
-- Replace CSV download in `BrandBilling.tsx` with PDF (using `jspdf` already in deps if present, else add).
-- Configurable: GSTIN per `brand_accounts` (add column `gstin text nullable`), and a single `seller_gstin` env constant for NutriLens.
-- Migration: `ALTER TABLE brand_accounts ADD COLUMN gstin text, billing_address jsonb`.
+### Security (Phase 11)
+| # | Item | Verified by |
+|---|---|---|
+| 1 | `ad_campaigns` RLS — INSERT/UPDATE gated by `is_brand_member(brand_id)` or admin | RLS policies in `<supabase-tables>` confirm |
+| 2 | `ad_targeting` RLS — gated by `is_brand_member(campaign_brand_id(...))` | Confirmed |
+| 3 | `brand_accounts.balance` direct-write blocked via `block_brand_balance_direct_write` trigger + `apply_brand_transaction()` RPC | DB function present, admin pages wired |
+| 4 | `user_roles` — only `is_owner()` may grant; `audit_user_role_changes` trigger logs every change | DB functions present |
+| 5 | PII masking via `get_masked_profiles` / `get_masked_profile` RPCs (returns first_name + age_bucket only) | Functions present, AdminUsers/AdminUserDetail wired |
+| 7 | `daily_logs` optimistic locking via `upsert_daily_log(p_expected_updated_at)` RPC, returns `P0409` on conflict | Function present, `daily-log-sync.ts` wired |
+| — | `audit_logs` table with super-admin-only SELECT | Confirmed |
+| — | Storage buckets `meal-photos` + `brand-kyc` policies | Already correct pre-Phase 11 |
 
-### B2. Ad fraud / click-bomb protection (#14)
-- New edge function `log-ad-event` already exists — extend it:
-  - Reject duplicate `(user_id, ad_id, event_type)` within 30 seconds (in-memory + DB lookup against `ad_events`).
-  - Reject more than 5 clicks/min per user across all ads (uses `ad_events` count).
-  - Reject events from same `user_id` on same `campaign_id` after `daily_click_cap` (new column on `ad_campaigns`, default 10).
-- Migration: `ALTER TABLE ad_campaigns ADD COLUMN daily_click_cap int DEFAULT 10`.
-- Add `is_suspicious boolean` to `ad_events` so fraud-flagged events are excluded from billing in `select-ads` cost rollup.
+### Legal & Monitoring (Phase 12)
+| Item | Verified by |
+|---|---|
+| `/privacy` + `/terms` routes (DPDP-aligned) | `src/pages/Privacy.tsx`, `src/pages/Terms.tsx` |
+| Signup consent checkbox → `consent_records` table | Table present with proper RLS |
+| `HealthDisclaimerBanner` on Dashboard + Monika chat | Component exists |
+| Sentry wired (`src/lib/sentry.ts`, `initSentry()` in `main.tsx`, ErrorBoundary integration, PII scrubbing) | Files present |
+| Footer legal links on Auth/Welcome/Profile | Edited |
 
-### B3. DPDP data-export endpoint (#15)
-- New edge function `export-user-data`:
-  - Auth: requires logged-in user; only exports own data.
-  - Aggregates: `profiles`, `daily_logs`, `weight_logs`, `water_logs`, `supplement_logs`, `consent_records`, `ad_events` (own).
-  - Returns ZIP-streamed JSON files (one per table) + a `manifest.json`.
-  - Audit-log the export to `audit_logs`.
-- New button in `src/pages/Profile.tsx` → "Download my data" → calls function → triggers download.
-
-### B4. Backup restore drill (#16)
-- Documentation only: add `docs/BACKUP_RESTORE.md` with quarterly drill checklist (Lovable Cloud auto-backups, manual SQL export via `pg_dump`, restore-test procedure on a remix project).
-- Calendar reminder is on you — no code change needed.
-
----
-
-## Execution Order
-
-1. **A1** — consent table migration (verify/create)
-2. **A2** — defensive `LIMIT` on `daily_logs` history queries
-3. **B1** — GST invoice (migration + PDF generator + BrandBilling swap)
-4. **B2** — fraud protection (migration + edge function update)
-5. **B3** — data export edge function + Profile button
-6. **B4** — `docs/BACKUP_RESTORE.md`
-7. Final: re-run security scanner, summarize verdict
+### Post-Launch Polish (Phase 14)
+| Item | Verified by |
+|---|---|
+| GST invoice PDF (`src/lib/gst-invoice.ts`, HSN 998365, CGST/SGST/IGST split) | File present |
+| `brand_accounts.gstin` + `billing_address` columns | Confirmed in schema |
+| Ad fraud guards in `log-ad-event`: 30s in-memory dedupe, 5 clicks/min cap, daily_click_cap per campaign, `is_suspicious` flag, fraud-flagged clicks excluded from billing | Edge function code confirmed |
+| `ad_campaigns.daily_click_cap` (default 10), `ad_clicks.is_suspicious`, `ad_impressions.is_suspicious` | Schema confirmed |
+| DPDP data export (`supabase/functions/export-user-data/index.ts` + Profile button) | Function present |
+| Backup restore drill doc (`docs/BACKUP_RESTORE.md`) | File present |
 
 ---
 
-## Files Touched
+## ❌ NOT IMPLEMENTED — Open Items
 
-**Migrations:** consent_records (if missing), brand_accounts GST cols, ad_campaigns click cap, ad_events suspicious flag.
+### 🔴 P0 — Will hurt within first week
+| # | Item | Why it matters | Effort |
+|---|---|---|---|
+| O1 | **Sentry DSN secret** not added (`VITE_SENTRY_DSN` missing from secrets list) | Sentry code is dead until DSN configured → still blind to runtime errors | XS (config only, no code) |
+| O2 | **Real GSTIN** not configured in `gst-invoice.ts` (`DEFAULT_SELLER` placeholder) | Issuing invoices today would be non-compliant | XS |
+| O3 | **Brand fraud-flagged events still bill?** — verify `select-ads` cost rollup actually filters `is_suspicious=true` | If not filtered, fraud guards don't protect billing | S — verify + patch if needed |
+| O4 | **`ON DELETE CASCADE`** missing on `ad_impressions.campaign_id`, `ad_clicks.campaign_id`, `ad_conversions.campaign_id`, `ad_creatives.campaign_id`, `ad_targeting.campaign_id`, `brand_transactions.brand_id`, `brand_members.brand_id`, `brand_documents.brand_id` (no foreign keys at all in current schema per audit output) | Orphan rows on brand churn; stats inflate | S — one migration |
 
-**New:**
-- `src/lib/gst-invoice.ts`
-- `supabase/functions/export-user-data/index.ts`
-- `docs/BACKUP_RESTORE.md`
+### 🟡 P1 — Required before scaling past ~500 users
+| # | Item | Effort |
+|---|---|---|
+| O5 | **Edge function rate limiting** on `analyze-food`, `monika-chat`, `scan-receipt`, `firecrawl-prices`, `select-ads` — known platform gap, deferred per system policy. Track as known risk. | N/A (infra) |
+| O6 | **Admin-write protection on `city_prices` / `packed_products` / `price_history`** — current RLS allows any authenticated user to INSERT/UPDATE; price manipulation vector | S — one migration restricting to admins/service role |
+| O7 | **`select-ads` SLA fallback** — verify every consumer caller wraps in try/catch and renders an empty slot (not a crash) when the function 500s | S — audit + patch callers |
+| O8 | **`scan-receipt` + `analyze-food` JSON validation** — reject malformed Gemini responses before they corrupt budget/log | S — add zod schema in edge functions |
+| O9 | **N+1 on Dashboard mount** — 8+ sequential supabase calls; batch into Promise.all | M |
+| O10 | **Onboarding save/resume** — 1964-LOC flow, no progress persistence → high drop-off | M |
+| O11 | **Delete-my-account flow** (DPDP right-to-erasure) — export exists, deletion does not | M |
+| O12 | **Marketing consent** UI — column exists, never asked at signup | XS |
+| O13 | **Timezone safety** — `toLocalDateStr()` uses device local; mid-day timezone shift moves meals between days | S |
+| O14 | **Audit log coverage gaps** — ad campaign edits + brand wallet changes not logged (RPC writes ledger but admin UI actions aren't separately audited) | S |
 
-**Edited:**
-- `supabase/functions/log-ad-event/index.ts`
-- `src/pages/brand/BrandBilling.tsx`
-- `src/pages/Profile.tsx`
-- `src/lib/cloud-sync.ts` (defensive limits)
+### 🟢 P2 — Polish, not blocking
+| # | Item | Effort |
+|---|---|---|
+| O15 | Service worker / offline queue for meal logs | M |
+| O16 | Accessibility audit (aria, contrast, keyboard nav) | M |
+| O17 | Pagination on `Progress` + `FoodArchive` cloud queries (local storage uses paging already) | S |
+| O18 | Backup restore *drill* actually executed (doc exists, drill not run) | S — operational |
+| O19 | Designed empty/error states beyond default toasts | M |
+| O20 | Push/email re-engagement for 4-day skippers (drop-off-defense only fires on app open) | L (needs FCM + transactional email) |
+
+### ⛔ Explicitly excluded per your instruction
+- **#9 Razorpay** payment integration
+- **Government Mandi API** integration
 
 ---
 
-## Out of scope (per your instruction)
+## 📊 Reality Check
 
-- Phase 13 Razorpay integration — space reserved, not implemented. `BrandBilling.tsx` will keep "Contact account manager to top up" copy.
+| Metric | Status |
+|---|---|
+| Phases 1–10 (build) | ✅ Done |
+| Phase 11 (security) | ✅ 100% (except infra rate-limiting) |
+| Phase 12 (legal + monitoring) | 🟡 95% — DSN + delete-account missing |
+| Phase 14 (post-launch polish) | ✅ Shipped (4 items) |
+| **Production-ready (excl. Razorpay/Mandi)** | **~85%** |
 
-## Stop condition
+**Verdict (excluding Razorpay + Mandi):**
+- 🟢 **Closed beta ≤500 users:** READY *after* O1+O2+O4 land (a few hours of work).
+- 🟡 **Public consumer launch ≤10k:** needs O3, O6–O14 (~1 week).
+- 🔴 **Brand self-serve at scale:** still gated on Razorpay (your call to skip).
 
-After B4 ships and scanner passes, verdict flips to:
-**🟢 Closed beta ready (≤500 users) + post-launch polish complete. Public launch gated only on Razorpay (Phase 13) when you're ready.**
+---
+
+## 🚀 Implementation Plan — Prioritized
+
+### Sprint A — Closed-Beta Gate (1 day, ~5 files)
+Goal: flip verdict to 🟢 for ≤500 closed beta users.
+
+1. **O1 — Sentry DSN config**
+   - I'll request `VITE_SENTRY_DSN` via the secrets tool. No code change.
+2. **O2 — Real GSTIN in `gst-invoice.ts`**
+   - Edit `DEFAULT_SELLER` constant only. Ask you for GSTIN + registered address before editing.
+3. **O3 — Verify fraud filter in `select-ads`**
+   - Read `supabase/functions/select-ads/index.ts`, confirm `is_suspicious=false` filter on cost rollup. Patch if missing (single edge-function edit).
+4. **O4 — Orphan-prevention migration**
+   - One migration: add proper FK constraints with `ON DELETE CASCADE` on all `ad_*` and `brand_*` child tables.
+
+### Sprint B — Pre-Public-Launch (3–5 days)
+Goal: harden for self-serve consumer growth past 500.
+
+5. **O6** — Lock down `city_prices` / `packed_products` / `price_history` writes to admin/service role (1 migration).
+6. **O8** — Add zod validation to `scan-receipt` + `analyze-food` response parsing (2 edge function edits).
+7. **O7** — Audit `select-ads` callers for try/catch fallback (search + patch ~3–5 components).
+8. **O11** — Build "Delete my account" flow: new edge function `delete-user-account` + Profile button + audit log entry.
+9. **O12** — Add marketing-consent toggle on signup (1 checkbox + write to `profiles.marketing_consent`).
+10. **O13** — Replace `toLocalDateStr()` device-local with stored user timezone preference (`profiles.timezone` migration + helper update).
+11. **O14** — Add audit log writes for ad campaign UPDATE and brand transaction RPC calls.
+12. **O9** — Batch Dashboard mount queries into `Promise.all` (single file: `useDashboardInit.ts`).
+
+### Sprint C — Scale & Polish (post-launch, parallelizable)
+13. **O10** — Onboarding save/resume (write step to `profiles` after each step).
+14. **O17** — Cloud-side pagination on Progress + FoodArchive.
+15. **O15, O16, O19, O20** — Polish items, opportunistic.
+
+### Known infra gap (no action)
+- **O5** — Edge function rate limiting: cannot be implemented today per platform policy. Track as a launch risk; mitigate by monitoring `api_usage` daily and using LOVABLE_API_KEY quotas.
+
+---
+
+## 🎯 Recommended Next Step
+Approve **Sprint A** (4 items, ~1 day). After it lands, you can safely run a closed beta of ≤500 invited users while Sprint B work continues in parallel.
+
+When you approve, I'll start with **O4 (FK cascade migration)** since it's pure schema and unblocks safe brand churn, then **O3 (fraud-filter verification)**, then ask you for GSTIN (O2) and Sentry DSN (O1).
 
