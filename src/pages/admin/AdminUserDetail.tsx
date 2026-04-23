@@ -107,7 +107,7 @@ export default function AdminUserDetail() {
         return;
       }
 
-      const [pr, dl, wl, wat, sup, pl, ac, ch] = await Promise.all([
+      const [pr, dl, wl, wat, sup, pl, ac, ch, sb, pe] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', id).maybeSingle(),
         supabase.from('daily_logs').select('log_date, log_data').eq('user_id', id).gte('log_date', since).order('log_date', { ascending: false }),
         supabase.from('weight_logs').select('log_date, weight, unit').eq('user_id', id).gte('log_date', since).order('log_date', { ascending: false }),
@@ -116,6 +116,8 @@ export default function AdminUserDetail() {
         supabase.from('event_plans').select('id, plan_type, status, start_date, end_date').eq('user_id', id).order('start_date', { ascending: false }),
         supabase.from('user_achievements').select('achievement_key, unlocked_at').eq('user_id', id).order('unlocked_at', { ascending: false }),
         supabase.from('monika_conversations').select('id, role, content, created_at').eq('user_id', id).order('created_at', { ascending: false }).limit(50),
+        supabase.from('subscriptions').select('plan, status, trial_end, current_period_end, cancel_at_period_end, has_used_trial').eq('user_id', id).maybeSingle(),
+        supabase.from('payment_events').select('id, event_type, amount_inr, created_at, raw_payload').eq('user_id', id).order('created_at', { ascending: false }).limit(20),
       ]);
 
       setProfile(pr.data as Profile | null);
@@ -126,6 +128,8 @@ export default function AdminUserDetail() {
       setPlans((pl.data ?? []) as Plan[]);
       setAchs((ac.data ?? []) as Achievement[]);
       setChats((ch.data ?? []) as ChatMsg[]);
+      setSub((sb.data as Subscription | null) ?? null);
+      setPayEvents((pe.data ?? []) as PaymentEvent[]);
       setLoading(false);
     })();
   }, [id, useMaskedView]);
