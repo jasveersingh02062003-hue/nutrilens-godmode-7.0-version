@@ -23,6 +23,7 @@ export type Database = {
           cpc_rate: number | null
           cpm_rate: number | null
           created_at: string
+          daily_click_cap: number
           end_date: string
           id: string
           pes_score: number
@@ -42,6 +43,7 @@ export type Database = {
           cpc_rate?: number | null
           cpm_rate?: number | null
           created_at?: string
+          daily_click_cap?: number
           end_date: string
           id?: string
           pes_score?: number
@@ -61,6 +63,7 @@ export type Database = {
           cpc_rate?: number | null
           cpm_rate?: number | null
           created_at?: string
+          daily_click_cap?: number
           end_date?: string
           id?: string
           pes_score?: number
@@ -88,6 +91,7 @@ export type Database = {
           created_at: string
           id: string
           impression_id: string | null
+          is_suspicious: boolean
           user_id: string
         }
         Insert: {
@@ -95,6 +99,7 @@ export type Database = {
           created_at?: string
           id?: string
           impression_id?: string | null
+          is_suspicious?: boolean
           user_id: string
         }
         Update: {
@@ -102,6 +107,7 @@ export type Database = {
           created_at?: string
           id?: string
           impression_id?: string | null
+          is_suspicious?: boolean
           user_id?: string
         }
         Relationships: [
@@ -216,6 +222,7 @@ export type Database = {
           created_at: string
           creative_id: string
           id: string
+          is_suspicious: boolean
           placement_slot: string
           user_id: string
         }
@@ -224,6 +231,7 @@ export type Database = {
           created_at?: string
           creative_id: string
           id?: string
+          is_suspicious?: boolean
           placement_slot: string
           user_id: string
         }
@@ -232,6 +240,7 @@ export type Database = {
           created_at?: string
           creative_id?: string
           id?: string
+          is_suspicious?: boolean
           placement_slot?: string
           user_id?: string
         }
@@ -380,9 +389,11 @@ export type Database = {
       brand_accounts: {
         Row: {
           balance: number
+          billing_address: Json | null
           brand_name: string
           contact_email: string | null
           created_at: string
+          gstin: string | null
           id: string
           logo_url: string | null
           status: string
@@ -390,9 +401,11 @@ export type Database = {
         }
         Insert: {
           balance?: number
+          billing_address?: Json | null
           brand_name: string
           contact_email?: string | null
           created_at?: string
+          gstin?: string | null
           id?: string
           logo_url?: string | null
           status?: string
@@ -400,9 +413,11 @@ export type Database = {
         }
         Update: {
           balance?: number
+          billing_address?: Json | null
           brand_name?: string
           contact_email?: string | null
           created_at?: string
+          gstin?: string | null
           id?: string
           logo_url?: string | null
           status?: string
