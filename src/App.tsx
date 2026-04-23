@@ -19,6 +19,7 @@ import DashboardSkeleton from "./components/dashboard/DashboardSkeleton";
 import ProgressSkeleton from "./components/progress/ProgressSkeleton";
 import OfflineBanner from "./components/OfflineBanner";
 import { DailyPaywallProvider } from "./hooks/useDailyPaywall";
+import PaymentTestModeBanner from "./components/paywall/PaymentTestModeBanner";
 
 function lazyWithRetry<T extends React.ComponentType<any>>(
   importer: () => Promise<{ default: T }>,
@@ -190,6 +191,7 @@ function AppLayout() {
 
   return (
     <>
+      <PaymentTestModeBanner />
       <OfflineBanner />
       <div className="ambient-mesh" />
       <Routes>

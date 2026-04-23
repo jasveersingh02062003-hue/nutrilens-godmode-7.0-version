@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Crown, Calendar, CreditCard, FileText, XCircle, ChevronRight, IndianRupee, PauseCircle, PlayCircle } from 'lucide-react';
+import { Crown, Calendar, CreditCard, FileText, XCircle, ChevronRight, IndianRupee, PauseCircle, PlayCircle, ExternalLink } from 'lucide-react';
 import {
   onPlanChange, cancelSubscription, pauseSubscription, resumeSubscription,
   type Plan, type SubscriptionStatus,
 } from '@/lib/subscription-service';
 import { supabase } from '@/integrations/supabase/client';
+import { getPaddleEnvironment, isPaddleConfigured } from '@/lib/paddle';
 import { toast } from 'sonner';
 import BillingHistorySheet from './BillingHistorySheet';
 import RetentionOfferScreen from '../RetentionOfferScreen';
@@ -146,6 +147,15 @@ export default function ManageSubscriptionSheet({ open, onClose, onUpgradeClick 
                   onClick={() => setShowHistory(true)}
                   showChevron
                 />
+                {isPaddleConfigured() && (
+                  <Row
+                    icon={<ExternalLink className="w-4 h-4" />}
+                    label="Manage in billing portal"
+                    value="Update card, view invoices, cancel"
+                    onClick={openCustomerPortal}
+                    showChevron
+                  />
+                )}
 
                 {isPaused ? (
                   <button

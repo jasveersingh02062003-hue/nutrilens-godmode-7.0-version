@@ -126,6 +126,7 @@ export default function PlanPickerScreen({ onBack, onClose, onUpgraded }: Props)
         amountPaise={amountPaise}
         durationDays={yearly ? 365 : 30}
         planLabel={yearly ? 'NutriLens Pro · Yearly' : 'NutriLens Pro · Monthly'}
+        priceId={yearly ? 'premium_yearly' : 'premium_monthly'}
         onSuccess={() => {
           setShowPayment(false);
           onUpgraded?.();

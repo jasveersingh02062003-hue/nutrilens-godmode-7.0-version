@@ -1294,9 +1294,14 @@ export type Database = {
           created_at: string
           current_period_end: string | null
           current_period_start: string | null
+          environment: string
           has_used_trial: boolean
           id: string
+          paddle_customer_id: string | null
+          paddle_subscription_id: string | null
           plan: Database["public"]["Enums"]["subscription_plan"]
+          price_id_ext: string | null
+          product_id_ext: string | null
           provider: Database["public"]["Enums"]["payment_provider"]
           provider_customer_id: string | null
           provider_subscription_id: string | null
@@ -1310,9 +1315,14 @@ export type Database = {
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
+          environment?: string
           has_used_trial?: boolean
           id?: string
+          paddle_customer_id?: string | null
+          paddle_subscription_id?: string | null
           plan?: Database["public"]["Enums"]["subscription_plan"]
+          price_id_ext?: string | null
+          product_id_ext?: string | null
           provider?: Database["public"]["Enums"]["payment_provider"]
           provider_customer_id?: string | null
           provider_subscription_id?: string | null
@@ -1326,9 +1336,14 @@ export type Database = {
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
+          environment?: string
           has_used_trial?: boolean
           id?: string
+          paddle_customer_id?: string | null
+          paddle_subscription_id?: string | null
           plan?: Database["public"]["Enums"]["subscription_plan"]
+          price_id_ext?: string | null
+          product_id_ext?: string | null
           provider?: Database["public"]["Enums"]["payment_provider"]
           provider_customer_id?: string | null
           provider_subscription_id?: string | null
@@ -1538,6 +1553,10 @@ export type Database = {
           status: Database["public"]["Enums"]["subscription_status"]
           trial_end: string
         }[]
+      }
+      has_active_subscription: {
+        Args: { check_env?: string; user_uuid: string }
+        Returns: boolean
       }
       has_role: {
         Args: {

@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Smartphone, CreditCard, Building2, Wallet, Lock, X, ShieldCheck } from 'lucide-react';
+import { ChevronRight, Smartphone, CreditCard, Building2, Wallet, Lock, X, ShieldCheck, Sparkles } from 'lucide-react';
 import TestModeBadge from './TestModeBadge';
 import PaymentProcessing from './PaymentProcessing';
 import PaymentSuccessScreen from './PaymentSuccessScreen';
 import { listSavedMethods, saveMockMethod, type SavedPaymentMethod, maskUpi } from '@/lib/mock-payment-methods';
-import { mockSubscribe } from '@/lib/subscription-service';
+import { mockSubscribe, refreshPlan } from '@/lib/subscription-service';
+import { isPaddleConfigured, openPaddleCheckout } from '@/lib/paddle';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface Props {
@@ -15,6 +17,8 @@ interface Props {
   amountPaise: number;
   durationDays: number;
   planLabel: string;
+  /** Human-readable Paddle price id; required when Paddle is configured. */
+  priceId?: 'premium_monthly' | 'premium_yearly' | 'ultra_monthly';
   onSuccess: () => void;
 }
 
@@ -33,7 +37,31 @@ const UPI_APPS = [
   { id: 'paytm', label: 'Paytm', emoji: '🟦' },
 ];
 
-export default function PaymentMethodSheet({ open, onClose, amountPaise, durationDays, planLabel, onSuccess }: Props) {
+export default function PaymentMethodSheet({ open, onClose, amountPaise, durationDays, planLabel, priceId, onSuccess }: Props) {
+  const paddleMode = isPaddleConfigured() && !!priceId;
+
+  async function handlePaddleCheckout() {
+    if (!priceId) return;
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData?.user;
+      await openPaddleCheckout({
+        priceId,
+        customerEmail: user?.email,
+        userId: user?.id,
+        onSuccess: async () => {
+          // Webhook will flip the DB; refresh the cache.
+          await refreshPlan();
+          toast.success('Payment successful! Welcome to Pro.');
+          onSuccess();
+        },
+      });
+    } catch (e) {
+      console.error('[paddle] checkout failed', e);
+      toast.error('Could not open checkout. Please try again.');
+    }
+  }
+
   const [stage, setStage] = useState<Stage>('pick');
   const [saved, setSaved] = useState<SavedPaymentMethod[]>([]);
   const [upiInput, setUpiInput] = useState('');
