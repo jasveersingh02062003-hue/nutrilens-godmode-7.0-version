@@ -60,6 +60,8 @@ export default function AdminUserDetail() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [achs, setAchs] = useState<Achievement[]>([]);
   const [chats, setChats] = useState<ChatMsg[]>([]);
+  const [sub, setSub] = useState<Subscription | null>(null);
+  const [payEvents, setPayEvents] = useState<PaymentEvent[]>([]);
   const useMaskedView = (isMarketer || isSupport) && !isAdmin;
 
   // Action modal state
@@ -67,6 +69,11 @@ export default function AdminUserDetail() {
   const [extendDays, setExtendDays] = useState('7');
   const [refundPlan, setRefundPlan] = useState<Plan | null>(null);
   const [refundReason, setRefundReason] = useState('');
+
+  // Subscription action state
+  const [subAction, setSubAction] = useState<null | 'comp' | 'force_cancel' | 'end_trial'>(null);
+  const [subReason, setSubReason] = useState('');
+  const [subBusy, setSubBusy] = useState(false);
 
   useEffect(() => {
     if (!id) return;
