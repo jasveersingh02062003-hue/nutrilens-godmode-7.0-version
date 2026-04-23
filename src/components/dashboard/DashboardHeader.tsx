@@ -1,13 +1,15 @@
-import { Menu } from 'lucide-react';
-import { useState } from 'react';
+import { Menu, Sparkles } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getGreeting } from '@/lib/nutrition';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
 import DashboardSidebar from '@/components/DashboardSidebar';
+import UpgradeModal from '@/components/UpgradeModal';
 import type { UserProfile } from '@/lib/store';
 import type { WeatherData } from '@/lib/weather-service';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useMemo } from 'react';
+import { isTrialActive, getTrialDaysRemaining, onPlanChange } from '@/lib/subscription-service';
 
 interface Props {
   profile: UserProfile;
@@ -27,6 +29,14 @@ export default function DashboardHeader({ profile, weather }: Props) {
   const navigate = useNavigate();
   const gradient = useMemo(() => getTimeGradient(), []);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+
+  // Subscribe to plan changes so the trial banner re-renders when status flips.
+  const [, forceTick] = useState(0);
+  useEffect(() => onPlanChange(() => forceTick(t => t + 1)), []);
+
+  const trialOn = isTrialActive();
+  const trialDaysLeft = trialOn ? getTrialDaysRemaining() : 0;
 
   return (
     <>
@@ -99,7 +109,33 @@ export default function DashboardHeader({ profile, weather }: Props) {
         </div>
       </motion.div>
 
+      <AnimatePresence>
+        {trialOn && (
+          <motion.button
+            key="trial-banner"
+            initial={{ opacity: 0, y: -8, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, y: -8, height: 0 }}
+            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+            onClick={() => setUpgradeOpen(true)}
+            className="mt-2 w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-primary/15 via-primary/10 to-accent/10 border border-primary/20 active:scale-[0.99] transition-transform"
+            aria-label="View upgrade options"
+          >
+            <span className="flex items-center gap-2 min-w-0">
+              <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
+              <span className="text-xs font-semibold text-foreground truncate">
+                {trialDaysLeft <= 1
+                  ? 'Last day of your Pro trial'
+                  : `${trialDaysLeft} days left in your Pro trial`}
+              </span>
+            </span>
+            <span className="text-[11px] font-bold text-primary shrink-0">Upgrade →</span>
+          </motion.button>
+        )}
+      </AnimatePresence>
+
       <DashboardSidebar open={sidebarOpen} onOpenChange={setSidebarOpen} />
+      <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
     </>
   );
 }
