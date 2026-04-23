@@ -1,144 +1,130 @@
-# 📋 Production-Readiness Master Checklist — NutriLens AI
 
-> Live status tracker. ✅ = shipped · ⬜ = pending · ~~strikethrough~~ = deferred post-launch.
-> Last updated: 2026-04-23
 
----
+# 📊 NutriLens AI — Audit Report & Next Implementation Plan
 
-## ✅ ALREADY SHIPPED
+## Part 1 — Verification Report (what's *actually* in the code)
 
-### 🔒 Security & Abuse Prevention
-- ✅ Server-side AI quota (`ai_usage_quota` + `increment_ai_quota`/`get_ai_quota` RPCs) — wired into `monika-chat`, `analyze-food`, `scan-receipt`
-- ✅ Zod input validation on `monika-chat`, `analyze-food`, `scan-receipt`
-- ✅ Prompt injection sanitization (`sanitizeUserContext()`)
-- ✅ Ad RLS lockdown — `ad_campaigns`, `ad_creatives`, `ad_impressions`, `ad_clicks`, `ad_conversions`, `ad_targeting` use `is_brand_member() OR is_staff()`
-- ✅ Admin role check server-side via `user_roles` (no localStorage)
-- ✅ Core RLS on `daily_logs`, `weight_logs`, `water_logs`, `profiles`, `monika_conversations`, `event_plans`
-- ✅ Optimistic locking via `upsert_daily_log` RPC
-- ✅ Click-fraud filter in `log-ad-event` (server-side dedup + daily cap + 5/min ratelimit)
+I opened every file behind every claim and ran the database security linter. Here's the truth:
 
-### ⚖️ Legal & Compliance
-- ✅ Account deletion RPC (`delete_my_account()` cascades 17 tables + auth.users)
-- ✅ Tiered age gating (Option D): <13 hard block, 13–17 restricted, 18+ full
-- ✅ DOB capture at signup, persisted to `profiles.dob`
-- ✅ `useAgeTier` hook + `age-tier.ts` engine integration
-- ✅ Calorie engine respects `getActiveCalorieFloor()` (1600 minors / 1200 adults)
-- ✅ Privacy policy (DPDP-aligned)
-- ✅ Terms of Service with health disclaimer + `HealthDisclaimerBanner`
-- ✅ GST-exempt invoice mode wired
+### ✅ Verified shipped (code matches the checklist)
 
-### 🛠️ Infrastructure
-- ✅ Sentry wired
-- ✅ FK cascades + DB indexes
-- ✅ Error boundaries
-- ✅ DashboardSkeleton + ProgressSkeleton
-- ✅ Daily auto-backups (Lovable Cloud)
+| Claim | File evidence | Verdict |
+|---|---|---|
+| Server-side AI quota wired into 3 edge fns | `monika-chat`, `analyze-food`, `scan-receipt` all import + call `increment_ai_quota` | ✅ Real |
+| Zod validation on AI edge fns | `RequestSchema.safeParse(body)` present in all 3 | ✅ Real |
+| Prompt injection sanitizer | `sanitizeUserContext()` defined and called in `monika-chat` | ✅ Real |
+| Tiered age gating (Option D) | `Auth.tsx` computes `tierForAge`, renders `MinorBlockedScreen` / `MinorConsentNotice`; `age-tier.ts` exports `tierForDob`, `calorieFloorForTier` (1200 adult / 1600 minor), `getActiveCalorieFloor` | ✅ Real |
+| Account-deletion UI (W1-A) | `Profile.tsx` lines 70-535: type-DELETE confirm, calls `delete_my_account` RPC, clears scoped storage, signs out, redirects | ✅ Real |
+| Branded 404 (W1-B) | `NotFound.tsx` rewritten — gradient bg, brand 404, `<Link>` (SPA-safe), 3 suggestion chips | ✅ Real |
+| Safe reload guard (W1-C) | `useDashboardInit.ts` lines 174-216: `safeReload()` with `nl_reload_count` cap of 3, reset on `nutrilens:update` | ✅ Real |
+| Zod on `log-ad-event` + rate-limit on `export-user-data` (W1-D) | `export-user-data` lines 14-63: 405 method guard + 3-exports/hour via `audit_logs` | ✅ Real |
 
-### 🏁 Week 1 Leftovers (closed 2026-04-23)
-- ✅ **W1-A** Account-deletion UI in Profile — Danger Zone + type-DELETE confirm dialog → `delete_my_account` RPC → clear scoped storage → sign out → `/auth`
-- ✅ **W1-B** Branded 404 page — gradient bg, primary brand 404, `<Link>` (SPA-safe), suggested routes
-- ✅ **W1-C** Safe reload guard — `safeReload()` caps at 3 reloads/session via `sessionStorage('nl_reload_count')`, resets on legit `nutrilens:update`
-- ✅ **W1-D** Zod validation on `log-ad-event` (full schema, JSON-parse guard, 405 on non-POST) and `export-user-data` (405 on non-POST/GET, 3-exports/hour rate limit via `audit_logs`)
+### ⚠️ Front-vs-Back consistency gaps (NOT yet fixed)
+
+| Issue | Frontend | Backend | Risk |
+|---|---|---|---|
+| **Subscription plan still in localStorage** | `subscription-service.ts` reads/writes `scopedGet(SUB_KEY)` | No `subscriptions` table. RPC checks plan client-side only | 🚨 Anyone can `localStorage.setItem('u_xxx_subscription_plan', 'ultra')` and unlock paid features |
+| **Daily AI quota = server-side ✅** but **paid-tier check = client-side ❌** | `canSendMonicaMessage()` reads localStorage | Edge fn enforces a hard daily cap but trusts client about which *tier* the user is on | 🚨 A user spoofing "ultra" gets the higher quota |
+| **Funnel events scaffolded, not fired** | `events.ts` defines `EventName` enum (signup, onboarding_complete, first_meal_logged...) | No call sites — type exists, nothing emits | ⚠️ No retention data |
+| **Push notifications stub-only** | `notifications.ts` uses `sonner` toasts only — no `OneSignal` / `FCM` import | No push-token table, no edge fn | 🚨 Day-2 retention will be flat |
+
+### 🔒 Security linter findings (fresh scan)
+
+11 warnings:
+- **WARN 1** — extension installed in `public` schema (low risk)
+- **WARN 2-10** — **9 RLS policies use `WITH CHECK (true)` or `USING (true)` for INSERT/UPDATE/DELETE** ← need to identify which tables and tighten
+- **WARN 11** — **leaked-password protection is OFF** in Supabase auth (one-click fix in dashboard)
+
+No `ERROR`-level findings. RLS is on everywhere; some policies are too permissive.
 
 ---
 
+## Part 2 — Updated Progress Snapshot
 
-## ⬜ WEEK 2 (~29h)
+| Bucket | Done | Pending | % |
+|---|---|---|---|
+| Week 1 (security/legal bleeders) | **13** | 0 | **100%** ✅ |
+| Week 2 (reliability, retention, ops) | 0 | 11 | 0% |
+| Pre-public launch (monetization, perf, hardening) | 0 | 18 | 0% |
+| **New: front/back consistency** | 0 | 4 | 0% |
+| **New: linter findings** | 0 | 3 | 0% |
 
-### Sprint 2A — Reliability (~10h)
+**Hours to closed beta:** ~34h (unchanged) + ~3h linter cleanup = **~37h**
+**Hours to public launch:** ~104h + ~16h server-side subscription = **~120h**
+
+---
+
+## Part 3 — Implementation Plan (next sprint)
+
+### Sprint 2A — Reliability + Linter Cleanup (~13h)
+
 | # | Task | Sev | Eff | File |
 |---|---|---|---|---|
-| W2-1 | Offline meal-log queue (IndexedDB, replay on reconnect) | 8 | 8h | `src/lib/cloud-sync.ts`, `src/lib/daily-log-sync.ts` |
-| W2-2 | `/healthz` edge fn + UptimeRobot ping every 5min | 5 | 1h | new `supabase/functions/healthz/` |
-| W2-3 | Sentry email alerts (new issue + error-rate spike) | 6 | 30m | Sentry dashboard |
+| **W2-1** | Offline meal-log queue (IndexedDB → replay on reconnect) | 8 | 8h | `src/lib/cloud-sync.ts`, `daily-log-sync.ts` |
+| **W2-2** | `/healthz` edge fn + UptimeRobot ping | 5 | 1h | new `supabase/functions/healthz/` |
+| **W2-3** | Sentry email alerts on new issues | 6 | 30m | Sentry dashboard |
+| **NEW SEC-1** | Identify the 9 permissive RLS policies and tighten to `auth.uid() = user_id` or proper role check | 8 | 2h | new migration |
+| **NEW SEC-2** | Enable leaked-password protection (Supabase auth setting) | 4 | 5m | dashboard |
+| **NEW SEC-3** | Move `vector` / public extension to `extensions` schema if low-risk | 3 | 30m | migration |
 
-### Sprint 2B — Analytics & Retention (~13h)
-| # | Task | Sev | Eff | File |
-|---|---|---|---|---|
-| W2-4 | Funnel events: signup, onboard_step_N, onboard_complete, first_meal_logged, day2_return, subscription_started | 8 | 4h | `src/pages/Onboarding.tsx`, `src/lib/events.ts` |
-| W2-5 | Activation event `logged_3_meals_day_1` | 6 | 1h | `src/lib/events.ts` |
-| W2-6 | Push notifications backend (OneSignal or FCM) | 9 | 8h | `src/lib/notifications.ts`, new edge fn |
+### Sprint 2B — Analytics + Retention (~13h)
 
-### Sprint 2C — Legal/Email (~6h)
 | # | Task | Sev | Eff |
 |---|---|---|---|
-| W2-7 | Set up `grievance@nutrilens.app` + `support@nutrilens.app` | 7 | 2h |
-| W2-8 | Refund policy clarity (7-day no-questions-asked) | 6 | 1h |
-| W2-9 | Cross-border data-transfer disclosure in Privacy section 5 | 5 | 30m |
+| W2-4 | Wire funnel-event call sites: `signup`, `onboard_step_N`, `onboard_complete`, `first_meal_logged`, `day2_return`, `subscription_started` | 8 | 4h |
+| W2-5 | Activation event `logged_3_meals_day_1` | 6 | 1h |
+| W2-6 | Push notifications backend (OneSignal — fastest to ship) + `push_tokens` table | 9 | 8h |
+
+### Sprint 2C — Legal/Email (~6h)
+
+| # | Task | Sev | Eff |
+|---|---|---|---|
+| W2-7 | DNS + mailbox for `grievance@` and `support@nutrilens.app` | 7 | 2h |
+| W2-8 | Refund policy: 7-day no-questions-asked (`Terms.tsx`) | 6 | 1h |
+| W2-9 | Cross-border transfer disclosure in Privacy section 5 | 5 | 30m |
 | W2-10 | `BREACH_RESPONSE.md` runbook | 5 | 2h |
 | W2-11 | `INCIDENTS.md` runbook | 4 | 1h |
 
----
+### Pre-public launch (unchanged, ~104h) — see existing `.lovable/plan.md` L-1 through L-18
 
-## ⬜ PRE-PUBLIC-LAUNCH (~70h)
-
-### 💰 Monetization (REQUIRED before paid launch)
-| # | Task | Sev | Eff |
-|---|---|---|---|
-| L-1 | Razorpay + `subscriptions` table + `verify-payment` edge fn | 10 | 16h |
-| L-2 | Server-side plan check (rewrite `subscription-service.ts` to read from DB) | 10 | inc. L-1 |
-| L-3 | Cancellation flow (one-click, no dark patterns) | 8 | inc. L-1 |
-| L-4 | Dunning emails (failed renewal reminders) | 7 | 4h |
-
-### ⚡ Performance
-| # | Task | Sev | Eff |
-|---|---|---|---|
-| L-5 | Dashboard TTI: defer below-fold cards via IntersectionObserver | 7 | 8h |
-| L-6 | Font diet (2 weights/family, drop Playfair, `font-display: swap`) | 7 | 2h |
-| L-7 | Photo compression ≤80KB + 90-day auto-purge cron | 6 | 4h |
-| L-8 | WebP images + `loading="lazy"` | 5 | 3h |
-| L-9 | Empty states for `FoodArchive`, `Pantry`, `MarketList` | 3 | 4h |
-
-### 🔒 Security hardening
-| # | Task | Sev | Eff |
-|---|---|---|---|
-| L-10 | Make `meal-photos` bucket private + signed URLs (1h TTL) | 6 | 3h |
-| L-11 | CSP meta header in `index.html` | 6 | 2h |
-| L-12 | Tighten CORS to production domains | 4 | 1h |
-| L-13 | Sponsored-badge audit (≥12px, contrast) on 6 ad surfaces | 6 | 2h |
-
-### 🚀 Ops
-| # | Task | Sev | Eff |
-|---|---|---|---|
-| L-14 | Staging environment (fork to `nutrilens-staging`) | 7 | 3h |
-| L-15 | Manual restore-test of latest backup | 6 | 2h |
-| L-16 | Capacitor builds (signing certs, screenshots, ASO) | 7 | 16h |
-| L-17 | Trademark filing ("NutriLens" India) | 5 | external |
-| L-18 | Store-review prompt after 3rd streak | 4 | 2h |
-
-### 🟡 Deferred
-- ~~Referral loop~~ (post-launch)
-- ~~Feature flags~~ (env vars sufficient)
-- ~~Cyber insurance~~ (only at >5k users)
+The 4 most important items remain:
+1. **L-1** Razorpay + `subscriptions` table + `verify-payment` edge fn (16h) ← also fixes the front/back subscription gap
+2. **L-5** Dashboard TTI defer below-fold (8h)
+3. **L-10** Private `meal-photos` bucket + signed URLs (3h)
+4. **L-16** Capacitor signed builds + store assets (16h)
 
 ---
 
-## 📊 Progress Summary
+## Part 4 — Task Tracker (so you can tick items off)
 
-| Bucket | Done | Pending | Total |
-|---|---|---|---|
-| Week 1 | 9 | 4 | 13 |
-| Week 2 | 0 | 11 | 11 |
-| Pre-public-launch | 0 | 18 | 18 |
-| **Hours to closed beta** | — | **~34h** | — |
-| **Hours to public launch** | — | **~104h** | — |
+I'll create the following trackable tasks when we move to default mode:
+
+1. **Sprint 2A — Reliability + Linter** (W2-1, W2-2, W2-3, SEC-1, SEC-2, SEC-3)
+2. **Sprint 2B — Analytics + Push** (W2-4, W2-5, W2-6)
+3. **Sprint 2C — Legal/Email** (W2-7 → W2-11)
+4. **Razorpay monetization** (L-1 → L-4)
+5. **Performance pass** (L-5 → L-9)
+6. **Security hardening** (L-10 → L-13)
+7. **Ops & store launch** (L-14 → L-18)
 
 ---
 
-## 🚦 Launch Gates
+## Part 5 — Updated Launch Gates
 
-| Gate | Status | Blocking |
+| Gate | Status | Remaining blockers |
 |---|---|---|
-| 🟡 Closed beta (≤500) | Conditional GO | W1-A, W1-D, W2-6 |
-| 🚨 Public launch | NO-GO | All L-* items, especially L-1 |
+| 🟡 Closed beta (≤500 users) | **GO** for invite-only **after SEC-1 + SEC-2** (~2h) | Push notifications nice-to-have, not blocking |
+| 🚨 Public launch | **NO-GO** | All `L-*` items, especially L-1 (Razorpay) — without it the freemium gate is bypass-able |
 
 ---
 
-## ✅ How to use this checklist
+## Part 6 — Recommended next command
 
-Reply with:
-- **"Finish Week 1"** → W1-A, W1-B, W1-C, W1-D
-- **"Week 2 Sprint 2A"** → reliability
-- **"Week 2 Sprint 2B"** → retention
-- **"Razorpay"** → monetization (L-1 to L-4)
-- **"Custom: <items>"** → pick specific codes (e.g., "W1-A, W2-2, L-11")
+Reply with one of:
+- **"Sprint 2A"** → reliability + linter fixes (~13h, the fastest path to a green security scan + offline resilience)
+- **"Sprint 2B"** → analytics + push (~13h, retention foundation)
+- **"Custom: SEC-1, SEC-2, W2-2"** → cherry-pick the 3 lowest-effort highest-impact items (~3h)
+- **"Razorpay"** → jump to monetization (L-1 → L-4) and close the subscription bypass
+
+Recommended: **"Custom: SEC-1, SEC-2, W2-2"** first — these are the highest ROI for the smallest time spend before any user invite.
+
