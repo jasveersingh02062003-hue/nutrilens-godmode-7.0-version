@@ -145,9 +145,9 @@ export default function MarketHeroSection({ bestValue, biggestDrop, city, onTap 
           }}
           className="w-full p-4 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/15 text-left relative overflow-hidden"
         >
-          <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/80 backdrop-blur-sm">
-            <Sparkles className="w-2.5 h-2.5 text-muted-foreground" />
-            <span className="text-[9px] font-medium text-muted-foreground tracking-wide">Sponsored</span>
+          <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-foreground/10 backdrop-blur-sm">
+            <Sparkles className="w-3 h-3 text-foreground/70" />
+            <span className="text-xs font-semibold text-foreground/80 tracking-wide">Sponsored</span>
           </div>
           <div className="flex items-center gap-3">
             {sponsoredAd.imageUrl && (

@@ -97,9 +97,9 @@ export default function SponsoredCard({ ad, onImpression, onClick, variant = 'na
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.3 }}
       >
-        <div className="absolute top-1.5 right-2 flex items-center gap-1">
-          <Sparkles className="w-2.5 h-2.5 text-muted-foreground" />
-          <span className="text-[8px] text-muted-foreground">Sponsored</span>
+        <div className="absolute top-1.5 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-foreground/10 backdrop-blur-sm">
+          <Sparkles className="w-3 h-3 text-foreground/70" />
+          <span className="text-xs font-semibold text-foreground/80">Sponsored</span>
         </div>
         <p className="text-xs font-semibold text-foreground pr-14">{ad.headline}</p>
         {ad.subtitle && <p className="text-[10px] text-muted-foreground mt-0.5">{ad.subtitle}</p>}
