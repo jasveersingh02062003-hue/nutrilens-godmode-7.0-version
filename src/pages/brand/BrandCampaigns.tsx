@@ -49,13 +49,20 @@ export default function BrandCampaigns() {
   }, [user]);
 
   const toggle = async (c: Camp) => {
-    const next = c.status === "active" ? "paused" : "active";
-    const { error } = await supabase.from("ad_campaigns").update({ status: next }).eq("id", c.id);
-    if (error) {
-      toast.error(error.message);
+    // Brands can pause an active campaign, or resubmit a paused/draft for review.
+    // They cannot directly set status='active' — that requires admin approval.
+    if (c.status === "active") {
+      const { error } = await supabase.from("ad_campaigns").update({ status: "paused" }).eq("id", c.id);
+      if (error) return toast.error(error.message);
+      toast.success("Campaign paused");
+    } else if (c.status === "draft" || c.status === "paused" || c.status === "rejected") {
+      const { error } = await supabase.rpc("submit_campaign_for_review", { p_campaign_id: c.id });
+      if (error) return toast.error(error.message);
+      toast.success("Submitted for review");
+    } else {
+      toast.info("Awaiting admin review");
       return;
     }
-    toast.success(`Campaign ${next}`);
     load();
   };
 

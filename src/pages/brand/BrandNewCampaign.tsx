@@ -71,6 +71,10 @@ export default function BrandNewCampaign() {
       toast.error("Fill all required fields");
       return;
     }
+    if (insufficientFunds) {
+      toast.error("Top up your wallet to cover this budget before submitting.");
+      return;
+    }
     setSubmitting(true);
     const { data: camp, error: campErr } = await supabase
       .from("ad_campaigns")
@@ -112,8 +116,15 @@ export default function BrandNewCampaign() {
         ? supabase.from("ad_targeting").insert({ campaign_id: camp.id, cities, meal_context: "any" })
         : Promise.resolve({ error: null } as any),
     ]);
+
+    // Submit for admin review (locked-down RPC — brands can't self-activate)
+    const { error: subErr } = await supabase.rpc("submit_campaign_for_review", { p_campaign_id: camp.id });
     setSubmitting(false);
-    toast.success("Campaign created — pending review");
+    if (subErr) {
+      toast.error(subErr.message);
+      return;
+    }
+    toast.success("Submitted for review — admins will approve shortly");
     nav("/brand/campaigns");
   };
 
