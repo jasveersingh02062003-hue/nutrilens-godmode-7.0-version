@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, TrendingUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Loader2, TrendingUp, Check, X } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { bucketByDay, daysAgoISO, inr } from '@/lib/admin-metrics';
+import { toast } from 'sonner';
 
 interface Campaign {
   id: string; campaign_name: string; brand_id: string; status: string;
@@ -39,8 +41,10 @@ export default function AdminAds() {
   const [daily, setDaily] = useState<{ day: string; impressions: number; clicks: number }[]>([]);
   const [totals, setTotals] = useState({ imp: 0, clk: 0, cnv: 0, spend: 0 });
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'pending_review' | 'active'>('all');
+  const [reviewing, setReviewing] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = async () => {
     (async () => {
       const [c, b, i30, k30, n30] = await Promise.all([
         supabase.from('ad_campaigns').select('*'),
