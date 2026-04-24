@@ -29,6 +29,7 @@ interface Tx {
 
 export default function BrandBilling() {
   const { user } = useAuth();
+  const { isBrandOwner, isLoading: roleLoading } = useBrandRole();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [txs, setTxs] = useState<Tx[]>([]);
   const [loading, setLoading] = useState(true);
