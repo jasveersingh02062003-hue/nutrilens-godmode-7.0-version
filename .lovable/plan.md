@@ -1,360 +1,205 @@
 
-# Comprehensive QA Testing Prompt for NutriLens
+# Brand Onboarding & Ads — Audit + Implementation Plan
 
-This is a **ready-to-paste prompt** you give to Lovable AI (or any QA tester) to systematically test every persona in your app. It also includes the **real user journey** for each role with examples from how Instagram, Meta Ads, Cred, and Zomato handle similar flows.
-
----
-
-## How to Use This
-
-1. Copy the **MASTER PROMPT** below into a new Lovable AI chat.
-2. The AI will simulate each persona end-to-end and report broken flows.
-3. Fix what it finds, then re-run.
+A line-by-line check of the Yoga Bar story against your real codebase, then a focused build plan to close the gaps. Sections: (1) checklist, (2) what to fix, (3) implementation steps, (4) what to NOT touch.
 
 ---
 
-## 🎯 MASTER PROMPT — Copy Everything Below This Line
+## 1. Compliance Checklist (story vs reality)
 
-```
-You are a Senior QA Engineer auditing NutriLens — a 3-tenant app (Consumer + 
-Admin + Brand) with role-based access control. Your job: simulate every user 
-persona end-to-end, find broken journeys, missing gates, and UX gaps before 
-production launch.
+Legend: DONE = fully built · PARTIAL = exists but missing fields/flow · MISSING = needs to be built
 
-═══════════════════════════════════════════════════════════════
-CONTEXT — APP ARCHITECTURE
-═══════════════════════════════════════════════════════════════
+### A. Discovery & landing page (`/advertise`)
+| # | Story requirement | Status | Where it lives |
+|---|---|---|---|
+| A1 | Public marketing landing pitch (USPs, stats, case study) | MISSING | `src/pages/Advertise.tsx` is just a form, no pitch |
+| A2 | "Apply to advertise" CTA → form | DONE | `src/pages/Advertise.tsx` |
+| A3 | Form writes to `brand_intake` table | DONE | RLS allows anonymous insert with email check |
 
-ONE codebase, THREE apps gated by role:
+### B. Application form (intake)
+| # | Story requirement | Status | Notes |
+|---|---|---|---|
+| B1 | Brand name, contact name, email | DONE | required fields enforced |
+| B2 | Phone, website, monthly budget, categories, notes | DONE | optional fields present |
+| B3 | Legal entity name | MISSING | not captured |
+| B4 | GSTIN | MISSING | column exists on `brand_accounts` only |
+| B5 | FSSAI license number + cert upload | MISSING | not captured |
+| B6 | Quick-commerce listings (Zepto/Blinkit/Instamart links) | MISSING | not captured — your stated KEY check |
+| B7 | Top SKUs / price range | MISSING | not captured |
+| B8 | "Why NutriLens" free text | DONE (as `notes`) | |
+| B9 | Auto-reject if Amazon-only | MISSING | no logic |
 
-1. CONSUMER APP (mobile-first)
-   - Routes: /, /dashboard, /log, /progress, /profile, /market, /plans
-   - Gate: ProtectedRoute (just needs auth)
-   - Tiers: Free, Pro (₹299/mo), Pro+ (₹499/mo), Ultra (event plans)
-   - Special states: Minor (<18, blocked from food logic), Major (18+)
+### C. Admin notification when intake arrives
+| # | Story requirement | Status | Notes |
+|---|---|---|---|
+| C1 | Bell icon for admins | DONE | `NotificationBell` mounted in `AdminLayout` |
+| C2 | DB trigger that creates a notification on `brand_intake` insert | MISSING | trigger only exists for `ad_campaigns` (`notify_campaign_status_change`) |
+| C3 | Email to admin team | MISSING | no email infra hooked up yet |
 
-2. ADMIN PANEL (desktop, /admin/*)
-   - Gate: RequireAdmin → checks user_roles table
-   - Roles in DB enum app_role: 'owner', 'super_admin', 'admin', 
-     'marketer', 'support', 'brand_manager'
-   - Layout: sidebar with conditional nav based on role
+### D. Admin review queue for intake applications
+| # | Story requirement | Status | Notes |
+|---|---|---|---|
+| D1 | `/admin/brands` lists pending applications | MISSING | page only shows already-onboarded `brand_accounts`, never reads `brand_intake` |
+| D2 | Detail page with the 6 verification checks (GSTIN, FSSAI, quick-commerce, label, PES, reputation) | MISSING | no UI surface |
+| D3 | "Approve & Onboard" creates `brand_accounts` + emails contact | PARTIAL | admins can manually create a brand via dialog, but it isn't tied to the intake row, and no email |
+| D4 | Reject with reason → status update on intake | MISSING | `brand_intake.status` never moved off `'new'` |
+| D5 | Audit-log every decision | DONE for brand_accounts ops; MISSING for intake decisions |
 
-3. BRAND PORTAL (desktop, /brand/*)
-   - Gate: RequireBrand → checks brand_members table OR admin override
-   - Roles per brand: owner, admin, member (in brand_members.role)
-   - Public entry: /advertise (sign-up funnel)
+### E. Brand portal (post-approval)
+| # | Story requirement | Status | Notes |
+|---|---|---|---|
+| E1 | Login → `/brand` dashboard | DONE | `Auth.tsx` redirects by role; `RequireBrand` gate exists |
+| E2 | Wallet top-up | DONE | admin-driven via `apply_brand_transaction`; brand-self-serve top-up via Paddle is MISSING |
+| E3 | Create campaign (5-step wizard) | DONE | `BrandNewCampaign.tsx` |
+| E4 | Insufficient-balance check on submit | DONE | client warning + RPC enforces it |
+| E5 | Submit for review → `pending_review` | DONE | `submit_campaign_for_review` RPC |
+| E6 | Owner-only billing access | DONE | `useBrandRole` + `BrandBilling` redirect |
 
-═══════════════════════════════════════════════════════════════
-PERSONAS TO TEST (13 total)
-═══════════════════════════════════════════════════════════════
+### F. Campaign approval flow (the second gate)
+| # | Story requirement | Status | Notes |
+|---|---|---|---|
+| F1 | Admin sees pending queue at `/admin/ads` | PARTIAL | the page lists ALL campaigns with status badge, but no "pending review only" view, no Approve/Reject buttons inline. The detail route `/admin/ads/:id` exists but we should confirm it has the review buttons |
+| F2 | `review_campaign` RPC | DONE | approve/reject both implemented |
+| F3 | Status-transition trigger blocks brand self-activation | DONE | `enforce_campaign_status_transition` |
+| F4 | Brand notified of decision | DONE | `notify_campaign_status_change` trigger writes to `notifications` |
 
-▓▓▓ CONSUMER TIER (5 personas) ▓▓▓
+### G. Ad serving & money flow
+| # | Story requirement | Status | Notes |
+|---|---|---|---|
+| G1 | `select-ads` picks active + budget-remaining + targeting-matched campaigns | DONE | edge function complete |
+| G2 | PES-weighted ranking, status='active' filter | DONE | weighted random by `pes_score` |
+| G3 | Wallet debit on impression | DONE | `debit_brand_for_impression` RPC |
+| G4 | Auto-pause on zero balance + brand notification | DONE | inside the same RPC |
+| G5 | 5-min impression dedupe per user/campaign | DONE | inside `select-ads` |
+| G6 | Brand dashboard analytics (impressions, clicks, CTR, spend) | DONE (admin view); BRAND view needs spot check |
 
-[C1] FREE USER — "Priya, 26, Bengaluru, ₹0/mo"
-   Real-world: Like a Spotify free user — sees ads, basic features only.
-   Journey: 
-     1. Lands on /  → sees marketing landing
-     2. Clicks "Get Started" → /auth → email signup
-     3. Onboarding (12 steps): age, weight, goal, activity, dietary prefs
-     4. Lands on /dashboard → sees calorie ring, today's meals
-     5. Tries to log food via camera → BLOCKED with upgrade modal
-     6. Logs food manually → succeeds (3 logs/day cap)
-     7. Sees ad in dashboard between cards
-     8. Clicks "Upgrade" → /paywall
-   Test: Camera gate works? Manual log uncapped? Ads visible?
+### H. Quick-commerce / CTA enforcement (your USP)
+| # | Story requirement | Status | Notes |
+|---|---|---|---|
+| H1 | Brand provides Zepto/Blinkit/Instamart links during intake | MISSING | (see B6) |
+| H2 | Each campaign creative stores quick-commerce CTA URL | PARTIAL | `ad_creatives.cta_url` is a single text field, no per-platform breakdown |
+| H3 | Admin reviewer can see and click each platform link | MISSING | no UI |
+| H4 | Auto-reject Amazon-only campaigns | MISSING | no rule |
 
-[C2] PRO USER — "Rahul, 32, Mumbai, ₹299/mo"
-   Real-world: Like Spotify Premium — no ads, AI features unlocked.
-   Journey:
-     1. Same signup as Free → completes onboarding
-     2. /paywall → selects Pro → Paddle checkout (sandbox card 4242...)
-     3. payments-webhook fires → subscription_status='pro'
-     4. Returns to /dashboard → ads HIDDEN, AI camera UNLOCKED
-     5. Camera scans biryani → analyze-food edge function returns macros
-     6. Logs unlimited meals
-     7. Sees /progress with weekly trends
-   Test: Webhook actually upgrades user? Ads removed instantly? 
-   Camera quota = unlimited?
+### I. PES floor (≥ 30) gate
+| # | Story requirement | Status | Notes |
+|---|---|---|---|
+| I1 | Campaign has `pes_score` field | DONE | `ad_campaigns.pes_score` |
+| I2 | Brand can't set PES themselves | PARTIAL | RLS lets brand insert any value — admin should set/lock during review |
+| I3 | `select-ads` filters by min PES | PARTIAL | `get_servable_ads` defaults to 30; `select-ads` edge function does NOT apply this filter (it weights but doesn't gate) |
 
-[C3] PRO+ ULTRA USER — "Anjali, 29, Delhi, ₹499/mo"
-   Real-world: Like Notion Plus — power features (live grocery prices, 
-   meal planner with budget optimization).
-   Journey:
-     1. Pro user upgrades to Pro+ via /paywall
-     2. Unlocks /market with live Firecrawl prices
-     3. Creates meal plan with ₹3000/week budget
-     4. Plan generator runs constraint optimizer
-     5. Gets shopping list with live prices from Zepto/BB
-   Test: Firecrawl actually fires? Budget engine respects limit?
+---
 
-[C4] EVENT PLAN USER — "Karan, 35, paying ₹1,499 for 21-Day Wedding Sprint"
-   Real-world: Like Cult.fit event-based programs — time-bound transformation.
-   Journey:
-     1. Pro user clicks "Special Plans" → sees Madhavan Reset, 
-        Sugar Cut, Wedding Sprint
-     2. Pays one-time ₹1,499 via Paddle
-     3. /onboarding-event → enters wedding date, current weight, target
-     4. Plan engine calculates required deficit (7700 kcal/kg rule)
-     5. Daily dashboard shows boosters checklist + chewing timer
-     6. Day 21 → PostEventFeedbackModal → reverse dieting protocol
-   Test: One-time payment processed? Boosters show? Reverse diet auto-starts?
+## 2. What to fix — prioritised
 
-[C5] MINOR USER — "Aarav, 16, signed up by accident"
-   Real-world: Like Instagram blocking under-13 — legal compliance.
-   Journey:
-     1. Signs up → onboarding asks DOB
-     2. System detects age <18 → MinorBlockedScreen
-     3. Cannot proceed to dashboard
-     4. Shown MinorConsentNotice (parental consent flow if 13-17)
-   Test: Hard block works? Cannot bypass via DOB edit later?
+P0 (blocks the brand story you described):
+1. Expand the `/advertise` form to capture the verification fields (legal entity, GSTIN, FSSAI #, quick-commerce links, top SKUs, Amazon-only flag).
+2. Build `/admin/brand-intake` queue + detail page with the 6-point verification checklist and Approve / Reject buttons that atomically create `brand_accounts` and stamp the intake row.
+3. DB trigger on `brand_intake` insert → admin notifications (so the bell lights up).
+4. Marketing pitch on `/advertise` (USPs, contextual targeting, quick-commerce CTA story).
 
-▓▓▓ ADMIN TIER (5 personas) ▓▓▓
+P1 (nice-to-haves that complete the story):
+5. Inline Approve / Reject buttons on `/admin/ads` for `pending_review` campaigns + a queue filter.
+6. Enforce min PES = 30 in the `select-ads` edge function (not just weight).
+7. Lock `ad_campaigns.pes_score` against brand writes (only admins set it during review).
 
-[A1] OWNER — "You, the founder"
-   Real-world: Like Meta Business Manager owner — sees everything, 
-   can grant/revoke any role.
-   Permissions: ALL routes, including /admin/staff (assign roles), 
-   /admin/audit (security logs)
-   Journey:
-     1. /auth login → /admin auto-redirect (or manual nav)
-     2. Sees Overview with revenue, DAU, active subs, ad spend
-     3. /admin/staff → adds new admin by email
-     4. /admin/audit → reviews who deleted what
-     5. /admin/costs → sees AI API spend (Lovable AI tokens, Firecrawl)
-   Test: Owner-only nav items visible? Staff assignment writes to 
-   user_roles?
+P2 (later, requires email infra):
+8. Email to brand contact on intake approve/reject.
+9. Email digest to admins for new intake applications.
+10. Brand-self-serve wallet top-up via Paddle one-time payments.
 
-[A2] SUPER ADMIN — "CTO / Head of Ops"
-   Permissions: Everything except changing owner role
-   Journey: Same as Owner but cannot demote owner
-   Test: /admin/audit visible? Cannot edit owner's role?
+What we will NOT do in this round:
+- Touch the calorie / nutrition / meal engines.
+- Modify `select-ads` ranking math beyond adding the PES gate.
+- Build the email transactional layer (deferred until a verified domain is set up).
+- Re-architect the campaign approval flow (it already works end-to-end).
 
-[A3] ADMIN — "Operations Manager"
-   Real-world: Like a YouTube content moderator with most powers.
-   Permissions: Users, Revenue, Subscriptions, Costs, Ads, Brands, 
-   Plans, Feedback, Scraping, Ops
-   Cannot see: Staff & Roles (owner-only), Audit (super-only)
-   Journey:
-     1. /admin/users → searches "priya@" → opens user detail
-     2. Issues refund (calls Paddle API via cancel-subscription edge fn)
-     3. /admin/feedback → triages user complaints
-     4. /admin/scraping → checks Firecrawl health (errors today)
-   Test: Cannot access /admin/staff (should redirect)? Refund actually 
-   processes via Paddle?
+---
 
-[A4] MARKETER — "Growth lead"
-   Real-world: Like a Meta Ads campaign manager — sees ads + funnel only.
-   Permissions: Users (view-only), Retention, Funnel, Ads, Brands
-   Cannot see: Revenue, Subscriptions, Costs, Audit, Staff
-   Journey:
-     1. /admin/funnel → views signup → onboarding → first meal log → 
-        first paid conversion
-     2. /admin/retention → sees D1/D7/D30 cohort retention
-     3. /admin/ads → reviews pending brand ads waiting approval
-     4. APPROVES an ad campaign (changes status draft→active)
-     5. /admin/brands → reviews brand intake applications
-   Test: Cannot see revenue ₹ figures? Can approve ads?
+## 3. Implementation Plan (P0 + P1)
 
-[A5] SUPPORT — "Customer service rep"
-   Real-world: Like Zomato support — read-only on users, can resolve tickets.
-   Permissions: Users (view-only), Feedback (full)
-   Cannot see: Revenue, Ads, Brands, Costs, Staff, Audit
-   Journey:
-     1. /admin/users → finds user by email
-     2. Views their last 7 days of meals (debugging "app shows wrong calories")
-     3. /admin/feedback → marks ticket as resolved with reply
-   Test: Cannot delete users? Cannot issue refunds? Limited nav?
+### Step 1 — Schema additions (migration)
+Add the missing intake fields:
 
-▓▓▓ BRAND TIER (3 personas) ▓▓▓
-
-[B1] BRAND APPLICANT — "MuscleBlaze marketing manager, no account yet"
-   Real-world: Like signing up for Meta Ads Manager for the first time.
-   Journey:
-     1. Lands on /advertise → marketing page
-     2. Clicks "Apply to advertise" → fills form (company name, GSTIN, 
-        contact email, products)
-     3. Submitted → status='pending' in brand_accounts table
-     4. Receives email: "We'll review in 48h"
-     5. Admin approves → brand_members row created → email sent with 
-        login link
-     6. First login → onboarding → wallet top-up → first campaign
-   Test: Application form validates GSTIN? Pending state visible to 
-   admin? Approval triggers email?
-
-[B2] BRAND OWNER — "Approved MuscleBlaze account, full powers"
-   Real-world: Like Instagram business account owner.
-   Journey:
-     1. /auth → redirected to /brand (because brand_members exists)
-     2. /brand/dashboard → sees impressions, clicks, CTR, spend
-     3. /brand/billing → tops up ₹10,000 wallet (Paddle one-time)
-     4. /brand/campaigns/new → creates campaign:
-        - Product: MB Whey Protein
-        - Budget: ₹500/day
-        - Target: Pro users, age 25-40, gym-goers
-     5. Submits → status='pending_review' (NEW: must be added)
-     6. Admin reviews in /admin/ads → approves → status='active'
-     7. Brand notified → ad goes live
-     8. select-ads edge function serves ad to matching consumers
-     9. log-ad-event fires impression/click → wallet debited
-   Test: Wallet actually debits? Cannot launch campaign with ₹0 balance?
-   Approval flow blocks unauthorized launches?
-
-[B3] BRAND MEMBER — "Junior marketer at MuscleBlaze, limited powers"
-   Real-world: Like an Instagram business team member without billing access.
-   Permissions: View campaigns, edit creative, BUT cannot top up wallet 
-   or launch new campaigns (owner approval needed)
-   Journey:
-     1. /brand → sees same dashboard as owner
-     2. Tries /brand/billing → BLOCKED (owner-only)
-     3. Edits campaign creative copy → saves as draft
-     4. Owner reviews and submits for admin approval
-   Test: Granular permissions enforced within brand?
-
-═══════════════════════════════════════════════════════════════
-TESTING METHODOLOGY
-═══════════════════════════════════════════════════════════════
-
-For EACH of the 13 personas above:
-
-STEP 1 — VERIFY GATE
-  - Read the relevant gate file (ProtectedRoute, RequireAdmin, RequireBrand)
-  - Confirm role check is correct
-  - Confirm fallback redirect is sensible
-
-STEP 2 — VERIFY NAV VISIBILITY
-  - Read AdminLayout.tsx / BottomNav.tsx
-  - Check role-based filtering for nav items
-  - Note: Should marketer see "Revenue"? NO. Confirm hidden.
-
-STEP 3 — VERIFY DATA ACCESS (RLS)
-  - Pick 1 sensitive table for each persona (e.g., subscriptions for 
-    support, brand_wallet for brand member)
-  - Read the RLS policy in supabase/migrations
-  - Confirm SELECT/UPDATE/DELETE policies match expected permissions
-
-STEP 4 — VERIFY HAPPY PATH UI
-  - Trace the journey through actual component files
-  - Find broken buttons, missing modals, dead routes
-
-STEP 5 — VERIFY EDGE CASES
-  - What if Pro user's payment fails mid-month?
-  - What if brand wallet hits ₹0 mid-campaign?
-  - What if admin tries to delete the only owner?
-  - What if minor edits DOB to claim 18+?
-
-═══════════════════════════════════════════════════════════════
-SPECIFIC FEATURES TO AUDIT (priority gaps)
-═══════════════════════════════════════════════════════════════
-
-🚨 BRAND CAMPAIGN APPROVAL FLOW (Instagram/Meta Ads style)
-   Current state: Brands can set status='active' directly with no 
-   admin gate. This is INSECURE and a malicious brand could push 
-   spam/scam ads.
-   
-   Required flow (verify each step exists):
-   
-   Brand creates campaign
-        ↓
-   Status: 'draft'
-        ↓
-   Brand clicks "Submit for Review"
-        ↓
-   Status: 'pending_review'  ← currently MISSING
-        ↓
-   Admin notification created (in-app + email)  ← currently MISSING
-        ↓
-   Admin opens /admin/ads → sees pending queue
-        ↓
-   Admin clicks Approve OR Reject (with reason)
-        ↓
-   Status: 'active' OR 'rejected'
-        ↓
-   Brand notified of decision  ← currently MISSING
-        ↓
-   If active → select-ads edge function picks it up
-        ↓
-   If rejected → brand sees reason, can edit + resubmit
-   
-   Files to read:
-   - src/pages/brand/BrandNewCampaign.tsx (submission)
-   - src/pages/admin/AdminAds.tsx (approval queue)
-   - supabase/migrations/*ads* (status enum)
-   - supabase/functions/select-ads/index.ts (does it filter by 
-     status='active' AND admin_approved=true?)
-
-🚨 NOTIFICATION SYSTEM
-   Required for: brand approval, low wallet, campaign rejection, 
-   subscription failures, admin alerts
-   Current state: Likely missing dedicated notifications table.
-   Check: Does a notifications table exist? Is there a UI bell icon?
-
-🚨 ROLE ESCALATION ATTACKS
-   Verify NONE of these work:
-   - Consumer user adds row to user_roles via client SDK (RLS should block)
-   - Brand member modifies brand_members.role to 'owner' (RLS should block)
-   - Admin demotes owner (DB function should block)
-   - Minor changes DOB after onboarding (should require admin approval 
-     OR be locked)
-
-═══════════════════════════════════════════════════════════════
-OUTPUT FORMAT
-═══════════════════════════════════════════════════════════════
-
-For each persona, report:
-
-### [Persona ID] [Persona Name]
-**Gate verification:** ✅ Pass / ❌ Fail (file:line)
-**Nav filtering:** ✅ Pass / ❌ Fail (which items leak)
-**RLS:** ✅ Pass / ❌ Fail (which table, which policy)
-**Happy path:** ✅ Works / ⚠️ Partial / ❌ Broken (specific step)
-**Edge cases:** [list any failures]
-**Severity:** P0 (blocks launch) / P1 (fix before scale) / P2 (polish)
-
-End with:
-- Total personas: 13
-- Passed: X
-- Failed: Y  
-- P0 blockers: [list]
-- Recommended fix order
+```text
+ALTER TABLE public.brand_intake
+  ADD COLUMN legal_entity      text,
+  ADD COLUMN gstin             text,
+  ADD COLUMN fssai_license     text,
+  ADD COLUMN zepto_url         text,
+  ADD COLUMN blinkit_url       text,
+  ADD COLUMN instamart_url     text,
+  ADD COLUMN amazon_url        text,
+  ADD COLUMN top_skus          text,
+  ADD COLUMN price_range       text,
+  ADD COLUMN rejection_reason  text;
 ```
 
+Trigger: on `brand_intake` insert, write a notification row for every admin/super_admin/owner (mirrors `notify_campaign_status_change`).
+
+Trigger: on `ad_campaigns` insert/update by non-admin, force `pes_score` to keep `OLD.pes_score` (or 0 on insert).
+
+### Step 2 — Upgrade `/advertise`
+Rewrite `src/pages/Advertise.tsx` to two visible sections:
+- Top: marketing pitch (USPs, the "sniper vs shotgun" story, 3 metrics, sample ad card).
+- Bottom: expanded form including the new fields. Keep validation simple (URL format on the QC fields, GSTIN regex). On submit: insert into `brand_intake` with all new columns; success screen unchanged.
+
+### Step 3 — Admin intake queue
+Create:
+- `src/pages/admin/AdminBrandIntake.tsx` — table of intake rows where `status = 'new'` or `status = 'in_review'`. Columns: brand, contact, budget, submitted, action.
+- `src/pages/admin/AdminBrandIntakeDetail.tsx` — full row data + the 6-point checklist (GSTIN link to gst.gov.in, FSSAI link to foscos, click-through buttons for each QC URL, free-text reviewer notes), Approve / Reject buttons.
+
+Approve handler (RPC `approve_brand_intake(intake_id, initial_balance)`) does atomically:
+1. `UPDATE brand_intake SET status='approved', reviewed_by, reviewed_at`.
+2. `INSERT INTO brand_accounts` carrying name, contact email, gstin.
+3. Insert `audit_logs` row.
+4. Insert `notifications` row addressed to `audience='admin'` summarising approval.
+
+Reject handler (RPC `reject_brand_intake(intake_id, reason)`) sets status + reason + audit log.
+
+Add the route to `App.tsx` (admin nav item already supports being conditional).
+
+### Step 4 — Sidebar entry
+In `src/components/admin/AdminLayout.tsx`, add a nav item "Brand intake" with a small badge showing the count of `brand_intake` rows with `status='new'`. Visible to roles: owner, super_admin, admin.
+
+### Step 5 — Inline campaign review on `/admin/ads`
+Add a top filter chip "Pending review (n)" and inline Approve / Reject buttons (calling existing `review_campaign` RPC) on each row whose `status = 'pending_review'`. Detail page already exists for deeper review.
+
+### Step 6 — PES gate in `select-ads`
+In `supabase/functions/select-ads/index.ts`, after the eligibility filter, drop campaigns with `pes_score < 30`. One-line change.
+
 ---
 
-## 📋 What Happens After You Use This Prompt
+## 4. File-touch list (technical)
 
-Once you paste this into a fresh Lovable AI chat, the AI will:
+Added:
+- `supabase/migrations/<timestamp>_brand_intake_v2.sql`
+- `src/pages/admin/AdminBrandIntake.tsx`
+- `src/pages/admin/AdminBrandIntakeDetail.tsx`
 
-1. Read every gate file (`RequireAdmin`, `RequireBrand`, `ProtectedRoute`)
-2. Check every nav filter
-3. Audit every RLS policy on sensitive tables
-4. Trace each user journey through actual components
-5. Return a **per-persona report card** showing exactly what's broken
+Edited:
+- `src/pages/Advertise.tsx` (pitch + extra fields)
+- `src/components/admin/AdminLayout.tsx` (nav entry + badge)
+- `src/App.tsx` (two new admin routes)
+- `src/pages/admin/AdminAds.tsx` (pending filter + inline approve/reject)
+- `supabase/functions/select-ads/index.ts` (PES floor)
 
-Expected runtime: ~15 minutes of AI work, ~10 minutes for you to read.
-
----
-
-## 🎁 Bonus: What This Prompt Will Find (my prediction)
-
-Based on what I've already seen in your codebase:
-
-| Likely finding | Severity |
-|---|---|
-| Brand campaign approval gate missing | P0 |
-| No notifications table for approval flow | P0 |
-| Marketer can probably see revenue numbers | P1 |
-| Support role might be able to issue refunds | P1 |
-| Minor DOB-edit-bypass not locked | P1 |
-| Brand member granular permissions not enforced | P2 |
-| No "pending" state for new brand applicants | P2 |
+Untouched (explicitly):
+- `src/integrations/supabase/client.ts`, `types.ts`, `.env`
+- All consumer-app code, calorie/nutrition engines, meal planner
+- Campaign approval RPCs (already correct)
+- `useBrandRole` and brand-billing gating (just added)
 
 ---
 
-## Next Step Recommendation
+## 5. Acceptance criteria
 
-After you run this audit prompt, the most logical follow-up is:
+After this work, walking the Yoga Bar story should produce:
 
-**"build approval flow"** — Add the missing Instagram-style brand campaign approval workflow (the #1 P0 finding). I have it scoped at ~3 hours of work.
-
-Reply **"approved"** to use this prompt as-is, or tell me what to add/remove.
-
+1. Visit `/advertise` → see pitch + form with all fields.
+2. Submit form → row in `brand_intake`, admin bell icon increments.
+3. Admin opens `/admin/brand-intake` → sees Yoga Bar pending.
+4. Click row → see all submitted data, click each QC link, run external GSTIN/FSSAI lookups, hit Approve.
+5. `brand_accounts` row created, intake marked approved with audit trail.
+6. (Manual for now) admin shares login link with the contact email; once they sign in they land on `/brand` via the role redirect we already added.
+7. Brand creates campaign → `pending_review`. Admin sees it with inline Approve in `/admin/ads`. One click → `active`. `select-ads` only serves it if PES ≥ 30 and budget remains.
