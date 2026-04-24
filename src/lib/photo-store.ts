@@ -37,10 +37,11 @@ export async function addProgressPhoto(photo: ProgressPhoto): Promise<void> {
   const { data: { session } } = await supabase.auth.getSession();
 
   if (session?.user) {
-    // Cloud path: compress + upload, store URL
+    // Cloud path: compress + upload, store signed URL
     const cloudPath = await uploadPhoto(photo.dataUrl, session.user.id, photo.id);
     if (cloudPath) {
-      photo.dataUrl = getPhotoUrl(cloudPath);
+      const signed = await getPhotoUrl(cloudPath);
+      photo.dataUrl = signed ?? await compressImage(photo.dataUrl);
       (photo as any).cloudPath = cloudPath;
     } else {
       // Fallback: compress and store locally
