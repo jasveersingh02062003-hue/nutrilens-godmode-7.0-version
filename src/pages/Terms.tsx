@@ -57,9 +57,24 @@ export default function Terms() {
             </section>
 
             <section>
-              <h2 className="text-base font-semibold mt-4 mb-2">6. Subscriptions &amp; payments</h2>
+              <h2 className="text-base font-semibold mt-4 mb-2">6. Subscriptions, payments &amp; refunds</h2>
               <p className="text-muted-foreground">
-                Paid plans (Pro / Pro+) are billed in advance. Refunds are at our discretion and processed within 7 working days where granted.
+                Paid plans (Pro / Pro+) are billed in advance and renew automatically until cancelled. You can cancel any time from your
+                account — cancellation takes effect at the end of your current billing period and you keep access until then.
+              </p>
+              <p className="text-muted-foreground mt-2">
+                <strong className="text-foreground">14-day money-back guarantee:</strong> if you're not satisfied with a paid subscription, you can
+                request a full refund within <strong className="text-foreground">14 days</strong> of your initial purchase, no questions asked. Refunds
+                for renewals are reviewed on a case-by-case basis. To request a refund, contact us at <strong className="text-foreground">support@nutrilens.app</strong>
+                {' '}or use the buyer portal at <a href="https://paddle.net" target="_blank" rel="noopener noreferrer" className="text-primary underline">paddle.net</a>.
+              </p>
+              <p className="text-muted-foreground mt-2">
+                <strong className="text-foreground">Merchant of Record:</strong> Our order process is conducted by our online reseller Paddle.com.
+                Paddle.com is the Merchant of Record for all our orders. Paddle provides all customer service inquiries and handles returns. See
+                {' '}<a href="https://www.paddle.com/legal/checkout-buyer-terms" target="_blank" rel="noopener noreferrer" className="text-primary underline">Paddle Buyer Terms</a>
+                {' '}and <a href="https://www.paddle.com/legal/refund-policy" target="_blank" rel="noopener noreferrer" className="text-primary underline">Paddle Refund Policy</a> for full details.
+              </p>
+              <p className="text-muted-foreground mt-2">
                 Brand wallet top-ups for advertisers are non-refundable except where required by law.
               </p>
             </section>

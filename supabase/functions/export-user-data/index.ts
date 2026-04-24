@@ -1,15 +1,12 @@
 // DPDP-compliant data export — user can download all their data as JSON.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { buildCorsHeaders, handlePreflight } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const corsHeaders = buildCorsHeaders(req);
+  const pre = handlePreflight(req);
+  if (pre) return pre;
 
   if (req.method !== "POST" && req.method !== "GET") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {

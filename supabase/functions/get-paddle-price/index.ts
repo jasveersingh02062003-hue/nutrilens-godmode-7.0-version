@@ -3,13 +3,11 @@
 // sandbox and live, so the client must pass its environment.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { gatewayFetch, type PaddleEnv } from '../_shared/paddle.ts';
+import { buildCorsHeaders, handlePreflight } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
 
 Deno.serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req);
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {

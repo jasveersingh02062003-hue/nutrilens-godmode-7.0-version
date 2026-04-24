@@ -2,17 +2,13 @@
 // Returns 200 with JSON when the database round-trips successfully, 503 otherwise.
 // Public (verify_jwt = false by default for Lovable-managed fns).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { buildCorsHeaders, handlePreflight } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsHeaders = buildCorsHeaders(req);
+  const pre = handlePreflight(req);
+  if (pre) return pre;
 
   const start = Date.now();
   const url = Deno.env.get("SUPABASE_URL");

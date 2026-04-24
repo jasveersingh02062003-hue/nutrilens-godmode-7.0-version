@@ -1,13 +1,11 @@
 // Nightly cron: pause overspent campaigns and flag low-CTR campaigns into
 // the feedback queue for admin attention. Triggered via pg_cron.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { buildCorsHeaders, handlePreflight } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 Deno.serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const supabase = createClient(

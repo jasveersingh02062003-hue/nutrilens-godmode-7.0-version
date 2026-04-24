@@ -35,6 +35,7 @@ const STEP_DEFS: Array<{ key: string; label: string; event?: string; computed?: 
   { key: 'signup',              label: 'Signup',              event: 'signup' },
   { key: 'onboarding_complete', label: 'Completed onboarding', event: 'onboarding_complete' },
   { key: 'first_meal_logged',   label: 'Logged first meal',   event: 'first_meal_logged' },
+  { key: 'activated',           label: 'Activated (3 meals day 1)', event: 'activated' },
   { key: 'retained_7d',         label: 'Active after 7 days', computed: 'retained_7d' },
   { key: 'paywall_viewed',      label: 'Viewed paywall',      event: 'paywall_viewed' },
   { key: 'subscription_started',label: 'Started subscription',event: 'subscription_started' },
