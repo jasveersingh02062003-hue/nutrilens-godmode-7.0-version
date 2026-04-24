@@ -30,6 +30,26 @@ export function getProgressPhotosByDate(date: string): ProgressPhoto[] {
 }
 
 /**
+ * Refresh the signed URL for a stored cloud photo.
+ * Call before displaying if the cached URL may have expired.
+ */
+export async function refreshPhotoUrl(photo: ProgressPhoto): Promise<ProgressPhoto> {
+  const cloudPath = (photo as any).cloudPath;
+  if (!cloudPath) return photo;
+  const signed = await getPhotoUrl(cloudPath);
+  if (signed) {
+    photo.dataUrl = signed;
+    const all = getAllPhotos();
+    const idx = all.findIndex(p => p.id === photo.id);
+    if (idx >= 0) {
+      all[idx] = photo;
+      saveAllPhotos(all);
+    }
+  }
+  return photo;
+}
+
+/**
  * Add a progress photo. Compresses and uploads to cloud if authenticated,
  * otherwise stores compressed base64 locally.
  */
