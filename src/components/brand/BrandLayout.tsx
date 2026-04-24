@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { LayoutDashboard, Megaphone, Wallet, Package, Plus, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import NotificationBell from "@/components/NotificationBell";
 
 const items = [
   { to: "/brand", end: true, label: "Overview", icon: LayoutDashboard },
@@ -14,8 +15,9 @@ export default function BrandLayout() {
   return (
     <div className="min-h-screen bg-background flex">
       <aside className="w-56 border-r border-border bg-card hidden md:flex flex-col">
-        <div className="p-4 border-b border-border">
+        <div className="p-4 border-b border-border flex items-center justify-between">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Brand portal</p>
+          <NotificationBell audience="brand" />
         </div>
         <nav className="flex-1 p-2 space-y-1">
           {items.map(({ to, end, label, icon: Icon }) => (
