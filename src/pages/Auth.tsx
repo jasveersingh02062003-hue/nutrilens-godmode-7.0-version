@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,6 +28,36 @@ const Auth = function Auth() {
   const [minorConsent, setMinorConsent] = useState(false);
   const [blockedAge, setBlockedAge] = useState<number | null>(null);
   const { signUpWithEmail, signInWithEmail, signInWithPhone, verifyOTP, signInWithGoogle } = useAuth();
+  const navigate = useNavigate();
+
+  /**
+   * After a successful login/signup, route the user to the portal that matches
+   * their highest-privilege role. Order: admin → brand → consumer.
+   * Falls back to '/' (consumer camera home) if anything fails.
+   */
+  const redirectByRole = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { navigate('/'); return; }
+
+      const [{ data: roles }, { data: brands }] = await Promise.all([
+        supabase.from('user_roles').select('role').eq('user_id', user.id),
+        supabase.from('brand_members').select('brand_id').eq('user_id', user.id).limit(1),
+      ]);
+
+      const roleSet = new Set(((roles ?? []) as any[]).map((r) => r.role));
+      const isAdmin =
+        roleSet.has('owner') || roleSet.has('super_admin') || roleSet.has('admin') ||
+        roleSet.has('marketer') || roleSet.has('support');
+      const isBrand = (brands ?? []).length > 0;
+
+      if (isAdmin) navigate('/admin');
+      else if (isBrand) navigate('/brand');
+      else navigate('/');
+    } catch {
+      navigate('/');
+    }
+  };
 
   // Compute age tier reactively from the DOB field.
   const computedAge = useMemo(() => ageFromDob(dob), [dob]);
@@ -99,7 +129,8 @@ const Auth = function Auth() {
           setLoading(false);
 
           if (!signInResult.error) {
-            toast.success('Welcome back!');
+    toast.success('Welcome back!');
+    void redirectByRole();
             return;
           }
 
@@ -123,6 +154,7 @@ const Auth = function Auth() {
         }
       } catch {}
       toast.success(isMinor ? 'Account created — welcome!' : 'Account created!');
+      void redirectByRole();
       return;
     }
 
@@ -155,6 +187,7 @@ const Auth = function Auth() {
     setLoading(false);
     if (error) { toast.error(error.message); return; }
     toast.success('Verified!');
+    void redirectByRole();
   };
 
   const handleGoogle = async () => {
