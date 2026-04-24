@@ -30,6 +30,26 @@ export function getProgressPhotosByDate(date: string): ProgressPhoto[] {
 }
 
 /**
+ * Refresh the signed URL for a stored cloud photo.
+ * Call before displaying if the cached URL may have expired.
+ */
+export async function refreshPhotoUrl(photo: ProgressPhoto): Promise<ProgressPhoto> {
+  const cloudPath = (photo as any).cloudPath;
+  if (!cloudPath) return photo;
+  const signed = await getPhotoUrl(cloudPath);
+  if (signed) {
+    photo.dataUrl = signed;
+    const all = getAllPhotos();
+    const idx = all.findIndex(p => p.id === photo.id);
+    if (idx >= 0) {
+      all[idx] = photo;
+      saveAllPhotos(all);
+    }
+  }
+  return photo;
+}
+
+/**
  * Add a progress photo. Compresses and uploads to cloud if authenticated,
  * otherwise stores compressed base64 locally.
  */
@@ -37,10 +57,11 @@ export async function addProgressPhoto(photo: ProgressPhoto): Promise<void> {
   const { data: { session } } = await supabase.auth.getSession();
 
   if (session?.user) {
-    // Cloud path: compress + upload, store URL
+    // Cloud path: compress + upload, store signed URL
     const cloudPath = await uploadPhoto(photo.dataUrl, session.user.id, photo.id);
     if (cloudPath) {
-      photo.dataUrl = getPhotoUrl(cloudPath);
+      const signed = await getPhotoUrl(cloudPath);
+      photo.dataUrl = signed ?? await compressImage(photo.dataUrl);
       (photo as any).cloudPath = cloudPath;
     } else {
       // Fallback: compress and store locally

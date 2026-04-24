@@ -100,11 +100,16 @@ export async function uploadPhoto(
 }
 
 /**
- * Get the public URL for a stored photo.
+ * Get a signed URL for a stored photo (bucket is private).
+ * Default expiry: 7 days. Caller should refresh on read if older.
  */
-export function getPhotoUrl(path: string): string {
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return data.publicUrl;
+export async function getPhotoUrl(path: string, expiresInSec: number = 60 * 60 * 24 * 7): Promise<string | null> {
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, expiresInSec);
+  if (error || !data) {
+    console.error('Photo signed URL failed:', error);
+    return null;
+  }
+  return data.signedUrl;
 }
 
 /**
