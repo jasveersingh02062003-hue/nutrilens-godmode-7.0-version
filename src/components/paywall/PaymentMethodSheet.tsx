@@ -90,6 +90,7 @@ export default function PaymentMethodSheet({ open, onClose, amountPaise, duratio
   const amountRupees = (amountPaise / 100).toLocaleString('en-IN', { minimumFractionDigits: 0 });
 
   async function runMockCharge(opts: { type: 'upi' | 'card' | 'netbanking' | 'wallet'; display: string; persist?: boolean }) {
+    void logEvent({ name: 'subscribe_started', properties: { priceId, amount_paise: amountPaise, gateway: 'mock', method: opts.type } });
     setStage('processing');
     // Realistic 2.5s delay so the spinner doesn't feel fake
     await new Promise((r) => setTimeout(r, 2500));
@@ -99,6 +100,7 @@ export default function PaymentMethodSheet({ open, onClose, amountPaise, duratio
       amount_paise: amountPaise,
     });
     if (!ok) {
+      void logEvent({ name: 'subscribe_failed', properties: { priceId, reason: 'mock_charge_declined', gateway: 'mock', method: opts.type } });
       toast.error('Payment could not be completed. Please try again.');
       setStage('pick');
       return;
