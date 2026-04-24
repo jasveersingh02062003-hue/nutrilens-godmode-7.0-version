@@ -1554,6 +1554,25 @@ export type Database = {
           trial_end: string
         }[]
       }
+      get_servable_ads: {
+        Args: { p_limit?: number; p_min_pes?: number }
+        Returns: {
+          brand_name: string
+          campaign_id: string
+          campaign_name: string
+          creative_id: string
+          cta_text: string
+          cta_url: string
+          headline: string
+          image_url: string
+          max_user_budget: number
+          meal_context: string
+          min_protein_gap: number
+          pes_score: number
+          subtitle: string
+          target_diet: string
+        }[]
+      }
       has_active_subscription: {
         Args: { check_env?: string; user_uuid: string }
         Returns: boolean
