@@ -59,4 +59,33 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    // Split heavy vendor libs into separate chunks so app-code updates
+    // don't force users to re-download React / Radix / Recharts / Supabase.
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-vendor": ["react", "react-dom", "react-router-dom"],
+          "radix-vendor": [
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-popover",
+            "@radix-ui/react-select",
+            "@radix-ui/react-tabs",
+            "@radix-ui/react-toast",
+            "@radix-ui/react-tooltip",
+            "@radix-ui/react-accordion",
+            "@radix-ui/react-scroll-area",
+            "@radix-ui/react-slot",
+          ],
+          "charts-vendor": ["recharts"],
+          "supabase-vendor": ["@supabase/supabase-js"],
+          "motion-vendor": ["framer-motion"],
+          "query-vendor": ["@tanstack/react-query"],
+        },
+      },
+    },
+    // Avoid noisy warnings now that we've split the bundle deliberately.
+    chunkSizeWarningLimit: 800,
+  },
 }));
