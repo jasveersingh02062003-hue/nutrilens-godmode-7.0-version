@@ -332,7 +332,7 @@ export function addMealToLog(meal: MealEntry) {
   const log = getDailyLog();
   log.meals.push(meal);
   saveDailyLog(log);
-  void logEvent({ name: 'meal_logged', properties: { slot: meal.slot, items: meal.items?.length ?? 0 } });
+  void logEvent({ name: 'meal_logged', properties: { slot: meal.type, items: meal.items?.length ?? 0 } });
   return log;
 }
 
@@ -451,7 +451,7 @@ export function addMealToLogForDate(date: string, meal: MealEntry) {
   const log = getDailyLog(date);
   log.meals.push(meal);
   saveDailyLog(log);
-  void logEvent({ name: 'meal_logged', properties: { slot: meal.slot, items: meal.items?.length ?? 0, date } });
+  void logEvent({ name: 'meal_logged', properties: { slot: meal.type, items: meal.items?.length ?? 0, date } });
   return log;
 }
 
