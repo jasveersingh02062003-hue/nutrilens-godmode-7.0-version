@@ -9,6 +9,7 @@ import { listSavedMethods, saveMockMethod, type SavedPaymentMethod, maskUpi } fr
 import { mockSubscribe, refreshPlan } from '@/lib/subscription-service';
 import { isPaddleConfigured, openPaddleCheckout } from '@/lib/paddle';
 import { supabase } from '@/integrations/supabase/client';
+import { logEvent } from '@/lib/events';
 import { toast } from 'sonner';
 
 interface Props {
@@ -42,22 +43,33 @@ export default function PaymentMethodSheet({ open, onClose, amountPaise, duratio
 
   async function handlePaddleCheckout() {
     if (!priceId) return;
+    void logEvent({ name: 'subscribe_started', properties: { priceId, amount_paise: amountPaise, gateway: 'paddle' } });
     try {
       const { data: userData } = await supabase.auth.getUser();
       const user = userData?.user;
+      let succeeded = false;
       await openPaddleCheckout({
         priceId,
         customerEmail: user?.email,
         userId: user?.id,
         onSuccess: async () => {
+          succeeded = true;
           // Webhook will flip the DB; refresh the cache.
           await refreshPlan();
           toast.success('Payment successful! Welcome to Pro.');
           onSuccess();
         },
+        onClose: () => {
+          // Fires whether the user closed the overlay or completed it. If we
+          // never saw `checkout.completed`, treat it as abandonment.
+          if (!succeeded) {
+            void logEvent({ name: 'subscribe_failed', properties: { priceId, reason: 'user_closed', gateway: 'paddle' } });
+          }
+        },
       });
     } catch (e) {
       console.error('[paddle] checkout failed', e);
+      void logEvent({ name: 'subscribe_failed', properties: { priceId, reason: 'open_error', gateway: 'paddle', error: e instanceof Error ? e.message : String(e) } });
       toast.error('Could not open checkout. Please try again.');
     }
   }

@@ -6,14 +6,19 @@ import { supabase } from '@/integrations/supabase/client';
 export type EventName =
   | 'signup'
   | 'onboarding_complete'
+  | 'onboarding_step_exit'   // user abandoned onboarding mid-flow
   | 'first_meal_logged'
   | 'meal_logged'
-  | 'activated'           // user logged 3 meals on signup day → strong retention predictor
+  | 'activated'              // user logged 3 meals on signup day → strong retention predictor
   | 'plan_started'
   | 'plan_completed'
-  | 'subscription_started'
+  | 'subscribe_started'      // checkout opened (intent)
+  | 'subscribe_failed'       // checkout closed/errored without success
+  | 'subscription_started'   // confirmed paid (post-webhook / mock-success)
+  | 'churn_cancel'           // user cancelled their subscription
   | 'paywall_viewed'
   | 'app_opened'
+  | 'day2_return'            // user came back the day after signup — D1 retention
   | 'feature_used';
 
 interface LogEventOptions {
