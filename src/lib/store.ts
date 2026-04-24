@@ -222,6 +222,7 @@ export interface DailyLog {
 
 import { scopedGet, scopedSet, scopedGetJSON, scopedSetJSON, scopedRemove, getScopedUserId } from '@/lib/scoped-storage';
 import { syncWeight, syncWater, syncSupplements } from '@/lib/cloud-sync';
+import { logEvent } from '@/lib/events';
 
 const PROFILE_KEY = 'nutrilens_profile';
 const LOG_KEY_PREFIX = 'nutrilens_log_';
@@ -331,6 +332,7 @@ export function addMealToLog(meal: MealEntry) {
   const log = getDailyLog();
   log.meals.push(meal);
   saveDailyLog(log);
+  void logEvent({ name: 'meal_logged', properties: { slot: meal.type, items: meal.items?.length ?? 0 } });
   return log;
 }
 
@@ -449,6 +451,7 @@ export function addMealToLogForDate(date: string, meal: MealEntry) {
   const log = getDailyLog(date);
   log.meals.push(meal);
   saveDailyLog(log);
+  void logEvent({ name: 'meal_logged', properties: { slot: meal.type, items: meal.items?.length ?? 0, date } });
   return log;
 }
 

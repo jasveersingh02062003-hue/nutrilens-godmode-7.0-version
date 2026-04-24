@@ -11,6 +11,7 @@ export type EventName =
   | 'plan_started'
   | 'plan_completed'
   | 'subscription_started'
+  | 'paywall_viewed'
   | 'app_opened'
   | 'feature_used';
 

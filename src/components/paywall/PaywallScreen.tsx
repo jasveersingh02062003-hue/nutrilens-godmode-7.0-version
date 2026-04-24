@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Sparkles, Camera, Brain, Utensils, Dumbbell, Archive, BarChart3, Star, ShieldCheck, X, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { logEvent } from '@/lib/events';
 import PlanPickerScreen from './PlanPickerScreen';
 
 interface Props {
@@ -29,6 +30,7 @@ export default function PaywallScreen({ open, onClose, onUpgraded, startAtPlanPi
   useEffect(() => {
     if (!open) return;
     setStep(startAtPlanPicker ? 'plans' : 'paywall');
+    void logEvent({ name: 'paywall_viewed', properties: { variant: startAtPlanPicker ? 'plan_picker' : 'marketing' } });
     // Honest social-proof: use DB count once we cross 100 real Pro users,
     // otherwise show launch baseline so the screen doesn't read "1 user".
     void (async () => {
