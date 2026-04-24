@@ -2,16 +2,21 @@ import { NavLink, Outlet } from "react-router-dom";
 import { LayoutDashboard, Megaphone, Wallet, Package, Plus, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import NotificationBell from "@/components/NotificationBell";
+import { useBrandRole } from "@/hooks/useBrandRole";
 
-const items = [
+type NavItem = { to: string; end?: boolean; label: string; icon: typeof LayoutDashboard; ownerOnly?: boolean };
+
+const items: NavItem[] = [
   { to: "/brand", end: true, label: "Overview", icon: LayoutDashboard },
   { to: "/brand/campaigns", label: "Campaigns", icon: Megaphone },
   { to: "/brand/new", label: "New campaign", icon: Plus },
-  { to: "/brand/billing", label: "Billing", icon: Wallet },
+  { to: "/brand/billing", label: "Billing", icon: Wallet, ownerOnly: true },
   { to: "/brand/products", label: "Products", icon: Package },
 ];
 
 export default function BrandLayout() {
+  const { isBrandOwner } = useBrandRole();
+  const visibleItems = items.filter((i) => !i.ownerOnly || isBrandOwner);
   return (
     <div className="min-h-screen bg-background flex">
       <aside className="w-56 border-r border-border bg-card hidden md:flex flex-col">
@@ -20,7 +25,7 @@ export default function BrandLayout() {
           <NotificationBell audience="brand" />
         </div>
         <nav className="flex-1 p-2 space-y-1">
-          {items.map(({ to, end, label, icon: Icon }) => (
+          {visibleItems.map(({ to, end, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}

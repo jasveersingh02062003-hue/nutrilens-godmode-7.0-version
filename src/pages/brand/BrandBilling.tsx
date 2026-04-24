@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBrandRole } from "@/hooks/useBrandRole";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +29,7 @@ interface Tx {
 
 export default function BrandBilling() {
   const { user } = useAuth();
+  const { isBrandOwner, isLoading: roleLoading } = useBrandRole();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [txs, setTxs] = useState<Tx[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,12 +97,15 @@ export default function BrandBilling() {
     URL.revokeObjectURL(url);
   };
 
-  if (loading)
+  if (roleLoading || loading)
     return (
       <div className="p-8 flex justify-center">
         <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
       </div>
     );
+
+  // Owner-only gate: junior brand members cannot access billing.
+  if (!isBrandOwner) return <Navigate to="/brand" replace />;
 
   return (
     <div className="p-8 max-w-5xl">
