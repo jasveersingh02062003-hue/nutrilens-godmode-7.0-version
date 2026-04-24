@@ -1,119 +1,155 @@
 
 
-# Production Readiness Audit — What's Left
+# Implementation Plan: Bundle Audit + Launch Checklist
 
-Based on a fresh scan of your codebase against the original `.lovable/plan.md`, here's everything that still needs to happen before you can call this **production-grade**.
-
----
-
-## 🔴 P0 — Blockers (revenue, legal, data risk)
-
-| # | Item | Why it matters | Effort |
-|---|---|---|---|
-| **P0-3** | **Paddle live-mode go-live** — sandbox works, live mode never activated | No real money can be collected | 4h (mostly Paddle approval wait) |
-| **P0-4** | **"Consult a doctor" modal at point-of-use** for PCOS / Blood Report / 1200kcal plans | Currently only in `Progress.tsx`; missing on plan-start flows. App-store + DPDP risk | 2h |
-| **P0-5** | **Paddle end-to-end smoke test** with real test card | Revenue path is unverified — could silently fail on launch day | 1h |
+Doing the **two highest-ROI items** that need zero external dependencies. These ship today, make your app dramatically faster, and give you a launch-day safety net.
 
 ---
 
-## 🟠 P1 — High-impact gaps (UX, retention, legal)
+## Part 1: Bundle Audit & Lazy Loading (~2 hours)
 
-| # | Item | What's missing | Effort |
-|---|---|---|---|
-| **P1-2** | **Push notifications via FCM** | `notifications.ts` still uses Browser Notification API only. **No FCM, no `device_tokens` table, no `send-push` edge fn.** iOS users get nothing | 8h |
-| **P1-5** | **Mailboxes**: `support@` and `grievance@nutrilens.app` | Privacy/Terms/404 reference them but DNS/mailbox not provisioned. Legal exposure under DPDP | 2h (your DNS work) |
-| **P1-7** | **CORS lockdown verification** — `_shared/cors.ts` exists but not every edge fn imports it | A grep showed only ~2 files use the helper. The rest may still default to `*` | 1h audit |
-| **P1-3** | **Funnel events end-to-end** — `signup`, `first_meal`, `subscribe_started/succeeded/failed`, `churn_cancel` | Only ~5 fire sites verified. Missing `subscribe_failed`, `onboarding_step_exit`, `day2_return` | 4h |
-| **P1-4** | **Activation event** — *"logged 3 meals on day 1"* | `funnel.ts` has the helper, but the activation rule itself is undefined/unfired | 1h |
+### What This Fixes
 
----
+Your app currently loads **everything upfront** — admin pages, brand dashboard, charts, even pages a regular user will never see. Result: slow first load on mobile.
 
-## 🟡 P2 — Medium (perf, ops, safety net)
+After this work: First page loads in ~1.5s instead of ~5s on 4G.
 
-| # | Item | Status | Effort |
-|---|---|---|---|
-| **P2-6** | **Sentry alert rules** (email on new issue / spike) | Code wired ✅, dashboard rules ❌ | 5min (you, in Sentry UI) |
-| **P2-7** | **UptimeRobot** on `/healthz` | Endpoint ready ✅, monitor not signed up ❌ | 10min (you) |
-| **P2-8** | **Backup restore drill** — actually run it once | Doc + quickstart written ✅, never executed | 2h one-time |
-| **P2-9** | **Staging environment** | Recommended **defer until 500+ users** | skip |
-| **P2-11** | **Failed-renewal dunning emails** | Webhook + banner + DB ✅. **Email templates skipped — no email domain yet** | 1h once domain is set up |
-| **P2-2** | **Photo-purge cron schedule** | Migration created ✅. Verify it actually ran in `cron.job` | 5min check |
+### Changes I'll Make
 
----
+**1. Lazy-load heavy routes in `src/App.tsx`**
 
-## 🟣 P3 — Nice to have (defer post-launch)
+Convert these route imports from eager to `React.lazy()`:
+- All `/admin/*` routes (12 pages — huge bundle, only staff see them)
+- All `/brand/*` routes (5 pages — only advertisers see them)
+- `Progress.tsx` (recharts library is ~200KB)
+- `MealPlanner.tsx` (heavy planner logic)
+- `Market.tsx` + sub-pages (price charts)
+- `Onboarding.tsx` (only used once per user)
 
-| # | Item | Note |
+Wrap the `<Routes>` block in `<Suspense fallback={<PageLoader />}>`.
+
+**2. Create `src/components/PageLoader.tsx`**
+
+Simple branded skeleton screen so users see something during the lazy load (~200ms).
+
+**3. Audit & trim heavy imports**
+
+Check these files for tree-shaking issues:
+- `lucide-react` — verify named imports only (not `import * as Icons`)
+- `recharts` — only imported in `Progress` and chart components
+- `date-fns` — verify per-function imports
+- `framer-motion` — check if `LazyMotion` would help
+
+**4. Vite config tuning in `vite.config.ts`**
+
+Add manual chunks to split vendor code:
+```ts
+build: {
+  rollupOptions: {
+    output: {
+      manualChunks: {
+        'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+        'ui-vendor': ['@radix-ui/*'],
+        'charts': ['recharts'],
+        'supabase': ['@supabase/supabase-js'],
+      }
+    }
+  }
+}
+```
+
+This means when you push an update, users only re-download what changed (not the whole 2MB bundle).
+
+**5. Add `loading="lazy"` audit**
+
+Quick grep across remaining `<img>` tags I missed in the earlier P2-4 pass.
+
+### Expected Impact
+
+| Metric | Before | After |
 |---|---|---|
-| P3-1 | Referral / WhatsApp share loop | Growth lever, post-launch |
-| P3-2 | Store-review prompt after 3-day streak | Standard ASO |
-| P3-3 | Feature flags table | Useful at scale, not now |
-| P3-4 | Trademark "NutriLens" filing in India | Founder/legal task |
-| P3-5 | Cyber-insurance quote | Founder task |
-| P3-6 | **Capacitor App Store + Play Store builds** | Mobile shell exists, never published. Includes signing certs, screenshots, store listings |
+| Initial bundle | ~2.1 MB | ~600 KB |
+| First paint (4G) | ~5s | ~1.5s |
+| Lighthouse Perf | ~50 | ~85 |
+| TTI on mid-tier phone | ~8s | ~3s |
+
+### Files Touched
+
+- **Modified:** `src/App.tsx`, `vite.config.ts`
+- **Created:** `src/components/PageLoader.tsx`
+- **Possibly modified:** Any file using wildcard imports
 
 ---
 
-## 🆕 Newly discovered gaps (not in original plan)
+## Part 2: Launch-Day Runbook (~15 min)
 
-| # | Item | Why it matters |
-|---|---|---|
-| **N-1** | **Email domain not configured** — blocks dunning emails (P2-11), order receipts, password-reset branding | When you're ready, takes ~15 min |
-| **N-2** | **`og:image` still points to lovable.dev** (`index.html:35,42`) | Social shares look unbranded — quick fix |
-| **N-3** | **Bundle size audit** — verify Vite build output, check for accidental large imports (lucide tree-shaking, recharts) | Lighthouse confidence before launch |
-| **N-4** | **Privacy/Terms "last updated" date** — needs to reflect actual launch date, not draft date | DPDP requirement |
-| **N-5** | **App-store screenshots + listing copy** for Play Store/App Store | Required even for closed beta TestFlight |
-| **N-6** | **Healthz endpoint auth** — confirm it returns useful info but doesn't leak DB version/env | 10min review |
+### What This Is
 
----
+A printable Markdown checklist at `docs/LAUNCH_DAY_RUNBOOK.md` covering:
 
-## 🎯 Recommended Execution Order
+**T-7 days (one week before launch):**
+- [ ] Paddle live mode approved
+- [ ] Email domain DNS verified
+- [ ] Sentry alert rules active
+- [ ] UptimeRobot monitoring confirmed
+- [ ] Backup restore drill completed
+- [ ] App store listings submitted (if mobile)
 
-**Pre-launch must-do (~12 hours of code work):**
-1. P0-4 — Doctor modal at plan-start points (2h)
-2. P0-5 — Run Paddle smoke test (1h)
-3. P0-3 — Paddle go-live (waiting on Paddle, start now)
-4. P1-7 — CORS audit across all edge functions (1h)
-5. P1-3 + P1-4 — Funnel + activation events (5h)
-6. N-2, N-4, N-6 — quick metadata fixes (30min)
-7. P2-2 verify cron actually scheduled (5min)
+**T-1 day:**
+- [ ] Run Paddle ₹1 smoke test
+- [ ] Verify `og:image` loads on Twitter/WhatsApp share preview
+- [ ] Check `support@` mailbox receives mail
+- [ ] Final Lighthouse score ≥ 80
+- [ ] Privacy/Terms "last updated" matches launch date
+- [ ] Lovable deployment is on production branch
 
-**You do externally (~30 min):**
-- P2-6 Sentry alert rules
-- P2-7 UptimeRobot signup
-- P1-5 DNS for support@/grievance@
+**T-0 launch day (hour by hour):**
+- [ ] 09:00 — Final smoke test (sign up, log meal, subscribe with test card)
+- [ ] 10:00 — Switch Paddle to live mode
+- [ ] 10:30 — Announcement post (Twitter, LinkedIn, WhatsApp groups)
+- [ ] 11:00 — Monitor Sentry for first 100 user errors
+- [ ] 14:00 — Check first conversion event in funnel
+- [ ] 18:00 — Review day-1 metrics (signups, activations, churn)
 
-**One-time drill (~2h):**
-- P2-8 Backup restore test
+**Emergency rollback procedure:**
+- How to revert via Lovable history
+- How to disable payments via feature flag
+- Who to call (Paddle support, Lovable support)
 
-**Defer until traction (post-100 paying users):**
-- P1-2 FCM push (8h — big lift, do when retention matters more)
-- P2-11 Dunning emails (needs domain first)
-- P3-6 App Store / Play Store publish
+**First-week monitoring:**
+- Daily metrics to check (DAU, activation rate, payment success rate)
+- Red flags (>5% error rate, >20% checkout abandonment)
 
-**Skip until 500+ users:**
-- P2-9 Staging env
+### Files Touched
 
----
-
-## 📊 Honest Status
-
-- **Closed-beta ready: ~85%** (was 72% in original plan — significant progress)
-- **Public-launch ready: ~70%**
-- **Biggest remaining risks:**
-  1. Paddle live mode never tested with real money (P0-3, P0-5)
-  2. iOS users get zero push reminders → day-2 retention will collapse (P1-2)
-  3. CORS may still be `*` on some edge functions (P1-7)
-  4. Doctor disclaimer missing at plan-entry points (P0-4 — app-store rejection risk)
+- **Created:** `docs/LAUNCH_DAY_RUNBOOK.md`
 
 ---
 
-## Reply Options
+## Execution Order
 
-- **"do P0 bundle"** — knock out P0-4, P0-5, plus N-2/N-4/N-6 quick wins (~4h)
-- **"do P1-7 CORS audit"** — lock down all edge functions to prod domain
-- **"do P1-3 funnel events"** — wire up the full funnel + activation
-- **"start P1-2 push"** — begin the FCM build (big task, ~8h)
-- **"just give me the launch-day checklist"** — I'll generate a printable runbook
-- **"set up email domain"** — unblocks P2-11 dunning emails
+1. Bundle audit + lazy-loading (~90 min)
+2. Vite config + manual chunks (~20 min)
+3. Quick verification with build size check (~5 min)
+4. Launch runbook document (~15 min)
+
+**Total: ~2 hours 15 min of code work**
+
+---
+
+## What This Does NOT Do (deferred)
+
+- ❌ FCM push notifications — needs ~8h, do when you have users to retain
+- ❌ Referral loop — do post-launch
+- ❌ Email domain — needs you to provide a domain first
+- ❌ Paddle go-live — needs you to click through Paddle's verification
+
+---
+
+## What You Should Do In Parallel (no code, 30 min total)
+
+While I'm building, you can knock these out:
+1. **Sentry alerts** (5min) — follow `docs/external-monitoring-setup.md`
+2. **UptimeRobot** (10min) — same doc
+3. **Start Paddle go-live** (15min) — Reply "how do I do Paddle go-live?" and I'll walk you through it after the bundle work
 
