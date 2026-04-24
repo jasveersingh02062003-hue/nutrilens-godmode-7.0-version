@@ -4,6 +4,8 @@ import { Star, Check, Calendar, Target, Flame, AlertTriangle } from 'lucide-reac
 import { motion } from 'framer-motion';
 import { type PlanMeta, calculatePlanTargets, setActivePlan } from '@/lib/event-plan-service';
 import { useUserProfile } from '@/contexts/UserProfileContext';
+import { useMedicalDisclaimer } from '@/hooks/useMedicalDisclaimer';
+import MedicalDisclaimerModal from '@/components/MedicalDisclaimerModal';
 import { toast } from 'sonner';
 
 interface PlanDetailSheetProps {
