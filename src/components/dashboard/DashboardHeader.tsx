@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getGreeting } from '@/lib/nutrition';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
+import SyncStatusBadge from '@/components/SyncStatusBadge';
 import DashboardSidebar from '@/components/DashboardSidebar';
 import UpgradeModal from '@/components/UpgradeModal';
 import type { UserProfile } from '@/lib/store';
@@ -69,6 +70,7 @@ export default function DashboardHeader({ profile, weather }: Props) {
                 {getGreeting()}, {profile.name || 'there'}
               </motion.p>
               <SubscriptionBadge />
+              <SyncStatusBadge />
             </div>
             <motion.p
               initial={{ opacity: 0 }}

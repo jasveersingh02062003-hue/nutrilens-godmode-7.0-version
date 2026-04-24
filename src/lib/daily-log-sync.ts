@@ -1,12 +1,18 @@
 // Cloud sync service for daily logs — NO date limit
 // Uses optimistic locking via upsert_daily_log RPC to prevent multi-device data loss.
+// When offline or on failure, queues to IndexedDB outbox for replay.
 import { supabase } from '@/integrations/supabase/client';
 import type { DailyLog } from '@/lib/store';
 import { scopedGet, scopedSet } from '@/lib/scoped-storage';
+import { enqueue } from '@/lib/offline-outbox';
 
 const LOG_KEY_PREFIX = 'nutrilens_log_';
 
 let syncTimeouts: Record<string, ReturnType<typeof setTimeout>> = {};
+
+function isOnline(): boolean {
+  return typeof navigator === 'undefined' ? true : navigator.onLine;
+}
 // Track last-known server updated_at per log_date for optimistic locking
 const lastKnownUpdatedAt: Record<string, string> = {};
 
@@ -37,7 +43,7 @@ function mergeDailyLogs(server: any, local: any): any {
   return merged;
 }
 
-async function performSync(log: DailyLog, attempt = 0): Promise<void> {
+export async function performSync(log: DailyLog, attempt = 0): Promise<void> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.user) return;
 
@@ -84,10 +90,24 @@ export function syncDailyLogToCloud(log: DailyLog) {
   if (syncTimeouts[key]) clearTimeout(syncTimeouts[key]);
 
   syncTimeouts[key] = setTimeout(async () => {
+    if (!isOnline()) {
+      await enqueue({
+        kind: 'daily_log',
+        payload: { log },
+        conflictKey: `daily_log:${log.date}`,
+      });
+      return;
+    }
     try {
       await performSync(log);
     } catch (e) {
       console.error('Daily log sync error:', e);
+      // Queue for replay
+      await enqueue({
+        kind: 'daily_log',
+        payload: { log },
+        conflictKey: `daily_log:${log.date}`,
+      });
     }
   }, 1500);
 }

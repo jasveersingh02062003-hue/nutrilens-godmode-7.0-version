@@ -20,6 +20,7 @@ import ProgressSkeleton from "./components/progress/ProgressSkeleton";
 import OfflineBanner from "./components/OfflineBanner";
 import { DailyPaywallProvider } from "./hooks/useDailyPaywall";
 import PaymentTestModeBanner from "./components/paywall/PaymentTestModeBanner";
+import { initOutboxReplay } from "./lib/outbox-replay";
 
 function lazyWithRetry<T extends React.ComponentType<any>>(
   importer: () => Promise<{ default: T }>,
@@ -149,6 +150,7 @@ function AppLayout() {
 
   useEffect(() => {
     checkAndExpireTrial();
+    initOutboxReplay();
     const profile = getProfile();
     if (profile?.onboardingComplete) {
       const settings = getNotificationSettings();
