@@ -30,6 +30,8 @@ import HealthScoreCard from '@/components/HealthScoreCard';
 import SymptomTrackerCard from '@/components/SymptomTrackerCard';
 import BloodReportCard from '@/components/BloodReportCard';
 import BloodReportSheet from '@/components/BloodReportSheet';
+import MedicalDisclaimerModal from '@/components/MedicalDisclaimerModal';
+import { useMedicalDisclaimer } from '@/hooks/useMedicalDisclaimer';
 import IdentityBadgesCard from '@/components/IdentityBadgesCard';
 import GymProgressSection from '@/components/GymProgressSection';
 import GymPDFExport from '@/components/GymPDFExport';
