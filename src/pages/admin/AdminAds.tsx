@@ -45,69 +45,83 @@ export default function AdminAds() {
   const [reviewing, setReviewing] = useState<string | null>(null);
 
   const load = async () => {
-    (async () => {
-      const [c, b, i30, k30, n30] = await Promise.all([
-        supabase.from('ad_campaigns').select('*'),
-        supabase.from('brand_accounts').select('id, brand_name'),
-        supabase.from('ad_impressions').select('campaign_id, placement_slot, created_at').gte('created_at', daysAgoISO(30)),
-        supabase.from('ad_clicks').select('campaign_id, created_at').gte('created_at', daysAgoISO(30)),
-        supabase.from('ad_conversions').select('campaign_id, conversion_type').gte('created_at', daysAgoISO(30)),
-      ]);
+    setLoading(true);
+    const [c, b, i30, k30, n30] = await Promise.all([
+      supabase.from('ad_campaigns').select('*'),
+      supabase.from('brand_accounts').select('id, brand_name'),
+      supabase.from('ad_impressions').select('campaign_id, placement_slot, created_at').gte('created_at', daysAgoISO(30)),
+      supabase.from('ad_clicks').select('campaign_id, created_at').gte('created_at', daysAgoISO(30)),
+      supabase.from('ad_conversions').select('campaign_id, conversion_type').gte('created_at', daysAgoISO(30)),
+    ]);
 
-      const camps = (c.data ?? []) as Campaign[];
-      const brands = (b.data ?? []) as Brand[];
-      const imps = (i30.data ?? []) as Imp[];
-      const clks = (k30.data ?? []) as Click[];
-      const cnvs = (n30.data ?? []) as Conv[];
-      const brandMap = new Map(brands.map(x => [x.id, x.brand_name]));
+    const camps = (c.data ?? []) as Campaign[];
+    const brands = (b.data ?? []) as Brand[];
+    const imps = (i30.data ?? []) as Imp[];
+    const clks = (k30.data ?? []) as Click[];
+    const cnvs = (n30.data ?? []) as Conv[];
+    const brandMap = new Map(brands.map(x => [x.id, x.brand_name]));
 
-      const impByCamp = new Map<string, number>();
-      const clkByCamp = new Map<string, number>();
-      const cnvByCamp = new Map<string, number>();
-      for (const x of imps) impByCamp.set(x.campaign_id, (impByCamp.get(x.campaign_id) ?? 0) + 1);
-      for (const x of clks) clkByCamp.set(x.campaign_id, (clkByCamp.get(x.campaign_id) ?? 0) + 1);
-      for (const x of cnvs) cnvByCamp.set(x.campaign_id, (cnvByCamp.get(x.campaign_id) ?? 0) + 1);
+    const impByCamp = new Map<string, number>();
+    const clkByCamp = new Map<string, number>();
+    const cnvByCamp = new Map<string, number>();
+    for (const x of imps) impByCamp.set(x.campaign_id, (impByCamp.get(x.campaign_id) ?? 0) + 1);
+    for (const x of clks) clkByCamp.set(x.campaign_id, (clkByCamp.get(x.campaign_id) ?? 0) + 1);
+    for (const x of cnvs) cnvByCamp.set(x.campaign_id, (cnvByCamp.get(x.campaign_id) ?? 0) + 1);
 
-      const funnel: FunnelRow[] = camps.map(c => {
-        const impressions = impByCamp.get(c.id) ?? 0;
-        const clicks = clkByCamp.get(c.id) ?? 0;
-        const conversions = cnvByCamp.get(c.id) ?? 0;
-        const spend = Number(c.budget_spent ?? 0);
-        return {
-          id: c.id,
-          name: c.campaign_name,
-          brand: brandMap.get(c.brand_id) ?? '—',
-          impressions, clicks, conversions,
-          ctr: impressions ? +(clicks / impressions * 100).toFixed(2) : 0,
-          cvr: clicks ? +(conversions / clicks * 100).toFixed(2) : 0,
-          spend,
-          budget: Number(c.budget_total ?? 0),
-          cpm: impressions ? +(spend / (impressions / 1000)).toFixed(2) : 0,
-          cpc: clicks ? +(spend / clicks).toFixed(2) : 0,
-          status: c.status,
-        };
-      });
+    const funnel: FunnelRow[] = camps.map(c => {
+      const impressions = impByCamp.get(c.id) ?? 0;
+      const clicks = clkByCamp.get(c.id) ?? 0;
+      const conversions = cnvByCamp.get(c.id) ?? 0;
+      const spend = Number(c.budget_spent ?? 0);
+      return {
+        id: c.id,
+        name: c.campaign_name,
+        brand: brandMap.get(c.brand_id) ?? '—',
+        impressions, clicks, conversions,
+        ctr: impressions ? +(clicks / impressions * 100).toFixed(2) : 0,
+        cvr: clicks ? +(conversions / clicks * 100).toFixed(2) : 0,
+        spend,
+        budget: Number(c.budget_total ?? 0),
+        cpm: impressions ? +(spend / (impressions / 1000)).toFixed(2) : 0,
+        cpc: clicks ? +(spend / clicks).toFixed(2) : 0,
+        status: c.status,
+      };
+    });
 
-      const impSpark = bucketByDay(imps.map(x => x.created_at), 30);
-      const clkSpark = bucketByDay(clks.map(x => x.created_at), 30);
-      const dailyRows = impSpark.map((v, i) => ({
-        day: daysAgoISO(29 - i).slice(5),
-        impressions: v,
-        clicks: clkSpark[i],
-      }));
+    const impSpark = bucketByDay(imps.map(x => x.created_at), 30);
+    const clkSpark = bucketByDay(clks.map(x => x.created_at), 30);
+    const dailyRows = impSpark.map((v, i) => ({
+      day: daysAgoISO(29 - i).slice(5),
+      impressions: v,
+      clicks: clkSpark[i],
+    }));
 
-      setCampaigns(camps);
-      setRows(funnel);
-      setDaily(dailyRows);
-      setTotals({
-        imp: imps.length,
-        clk: clks.length,
-        cnv: cnvs.length,
-        spend: camps.reduce((s, c) => s + Number(c.budget_spent ?? 0), 0),
-      });
-      setLoading(false);
-    })();
-  }, []);
+    setCampaigns(camps);
+    setRows(funnel);
+    setDaily(dailyRows);
+    setTotals({
+      imp: imps.length,
+      clk: clks.length,
+      cnv: cnvs.length,
+      spend: camps.reduce((s, c) => s + Number(c.budget_spent ?? 0), 0),
+    });
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const review = async (id: string, decision: 'approve' | 'reject') => {
+    setReviewing(id);
+    const { error } = await supabase.rpc('review_campaign', { p_campaign_id: id, p_decision: decision, p_reason: null });
+    setReviewing(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success(decision === 'approve' ? 'Campaign approved' : 'Campaign rejected');
+    load();
+  };
+
+  const pendingCount = rows.filter(r => r.status === 'pending_review').length;
+  const filtered = filter === 'all' ? rows : rows.filter(r => r.status === filter);
+
 
   const overallCTR = totals.imp ? (totals.clk / totals.imp * 100).toFixed(2) : '0.00';
   const overallCVR = totals.clk ? (totals.cnv / totals.clk * 100).toFixed(2) : '0.00';
