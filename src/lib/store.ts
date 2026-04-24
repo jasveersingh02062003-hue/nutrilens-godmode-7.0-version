@@ -333,7 +333,21 @@ export function addMealToLog(meal: MealEntry) {
   log.meals.push(meal);
   saveDailyLog(log);
   void logEvent({ name: 'meal_logged', properties: { slot: meal.type, items: meal.items?.length ?? 0 } });
+  void maybeFireActivation(log);
   return log;
+}
+
+// Activation = user logged 3 meals on their signup day.
+// This is the strongest predictor of long-term retention for food apps.
+async function maybeFireActivation(log: DailyLog) {
+  try {
+    if ((log.meals?.length ?? 0) < 3) return;
+    const profile = getProfile();
+    const joinDate = profile?.joinDate;
+    if (!joinDate || joinDate !== log.date) return;
+    const { fireOnce } = await import('@/lib/funnel');
+    void fireOnce('activated', { meals_count: log.meals.length, day: 1 });
+  } catch { /* noop */ }
 }
 
 export function addWater() {
