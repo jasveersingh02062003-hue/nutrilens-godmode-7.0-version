@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, MessageSquare, ShieldAlert, ArrowLeft, LogOut,
@@ -7,6 +8,7 @@ import { useAdminRole, type StaffRole } from '@/hooks/useAdminRole';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import NotificationBell from '@/components/NotificationBell';
+import { supabase } from '@/integrations/supabase/client';
 
 type NavItem = {
   to: string;

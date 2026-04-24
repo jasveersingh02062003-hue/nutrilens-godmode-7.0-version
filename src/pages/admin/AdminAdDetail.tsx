@@ -34,6 +34,10 @@ interface Creative {
   image_url: string | null;
   cta_text: string | null;
   cta_url: string | null;
+  zepto_url: string | null;
+  blinkit_url: string | null;
+  instamart_url: string | null;
+  amazon_url: string | null;
   is_active: boolean;
 }
 
@@ -189,17 +193,46 @@ export default function AdminAdDetail() {
       <Card className="p-4">
         <h3 className="font-semibold mb-3">Creatives ({creatives.length})</h3>
         <div className="space-y-3">
-          {creatives.map((c) => (
-            <div key={c.id} className="flex gap-3 p-3 border border-border rounded-lg">
-              {c.image_url && <img src={c.image_url} alt={c.headline} loading="lazy" decoding="async" className="w-20 h-20 rounded object-cover" />}
-              <div className="flex-1 min-w-0">
-                <p className="font-medium">{c.headline}</p>
-                {c.subtitle && <p className="text-sm text-muted-foreground">{c.subtitle}</p>}
-                <p className="text-xs text-muted-foreground mt-1">CTA: {c.cta_text} → {c.cta_url ?? '—'}</p>
+          {creatives.map((c) => {
+            const links: Array<[string, string | null]> = [
+              ['Zepto', c.zepto_url],
+              ['Blinkit', c.blinkit_url],
+              ['Instamart', c.instamart_url],
+              ['Amazon', c.amazon_url],
+            ];
+            const hasQC = !!(c.zepto_url || c.blinkit_url || c.instamart_url);
+            const amazonOnly = !hasQC && !!c.amazon_url;
+            return (
+              <div key={c.id} className="flex gap-3 p-3 border border-border rounded-lg">
+                {c.image_url && <img src={c.image_url} alt={c.headline} loading="lazy" decoding="async" className="w-20 h-20 rounded object-cover" />}
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium">{c.headline}</p>
+                  {c.subtitle && <p className="text-sm text-muted-foreground">{c.subtitle}</p>}
+                  <p className="text-xs text-muted-foreground mt-1">CTA text: <span className="font-medium">{c.cta_text}</span></p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {links.map(([label, url]) => url ? (
+                      <a
+                        key={label}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`text-[11px] px-2 py-0.5 rounded border ${label === 'Amazon' ? 'border-amber-500/40 text-amber-600 hover:bg-amber-500/10' : 'border-primary/40 text-primary hover:bg-primary/10'}`}
+                      >
+                        {label} ↗
+                      </a>
+                    ) : null)}
+                    {!c.zepto_url && !c.blinkit_url && !c.instamart_url && !c.amazon_url && (
+                      <span className="text-[11px] text-muted-foreground">No purchase CTA</span>
+                    )}
+                    {amazonOnly && (
+                      <span className="text-[11px] text-destructive font-medium">⚠ Amazon-only — should be rejected</span>
+                    )}
+                  </div>
+                </div>
+                <Badge variant={c.is_active ? 'default' : 'outline'}>{c.is_active ? 'active' : 'off'}</Badge>
               </div>
-              <Badge variant={c.is_active ? 'default' : 'outline'}>{c.is_active ? 'active' : 'off'}</Badge>
-            </div>
-          ))}
+            );
+          })}
           {creatives.length === 0 && <p className="text-sm text-muted-foreground">No creatives.</p>}
         </div>
       </Card>
