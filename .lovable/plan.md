@@ -1,205 +1,152 @@
+# 📊 Yoga Bar Brand Story — Audit + Gap-Closure Plan
 
-# Brand Onboarding & Ads — Audit + Implementation Plan
+I re-checked every step of the story against the actual code (after our last build). The good news: **most of the heavy lifting is already done**. This plan documents what is live, flags 4 small gaps, and proposes a focused build to close them.
 
-A line-by-line check of the Yoga Bar story against your real codebase, then a focused build plan to close the gaps. Sections: (1) checklist, (2) what to fix, (3) implementation steps, (4) what to NOT touch.
+Legend: ✅ Done · ⚠️ Partial · ❌ Missing
 
 ---
 
-## 1. Compliance Checklist (story vs reality)
-
-Legend: DONE = fully built · PARTIAL = exists but missing fields/flow · MISSING = needs to be built
+## 1. Live Status — Step by Step
 
 ### A. Discovery & landing page (`/advertise`)
-| # | Story requirement | Status | Where it lives |
-|---|---|---|---|
-| A1 | Public marketing landing pitch (USPs, stats, case study) | MISSING | `src/pages/Advertise.tsx` is just a form, no pitch |
-| A2 | "Apply to advertise" CTA → form | DONE | `src/pages/Advertise.tsx` |
-| A3 | Form writes to `brand_intake` table | DONE | RLS allows anonymous insert with email check |
+| # | Requirement | Status |
+|---|---|---|
+| A1 | Marketing pitch on landing (USPs, sniper-vs-shotgun, sample ad card) | ✅ |
+| A2 | "Apply to advertise" form below pitch | ✅ |
+| A3 | Form writes to `brand_intake` (anon insert allowed by RLS) | ✅ |
 
-### B. Application form (intake)
-| # | Story requirement | Status | Notes |
-|---|---|---|---|
-| B1 | Brand name, contact name, email | DONE | required fields enforced |
-| B2 | Phone, website, monthly budget, categories, notes | DONE | optional fields present |
-| B3 | Legal entity name | MISSING | not captured |
-| B4 | GSTIN | MISSING | column exists on `brand_accounts` only |
-| B5 | FSSAI license number + cert upload | MISSING | not captured |
-| B6 | Quick-commerce listings (Zepto/Blinkit/Instamart links) | MISSING | not captured — your stated KEY check |
-| B7 | Top SKUs / price range | MISSING | not captured |
-| B8 | "Why NutriLens" free text | DONE (as `notes`) | |
-| B9 | Auto-reject if Amazon-only | MISSING | no logic |
+### B. Intake form fields
+| # | Field | Status |
+|---|---|---|
+| B1 | Brand, contact name, email (required) | ✅ |
+| B2 | Phone, website, monthly budget, categories, notes | ✅ |
+| B3 | Legal entity | ✅ |
+| B4 | GSTIN | ✅ |
+| B5 | FSSAI license number | ✅ |
+| B6 | Quick-commerce links (Zepto / Blinkit / Instamart / Amazon) | ✅ |
+| B7 | Top SKUs, price range | ✅ |
+| B8 | Client-side guard: Amazon-only block | ✅ |
+| B9 | FSSAI / nutrition-label PDF upload | ❌ (deferred — needs storage policy + virus-scan policy) |
 
-### C. Admin notification when intake arrives
-| # | Story requirement | Status | Notes |
-|---|---|---|---|
-| C1 | Bell icon for admins | DONE | `NotificationBell` mounted in `AdminLayout` |
-| C2 | DB trigger that creates a notification on `brand_intake` insert | MISSING | trigger only exists for `ad_campaigns` (`notify_campaign_status_change`) |
-| C3 | Email to admin team | MISSING | no email infra hooked up yet |
+### C. Admin gets notified when intake arrives
+| # | Requirement | Status |
+|---|---|---|
+| C1 | Bell icon mounted in admin layout | ✅ |
+| C2 | DB trigger `notify_admins_new_brand_intake` writes `notifications` row to every admin/super_admin/owner | ✅ |
+| C3 | Sidebar shows pending count badge next to "Brand Applications" | ❌ (cosmetic — nav item exists, no badge) |
+| C4 | Email to admin team | ❌ (deferred — no transactional email infra) |
 
-### D. Admin review queue for intake applications
-| # | Story requirement | Status | Notes |
-|---|---|---|---|
-| D1 | `/admin/brands` lists pending applications | MISSING | page only shows already-onboarded `brand_accounts`, never reads `brand_intake` |
-| D2 | Detail page with the 6 verification checks (GSTIN, FSSAI, quick-commerce, label, PES, reputation) | MISSING | no UI surface |
-| D3 | "Approve & Onboard" creates `brand_accounts` + emails contact | PARTIAL | admins can manually create a brand via dialog, but it isn't tied to the intake row, and no email |
-| D4 | Reject with reason → status update on intake | MISSING | `brand_intake.status` never moved off `'new'` |
-| D5 | Audit-log every decision | DONE for brand_accounts ops; MISSING for intake decisions |
+### D. Admin review queue
+| # | Requirement | Status |
+|---|---|---|
+| D1 | `/admin/brand-intake` lists pending applications with QC presence + budget | ✅ |
+| D2 | Detail page with 6-point checklist + external links to gst.gov.in & foscos | ✅ |
+| D3 | `approve_brand_intake` RPC atomically creates `brand_accounts` + audit log | ✅ |
+| D4 | `reject_brand_intake` RPC with reason + audit | ✅ |
+| D5 | After approval: invite the contact email so they can sign in and become a `brand_member` | ⚠️ (RPC creates the brand row but does not link the contact's auth user — admins do this manually today; full self-serve invite needs email) |
 
 ### E. Brand portal (post-approval)
-| # | Story requirement | Status | Notes |
-|---|---|---|---|
-| E1 | Login → `/brand` dashboard | DONE | `Auth.tsx` redirects by role; `RequireBrand` gate exists |
-| E2 | Wallet top-up | DONE | admin-driven via `apply_brand_transaction`; brand-self-serve top-up via Paddle is MISSING |
-| E3 | Create campaign (5-step wizard) | DONE | `BrandNewCampaign.tsx` |
-| E4 | Insufficient-balance check on submit | DONE | client warning + RPC enforces it |
-| E5 | Submit for review → `pending_review` | DONE | `submit_campaign_for_review` RPC |
-| E6 | Owner-only billing access | DONE | `useBrandRole` + `BrandBilling` redirect |
+| # | Requirement | Status |
+|---|---|---|
+| E1 | Login → role-based redirect to `/brand` | ✅ |
+| E2 | Wallet visible, transaction ledger | ✅ |
+| E3 | 5-step campaign wizard | ✅ |
+| E4 | Insufficient-balance check on submit | ✅ |
+| E5 | `submit_campaign_for_review` flips status to `pending_review` | ✅ |
+| E6 | Owner-only billing access via `useBrandRole` | ✅ |
+| E7 | Brand self-serve wallet top-up via Paddle | ❌ (admin-only `apply_brand_transaction` today) |
 
-### F. Campaign approval flow (the second gate)
-| # | Story requirement | Status | Notes |
-|---|---|---|---|
-| F1 | Admin sees pending queue at `/admin/ads` | PARTIAL | the page lists ALL campaigns with status badge, but no "pending review only" view, no Approve/Reject buttons inline. The detail route `/admin/ads/:id` exists but we should confirm it has the review buttons |
-| F2 | `review_campaign` RPC | DONE | approve/reject both implemented |
-| F3 | Status-transition trigger blocks brand self-activation | DONE | `enforce_campaign_status_transition` |
-| F4 | Brand notified of decision | DONE | `notify_campaign_status_change` trigger writes to `notifications` |
+### F. Campaign approval (second gate)
+| # | Requirement | Status |
+|---|---|---|
+| F1 | `/admin/ads` "Pending review (n)" filter | ✅ |
+| F2 | Inline Approve / Reject buttons on pending rows | ✅ |
+| F3 | `review_campaign` RPC + audit log | ✅ |
+| F4 | `enforce_campaign_status_transition` blocks brand self-activation | ✅ |
+| F5 | `notify_campaign_status_change` writes brand-side notifications | ✅ |
+| F6 | `guard_campaign_pes_score` prevents brand from setting their own PES | ✅ |
 
-### G. Ad serving & money flow
-| # | Story requirement | Status | Notes |
-|---|---|---|---|
-| G1 | `select-ads` picks active + budget-remaining + targeting-matched campaigns | DONE | edge function complete |
-| G2 | PES-weighted ranking, status='active' filter | DONE | weighted random by `pes_score` |
-| G3 | Wallet debit on impression | DONE | `debit_brand_for_impression` RPC |
-| G4 | Auto-pause on zero balance + brand notification | DONE | inside the same RPC |
-| G5 | 5-min impression dedupe per user/campaign | DONE | inside `select-ads` |
-| G6 | Brand dashboard analytics (impressions, clicks, CTR, spend) | DONE (admin view); BRAND view needs spot check |
+### G. Ad serving + money flow
+| # | Requirement | Status |
+|---|---|---|
+| G1 | `select-ads` filters active + budget-remaining + targeting + 5-min dedupe | ✅ |
+| G2 | PES floor ≥ 30 enforced inside `select-ads` (line 77) | ✅ |
+| G3 | `debit_brand_for_impression` debits wallet, auto-pauses on zero, notifies brand | ✅ |
+| G4 | Brand dashboard analytics (impressions, clicks, CTR, spend) | ✅ |
 
-### H. Quick-commerce / CTA enforcement (your USP)
-| # | Story requirement | Status | Notes |
-|---|---|---|---|
-| H1 | Brand provides Zepto/Blinkit/Instamart links during intake | MISSING | (see B6) |
-| H2 | Each campaign creative stores quick-commerce CTA URL | PARTIAL | `ad_creatives.cta_url` is a single text field, no per-platform breakdown |
-| H3 | Admin reviewer can see and click each platform link | MISSING | no UI |
-| H4 | Auto-reject Amazon-only campaigns | MISSING | no rule |
-
-### I. PES floor (≥ 30) gate
-| # | Story requirement | Status | Notes |
-|---|---|---|---|
-| I1 | Campaign has `pes_score` field | DONE | `ad_campaigns.pes_score` |
-| I2 | Brand can't set PES themselves | PARTIAL | RLS lets brand insert any value — admin should set/lock during review |
-| I3 | `select-ads` filters by min PES | PARTIAL | `get_servable_ads` defaults to 30; `select-ads` edge function does NOT apply this filter (it weights but doesn't gate) |
+### H. Quick-commerce CTA enforcement
+| # | Requirement | Status |
+|---|---|---|
+| H1 | Brand declares QC links during intake | ✅ |
+| H2 | Per-creative QC URL fields (Zepto / Blinkit / Instamart) so admins can verify ad CTAs land on real listings | ❌ (`ad_creatives.cta_url` is one free-text field today) |
+| H3 | Admin reviewer can click each platform link from intake detail | ✅ |
+| H4 | Auto-block creatives whose only CTA is Amazon | ❌ (no rule on creatives yet — only on intake) |
 
 ---
 
-## 2. What to fix — prioritised
+## 2. Score
+- ✅ 26 done
+- ⚠️ 1 partial
+- ❌ 6 missing (4 build-now + 2 deferred behind email infra)
 
-P0 (blocks the brand story you described):
-1. Expand the `/advertise` form to capture the verification fields (legal entity, GSTIN, FSSAI #, quick-commerce links, top SKUs, Amazon-only flag).
-2. Build `/admin/brand-intake` queue + detail page with the 6-point verification checklist and Approve / Reject buttons that atomically create `brand_accounts` and stamp the intake row.
-3. DB trigger on `brand_intake` insert → admin notifications (so the bell lights up).
-4. Marketing pitch on `/advertise` (USPs, contextual targeting, quick-commerce CTA story).
-
-P1 (nice-to-haves that complete the story):
-5. Inline Approve / Reject buttons on `/admin/ads` for `pending_review` campaigns + a queue filter.
-6. Enforce min PES = 30 in the `select-ads` edge function (not just weight).
-7. Lock `ad_campaigns.pes_score` against brand writes (only admins set it during review).
-
-P2 (later, requires email infra):
-8. Email to brand contact on intake approve/reject.
-9. Email digest to admins for new intake applications.
-10. Brand-self-serve wallet top-up via Paddle one-time payments.
-
-What we will NOT do in this round:
-- Touch the calorie / nutrition / meal engines.
-- Modify `select-ads` ranking math beyond adding the PES gate.
-- Build the email transactional layer (deferred until a verified domain is set up).
-- Re-architect the campaign approval flow (it already works end-to-end).
+The full Yoga Bar journey works end-to-end **today**. Remaining gaps are polish + the per-creative QC enforcement that ties campaign-level promises back to onboarding-level promises.
 
 ---
 
-## 3. Implementation Plan (P0 + P1)
+## 3. Gap-closure build (proposed)
 
-### Step 1 — Schema additions (migration)
-Add the missing intake fields:
+### G1. Pending-count badge in admin sidebar
+File: `src/components/admin/AdminLayout.tsx`
+- Subscribe to a lightweight count `select count(*) from brand_intake where status in ('new','in_review')` on mount + via Supabase realtime.
+- Render a small numeric badge next to the "Brand Applications" nav item when > 0.
 
+### G2. Per-creative quick-commerce URLs + Amazon-only guard
+Migration:
 ```text
-ALTER TABLE public.brand_intake
-  ADD COLUMN legal_entity      text,
-  ADD COLUMN gstin             text,
-  ADD COLUMN fssai_license     text,
-  ADD COLUMN zepto_url         text,
-  ADD COLUMN blinkit_url       text,
-  ADD COLUMN instamart_url     text,
-  ADD COLUMN amazon_url        text,
-  ADD COLUMN top_skus          text,
-  ADD COLUMN price_range       text,
-  ADD COLUMN rejection_reason  text;
+ALTER TABLE public.ad_creatives
+  ADD COLUMN zepto_url     text,
+  ADD COLUMN blinkit_url   text,
+  ADD COLUMN instamart_url text,
+  ADD COLUMN amazon_url    text;
 ```
+- Wizard (`src/pages/brand/BrandNewCampaign.tsx`): replace single CTA URL field with the 4 platform fields; auto-pick a primary CTA in priority order Zepto > Blinkit > Instamart > Amazon and store it in existing `cta_url` so `select-ads` keeps working unchanged.
+- Add a check-constraint trigger `guard_creative_qc_required`: reject INSERT/UPDATE when all of zepto/blinkit/instamart are null AND amazon is set (Amazon-only ads disallowed).
+- Admin campaign-detail page: show the 4 platform links so the reviewer can click each before approving.
 
-Trigger: on `brand_intake` insert, write a notification row for every admin/super_admin/owner (mirrors `notify_campaign_status_change`).
+### G3. Lightweight self-serve "invite contact" on intake approval
+File: `src/pages/admin/AdminBrandIntakeDetail.tsx`
+- After `approve_brand_intake` succeeds, show the new brand_id and a small panel: "Contact email: sneha@yogabars.in — [Copy magic-link]". For now the magic-link is just a `mailto:` template; once email is wired we replace it with `supabase.auth.admin.inviteUserByEmail`.
+- This is purely UI scaffolding so the manual step is documented in-product.
 
-Trigger: on `ad_campaigns` insert/update by non-admin, force `pes_score` to keep `OLD.pes_score` (or 0 on insert).
+### G4. Brand wallet self-top-up via Paddle (P1, optional this round)
+- New edge function `brand-wallet-checkout` that creates a Paddle one-time payment URL with `customData.brand_id`.
+- Extend `payments-webhook` to credit `brand_accounts.balance` via `apply_brand_transaction(p_type='topup')` when a brand-wallet payment succeeds.
+- Add a "Top up" button in `src/pages/brand/BrandBilling.tsx` (owner-only).
 
-### Step 2 — Upgrade `/advertise`
-Rewrite `src/pages/Advertise.tsx` to two visible sections:
-- Top: marketing pitch (USPs, the "sniper vs shotgun" story, 3 metrics, sample ad card).
-- Bottom: expanded form including the new fields. Keep validation simple (URL format on the QC fields, GSTIN regex). On submit: insert into `brand_intake` with all new columns; success screen unchanged.
-
-### Step 3 — Admin intake queue
-Create:
-- `src/pages/admin/AdminBrandIntake.tsx` — table of intake rows where `status = 'new'` or `status = 'in_review'`. Columns: brand, contact, budget, submitted, action.
-- `src/pages/admin/AdminBrandIntakeDetail.tsx` — full row data + the 6-point checklist (GSTIN link to gst.gov.in, FSSAI link to foscos, click-through buttons for each QC URL, free-text reviewer notes), Approve / Reject buttons.
-
-Approve handler (RPC `approve_brand_intake(intake_id, initial_balance)`) does atomically:
-1. `UPDATE brand_intake SET status='approved', reviewed_by, reviewed_at`.
-2. `INSERT INTO brand_accounts` carrying name, contact email, gstin.
-3. Insert `audit_logs` row.
-4. Insert `notifications` row addressed to `audience='admin'` summarising approval.
-
-Reject handler (RPC `reject_brand_intake(intake_id, reason)`) sets status + reason + audit log.
-
-Add the route to `App.tsx` (admin nav item already supports being conditional).
-
-### Step 4 — Sidebar entry
-In `src/components/admin/AdminLayout.tsx`, add a nav item "Brand intake" with a small badge showing the count of `brand_intake` rows with `status='new'`. Visible to roles: owner, super_admin, admin.
-
-### Step 5 — Inline campaign review on `/admin/ads`
-Add a top filter chip "Pending review (n)" and inline Approve / Reject buttons (calling existing `review_campaign` RPC) on each row whose `status = 'pending_review'`. Detail page already exists for deeper review.
-
-### Step 6 — PES gate in `select-ads`
-In `supabase/functions/select-ads/index.ts`, after the eligibility filter, drop campaigns with `pes_score < 30`. One-line change.
+If you want to ship lean: do G1 + G2 now (closes the most visible gaps), defer G3 + G4 until email + Paddle live mode are confirmed.
 
 ---
 
-## 4. File-touch list (technical)
-
-Added:
-- `supabase/migrations/<timestamp>_brand_intake_v2.sql`
-- `src/pages/admin/AdminBrandIntake.tsx`
-- `src/pages/admin/AdminBrandIntakeDetail.tsx`
-
-Edited:
-- `src/pages/Advertise.tsx` (pitch + extra fields)
-- `src/components/admin/AdminLayout.tsx` (nav entry + badge)
-- `src/App.tsx` (two new admin routes)
-- `src/pages/admin/AdminAds.tsx` (pending filter + inline approve/reject)
-- `supabase/functions/select-ads/index.ts` (PES floor)
-
-Untouched (explicitly):
-- `src/integrations/supabase/client.ts`, `types.ts`, `.env`
-- All consumer-app code, calorie/nutrition engines, meal planner
-- Campaign approval RPCs (already correct)
-- `useBrandRole` and brand-billing gating (just added)
+## 4. Out of scope for this round
+- Email infra (transactional sends to brand contact + admin digest) — needs verified domain.
+- File uploads for FSSAI / nutrition-label PDFs — needs `brand-kyc` storage policy + retention rules.
+- Reworking PES ranking math beyond the existing floor.
+- Any consumer-side, calorie-engine, or meal-planner code.
 
 ---
 
-## 5. Acceptance criteria
+## 5. Files that will change
+**Edit:** `src/components/admin/AdminLayout.tsx`, `src/pages/brand/BrandNewCampaign.tsx`, `src/pages/admin/AdminBrandIntakeDetail.tsx`, `src/pages/admin/AdminAdDetail.tsx`
+**Add:** one migration `add_creative_qc_urls.sql` (columns + guard trigger)
+**Untouched:** `select-ads`, `review_campaign`, `approve_brand_intake`, intake form, all consumer code, all engines.
 
-After this work, walking the Yoga Bar story should produce:
+---
 
-1. Visit `/advertise` → see pitch + form with all fields.
-2. Submit form → row in `brand_intake`, admin bell icon increments.
-3. Admin opens `/admin/brand-intake` → sees Yoga Bar pending.
-4. Click row → see all submitted data, click each QC link, run external GSTIN/FSSAI lookups, hit Approve.
-5. `brand_accounts` row created, intake marked approved with audit trail.
-6. (Manual for now) admin shares login link with the contact email; once they sign in they land on `/brand` via the role redirect we already added.
-7. Brand creates campaign → `pending_review`. Admin sees it with inline Approve in `/admin/ads`. One click → `active`. `select-ads` only serves it if PES ≥ 30 and budget remains.
+## 6. Acceptance check after build
+1. Submit a brand application → admin sidebar shows "Brand Applications · 1".
+2. Approve it → badge clears.
+3. Brand creates a campaign → wizard requires at least one of Zepto / Blinkit / Instamart, blocks Amazon-only.
+4. Admin opens the pending campaign → sees all 4 QC links rendered as click-throughs.
+5. Approve campaign → still served by `select-ads` with no behaviour change.
+
+Reply "go" to ship G1 + G2 (the two visible gaps), or "go full" to also include G3 + G4.

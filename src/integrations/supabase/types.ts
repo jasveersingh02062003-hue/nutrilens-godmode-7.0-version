@@ -171,6 +171,8 @@ export type Database = {
       }
       ad_creatives: {
         Row: {
+          amazon_url: string | null
+          blinkit_url: string | null
           campaign_id: string
           created_at: string
           cta_text: string | null
@@ -179,10 +181,14 @@ export type Database = {
           headline: string
           id: string
           image_url: string | null
+          instamart_url: string | null
           is_active: boolean
           subtitle: string | null
+          zepto_url: string | null
         }
         Insert: {
+          amazon_url?: string | null
+          blinkit_url?: string | null
           campaign_id: string
           created_at?: string
           cta_text?: string | null
@@ -191,10 +197,14 @@ export type Database = {
           headline: string
           id?: string
           image_url?: string | null
+          instamart_url?: string | null
           is_active?: boolean
           subtitle?: string | null
+          zepto_url?: string | null
         }
         Update: {
+          amazon_url?: string | null
+          blinkit_url?: string | null
           campaign_id?: string
           created_at?: string
           cta_text?: string | null
@@ -203,8 +213,10 @@ export type Database = {
           headline?: string
           id?: string
           image_url?: string | null
+          instamart_url?: string | null
           is_active?: boolean
           subtitle?: string | null
+          zepto_url?: string | null
         }
         Relationships: [
           {

@@ -43,8 +43,11 @@ export default function BrandNewCampaign() {
     headline: "",
     subtitle: "",
     image_url: "",
-    cta_text: "Learn More",
-    cta_url: "",
+    cta_text: "Order on Zepto",
+    zepto_url: "",
+    blinkit_url: "",
+    instamart_url: "",
+    amazon_url: "",
   });
 
   useEffect(() => {
@@ -75,6 +78,13 @@ export default function BrandNewCampaign() {
       toast.error("Top up your wallet to cover this budget before submitting.");
       return;
     }
+    const hasQC = !!(form.zepto_url || form.blinkit_url || form.instamart_url);
+    if (form.amazon_url && !hasQC) {
+      toast.error("Amazon-only ads aren't allowed. Add at least one of Zepto / Blinkit / Instamart.");
+      return;
+    }
+    // Pick primary CTA in priority order
+    const primaryCta = form.zepto_url || form.blinkit_url || form.instamart_url || form.amazon_url || "";
     setSubmitting(true);
     const { data: camp, error: campErr } = await supabase
       .from("ad_campaigns")
@@ -108,7 +118,11 @@ export default function BrandNewCampaign() {
         subtitle: form.subtitle || null,
         image_url: form.image_url || null,
         cta_text: form.cta_text,
-        cta_url: form.cta_url || null,
+        cta_url: primaryCta || null,
+        zepto_url: form.zepto_url || null,
+        blinkit_url: form.blinkit_url || null,
+        instamart_url: form.instamart_url || null,
+        amazon_url: form.amazon_url || null,
         format: "native",
         is_active: true,
       }),
@@ -221,14 +235,28 @@ export default function BrandNewCampaign() {
               <Label>Image URL</Label>
               <Input value={form.image_url} onChange={(e) => update("image_url", e.target.value)} placeholder="https://..." />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>CTA text</Label>
+              <Input value={form.cta_text} onChange={(e) => update("cta_text", e.target.value)} placeholder="Order on Zepto" />
+            </div>
+            <div className="rounded-md border border-border p-3 bg-muted/30 space-y-2">
+              <p className="text-xs font-medium">Quick-commerce purchase links</p>
+              <p className="text-[11px] text-muted-foreground">At least one of Zepto / Blinkit / Instamart is required. Amazon-only ads are blocked.</p>
               <div>
-                <Label>CTA text</Label>
-                <Input value={form.cta_text} onChange={(e) => update("cta_text", e.target.value)} />
+                <Label className="text-xs">Zepto product URL</Label>
+                <Input value={form.zepto_url} onChange={(e) => update("zepto_url", e.target.value)} placeholder="https://www.zeptonow.com/pn/..." />
               </div>
               <div>
-                <Label>CTA URL</Label>
-                <Input value={form.cta_url} onChange={(e) => update("cta_url", e.target.value)} />
+                <Label className="text-xs">Blinkit product URL</Label>
+                <Input value={form.blinkit_url} onChange={(e) => update("blinkit_url", e.target.value)} placeholder="https://blinkit.com/prn/..." />
+              </div>
+              <div>
+                <Label className="text-xs">Instamart product URL</Label>
+                <Input value={form.instamart_url} onChange={(e) => update("instamart_url", e.target.value)} placeholder="https://www.swiggy.com/instamart/..." />
+              </div>
+              <div>
+                <Label className="text-xs">Amazon URL (fallback only)</Label>
+                <Input value={form.amazon_url} onChange={(e) => update("amazon_url", e.target.value)} placeholder="https://www.amazon.in/..." />
               </div>
             </div>
           </div>
