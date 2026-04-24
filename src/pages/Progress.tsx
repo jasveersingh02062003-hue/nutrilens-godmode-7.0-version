@@ -195,6 +195,7 @@ export default function ProgressPage() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [showBloodReport, setShowBloodReport] = useState(false);
+  const medicalGate = useMedicalDisclaimer('blood_report_view');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const { profile } = useUserProfile();
   const showDeferredSections = useIdleMount(120);
@@ -503,7 +504,7 @@ export default function ProgressPage() {
             <BloodReportCard refreshKey={refreshKey} />
 
             <button
-              onClick={() => setShowBloodReport(true)}
+              onClick={() => medicalGate.requireAck(() => setShowBloodReport(true))}
               className="w-full py-3 rounded-2xl bg-card border border-border font-semibold text-sm flex items-center justify-center gap-2 hover:border-primary/30 transition-colors"
             >
               <FileText className="w-4 h-4 text-muted-foreground" /> Enter Blood Report
@@ -617,6 +618,13 @@ export default function ProgressPage() {
         open={showBloodReport}
         onClose={() => setShowBloodReport(false)}
         onSaved={refresh}
+      />
+
+      <MedicalDisclaimerModal
+        open={medicalGate.modalOpen}
+        onAcknowledge={medicalGate.acknowledge}
+        onCancel={medicalGate.cancel}
+        title="Before viewing your blood report"
       />
 
       <UpgradeModal open={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
