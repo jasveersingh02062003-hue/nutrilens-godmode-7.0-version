@@ -1659,6 +1659,15 @@ export type Database = {
           target_diet: string
         }[]
       }
+      get_staff_with_emails: {
+        Args: never
+        Returns: {
+          email: string
+          name: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }[]
+      }
       has_active_subscription: {
         Args: { check_env?: string; user_uuid: string }
         Returns: boolean
@@ -1676,6 +1685,14 @@ export type Database = {
       is_owner: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
       is_support: { Args: { _user_id: string }; Returns: boolean }
+      lookup_user_by_email: {
+        Args: { p_email: string }
+        Returns: {
+          email: string
+          name: string
+          user_id: string
+        }[]
+      }
       pause_my_subscription: {
         Args: { p_days?: number }
         Returns: {
