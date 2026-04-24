@@ -133,53 +133,29 @@ export async function matchSponsoredProducts(
 ): Promise<ProductRecommendation[]> {
   if (gaps.proteinGap < 3) return [];
 
-  const today = new Date().toISOString().split('T')[0];
-
-  // Get active campaigns with targeting data
+  // Use the SECURITY DEFINER function: returns only safe, servable fields
+  // (no budget_total / budget_spent / cpc_rate exposed to clients).
   const { data: campaigns, error } = await supabase
-    .from('ad_campaigns')
-    .select(`
-      id, campaign_name, pes_score, target_diet, budget_total, budget_spent,
-      brand_accounts!inner(brand_name),
-      ad_creatives!inner(id, headline, subtitle, cta_text, cta_url, image_url, is_active),
-      ad_targeting(min_protein_gap, max_user_budget, meal_context)
-    `)
-    .eq('status', 'active')
-    .gte('pes_score', 30)
-    .lte('start_date', today)
-    .gte('end_date', today)
-    .order('pes_score', { ascending: false })
-    .limit(5);
+    .rpc('get_servable_ads', { p_min_pes: 30, p_limit: 5 });
 
   if (error || !campaigns) return [];
 
   const results: ProductRecommendation[] = [];
 
   for (const campaign of campaigns as any[]) {
-    // Budget check
-    if (campaign.budget_total > 0 && campaign.budget_spent >= campaign.budget_total) continue;
+    // Targeting check (server already filters by date/status/budget)
+    if (campaign.min_protein_gap && Number(campaign.min_protein_gap) > 0
+        && gaps.proteinGap < Number(campaign.min_protein_gap)) continue;
+    if (campaign.max_user_budget && Number(campaign.max_user_budget) > 0
+        && budget > Number(campaign.max_user_budget)) continue;
 
-    // Targeting check
-    const targeting = Array.isArray(campaign.ad_targeting) ? campaign.ad_targeting[0] : campaign.ad_targeting;
-    if (targeting) {
-      if (targeting.min_protein_gap > 0 && gaps.proteinGap < targeting.min_protein_gap) continue;
-      if (targeting.max_user_budget > 0 && budget > targeting.max_user_budget) continue;
-    }
-
-    const creative = Array.isArray(campaign.ad_creatives)
-      ? campaign.ad_creatives.find((c: any) => c.is_active)
-      : campaign.ad_creatives;
-    if (!creative) continue;
-
-    const brand = Array.isArray(campaign.brand_accounts)
-      ? campaign.brand_accounts[0]
-      : campaign.brand_accounts;
+    const brandName = campaign.brand_name || 'Sponsored';
 
     // Try to find matching packed_product for this brand
     const { data: brandProducts } = await supabase
       .from('packed_products')
       .select('*')
-      .ilike('brand', `%${brand?.brand_name || ''}%`)
+      .ilike('brand', `%${brandName}%`)
       .gte('protein', Math.min(gaps.proteinGap, 8))
       .gte('pes_score', 30)
       .order('cost_per_gram_protein', { ascending: true })
@@ -189,9 +165,9 @@ export async function matchSponsoredProducts(
     const price = product ? (product.selling_price || product.mrp) : 0;
 
     results.push({
-      productId: product?.id || campaign.id,
-      productName: product?.product_name || creative.headline,
-      brand: brand?.brand_name || 'Sponsored',
+      productId: product?.id || campaign.campaign_id,
+      productName: product?.product_name || campaign.headline,
+      brand: brandName,
       price,
       protein: product?.protein || 0,
       calories: product?.calories || 0,
@@ -199,22 +175,22 @@ export async function matchSponsoredProducts(
       fat: product?.fat || 0,
       pesScore: campaign.pes_score,
       costPerGramProtein: product?.cost_per_gram_protein || 0,
-      imageUrl: creative.image_url || product?.image_url,
+      imageUrl: campaign.image_url || product?.image_url,
       servingSize: product?.serving_size || null,
-      campaignId: campaign.id,
-      creativeId: creative.id,
+      campaignId: campaign.campaign_id,
+      creativeId: campaign.creative_id,
       isSponsored: true,
-      ctaText: creative.cta_text || 'View Details',
-      ctaUrl: creative.cta_url,
-      brandName: brand?.brand_name || 'Sponsored',
-      headline: creative.headline,
-      subtitle: creative.subtitle,
+      ctaText: campaign.cta_text || 'View Details',
+      ctaUrl: campaign.cta_url,
+      brandName,
+      headline: campaign.headline,
+      subtitle: campaign.subtitle,
       message: product
         ? `${product.product_name} — ${product.protein}g protein for ₹${price}`
-        : creative.headline,
+        : campaign.headline,
       budgetImpact: price > 0
         ? `₹${price} — ${budget >= price ? `fits your remaining ₹${Math.round(budget)} budget` : `₹${Math.round(price - budget)} over budget`}`
-        : creative.subtitle || '',
+        : campaign.subtitle || '',
     });
   }
 
