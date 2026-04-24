@@ -162,6 +162,18 @@ export default function AdminAds() {
           </Card>
 
           <Card className="overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30">
+              <span className="text-xs text-muted-foreground mr-2">Filter:</span>
+              {(['all','pending_review','active'] as const).map(f => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`text-xs px-2 py-1 rounded ${filter === f ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+                >
+                  {f === 'pending_review' ? `Pending review${pendingCount ? ` (${pendingCount})` : ''}` : f}
+                </button>
+              ))}
+            </div>
             <div className="overflow-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
@@ -172,39 +184,51 @@ export default function AdminAds() {
                     <th className="px-3 py-3 text-right">Clk</th>
                     <th className="px-3 py-3 text-right">Cnv</th>
                     <th className="px-3 py-3 text-right">CTR</th>
-                    <th className="px-3 py-3 text-right">CVR</th>
-                    <th className="px-3 py-3 text-right">CPM</th>
-                    <th className="px-3 py-3 text-right">CPC</th>
                     <th className="px-3 py-3 text-right">Spend</th>
                     <th className="px-3 py-3 text-right">Util</th>
                     <th className="px-3 py-3 text-left">Status</th>
+                    <th className="px-3 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map(r => {
+                  {filtered.map(r => {
                     const util = r.budget ? Math.round((r.spend / r.budget) * 100) : 0;
+                    const isPending = r.status === 'pending_review';
                     return (
-                      <tr key={r.id} className="border-b border-border hover:bg-muted/30 cursor-pointer" onClick={() => { window.location.href = `/admin/ads/${r.id}`; }}>
-                        <td className="px-3 py-2 font-medium truncate max-w-[160px] text-primary underline-offset-2 hover:underline">{r.name}</td>
+                      <tr key={r.id} className="border-b border-border hover:bg-muted/30">
+                        <td className="px-3 py-2 font-medium truncate max-w-[160px]">
+                          <a href={`/admin/ads/${r.id}`} className="text-primary hover:underline">{r.name}</a>
+                        </td>
                         <td className="px-3 py-2 text-xs text-muted-foreground">{r.brand}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{r.impressions.toLocaleString()}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{r.clicks}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{r.conversions}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{r.ctr}%</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{r.cvr}%</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{inr(r.cpm)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{inr(r.cpc)}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{inr(r.spend)}</td>
                         <td className="px-3 py-2 text-right tabular-nums">
                           <span className={util > 90 ? 'text-destructive font-bold' : util > 50 ? 'text-amber-500' : ''}>{util}%</span>
                         </td>
                         <td className="px-3 py-2">
-                          <Badge variant={r.status === 'active' ? 'default' : 'secondary'} className="text-[10px]">{r.status}</Badge>
+                          <Badge variant={r.status === 'active' ? 'default' : isPending ? 'secondary' : 'outline'} className="text-[10px]">{r.status}</Badge>
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          {isPending ? (
+                            <div className="flex justify-end gap-1">
+                              <Button size="sm" variant="outline" className="h-7 px-2" disabled={reviewing === r.id} onClick={() => review(r.id, 'approve')}>
+                                <Check className="w-3 h-3 mr-1" /> Approve
+                              </Button>
+                              <Button size="sm" variant="outline" className="h-7 px-2" disabled={reviewing === r.id} onClick={() => review(r.id, 'reject')}>
+                                <X className="w-3 h-3 mr-1" /> Reject
+                              </Button>
+                            </div>
+                          ) : (
+                            <a href={`/admin/ads/${r.id}`} className="text-xs text-muted-foreground hover:text-foreground">View</a>
+                          )}
                         </td>
                       </tr>
                     );
                   })}
-                  {!rows.length && <tr><td colSpan={12} className="p-8 text-center text-muted-foreground">No campaigns yet</td></tr>}
+                  {!filtered.length && <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">No campaigns in this view.</td></tr>}
                 </tbody>
               </table>
             </div>
