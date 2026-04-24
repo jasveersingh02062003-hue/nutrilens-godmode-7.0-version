@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { calculateBMI, calculateBMR, getBMICategory, getActivityMultiplier } from '@/lib/nutrition';
 import { calculateOnboardingGoals, calculateWaterGoal, type OnboardingGoalResult } from '@/lib/goal-engine';
 import { saveOnboardingData, saveOnboardingProgress, getOnboardingProgress, clearOnboardingProgress, type OnboardingData } from '@/lib/onboarding-store';
+import { logEvent } from '@/lib/events';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { saveProfile } from '@/lib/store';
@@ -377,6 +378,18 @@ export default function Onboarding() {
   });
 
   const set = useCallback(<K extends keyof FormState>(key: K, val: FormState[K]) => setF(prev => ({ ...prev, [key]: val })), []);
+
+  // Funnel: fire `onboarding_step_exit` if the user closes the tab or backgrounds
+  // the app mid-onboarding. Helps us identify the highest-drop-off steps.
+  useEffect(() => {
+    const onHide = () => {
+      if (document.visibilityState === 'hidden' && phase === 'wizard') {
+        void logEvent({ name: 'onboarding_step_exit', properties: { step, phase } });
+      }
+    };
+    window.addEventListener('visibilitychange', onHide);
+    return () => window.removeEventListener('visibilitychange', onHide);
+  }, [step, phase]);
 
   const setHeightFromFtIn = (ft: number, inches: number) => {
     const cm = Math.round(ft * 30.48 + inches * 2.54);
