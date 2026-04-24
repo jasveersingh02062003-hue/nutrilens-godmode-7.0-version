@@ -129,7 +129,8 @@ const Auth = function Auth() {
           setLoading(false);
 
           if (!signInResult.error) {
-            toast.success('Welcome back!');
+    toast.success('Welcome back!');
+    void redirectByRole();
             return;
           }
 
@@ -153,6 +154,7 @@ const Auth = function Auth() {
         }
       } catch {}
       toast.success(isMinor ? 'Account created — welcome!' : 'Account created!');
+      void redirectByRole();
       return;
     }
 
@@ -185,6 +187,7 @@ const Auth = function Auth() {
     setLoading(false);
     if (error) { toast.error(error.message); return; }
     toast.success('Verified!');
+    void redirectByRole();
   };
 
   const handleGoogle = async () => {
