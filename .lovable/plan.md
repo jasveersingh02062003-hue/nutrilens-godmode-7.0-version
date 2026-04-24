@@ -91,7 +91,7 @@ Note on the four-app request ("consumer app, admin app, partner app, customer in
 | # | Item | Reason it's not done |
 |---|---|---|
 | ✅ P0-1 | Brand-data RLS lockdown — DONE (migration: dropped public-read policies on `brand_accounts`, `ad_campaigns`, `ad_creatives`; added `get_servable_ads` SECURITY DEFINER RPC for safe consumer ad-serving; refactored `src/lib/nutrition-gap-ads.ts` to use it). Verified with linter. |
-| P0-2 | `meal-photos` storage bucket is public | Should be private + signed URLs; never migrated |
+| ✅ P0-2 | `meal-photos` lockdown — DONE (bucket flipped to private; owner-folder RLS on `storage.objects` so users can only read/write `{uid}/...`; staff read for moderation; `getPhotoUrl` now returns 7-day signed URLs; added `refreshPhotoUrl` helper in `src/lib/photo-store.ts`). |
 | P0-3 | Paddle live mode go-live | Currently sandbox-only; needs domain approval, webhook URL switch, env flip |
 | P0-4 | "Consult a doctor" modal before PCOS / Blood Report / 1200 kcal plans for adults | Disclaimer exists in Terms only, not at point-of-use |
 | P0-5 | Smoke-test the Paddle end-to-end checkout (test card `4242…`) → verify webhook flips `subscriptions.status=active` | Not yet executed since last fix |
