@@ -7,6 +7,7 @@ import { setScopedUserId, clearScopedData } from '@/lib/scoped-storage';
 import { setSentryUser } from '@/lib/sentry';
 import { initSubscriptionService } from '@/lib/subscription-service';
 import { logEvent } from '@/lib/events';
+import { fireOnce } from '@/lib/funnel';
 
 // Module-scoped guard so `signup` only fires the very first time we see this user
 // in this browser session (created_at within the last few minutes).
@@ -27,6 +28,22 @@ function markUserSeen(id: string) {
       localStorage.setItem(SEEN_USERS_KEY, JSON.stringify(ids.slice(-50)));
     }
   } catch { /* noop */ }
+}
+
+/**
+ * Funnel: fire `day2_return` once when a user opens the app on day-1 or
+ * day-2 after their auth.users.created_at. Strongest leading indicator of
+ * 30-day retention for consumer health apps.
+ */
+async function maybeFireDay2Return(createdAt: string | undefined) {
+  if (!createdAt) return;
+  const created = new Date(createdAt).getTime();
+  if (Number.isNaN(created)) return;
+  const ageMs = Date.now() - created;
+  const oneDay = 24 * 60 * 60 * 1000;
+  // Window: between 20h (early-bird late on day 1) and 60h (late on day 2).
+  if (ageMs < oneDay * 0.8 || ageMs > oneDay * 2.5) return;
+  void fireOnce('day2_return', { hours_since_signup: Math.round(ageMs / (60 * 60 * 1000)) });
 }
 
 interface AuthContextValue {
@@ -72,6 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           void logEvent({ name: 'signup', properties: { method: nextSession?.user?.app_metadata?.provider ?? 'email' } });
         }
         void logEvent({ name: 'app_opened' });
+        void maybeFireDay2Return(nextSession?.user?.created_at);
       }
       if (hasRestoredSessionRef.current) {
         setIsLoading(false);
@@ -85,6 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (uid) {
         if (!hasSeenUser(uid)) markUserSeen(uid);
         void logEvent({ name: 'app_opened' });
+        void maybeFireDay2Return(nextSession?.user?.created_at);
       }
       setIsLoading(false);
     });

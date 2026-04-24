@@ -195,11 +195,13 @@ export async function startFreeTrial(): Promise<boolean> {
 
 /** Server-side cancel. Keeps access until current_period_end. */
 export async function cancelSubscription(): Promise<boolean> {
+  const planAtCancel = cache.plan;
   const { error } = await supabase.functions.invoke('cancel-subscription', { body: {} });
   if (error) {
     console.warn('[subscription] cancel failed', error.message);
     return false;
   }
+  void logEvent({ name: 'churn_cancel', properties: { plan: planAtCancel, period_end: cache.current_period_end } });
   await refreshPlan();
   return true;
 }

@@ -40,11 +40,13 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
+    // Log full error server-side, return generic message to caller to avoid
+    // leaking schema/version details to public probes.
+    console.error("[healthz] db check failed:", e instanceof Error ? e.message : String(e));
     return new Response(
       JSON.stringify({
         status: "error",
         db: "down",
-        message: e instanceof Error ? e.message : String(e),
         latency_ms: Date.now() - start,
       }),
       { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },

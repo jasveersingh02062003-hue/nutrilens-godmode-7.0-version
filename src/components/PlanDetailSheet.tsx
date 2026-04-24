@@ -4,6 +4,8 @@ import { Star, Check, Calendar, Target, Flame, AlertTriangle } from 'lucide-reac
 import { motion } from 'framer-motion';
 import { type PlanMeta, calculatePlanTargets, setActivePlan } from '@/lib/event-plan-service';
 import { useUserProfile } from '@/contexts/UserProfileContext';
+import { useMedicalDisclaimer } from '@/hooks/useMedicalDisclaimer';
+import MedicalDisclaimerModal from '@/components/MedicalDisclaimerModal';
 import { toast } from 'sonner';
 
 interface PlanDetailSheetProps {
@@ -14,6 +16,7 @@ interface PlanDetailSheetProps {
 
 export default function PlanDetailSheet({ plan, open, onOpenChange }: PlanDetailSheetProps) {
   const { profile } = useUserProfile();
+  const medicalGate = useMedicalDisclaimer('plan_start_clinical');
   const [duration, setDuration] = useState(plan.defaultDuration);
   const [targetWeight, setTargetWeight] = useState(() =>
     profile?.targetWeight || (profile?.weightKg ? profile.weightKg - 3 : 65)
@@ -31,12 +34,22 @@ export default function PlanDetailSheet({ plan, open, onOpenChange }: PlanDetail
     );
   }, [profile, targetWeight, duration, plan.id]);
 
-  const handleUnlock = () => {
+  /**
+   * Plans that materially change diet/calories below safe-default thresholds
+   * or rely on clinical context (PCOS, sugar restriction, aggressive cuts,
+   * fasting windows) require explicit medical-disclaimer ack before start.
+   * P0-4 — DPDP / app-store safeguard.
+   */
+  const requiresMedicalGate = useMemo(() => {
+    const clinicalPlans = ['madhavan-reset', 'sugar-cut', 'pcos-reset'];
+    if (clinicalPlans.includes(plan.id)) return true;
+    if (targets && targets.dailyCalories <= 1300) return true;
+    if (targets && targets.dailyDeficit && targets.dailyDeficit >= 700) return true;
+    return false;
+  }, [plan.id, targets]);
+
+  const activatePlanNow = () => {
     if (!targets || !profile) return;
-    if (!targets.feasible) {
-      toast.error('This target is not safe. Please adjust duration or target weight.');
-      return;
-    }
     setActivePlan({
       planId: plan.id,
       startDate,
@@ -53,6 +66,19 @@ export default function PlanDetailSheet({ plan, open, onOpenChange }: PlanDetail
       description: `${duration} days starting ${startDate}`,
     });
     onOpenChange(false);
+  };
+
+  const handleUnlock = () => {
+    if (!targets || !profile) return;
+    if (!targets.feasible) {
+      toast.error('This target is not safe. Please adjust duration or target weight.');
+      return;
+    }
+    if (requiresMedicalGate) {
+      medicalGate.requireAck(activatePlanNow);
+      return;
+    }
+    activatePlanNow();
   };
 
   return (
@@ -212,6 +238,13 @@ export default function PlanDetailSheet({ plan, open, onOpenChange }: PlanDetail
           <p className="text-[9px] text-muted-foreground text-center">One-time purchase · No recurring charges</p>
         </div>
       </SheetContent>
+
+      <MedicalDisclaimerModal
+        open={medicalGate.modalOpen}
+        title="Before starting this plan"
+        onAcknowledge={medicalGate.acknowledge}
+        onCancel={medicalGate.cancel}
+      />
     </Sheet>
   );
 }

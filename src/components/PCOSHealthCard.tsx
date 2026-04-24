@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
-import { Heart, TrendingUp, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { Heart, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getRecentLogs } from '@/lib/store';
 import { scoreDayForPCOS, getPCOSCondition, getPCOSFoodRecommendations, userHasPCOS } from '@/lib/pcos-score';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { useAgeTier } from '@/hooks/useAgeTier';
+import HealthDisclaimerBanner from '@/components/HealthDisclaimerBanner';
 
 const scoreColors = {
   green: 'text-primary',
@@ -70,6 +71,7 @@ export default function PCOSHealthCard({ refreshKey }: Props) {
 
   return (
     <div className="card-elevated p-4 space-y-3">
+      <HealthDisclaimerBanner surface="pcos" compact />
       <button
         onClick={() => setExpanded(!expanded)}
         className="flex items-center justify-between w-full"
