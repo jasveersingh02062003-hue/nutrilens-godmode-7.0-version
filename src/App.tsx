@@ -21,6 +21,7 @@ import OfflineBanner from "./components/OfflineBanner";
 import { DailyPaywallProvider } from "./hooks/useDailyPaywall";
 import PaymentTestModeBanner from "./components/paywall/PaymentTestModeBanner";
 import { initOutboxReplay } from "./lib/outbox-replay";
+import PageLoader from "./components/PageLoader";
 
 function lazyWithRetry<T extends React.ComponentType<any>>(
   importer: () => Promise<{ default: T }>,
@@ -110,11 +111,6 @@ const Terms = lazyWithRetry(() => import("./pages/Terms"), "terms");
 
 const queryClient = new QueryClient();
 
-const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center bg-background">
-    <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
-  </div>
-);
 
 // Wrap each route in its own ErrorBoundary so a crash on one page
 // doesn't take down the whole app.
