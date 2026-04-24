@@ -90,7 +90,7 @@ Note on the four-app request ("consumer app, admin app, partner app, customer in
 ### P0 — Will break / leak / cost money on day 1
 | # | Item | Reason it's not done |
 |---|---|---|
-| P0-1 | Brand-data RLS lockdown (`ad_campaigns`, `ad_creatives`, `ad_impressions`, `ad_clicks`, `ad_conversions`, `ad_targeting`, `brand_accounts`) | Policies still allow any authenticated user to read brand budgets, GSTIN, wallet — flagged in last audit, not yet patched |
+| ✅ P0-1 | Brand-data RLS lockdown — DONE (migration: dropped public-read policies on `brand_accounts`, `ad_campaigns`, `ad_creatives`; added `get_servable_ads` SECURITY DEFINER RPC for safe consumer ad-serving; refactored `src/lib/nutrition-gap-ads.ts` to use it). Verified with linter. |
 | P0-2 | `meal-photos` storage bucket is public | Should be private + signed URLs; never migrated |
 | P0-3 | Paddle live mode go-live | Currently sandbox-only; needs domain approval, webhook URL switch, env flip |
 | P0-4 | "Consult a doctor" modal before PCOS / Blood Report / 1200 kcal plans for adults | Disclaimer exists in Terms only, not at point-of-use |
