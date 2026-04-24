@@ -166,7 +166,7 @@ export default function AdminAdDetail() {
         <div className="space-y-3">
           {creatives.map((c) => (
             <div key={c.id} className="flex gap-3 p-3 border border-border rounded-lg">
-              {c.image_url && <img src={c.image_url} alt={c.headline} className="w-20 h-20 rounded object-cover" />}
+              {c.image_url && <img src={c.image_url} alt={c.headline} loading="lazy" decoding="async" className="w-20 h-20 rounded object-cover" />}
               <div className="flex-1 min-w-0">
                 <p className="font-medium">{c.headline}</p>
                 {c.subtitle && <p className="text-sm text-muted-foreground">{c.subtitle}</p>}

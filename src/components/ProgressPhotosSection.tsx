@@ -213,7 +213,7 @@ export default function ProgressPhotosSection({ refreshKey, onChanged }: Props) 
                 onClick={() => setViewPhoto(photo)}
                 className="aspect-square rounded-xl overflow-hidden relative group"
               >
-                <img src={photo.dataUrl} alt={photo.caption || photo.type} className="w-full h-full object-cover" />
+                <img src={photo.dataUrl} alt={photo.caption || photo.type} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/20 transition-colors" />
                 {/* Verified badge */}
                 <span className={`absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center ${

@@ -50,7 +50,7 @@ export default function DayBlock({ log, onOpenDate, onOpenMemory }: Props) {
             onClick={(e) => { e.stopPropagation(); onOpenMemory(log.date, meal.id); }}
             className="w-20 h-20 rounded-xl overflow-hidden border border-border flex-shrink-0"
           >
-            <img src={meal.photo!} alt="" className="w-full h-full object-cover" />
+            <img src={meal.photo!} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
           </div>
         ))}
         {extraCount > 0 && (
