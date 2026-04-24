@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
       targetCategories: pick.target_categories ?? [],
     };
 
-    // Optionally log impression atomically (5-min dedupe per user/campaign)
+    // Optionally log impression atomically (5-min dedupe per user/campaign) + debit wallet
     if (body.log_impression) {
       const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
       const { count } = await supabase
@@ -138,11 +138,15 @@ Deno.serve(async (req) => {
           placement_slot: ad.placementSlot,
           user_id: body.user_id,
         });
-        if (pick.pricing_model === "cpm" && Number(pick.cpm_rate) > 0) {
-          await supabase
-            .from("ad_campaigns")
-            .update({ budget_spent: Number(pick.budget_spent) + Number(pick.cpm_rate) / 1000 })
-            .eq("id", ad.campaignId);
+        // Debit brand wallet via RPC (auto-pauses & notifies on insufficient funds)
+        const debit = pick.pricing_model === "cpm" && Number(pick.cpm_rate) > 0
+          ? Number(pick.cpm_rate) / 1000
+          : 0.10; // flat fallback per impression so wallet always moves
+        if (debit > 0) {
+          await supabase.rpc("debit_brand_for_impression", {
+            p_campaign_id: ad.campaignId,
+            p_amount: debit,
+          });
         }
       }
     }

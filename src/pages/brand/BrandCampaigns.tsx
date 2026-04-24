@@ -49,13 +49,20 @@ export default function BrandCampaigns() {
   }, [user]);
 
   const toggle = async (c: Camp) => {
-    const next = c.status === "active" ? "paused" : "active";
-    const { error } = await supabase.from("ad_campaigns").update({ status: next }).eq("id", c.id);
-    if (error) {
-      toast.error(error.message);
+    // Brands can pause an active campaign, or resubmit a paused/draft for review.
+    // They cannot directly set status='active' — that requires admin approval.
+    if (c.status === "active") {
+      const { error } = await supabase.from("ad_campaigns").update({ status: "paused" }).eq("id", c.id);
+      if (error) return toast.error(error.message);
+      toast.success("Campaign paused");
+    } else if (c.status === "draft" || c.status === "paused" || c.status === "rejected") {
+      const { error } = await supabase.rpc("submit_campaign_for_review", { p_campaign_id: c.id });
+      if (error) return toast.error(error.message);
+      toast.success("Submitted for review");
+    } else {
+      toast.info("Awaiting admin review");
       return;
     }
-    toast.success(`Campaign ${next}`);
     load();
   };
 
@@ -101,8 +108,15 @@ export default function BrandCampaigns() {
                 <tr key={c.id} className="border-t border-border">
                   <td className="py-3 font-medium">{c.campaign_name}</td>
                   <td>
-                    <Badge variant={c.status === "active" ? "default" : "secondary"} className="text-[10px]">
-                      {c.status}
+                    <Badge
+                      variant={
+                        c.status === "active" ? "default" :
+                        c.status === "rejected" ? "destructive" :
+                        "secondary"
+                      }
+                      className="text-[10px]"
+                    >
+                      {c.status.replace("_", " ")}
                     </Badge>
                   </td>
                   <td className="text-xs text-muted-foreground">{c.placement_slot}</td>
@@ -110,7 +124,18 @@ export default function BrandCampaigns() {
                   <td className="text-right tabular-nums">{inr(Number(c.budget_total))}</td>
                   <td className={`text-right tabular-nums ${exhausted ? "text-destructive font-medium" : ""}`}>{util}%</td>
                   <td className="text-right">
-                    <Button size="sm" variant="ghost" onClick={() => toggle(c)} disabled={exhausted && c.status !== "active"}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => toggle(c)}
+                      disabled={(exhausted && c.status !== "active") || c.status === "pending_review"}
+                      title={
+                        c.status === "active" ? "Pause" :
+                        c.status === "pending_review" ? "Awaiting admin review" :
+                        c.status === "rejected" ? "Resubmit for review" :
+                        "Submit for review"
+                      }
+                    >
                       {c.status === "active" ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
                     </Button>
                   </td>

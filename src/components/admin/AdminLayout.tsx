@@ -6,6 +6,7 @@ import {
 import { useAdminRole, type StaffRole } from '@/hooks/useAdminRole';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
+import NotificationBell from '@/components/NotificationBell';
 
 type NavItem = {
   to: string;
@@ -66,9 +67,12 @@ export default function AdminLayout() {
     <div className="min-h-screen flex w-full bg-background text-foreground">
       <aside className="w-60 shrink-0 border-r border-border bg-card flex flex-col">
         <div className="px-5 py-4 border-b border-border">
-          <div className="flex items-center gap-2">
-            <ShieldAlert className="w-5 h-5 text-primary" />
-            <span className="font-bold text-sm">NutriLens Admin</span>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5 text-primary" />
+              <span className="font-bold text-sm">NutriLens Admin</span>
+            </div>
+            <NotificationBell audience="admin" />
           </div>
           {badgeLabel && (
             <Badge variant="secondary" className="mt-2 text-[10px]">{badgeLabel}</Badge>

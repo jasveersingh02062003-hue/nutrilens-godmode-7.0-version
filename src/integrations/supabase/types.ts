@@ -887,6 +887,48 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          audience: string
+          body: string | null
+          brand_id: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          kind: string
+          link_url: string | null
+          metadata: Json
+          title: string
+          user_id: string
+        }
+        Insert: {
+          audience?: string
+          body?: string | null
+          brand_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          kind: string
+          link_url?: string | null
+          metadata?: Json
+          title: string
+          user_id: string
+        }
+        Update: {
+          audience?: string
+          body?: string | null
+          brand_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          kind?: string
+          link_url?: string | null
+          metadata?: Json
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       packed_products: {
         Row: {
           affiliate_links: Json | null
@@ -1541,6 +1583,7 @@ export type Database = {
         }
         Returns: string
       }
+      brand_member_role: { Args: { _brand_id: string }; Returns: string }
       campaign_brand_id: { Args: { _campaign_id: string }; Returns: string }
       cancel_my_subscription: {
         Args: never
@@ -1549,6 +1592,10 @@ export type Database = {
           current_period_end: string
           status: Database["public"]["Enums"]["subscription_status"]
         }[]
+      }
+      debit_brand_for_impression: {
+        Args: { p_amount: number; p_campaign_id: string }
+        Returns: undefined
       }
       delete_my_account: { Args: never; Returns: undefined }
       get_ai_quota: { Args: { p_endpoint: string }; Returns: number }
@@ -1644,12 +1691,26 @@ export type Database = {
           status: Database["public"]["Enums"]["subscription_status"]
         }[]
       }
+      review_campaign: {
+        Args: { p_campaign_id: string; p_decision: string; p_reason?: string }
+        Returns: {
+          id: string
+          status: string
+        }[]
+      }
       start_trial: {
         Args: never
         Returns: {
           plan: Database["public"]["Enums"]["subscription_plan"]
           status: Database["public"]["Enums"]["subscription_status"]
           trial_end: string
+        }[]
+      }
+      submit_campaign_for_review: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          id: string
+          status: string
         }[]
       }
       upsert_daily_log: {
