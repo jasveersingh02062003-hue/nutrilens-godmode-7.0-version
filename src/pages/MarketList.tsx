@@ -243,7 +243,7 @@ export default function MarketList() {
                 </div>
               </div>
             )}
-          </div>
+          </motion.div>
         ) : (
           <>
             {/* Summary Bar */}
