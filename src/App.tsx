@@ -102,6 +102,7 @@ const AdminPlans = lazyWithRetry(() => import("./pages/admin/AdminPlans"), "admi
 const AdminFeedback = lazyWithRetry(() => import("./pages/admin/AdminFeedback"), "admin-feedback");
 const AdminAudit = lazyWithRetry(() => import("./pages/admin/AdminAudit"), "admin-audit");
 const AdminStaff = lazyWithRetry(() => import("./pages/admin/AdminStaff"), "admin-staff");
+const AdminSeedAccounts = lazyWithRetry(() => import("./pages/admin/AdminSeedAccounts"), "admin-seed-accounts");
 const AdminCosts = lazyWithRetry(() => import("./pages/admin/AdminCosts"), "admin-costs");
 const AdminOps = lazyWithRetry(() => import("./pages/admin/AdminOps"), "admin-ops");
 const Advertise = lazyWithRetry(() => import("./pages/Advertise"), "advertise");
@@ -226,6 +227,7 @@ function AppLayout() {
           <Route path="plans" element={<Suspense fallback={<PageLoader />}><AdminPlans /></Suspense>} />
           <Route path="feedback" element={<Suspense fallback={<PageLoader />}><AdminFeedback /></Suspense>} />
           <Route path="staff" element={<Suspense fallback={<PageLoader />}><RequireAdmin requireOwner><AdminStaff /></RequireAdmin></Suspense>} />
+          <Route path="seed" element={<Suspense fallback={<PageLoader />}><RequireAdmin requireOwner><AdminSeedAccounts /></RequireAdmin></Suspense>} />
           <Route path="costs" element={<Suspense fallback={<PageLoader />}><AdminCosts /></Suspense>} />
           <Route path="ops" element={<Suspense fallback={<PageLoader />}><AdminOps /></Suspense>} />
           <Route path="audit" element={<Suspense fallback={<PageLoader />}><RequireAdmin requireSuper><AdminAudit /></RequireAdmin></Suspense>} />
