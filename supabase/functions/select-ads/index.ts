@@ -73,6 +73,8 @@ Deno.serve(async (req) => {
       const brand = Array.isArray(c.brand_accounts) ? c.brand_accounts[0] : c.brand_accounts;
       if (!brand || brand.status !== "active") return false;
       if (Number(c.budget_total) > 0 && Number(c.budget_spent) >= Number(c.budget_total)) return false;
+      // PES floor: only premium products are served
+      if (Number(c.pes_score) < 30) return false;
       if (body.diet && c.target_diet !== "all" && c.target_diet !== body.diet) return false;
       if (body.category && c.target_categories?.length && !c.target_categories.includes(body.category)) return false;
       const targeting = Array.isArray(c.ad_targeting) ? c.ad_targeting[0] : c.ad_targeting;
