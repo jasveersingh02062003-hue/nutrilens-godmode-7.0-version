@@ -734,6 +734,45 @@ export type Database = {
         }
         Relationships: []
       }
+      dunning_events: {
+        Row: {
+          attempt_number: number
+          created_at: string
+          email_sent_at: string | null
+          failure_reason: string | null
+          id: string
+          paddle_customer_id: string | null
+          paddle_subscription_id: string | null
+          raw_payload: Json | null
+          recovered_at: string | null
+          user_id: string
+        }
+        Insert: {
+          attempt_number?: number
+          created_at?: string
+          email_sent_at?: string | null
+          failure_reason?: string | null
+          id?: string
+          paddle_customer_id?: string | null
+          paddle_subscription_id?: string | null
+          raw_payload?: Json | null
+          recovered_at?: string | null
+          user_id: string
+        }
+        Update: {
+          attempt_number?: number
+          created_at?: string
+          email_sent_at?: string | null
+          failure_reason?: string | null
+          id?: string
+          paddle_customer_id?: string | null
+          paddle_subscription_id?: string | null
+          raw_payload?: Json | null
+          recovered_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       event_plans: {
         Row: {
           config: Json
