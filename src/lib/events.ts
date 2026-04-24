@@ -8,6 +8,7 @@ export type EventName =
   | 'onboarding_complete'
   | 'first_meal_logged'
   | 'meal_logged'
+  | 'activated'           // user logged 3 meals on signup day → strong retention predictor
   | 'plan_started'
   | 'plan_completed'
   | 'subscription_started'
