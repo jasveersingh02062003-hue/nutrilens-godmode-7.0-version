@@ -238,6 +238,13 @@ export default function PlanDetailSheet({ plan, open, onOpenChange }: PlanDetail
           <p className="text-[9px] text-muted-foreground text-center">One-time purchase · No recurring charges</p>
         </div>
       </SheetContent>
+
+      <MedicalDisclaimerModal
+        open={medicalGate.modalOpen}
+        title="Before starting this plan"
+        onAcknowledge={medicalGate.acknowledge}
+        onCancel={medicalGate.cancel}
+      />
     </Sheet>
   );
 }
