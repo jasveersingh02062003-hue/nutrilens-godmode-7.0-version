@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, MessageSquare, ShieldAlert, ArrowLeft, LogOut,
-  Activity, IndianRupee, Megaphone, Building2, Database, UserCog, Wallet, ListChecks, Crown,
+  Activity, IndianRupee, Megaphone, Building2, Database, UserCog, Wallet, ListChecks, Crown, Filter,
 } from 'lucide-react';
 import { useAdminRole, type StaffRole } from '@/hooks/useAdminRole';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,6 +24,7 @@ const NAV: NavItem[] = [
   { to: '/admin/users', label: 'Users', icon: Users, end: false, roles: ['owner', 'super_admin', 'admin', 'marketer', 'support'] },
   { to: '/admin/staff', label: 'Staff & Roles', icon: UserCog, end: false, ownerOnly: true },
   { to: '/admin/retention', label: 'Retention', icon: Activity, end: false, roles: ['owner', 'super_admin', 'admin', 'marketer'] },
+  { to: '/admin/funnel', label: 'Funnel', icon: Filter, end: false, roles: ['owner', 'super_admin', 'admin', 'marketer'] },
   { to: '/admin/revenue', label: 'Revenue', icon: IndianRupee, end: false, roles: ['owner', 'super_admin', 'admin'] },
   { to: '/admin/subscriptions', label: 'Subscriptions', icon: Crown, end: false, roles: ['owner', 'super_admin', 'admin'] },
   { to: '/admin/costs', label: 'Costs & Profit', icon: Wallet, end: false, roles: ['owner', 'super_admin', 'admin'] },

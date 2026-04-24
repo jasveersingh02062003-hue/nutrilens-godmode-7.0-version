@@ -82,6 +82,7 @@ const AdminOverview = lazyWithRetry(() => import("./pages/admin/AdminOverview"),
 const AdminUsers = lazyWithRetry(() => import("./pages/admin/AdminUsers"), "admin-users");
 const AdminUserDetail = lazyWithRetry(() => import("./pages/admin/AdminUserDetail"), "admin-user-detail");
 const AdminRetention = lazyWithRetry(() => import("./pages/admin/AdminRetention"), "admin-retention");
+const AdminFunnel = lazyWithRetry(() => import("./pages/admin/AdminFunnel"), "admin-funnel");
 const AdminRevenue = lazyWithRetry(() => import("./pages/admin/AdminRevenue"), "admin-revenue");
 const AdminSubscriptions = lazyWithRetry(() => import("./pages/admin/AdminSubscriptions"), "admin-subscriptions");
 const AdminAds = lazyWithRetry(() => import("./pages/admin/AdminAds"), "admin-ads");
@@ -218,6 +219,7 @@ function AppLayout() {
           <Route path="users" element={<Suspense fallback={<PageLoader />}><AdminUsers /></Suspense>} />
           <Route path="users/:id" element={<Suspense fallback={<PageLoader />}><AdminUserDetail /></Suspense>} />
           <Route path="retention" element={<Suspense fallback={<PageLoader />}><AdminRetention /></Suspense>} />
+          <Route path="funnel" element={<Suspense fallback={<PageLoader />}><AdminFunnel /></Suspense>} />
           <Route path="revenue" element={<Suspense fallback={<PageLoader />}><AdminRevenue /></Suspense>} />
           <Route path="subscriptions" element={<Suspense fallback={<PageLoader />}><AdminSubscriptions /></Suspense>} />
           <Route path="ads" element={<Suspense fallback={<PageLoader />}><AdminAds /></Suspense>} />
