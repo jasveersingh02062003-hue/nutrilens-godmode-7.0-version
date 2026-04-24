@@ -7,6 +7,7 @@ import { getActivityMultiplier, calculateTDEEFromWorkExercise } from './nutritio
 import { saveBudgetSettings } from './expense-store';
 import type { OnboardingGoalResult } from './goal-engine';
 import { inferSchedule } from './gym-service';
+import { fireOnce } from './funnel';
 
 const PROGRESS_KEY = 'nutrilens_onboarding_progress';
 const USER_KEY = 'nutrilens_user';
@@ -173,6 +174,12 @@ export function saveOnboardingData(data: OnboardingData) {
     } : undefined,
   };
   saveProfile(profile);
+  // Funnel milestone — fires once per user across all sessions.
+  void fireOnce('onboarding_complete', {
+    goal: data.goals.type,
+    daily_calories: data.goals.calories,
+    has_conditions: (data.health.conditions?.length ?? 0) > 0,
+  });
 
   // Wire budget settings to expense-store if user enabled budget
   if (data.lifestyle.budget.enabled && data.lifestyle.budget.amount > 0) {
