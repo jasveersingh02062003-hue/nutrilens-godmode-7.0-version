@@ -289,17 +289,43 @@ export default function Pantry() {
             })}
           </div>
         ) : (
-          <div className="text-center py-12 space-y-3">
-            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-              <Package className="w-7 h-7 text-primary" />
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center py-12 px-4 space-y-4"
+          >
+            <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center mx-auto">
+              <Package className="w-10 h-10 text-primary" />
             </div>
-            <p className="text-sm font-bold text-foreground">
-              {search ? 'No items match your search' : 'Pantry is empty'}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {search ? 'Try a different search' : 'Scan a receipt or add items manually'}
-            </p>
-          </div>
+            <div className="space-y-1.5">
+              <p className="text-base font-bold text-foreground">
+                {search ? 'No items match your search' : 'Your pantry is empty'}
+              </p>
+              <p className="text-xs text-muted-foreground max-w-xs mx-auto leading-relaxed">
+                {search
+                  ? 'Try a different name or clear the search to see all items'
+                  : 'Track what you have at home so we can suggest meals using your ingredients and reduce waste'}
+              </p>
+            </div>
+            {!search && (
+              <div className="flex flex-col sm:flex-row gap-2 justify-center pt-2 max-w-xs mx-auto">
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowAddForm(true)}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Item
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowScanner(true)}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-muted text-foreground text-xs font-semibold border border-border"
+                >
+                  <ScanLine className="w-3.5 h-3.5" /> Scan Bill
+                </motion.button>
+              </div>
+            )}
+          </motion.div>
         )}
 
         {/* Add item form */}
