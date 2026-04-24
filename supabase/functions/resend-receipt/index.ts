@@ -2,13 +2,11 @@
 // Real email delivery wires in on email-provider day. For now this just
 // records an audit row so admins can see the action was taken.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+import { buildCorsHeaders, handlePreflight } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
 
 Deno.serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req);
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {

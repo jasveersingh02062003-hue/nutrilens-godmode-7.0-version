@@ -2,11 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { logApiUsage, estimateLovableAiCost } from "../_shared/api-usage.ts";
 import { checkQuota, incrementQuota, quotaErrorResponse } from "../_shared/ai-quota.ts";
+import { buildCorsHeaders, handlePreflight } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
 const MAX_IMAGE_BASE64_BYTES = 8 * 1024 * 1024; // 8MB
 const MAX_TEXT_CHARS = 2000;
@@ -122,6 +119,7 @@ You MUST return ONLY valid JSON (no markdown, no explanation, no backticks) with
 }`;
 
 serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {

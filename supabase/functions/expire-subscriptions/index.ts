@@ -5,17 +5,13 @@
 // Schedule via pg_cron later; for now invoke manually or via UptimeRobot.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { buildCorsHeaders, handlePreflight } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsHeaders = buildCorsHeaders(req);
+  const pre = handlePreflight(req);
+  if (pre) return pre;
 
   // Simple shared-secret guard (set EXPIRE_SUBSCRIPTIONS_SECRET as a secret;
   // caller must pass it in x-cron-secret header). If the secret isn't set,

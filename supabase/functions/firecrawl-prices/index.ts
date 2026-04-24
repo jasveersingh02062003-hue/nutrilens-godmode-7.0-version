@@ -1,9 +1,6 @@
 import { logApiUsage, COST_INR } from '../_shared/api-usage.ts';
+import { buildCorsHeaders, handlePreflight } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
 
 // ─── Circuit Breaker ───
 let consecutiveFailures = 0;
@@ -139,9 +136,9 @@ async function scrapeGroceryPrices(city: string, firecrawlKey: string): Promise<
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsHeaders = buildCorsHeaders(req);
+  const pre = handlePreflight(req);
+  if (pre) return pre;
 
   try {
     const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY');

@@ -12,11 +12,8 @@
 // Schedule: Daily at 6 AM IST via pg_cron
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { buildCorsHeaders, handlePreflight } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
 
 // ─── Retail Markup Constants ───
 // Wholesale → retail conversion factors (based on Indian market research)
@@ -94,9 +91,9 @@ function applyRetailMarkup(item: string, wholesalePrice: number): number {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  const corsHeaders = buildCorsHeaders(req);
+  const pre = handlePreflight(req);
+  if (pre) return pre;
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
