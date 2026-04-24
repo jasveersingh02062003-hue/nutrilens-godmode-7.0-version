@@ -90,6 +90,8 @@ const AdminAds = lazyWithRetry(() => import("./pages/admin/AdminAds"), "admin-ad
 const AdminAdDetail = lazyWithRetry(() => import("./pages/admin/AdminAdDetail"), "admin-ad-detail");
 const AdminBrands = lazyWithRetry(() => import("./pages/admin/AdminBrands"), "admin-brands");
 const AdminBrandDetail = lazyWithRetry(() => import("./pages/admin/AdminBrandDetail"), "admin-brand-detail");
+const AdminBrandIntake = lazyWithRetry(() => import("./pages/admin/AdminBrandIntake"), "admin-brand-intake");
+const AdminBrandIntakeDetail = lazyWithRetry(() => import("./pages/admin/AdminBrandIntakeDetail"), "admin-brand-intake-detail");
 const AdminScraping = lazyWithRetry(() => import("./pages/admin/AdminScraping"), "admin-scraping");
 const BrandLayout = lazyWithRetry(() => import("./components/brand/BrandLayout"), "brand-layout");
 const BrandDashboard = lazyWithRetry(() => import("./pages/brand/BrandDashboard"), "brand-dashboard");
@@ -223,6 +225,8 @@ function AppLayout() {
           <Route path="ads/:id" element={<Suspense fallback={<PageLoader />}><AdminAdDetail /></Suspense>} />
           <Route path="brands" element={<Suspense fallback={<PageLoader />}><AdminBrands /></Suspense>} />
           <Route path="brands/:id" element={<Suspense fallback={<PageLoader />}><AdminBrandDetail /></Suspense>} />
+          <Route path="brand-intake" element={<Suspense fallback={<PageLoader />}><AdminBrandIntake /></Suspense>} />
+          <Route path="brand-intake/:id" element={<Suspense fallback={<PageLoader />}><AdminBrandIntakeDetail /></Suspense>} />
           <Route path="scraping" element={<Suspense fallback={<PageLoader />}><AdminScraping /></Suspense>} />
           <Route path="plans" element={<Suspense fallback={<PageLoader />}><AdminPlans /></Suspense>} />
           <Route path="feedback" element={<Suspense fallback={<PageLoader />}><AdminFeedback /></Suspense>} />

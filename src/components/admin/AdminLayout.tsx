@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, MessageSquare, ShieldAlert, ArrowLeft, LogOut,
-  Activity, IndianRupee, Megaphone, Building2, Database, UserCog, Wallet, ListChecks, Crown, Filter, Sparkles,
+  Activity, IndianRupee, Megaphone, Building2, Database, UserCog, Wallet, ListChecks, Crown, Filter, Sparkles, Inbox,
 } from 'lucide-react';
 import { useAdminRole, type StaffRole } from '@/hooks/useAdminRole';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,6 +31,7 @@ const NAV: NavItem[] = [
   { to: '/admin/subscriptions', label: 'Subscriptions', icon: Crown, end: false, roles: ['owner', 'super_admin', 'admin'] },
   { to: '/admin/costs', label: 'Costs & Profit', icon: Wallet, end: false, roles: ['owner', 'super_admin', 'admin'] },
   { to: '/admin/ads', label: 'Ads', icon: Megaphone, end: false, roles: ['owner', 'super_admin', 'admin', 'marketer'] },
+  { to: '/admin/brand-intake', label: 'Brand Applications', icon: Inbox, end: false, roles: ['owner', 'super_admin', 'admin'] },
   { to: '/admin/brands', label: 'Brands', icon: Building2, end: false, roles: ['owner', 'super_admin', 'admin', 'marketer'] },
   { to: '/admin/plans', label: 'Plans', icon: FileText, end: false, roles: ['owner', 'super_admin', 'admin'] },
   { to: '/admin/feedback', label: 'Feedback', icon: MessageSquare, end: false, roles: ['owner', 'super_admin', 'admin', 'support'] },

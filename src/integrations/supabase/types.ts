@@ -495,49 +495,79 @@ export type Database = {
       }
       brand_intake: {
         Row: {
+          amazon_url: string | null
+          blinkit_url: string | null
           brand_name: string
           categories: string[] | null
           contact_email: string
           contact_name: string
           created_at: string
+          fssai_license: string | null
+          gstin: string | null
           id: string
+          instamart_url: string | null
+          legal_entity: string | null
           monthly_budget_inr: number | null
           notes: string | null
           phone: string | null
+          price_range: string | null
+          rejection_reason: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           status: string
+          top_skus: string | null
           website: string | null
+          zepto_url: string | null
         }
         Insert: {
+          amazon_url?: string | null
+          blinkit_url?: string | null
           brand_name: string
           categories?: string[] | null
           contact_email: string
           contact_name: string
           created_at?: string
+          fssai_license?: string | null
+          gstin?: string | null
           id?: string
+          instamart_url?: string | null
+          legal_entity?: string | null
           monthly_budget_inr?: number | null
           notes?: string | null
           phone?: string | null
+          price_range?: string | null
+          rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
+          top_skus?: string | null
           website?: string | null
+          zepto_url?: string | null
         }
         Update: {
+          amazon_url?: string | null
+          blinkit_url?: string | null
           brand_name?: string
           categories?: string[] | null
           contact_email?: string
           contact_name?: string
           created_at?: string
+          fssai_license?: string | null
+          gstin?: string | null
           id?: string
+          instamart_url?: string | null
+          legal_entity?: string | null
           monthly_budget_inr?: number | null
           notes?: string | null
           phone?: string | null
+          price_range?: string | null
+          rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
+          top_skus?: string | null
           website?: string | null
+          zepto_url?: string | null
         }
         Relationships: []
       }
@@ -1583,6 +1613,10 @@ export type Database = {
         }
         Returns: string
       }
+      approve_brand_intake: {
+        Args: { p_initial_balance?: number; p_intake_id: string }
+        Returns: string
+      }
       brand_member_role: { Args: { _brand_id: string }; Returns: string }
       campaign_brand_id: { Args: { _campaign_id: string }; Returns: string }
       cancel_my_subscription: {
@@ -1700,6 +1734,10 @@ export type Database = {
           paused_until: string
           status: Database["public"]["Enums"]["subscription_status"]
         }[]
+      }
+      reject_brand_intake: {
+        Args: { p_intake_id: string; p_reason: string }
+        Returns: undefined
       }
       resume_my_subscription: {
         Args: never
