@@ -31,7 +31,7 @@ export default function ComparisonSheet({ open, onClose, items, onPick }: Props)
             {items.map((item, i) => (
               <div key={item.id} className="text-center">
                 {item.image && (
-                  <img src={item.image} alt="" className="w-12 h-12 rounded-xl object-cover mx-auto mb-1" />
+                  <img src={item.image} alt="" loading="lazy" decoding="async" className="w-12 h-12 rounded-xl object-cover mx-auto mb-1" />
                 )}
                 <p className="text-xs font-bold text-foreground line-clamp-2">{item.name}</p>
               </div>

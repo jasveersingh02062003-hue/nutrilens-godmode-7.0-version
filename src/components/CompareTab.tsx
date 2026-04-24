@@ -555,7 +555,7 @@ function SideSlot({
         className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-muted/50 border border-border/50 min-h-[100px] justify-center"
       >
         {selected.image && (
-          <img src={selected.image} alt="" className="w-12 h-12 rounded-xl object-cover" />
+          <img src={selected.image} alt="" loading="lazy" decoding="async" className="w-12 h-12 rounded-xl object-cover" />
         )}
         <p className="text-[11px] font-bold text-foreground text-center line-clamp-2 leading-tight">{selected.name}</p>
         <div className="flex items-center gap-1">

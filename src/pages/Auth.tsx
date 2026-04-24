@@ -180,7 +180,7 @@ const Auth = function Auth() {
           <motion.div key="welcome" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col">
             {/* Hero */}
             <div className="relative h-[45vh] overflow-hidden">
-              <img src={heroImg} alt="Healthy food" className="w-full h-full object-cover" />
+              <img src={heroImg} alt="Healthy food" fetchPriority="high" decoding="async" className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
               <div className="absolute bottom-6 left-6 right-6">
                 <h1 className="text-3xl font-extrabold text-foreground leading-tight">NutriLens AI</h1>

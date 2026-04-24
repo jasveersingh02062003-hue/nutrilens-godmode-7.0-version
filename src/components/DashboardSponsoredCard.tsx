@@ -53,16 +53,16 @@ export default function DashboardSponsoredCard({ slot, className = '' }: Props) 
           {/* Top row: Sponsored badge + PES + dismiss */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/60 bg-muted/40 px-1.5 py-0.5 rounded">
+              <span className="text-xs font-semibold uppercase tracking-wider text-foreground/80 bg-foreground/10 px-2 py-0.5 rounded">
                 Sponsored
               </span>
               {ad.pesScore > 0 && (
-                <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-green-600 dark:text-green-400">
-                  <Shield className="w-2.5 h-2.5" /> PES {ad.pesScore}
+                <span className="inline-flex items-center gap-0.5 text-[11px] font-bold text-green-600 dark:text-green-400">
+                  <Shield className="w-3 h-3" /> PES {ad.pesScore}
                 </span>
               )}
             </div>
-            <button onClick={() => setDismissed(true)} className="p-0.5">
+            <button onClick={() => setDismissed(true)} className="p-0.5" aria-label="Dismiss sponsored content">
               <X className="w-3.5 h-3.5 text-muted-foreground/50" />
             </button>
           </div>

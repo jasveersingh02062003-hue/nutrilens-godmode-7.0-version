@@ -243,7 +243,7 @@ export default function MarketCategories() {
                         animate={{ opacity: 1 }}
                         className="relative h-24 rounded-xl overflow-hidden"
                       >
-                        <img src={catImg} alt={activeCategory} className="w-full h-full object-cover" />
+                        <img src={catImg} alt={activeCategory} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
                       </motion.div>
                     ) : null;

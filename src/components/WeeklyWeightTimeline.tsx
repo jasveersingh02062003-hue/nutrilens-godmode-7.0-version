@@ -71,7 +71,7 @@ export default function WeeklyWeightTimeline({ refreshKey, onLogWeight }: Props)
               {/* Photo thumbnail or icon */}
               <div className="w-10 h-10 mx-auto rounded-lg overflow-hidden mb-1.5 bg-muted flex items-center justify-center">
                 {hasEntry && week.entry?.photo ? (
-                  <img src={week.entry.photo} alt="" className="w-full h-full object-cover" />
+                  <img src={week.entry.photo} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                 ) : hasEntry ? (
                   <Check className={`w-4 h-4 ${isVerified ? 'text-primary' : 'text-accent'}`} />
                 ) : isCurrentWeek ? (
@@ -128,7 +128,7 @@ export default function WeeklyWeightTimeline({ refreshKey, onLogWeight }: Props)
               {/* Photo */}
               {selectedEntry.photo && (
                 <div className="aspect-[4/3] overflow-hidden">
-                  <img src={selectedEntry.photo} alt="Weigh-in" className="w-full h-full object-cover" />
+                  <img src={selectedEntry.photo} alt="Weigh-in" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                 </div>
               )}
 

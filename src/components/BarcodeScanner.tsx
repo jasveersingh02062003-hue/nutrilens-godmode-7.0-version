@@ -282,7 +282,7 @@ export default function BarcodeScanner({ open, onOpenChange, onProductFound }: B
                 <div className="flex items-start gap-3">
                   <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center text-2xl flex-shrink-0">
                     {product.image_url ? (
-                      <img src={product.image_url} alt={product.product_name} className="w-full h-full object-cover rounded-xl" />
+                      <img src={product.image_url} alt={product.product_name} loading="lazy" decoding="async" className="w-full h-full object-cover rounded-xl" />
                     ) : (
                       <Package className="w-7 h-7 text-muted-foreground" />
                     )}

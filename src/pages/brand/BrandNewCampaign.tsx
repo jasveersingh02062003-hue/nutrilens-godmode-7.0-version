@@ -253,7 +253,7 @@ export default function BrandNewCampaign() {
               <p className="text-xs text-muted-foreground mb-2">{selectedBrand?.brand_name} · sponsored</p>
               <p className="font-bold">{form.headline || "Your headline"}</p>
               {form.subtitle && <p className="text-sm text-muted-foreground">{form.subtitle}</p>}
-              {form.image_url && <img src={form.image_url} alt="" className="mt-2 max-h-40 rounded" />}
+              {form.image_url && <img src={form.image_url} alt="" loading="lazy" decoding="async" className="mt-2 max-h-40 rounded" />}
               <Button size="sm" className="mt-3">{form.cta_text}</Button>
             </div>
             <dl className="grid grid-cols-2 gap-2 text-xs">

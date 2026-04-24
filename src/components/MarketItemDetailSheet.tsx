@@ -105,7 +105,7 @@ export default function MarketItemDetailSheet({ open, onOpenChange, item, city, 
               {isEmoji ? (
                 <span className="text-4xl">{item.imageUrl}</span>
               ) : item.imageUrl ? (
-                <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                <img src={item.imageUrl} alt={item.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
               ) : (
                 <span className="text-4xl">🥗</span>
               )}

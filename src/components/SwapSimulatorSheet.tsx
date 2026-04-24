@@ -82,7 +82,7 @@ export default function SwapSimulatorSheet({ open, onClose, originalRecipeId, me
         {/* Current meal header */}
         <div className="px-5 pb-3">
           <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border border-border">
-            <img src={getRecipeImage(original.id, mealType)} alt={original.name} className="w-12 h-12 rounded-lg object-cover" />
+            <img src={getRecipeImage(original.id, mealType)} alt={original.name} loading="lazy" decoding="async" className="w-12 h-12 rounded-lg object-cover" />
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Current</p>
               <p className="text-sm font-bold text-foreground truncate">{original.name}</p>
@@ -110,7 +110,7 @@ export default function SwapSimulatorSheet({ open, onClose, originalRecipeId, me
                   <motion.button key={alt.recipe.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.08 }}
                     onClick={() => handleSelect(alt)}
                     className="w-full flex items-center gap-3 p-3 rounded-xl bg-card border border-border hover:border-primary/40 hover:shadow-sm transition-all text-left active:scale-[0.98]">
-                    <img src={getRecipeImage(alt.recipe.id, mealType)} alt={alt.recipe.name} className="w-11 h-11 rounded-lg object-cover flex-shrink-0" />
+                    <img src={getRecipeImage(alt.recipe.id, mealType)} alt={alt.recipe.name} loading="lazy" decoding="async" className="w-11 h-11 rounded-lg object-cover flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <p className="text-sm font-semibold text-foreground truncate">{alt.recipe.name}</p>

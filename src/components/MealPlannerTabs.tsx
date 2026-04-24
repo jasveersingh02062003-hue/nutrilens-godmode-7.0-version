@@ -243,7 +243,7 @@ function RecipesTab() {
         <button onClick={() => setSelectedRecipe(null)} className="text-xs font-semibold text-primary">← Back to recipes</button>
         <div className="text-center">
           <div className="w-24 h-24 rounded-2xl overflow-hidden mx-auto">
-            <img src={getRecipeImage(detail.id, detail.mealType[0])} alt={detail.name} className="w-full h-full object-cover" />
+            <img src={getRecipeImage(detail.id, detail.mealType[0])} alt={detail.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
           </div>
           <h3 className="text-lg font-bold text-foreground mt-2">{detail.name}</h3>
           <p className="text-xs text-muted-foreground mt-1">{detail.cuisine} · {detail.difficulty}</p>
