@@ -6,15 +6,15 @@ import { motion } from 'framer-motion';
 import { CreditCard, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { getStatus, subscribeToPlanChanges } from '@/lib/subscription-service';
+import { onPlanChange, type SubscriptionStatus } from '@/lib/subscription-service';
 import { toast } from '@/hooks/use-toast';
 
 export default function PaymentFailedBanner() {
-  const [status, setStatus] = useState(getStatus());
+  const [status, setStatus] = useState<SubscriptionStatus>('active');
   const [opening, setOpening] = useState(false);
 
   useEffect(() => {
-    const unsub = subscribeToPlanChanges(() => setStatus(getStatus()));
+    const unsub = onPlanChange((p) => setStatus(p.status));
     return unsub;
   }, []);
 
@@ -23,13 +23,13 @@ export default function PaymentFailedBanner() {
   const openPortal = async () => {
     setOpening(true);
     try {
+      const token = import.meta.env.VITE_PADDLE_CLIENT_TOKEN as string | undefined;
+      const environment = token?.startsWith('test_') ? 'sandbox' : 'live';
       const { data, error } = await supabase.functions.invoke('customer-portal', {
-        body: {
-          environment: import.meta.env.VITE_PADDLE_CLIENT_TOKEN?.startsWith('test_') ? 'sandbox' : 'live',
-        },
+        body: { environment },
       });
       if (error) throw error;
-      const url = data?.url || data?.portalUrl;
+      const url = (data as any)?.url || (data as any)?.portalUrl;
       if (!url) throw new Error('No portal URL returned');
       window.open(url, '_blank', 'noopener,noreferrer');
     } catch (e) {

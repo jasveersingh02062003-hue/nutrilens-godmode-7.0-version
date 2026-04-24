@@ -25,6 +25,7 @@ import DailyAdjustmentSummary from '@/components/DailyAdjustmentSummary';
 import RecoveryOptionsCard from '@/components/RecoveryOptionsCard';
 import NextMealCard from '@/components/NextMealCard';
 import UpgradeBanner from '@/components/UpgradeBanner';
+import PaymentFailedBanner from '@/components/PaymentFailedBanner';
 import { Button } from '@/components/ui/button';
 import DailyPlanCard from '@/components/DailyPlanCard';
 import { isDailyHidden, setDailyHidden } from '@/lib/daily-visibility';
@@ -139,6 +140,7 @@ export default function Dashboard() {
           </motion.div>
         )}
 
+        <motion.div variants={fadeUp}><PaymentFailedBanner /></motion.div>
         <motion.div variants={fadeUp}><UpgradeBanner /></motion.div>
         <motion.div variants={fadeUp}><Suspense fallback={null}><WeatherNudgeCard /></Suspense></motion.div>
         <motion.div variants={fadeUp}><SymptomReminderCard /></motion.div>
