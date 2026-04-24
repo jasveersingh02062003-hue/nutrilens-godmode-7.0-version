@@ -97,12 +97,15 @@ export default function BrandBilling() {
     URL.revokeObjectURL(url);
   };
 
-  if (loading)
+  if (roleLoading || loading)
     return (
       <div className="p-8 flex justify-center">
         <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
       </div>
     );
+
+  // Owner-only gate: junior brand members cannot access billing.
+  if (!isBrandOwner) return <Navigate to="/brand" replace />;
 
   return (
     <div className="p-8 max-w-5xl">
