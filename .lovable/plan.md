@@ -1,134 +1,119 @@
 
 
-# P2 Remaining Items — Implementation Plan
+# Production Readiness Audit — What's Left
 
-Wrapping up the leftover P2 work. Split into **what I can build** vs **what needs you to click around outside the app**.
-
----
-
-## What I'll Build (Code Changes)
-
-### 1. Schedule the photo-purge cron (P2-2 finish)
-
-The `purge-old-photos` edge function exists but never runs automatically. I'll create a migration that:
-- Generates a random `PURGE_PHOTOS_SECRET` and stores it in Supabase Vault
-- Schedules `pg_cron` to call the function **daily at 03:00 IST** with the secret in `x-cron-secret`
-- Uses `net.http_post` (extension already enabled)
-
-**Result:** Old photos auto-delete every night with zero manual work.
+Based on a fresh scan of your codebase against the original `.lovable/plan.md`, here's everything that still needs to happen before you can call this **production-grade**.
 
 ---
 
-### 2. Failed-renewal dunning emails (P2-11)
+## 🔴 P0 — Blockers (revenue, legal, data risk)
 
-Two parts:
-
-**A. Webhook handler** — extend `payments-webhook/index.ts` to handle `transaction.payment_failed`:
-- Look up user by `paddle_customer_id`
-- Insert row into a new `dunning_events` table (`user_id, attempt_number, next_retry_at, status`)
-- Trigger transactional email
-
-**B. Transactional email infrastructure**
-- Run email infra setup + scaffold transactional emails (Lovable Cloud built-in)
-- Create one template: `payment-failed.tsx` with empathetic copy, "Update Card" CTA → Paddle customer portal URL
-- Add a second template: `payment-recovered.tsx` for when retry succeeds (fires on `subscription.updated` going `past_due` → `active`)
-
-**Prerequisite:** Needs an email domain set up. I'll show the email-domain setup dialog if not configured.
-
-**Result:** Paddle silently retries; we proactively email user "Hey, card failed — update in 1 click."
+| # | Item | Why it matters | Effort |
+|---|---|---|---|
+| **P0-3** | **Paddle live-mode go-live** — sandbox works, live mode never activated | No real money can be collected | 4h (mostly Paddle approval wait) |
+| **P0-4** | **"Consult a doctor" modal at point-of-use** for PCOS / Blood Report / 1200kcal plans | Currently only in `Progress.tsx`; missing on plan-start flows. App-store + DPDP risk | 2h |
+| **P0-5** | **Paddle end-to-end smoke test** with real test card | Revenue path is unverified — could silently fail on launch day | 1h |
 
 ---
 
-### 3. Branded `payment-failed` UI banner (bonus, free with #2)
+## 🟠 P1 — High-impact gaps (UX, retention, legal)
 
-Add a `PaymentFailedBanner` component on Dashboard that shows when `subscriptions.status = 'past_due'`, links to customer portal. Catches users who don't open email.
-
----
-
-## What You Need to Do (External — ~30 min total)
-
-I can't do these from inside Lovable. I'll give you exact step-by-step instructions in chat after the code is done.
-
-### 4. Sentry alert routing (P2-6) — **5 min**
-1. Open https://sentry.io → your NutriLens project → Alerts → Create Alert
-2. Two rules to create:
-   - **"New issue"** → email you on first occurrence of any new error
-   - **"Issue frequency spike"** → email if same error >10 times in 1 hour
-3. I'll give you the exact JSON config to paste
-
-### 5. UptimeRobot (P2-7) — **10 min**
-1. Sign up free at https://uptimerobot.com
-2. Add new monitor: HTTP(s), URL = `https://yowgmqdcmgaiaqjgifzh.supabase.co/functions/v1/healthz`, interval = 5 min
-3. Add your email/SMS as alert contact
-4. Optionally add Slack webhook
-
-### 6. Backup restore drill (P2-8) — **2 hours, one-time**
-- Already documented in `docs/BACKUP_RESTORE.md`
-- I'll add a **simplified quick-drill checklist** (`docs/backup-drill-quickstart.md`) with commands you can copy-paste
-- You run it once, log result in `docs/backup-drill-log.md`
-
-### 7. Staging environment (P2-9) — **DEFERRED**
-**My recommendation: skip until 500+ active users.** Reasons:
-- Doubles your Lovable bill
-- Adds friction to every fix (you'd push to staging → test → push to prod)
-- Solo founder + low traffic = staging slows you down more than it helps
-- Lovable's preview URLs already give you per-change testing
-
-If you want it anyway, it's literally one click — **Project Settings → Remix** in Lovable. Takes 30 sec.
+| # | Item | What's missing | Effort |
+|---|---|---|---|
+| **P1-2** | **Push notifications via FCM** | `notifications.ts` still uses Browser Notification API only. **No FCM, no `device_tokens` table, no `send-push` edge fn.** iOS users get nothing | 8h |
+| **P1-5** | **Mailboxes**: `support@` and `grievance@nutrilens.app` | Privacy/Terms/404 reference them but DNS/mailbox not provisioned. Legal exposure under DPDP | 2h (your DNS work) |
+| **P1-7** | **CORS lockdown verification** — `_shared/cors.ts` exists but not every edge fn imports it | A grep showed only ~2 files use the helper. The rest may still default to `*` | 1h audit |
+| **P1-3** | **Funnel events end-to-end** — `signup`, `first_meal`, `subscribe_started/succeeded/failed`, `churn_cancel` | Only ~5 fire sites verified. Missing `subscribe_failed`, `onboarding_step_exit`, `day2_return` | 4h |
+| **P1-4** | **Activation event** — *"logged 3 meals on day 1"* | `funnel.ts` has the helper, but the activation rule itself is undefined/unfired | 1h |
 
 ---
 
-## Technical Details
+## 🟡 P2 — Medium (perf, ops, safety net)
 
-**Files I'll create:**
-- `supabase/migrations/<timestamp>_schedule_photo_purge.sql` — cron job + vault secret
-- `supabase/migrations/<timestamp>_dunning_events_table.sql` — tracking table with RLS
-- `supabase/functions/_shared/transactional-email-templates/payment-failed.tsx`
-- `supabase/functions/_shared/transactional-email-templates/payment-recovered.tsx`
-- `src/components/PaymentFailedBanner.tsx`
-- `docs/backup-drill-quickstart.md`
-- `docs/external-monitoring-setup.md` — Sentry + UptimeRobot click-by-click guide
-
-**Files I'll modify:**
-- `supabase/functions/payments-webhook/index.ts` — add `transaction.payment_failed` + `subscription.updated` past_due→active handling
-- `src/pages/Dashboard.tsx` — mount `PaymentFailedBanner`
-
-**Database:**
-```sql
-create table dunning_events (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users on delete cascade,
-  paddle_subscription_id text,
-  attempt_number int not null,
-  failure_reason text,
-  email_sent_at timestamptz,
-  recovered_at timestamptz,
-  created_at timestamptz default now()
-);
-alter table dunning_events enable row level security;
-create policy "users see own dunning" on dunning_events
-  for select using (user_id = auth.uid());
--- only service_role writes (webhook)
-```
+| # | Item | Status | Effort |
+|---|---|---|---|
+| **P2-6** | **Sentry alert rules** (email on new issue / spike) | Code wired ✅, dashboard rules ❌ | 5min (you, in Sentry UI) |
+| **P2-7** | **UptimeRobot** on `/healthz` | Endpoint ready ✅, monitor not signed up ❌ | 10min (you) |
+| **P2-8** | **Backup restore drill** — actually run it once | Doc + quickstart written ✅, never executed | 2h one-time |
+| **P2-9** | **Staging environment** | Recommended **defer until 500+ users** | skip |
+| **P2-11** | **Failed-renewal dunning emails** | Webhook + banner + DB ✅. **Email templates skipped — no email domain yet** | 1h once domain is set up |
+| **P2-2** | **Photo-purge cron schedule** | Migration created ✅. Verify it actually ran in `cron.job` | 5min check |
 
 ---
 
-## Execution Order (when you approve)
+## 🟣 P3 — Nice to have (defer post-launch)
 
-1. **Cron schedule for purge** — pure SQL, 5 min
-2. **Email domain check** — if missing, I'll show setup dialog
-3. **Dunning system** — webhook + 2 templates + banner + table — ~30 min
-4. **Quickstart docs** — backup drill + external monitoring guides — ~10 min
-5. **Hand off to you:** Sentry + UptimeRobot setup (I'll wait & verify with `curl` after you're done)
+| # | Item | Note |
+|---|---|---|
+| P3-1 | Referral / WhatsApp share loop | Growth lever, post-launch |
+| P3-2 | Store-review prompt after 3-day streak | Standard ASO |
+| P3-3 | Feature flags table | Useful at scale, not now |
+| P3-4 | Trademark "NutriLens" filing in India | Founder/legal task |
+| P3-5 | Cyber-insurance quote | Founder task |
+| P3-6 | **Capacitor App Store + Play Store builds** | Mobile shell exists, never published. Includes signing certs, screenshots, store listings |
 
-**Total active build time: ~45 min. External clicks for you: ~15 min.**
+---
+
+## 🆕 Newly discovered gaps (not in original plan)
+
+| # | Item | Why it matters |
+|---|---|---|
+| **N-1** | **Email domain not configured** — blocks dunning emails (P2-11), order receipts, password-reset branding | When you're ready, takes ~15 min |
+| **N-2** | **`og:image` still points to lovable.dev** (`index.html:35,42`) | Social shares look unbranded — quick fix |
+| **N-3** | **Bundle size audit** — verify Vite build output, check for accidental large imports (lucide tree-shaking, recharts) | Lighthouse confidence before launch |
+| **N-4** | **Privacy/Terms "last updated" date** — needs to reflect actual launch date, not draft date | DPDP requirement |
+| **N-5** | **App-store screenshots + listing copy** for Play Store/App Store | Required even for closed beta TestFlight |
+| **N-6** | **Healthz endpoint auth** — confirm it returns useful info but doesn't leak DB version/env | 10min review |
+
+---
+
+## 🎯 Recommended Execution Order
+
+**Pre-launch must-do (~12 hours of code work):**
+1. P0-4 — Doctor modal at plan-start points (2h)
+2. P0-5 — Run Paddle smoke test (1h)
+3. P0-3 — Paddle go-live (waiting on Paddle, start now)
+4. P1-7 — CORS audit across all edge functions (1h)
+5. P1-3 + P1-4 — Funnel + activation events (5h)
+6. N-2, N-4, N-6 — quick metadata fixes (30min)
+7. P2-2 verify cron actually scheduled (5min)
+
+**You do externally (~30 min):**
+- P2-6 Sentry alert rules
+- P2-7 UptimeRobot signup
+- P1-5 DNS for support@/grievance@
+
+**One-time drill (~2h):**
+- P2-8 Backup restore test
+
+**Defer until traction (post-100 paying users):**
+- P1-2 FCM push (8h — big lift, do when retention matters more)
+- P2-11 Dunning emails (needs domain first)
+- P3-6 App Store / Play Store publish
+
+**Skip until 500+ users:**
+- P2-9 Staging env
+
+---
+
+## 📊 Honest Status
+
+- **Closed-beta ready: ~85%** (was 72% in original plan — significant progress)
+- **Public-launch ready: ~70%**
+- **Biggest remaining risks:**
+  1. Paddle live mode never tested with real money (P0-3, P0-5)
+  2. iOS users get zero push reminders → day-2 retention will collapse (P1-2)
+  3. CORS may still be `*` on some edge functions (P1-7)
+  4. Doctor disclaimer missing at plan-entry points (P0-4 — app-store rejection risk)
 
 ---
 
 ## Reply Options
 
-- **"go"** — do all the above in the order listed
-- **"skip dunning"** — only do cron + docs (if you want to defer email work)
-- **"just cron"** — only schedule the photo purge, defer everything else
-- **"change order: X first"** — reshuffle priorities
+- **"do P0 bundle"** — knock out P0-4, P0-5, plus N-2/N-4/N-6 quick wins (~4h)
+- **"do P1-7 CORS audit"** — lock down all edge functions to prod domain
+- **"do P1-3 funnel events"** — wire up the full funnel + activation
+- **"start P1-2 push"** — begin the FCM build (big task, ~8h)
+- **"just give me the launch-day checklist"** — I'll generate a printable runbook
+- **"set up email domain"** — unblocks P2-11 dunning emails
 
