@@ -81,10 +81,22 @@ export default function FoodArchive() {
               <SubscriptionBadge />
             </div>
           </div>
-          <div className="text-center py-16">
-            <p className="text-3xl mb-2">📸</p>
-            <p className="text-sm font-semibold text-foreground">No food memories yet</p>
-            <p className="text-xs text-muted-foreground mt-1">Start capturing your meals to build your archive.</p>
+          <div className="text-center py-16 space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+              <span className="text-3xl">📸</span>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-bold text-foreground">No food memories yet</p>
+              <p className="text-xs text-muted-foreground max-w-[260px] mx-auto">
+                Snap a photo when you log a meal — they'll show up here as a beautiful timeline.
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/log')}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold active:scale-[0.97] transition-transform"
+            >
+              📷 Log your first meal
+            </button>
           </div>
         </div>
       </div>
