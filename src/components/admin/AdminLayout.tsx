@@ -60,6 +60,25 @@ export default function AdminLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
+  const [pendingIntake, setPendingIntake] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const { count } = await supabase
+        .from('brand_intake')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['new', 'in_review']);
+      if (!cancelled) setPendingIntake(count ?? 0);
+    };
+    load();
+    const ch = supabase
+      .channel('admin-intake-count')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'brand_intake' }, load)
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, []);
+
   const badgeLabel = role.isOwner ? 'OWNER'
     : role.isSuperAdmin ? 'SUPER ADMIN'
     : role.roles.includes('admin') ? 'ADMIN'
@@ -84,23 +103,31 @@ export default function AdminLayout() {
         </div>
 
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-          {NAV.filter(n => canSee(n, role)).map(item => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                  isActive
-                    ? 'bg-primary/10 text-primary font-medium'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                }`
-              }
-            >
-              <item.icon className="w-4 h-4" />
-              {item.label}
-            </NavLink>
-          ))}
+          {NAV.filter(n => canSee(n, role)).map(item => {
+            const showBadge = item.to === '/admin/brand-intake' && pendingIntake > 0;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                    isActive
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`
+                }
+              >
+                <item.icon className="w-4 h-4" />
+                <span className="flex-1">{item.label}</span>
+                {showBadge && (
+                  <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold tabular-nums">
+                    {pendingIntake}
+                  </span>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
 
         <div className="p-3 border-t border-border space-y-2">
