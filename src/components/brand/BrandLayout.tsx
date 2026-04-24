@@ -25,7 +25,7 @@ export default function BrandLayout() {
           <NotificationBell audience="brand" />
         </div>
         <nav className="flex-1 p-2 space-y-1">
-          {items.map(({ to, end, label, icon: Icon }) => (
+          {visibleItems.map(({ to, end, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
