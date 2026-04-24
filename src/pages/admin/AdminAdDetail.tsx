@@ -109,20 +109,45 @@ export default function AdminAdDetail() {
   const dailyTarget = campaign.budget_total / daysTotal;
   const todaySpend = campaign.budget_spent / Math.max(1, daysTotal - daysLeft);
 
+  const review = async (decision: 'approve' | 'reject') => {
+    if (!campaign) return;
+    setSaving(true);
+    const reason = decision === 'reject' ? window.prompt('Rejection reason (optional):') ?? null : null;
+    const { error } = await supabase.rpc('review_campaign', {
+      p_campaign_id: campaign.id,
+      p_decision: decision,
+      p_reason: reason,
+    });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success(`Campaign ${decision}d`);
+    load();
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <Link to="/admin/ads" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="w-4 h-4" /> All campaigns
         </Link>
-        <Button onClick={toggle} disabled={saving} variant={campaign.status === 'active' ? 'outline' : 'default'}>
-          {campaign.status === 'active' ? <><Pause className="w-4 h-4 mr-2" />Pause</> : <><Play className="w-4 h-4 mr-2" />Resume</>}
-        </Button>
+        <div className="flex gap-2">
+          {campaign.status === 'pending_review' && (
+            <>
+              <Button onClick={() => review('reject')} disabled={saving} variant="outline">Reject</Button>
+              <Button onClick={() => review('approve')} disabled={saving}>Approve</Button>
+            </>
+          )}
+          {campaign.status !== 'pending_review' && campaign.status !== 'rejected' && (
+            <Button onClick={toggle} disabled={saving} variant={campaign.status === 'active' ? 'outline' : 'default'}>
+              {campaign.status === 'active' ? <><Pause className="w-4 h-4 mr-2" />Pause</> : <><Play className="w-4 h-4 mr-2" />Resume</>}
+            </Button>
+          )}
+        </div>
       </div>
 
       <div>
         <h1 className="text-2xl font-bold">{campaign.campaign_name}</h1>
-        <p className="text-sm text-muted-foreground">{brandName} · {campaign.placement_slot} · <Badge variant="outline">{campaign.status}</Badge></p>
+        <p className="text-sm text-muted-foreground">{brandName} · {campaign.placement_slot} · <Badge variant={campaign.status === 'rejected' ? 'destructive' : 'outline'}>{campaign.status.replace('_', ' ')}</Badge></p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
