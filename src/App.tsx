@@ -21,6 +21,7 @@ import OfflineBanner from "./components/OfflineBanner";
 import { DailyPaywallProvider } from "./hooks/useDailyPaywall";
 import PaymentTestModeBanner from "./components/paywall/PaymentTestModeBanner";
 import { initOutboxReplay } from "./lib/outbox-replay";
+import PageLoader from "./components/PageLoader";
 
 function lazyWithRetry<T extends React.ComponentType<any>>(
   importer: () => Promise<{ default: T }>,
