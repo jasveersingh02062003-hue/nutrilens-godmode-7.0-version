@@ -3,8 +3,6 @@ import {
   LayoutDashboard, Users, FileText, MessageSquare, ShieldAlert, ArrowLeft, LogOut,
   Activity, IndianRupee, Megaphone, Building2, Database, UserCog, Wallet, ListChecks, Crown, Filter, Sparkles, Inbox,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAdminRole, type StaffRole } from '@/hooks/useAdminRole';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
