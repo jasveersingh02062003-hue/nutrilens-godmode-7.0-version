@@ -44,9 +44,16 @@ const DEFAULT_PLAN: ServerPlan = {
 
 // In-memory cache. Until the first hydration completes, getters return the
 // safe DEFAULT_PLAN ('free'). This is never less restrictive than reality.
+//
+// Freshness model:
+// • Initial hydrate happens once on `initSubscriptionService(userId)`.
+// • Realtime channel listens to `subscriptions` row changes and refetches.
+// • Mutations (mockSubscribe / cancel / pause / etc.) call `refreshPlan()`.
+// • Sync getters (`getPlan`, `isPremium`, …) NEVER trigger a network call.
+//   They are called many times per render across the app — making them
+//   side-effect-free is the single biggest reduction in redundant fetches.
 let cache: ServerPlan = DEFAULT_PLAN;
 let cacheLoadedAt = 0;
-const STALE_AFTER_MS = 60_000;
 
 let inflight: Promise<ServerPlan> | null = null;
 let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
@@ -146,11 +153,9 @@ export async function refreshPlan(): Promise<Plan> {
   return next.plan;
 }
 
-/** Best-effort sync getter. If cache is stale, kicks off a background refresh. */
+/** Side-effect-free sync getter. Cache is kept fresh by realtime + manual
+ *  `refreshPlan()` after mutations — never trigger a network call here. */
 export function getPlan(): Plan {
-  if (Date.now() - cacheLoadedAt > STALE_AFTER_MS && currentUserId) {
-    void fetchPlanFromServer();
-  }
   return cache.plan;
 }
 
