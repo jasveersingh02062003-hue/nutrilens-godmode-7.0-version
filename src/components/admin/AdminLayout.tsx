@@ -63,6 +63,7 @@ export default function AdminLayout() {
   const [pendingIntake, setPendingIntake] = useState(0);
 
   useEffect(() => {
+    if (!user?.id) return;
     let cancelled = false;
     const load = async () => {
       const { count } = await supabase
@@ -72,12 +73,14 @@ export default function AdminLayout() {
       if (!cancelled) setPendingIntake(count ?? 0);
     };
     load();
+    // Per-session channel name avoids hitting Supabase realtime limits at scale
+    // (one channel per admin browser instead of one shared channel for all admins).
     const ch = supabase
-      .channel('admin-intake-count')
+      .channel(`admin-intake-count:${user.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'brand_intake' }, load)
       .subscribe();
     return () => { cancelled = true; supabase.removeChannel(ch); };
-  }, []);
+  }, [user?.id]);
 
   const badgeLabel = role.isOwner ? 'OWNER'
     : role.isSuperAdmin ? 'SUPER ADMIN'

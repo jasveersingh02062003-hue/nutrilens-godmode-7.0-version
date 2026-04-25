@@ -129,7 +129,8 @@ export default function Privacy() {
             </section>
 
             <p className="pt-4 text-xs text-muted-foreground">
-              See also our <Link to="/terms" className="text-primary underline">Terms of Service</Link>.
+              See also our <Link to="/terms" className="text-primary underline">Terms of Service</Link>{' '}
+              and our <Link to="/legal/data-deletion" className="text-primary underline">Data Deletion & Retention</Link> page.
             </p>
           </div>
         </article>

@@ -1,7 +1,7 @@
 // Server-side ad selection. Replaces client-side eligibility logic so
 // budget/diet/category filtering and the impression log can't be bypassed
 // by a tampered client. Returns at most one creative per call.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { buildCorsHeaders, handlePreflight } from "../_shared/cors.ts";
 
 
