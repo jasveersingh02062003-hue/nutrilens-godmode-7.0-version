@@ -88,13 +88,40 @@ Deno.serve(async (req) => {
       },
     };
 
+    // DPDP requires the FULL dataset, not a truncated sample. Page through
+    // results so a power user with thousands of daily_logs gets everything.
+    const PAGE = 1000;
+    const HARD_CAP = 100_000; // safety ceiling per table; logs if hit
     for (const t of tables) {
-      const { data, error } = await svc
-        .from(t.name)
-        .select("*")
-        .eq(t.filter, userId)
-        .limit(10_000);
-      exportPayload[t.name] = error ? { error: error.message } : (data ?? []);
+      const rows: any[] = [];
+      let from = 0;
+      let truncated = false;
+      while (true) {
+        const { data, error } = await svc
+          .from(t.name)
+          .select("*")
+          .eq(t.filter, userId)
+          .range(from, from + PAGE - 1);
+        if (error) {
+          exportPayload[t.name] = { error: error.message };
+          rows.length = 0;
+          break;
+        }
+        const batch = data ?? [];
+        rows.push(...batch);
+        if (batch.length < PAGE) break;
+        if (rows.length >= HARD_CAP) {
+          truncated = true;
+          console.warn(`[export-user-data] HARD_CAP hit on ${t.name} for user ${userId}`);
+          break;
+        }
+        from += PAGE;
+      }
+      if (rows.length || !exportPayload[t.name]) {
+        exportPayload[t.name] = truncated
+          ? { _truncated_at: HARD_CAP, rows }
+          : rows;
+      }
     }
 
     // Audit log
