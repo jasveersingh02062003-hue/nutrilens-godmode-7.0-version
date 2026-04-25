@@ -20,6 +20,7 @@ import ProgressSkeleton from "./components/progress/ProgressSkeleton";
 import OfflineBanner from "./components/OfflineBanner";
 import { DailyPaywallProvider } from "./hooks/useDailyPaywall";
 import PaymentTestModeBanner from "./components/paywall/PaymentTestModeBanner";
+import { ConsentBackfillBanner } from "./components/ConsentBackfillBanner";
 import { initOutboxReplay } from "./lib/outbox-replay";
 import PageLoader from "./components/PageLoader";
 
@@ -253,6 +254,7 @@ function AppLayout() {
       {!hideNav && <BottomNav />}
       <MarketBottomNav />
       <DailyPaywallProvider />
+      <ConsentBackfillBanner />
     </>
   );
 }

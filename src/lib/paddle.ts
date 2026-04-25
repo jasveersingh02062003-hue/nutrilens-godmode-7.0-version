@@ -27,6 +27,13 @@ export function isPaddleConfigured(): boolean {
   return !!clientToken;
 }
 
+/** True when mock-payment UIs should be visible. Only in sandbox builds.
+ *  In live (published) builds this returns false so the "Mock subscribe"
+ *  buttons disappear entirely. */
+export function isMockPaymentMode(): boolean {
+  return getPaddleEnvironment() === 'sandbox';
+}
+
 let paddleInitialized = false;
 let initPromise: Promise<void> | null = null;
 

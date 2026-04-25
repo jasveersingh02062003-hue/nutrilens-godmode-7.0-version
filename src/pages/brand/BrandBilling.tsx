@@ -6,9 +6,10 @@ import { useBrandRole } from "@/hooks/useBrandRole";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Download } from "lucide-react";
+import { Loader2, Download, Plus } from "lucide-react";
 import { inr } from "@/lib/admin-metrics";
 import { generateGstInvoicePdf, DEFAULT_SELLER, type InvoiceTxn } from "@/lib/gst-invoice";
+import TopUpWalletDialog from "@/components/brand/TopUpWalletDialog";
 
 interface Brand {
   id: string;
@@ -33,6 +34,7 @@ export default function BrandBilling() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [txs, setTxs] = useState<Tx[]>([]);
   const [loading, setLoading] = useState(true);
+  const [topUpBrand, setTopUpBrand] = useState<Brand | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -120,9 +122,14 @@ export default function BrandBilling() {
               <p className="text-2xl font-bold tabular-nums mt-1">{inr(Number(b.balance))}</p>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Wallet balance</p>
             </div>
-            <Button size="sm" variant="outline" onClick={() => exportInvoicePdf(b)}>
-              <Download className="w-3.5 h-3.5 mr-1" /> GST Invoice
-            </Button>
+            <div className="flex flex-col gap-2">
+              <Button size="sm" onClick={() => setTopUpBrand(b)}>
+                <Plus className="w-3.5 h-3.5 mr-1" /> Top up
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => exportInvoicePdf(b)}>
+                <Download className="w-3.5 h-3.5 mr-1" /> Invoice
+              </Button>
+            </div>
           </Card>
         ))}
       </div>
@@ -162,9 +169,18 @@ export default function BrandBilling() {
           </tbody>
         </table>
         <p className="text-xs text-muted-foreground mt-4">
-          To top up your wallet, contact your account manager. Self-serve top-up coming soon.
+          Top-ups are processed by Paddle (our merchant of record). Funds appear in your wallet within 1–2 minutes after a successful payment.
         </p>
       </Card>
+
+      {topUpBrand && (
+        <TopUpWalletDialog
+          open={!!topUpBrand}
+          onOpenChange={(o) => !o && setTopUpBrand(null)}
+          brandId={topUpBrand.id}
+          brandName={topUpBrand.brand_name}
+        />
+      )}
     </div>
   );
 }

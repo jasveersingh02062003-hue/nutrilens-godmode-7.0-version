@@ -25,6 +25,7 @@ const Auth = function Auth() {
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [consentGiven, setConsentGiven] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const [minorConsent, setMinorConsent] = useState(false);
   const [blockedAge, setBlockedAge] = useState<number | null>(null);
   const { signUpWithEmail, signInWithEmail, signInWithPhone, verifyOTP, signInWithGoogle } = useAuth();
@@ -70,12 +71,26 @@ const Auth = function Auth() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      // Required: terms + privacy
       await (supabase.from as any)('consent_records').insert({
         user_id: user.id,
         purpose: isMinor ? 'terms_privacy_minor_guardian' : 'terms_and_privacy',
         granted: true,
         source: 'signup',
       });
+      // Optional: marketing
+      await (supabase.from as any)('consent_records').insert({
+        user_id: user.id,
+        purpose: 'marketing',
+        granted: marketingConsent,
+        source: 'signup',
+      });
+      // Mirror marketing flag to profile so existing queries keep working.
+      if (marketingConsent) {
+        await (supabase.from as any)('profiles')
+          .update({ marketing_consent: true })
+          .eq('id', user.id);
+      }
     } catch {}
   };
 
@@ -318,20 +333,32 @@ const Auth = function Auth() {
               )}
 
               {mode === 'signup' && !isMinor && !isBlocked && (
-                <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={consentGiven}
-                    onChange={e => setConsentGiven(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 rounded border-border accent-primary cursor-pointer shrink-0"
-                  />
-                  <span>
-                    I agree to the{' '}
-                    <Link to="/terms" target="_blank" className="text-primary underline">Terms of Service</Link>
-                    {' '}and{' '}
-                    <Link to="/privacy" target="_blank" className="text-primary underline">Privacy Policy</Link>.
-                  </span>
-                </label>
+                <>
+                  <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={consentGiven}
+                      onChange={e => setConsentGiven(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded border-border accent-primary cursor-pointer shrink-0"
+                    />
+                    <span>
+                      I agree to the{' '}
+                      <Link to="/terms" target="_blank" className="text-primary underline">Terms of Service</Link>
+                      {' '}and{' '}
+                      <Link to="/privacy" target="_blank" className="text-primary underline">Privacy Policy</Link>.
+                      <span className="text-destructive ml-1">*</span>
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={marketingConsent}
+                      onChange={e => setMarketingConsent(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded border-border accent-primary cursor-pointer shrink-0"
+                    />
+                    <span>Send me product updates, tips, and offers (optional).</span>
+                  </label>
+                </>
               )}
 
               <button

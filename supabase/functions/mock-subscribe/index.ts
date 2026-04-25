@@ -26,10 +26,23 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Hard gate: only allow when explicitly enabled
+  // Hard gate #1: only allow when explicitly enabled
   if (Deno.env.get("DEV_MOCK_PAYMENTS") !== "true") {
     return new Response(
       JSON.stringify({ error: "mock_payments_disabled" }),
+      { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  // Hard gate #2: refuse if a LIVE Paddle key is configured. This means the
+  // project is in production and mock payments must NEVER create rows that
+  // could be confused with real subscriptions.
+  if (Deno.env.get("PADDLE_LIVE_API_KEY")) {
+    return new Response(
+      JSON.stringify({
+        error: "mock_payments_blocked_in_live",
+        message: "Mock payments are disabled when a live payment provider is configured. Use a real checkout instead.",
+      }),
       { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
@@ -91,7 +104,7 @@ Deno.serve(async (req) => {
         cancel_at_period_end: false,
         provider: "mock",
         provider_subscription_id: `mock_${crypto.randomUUID()}`,
-        environment: "live",
+        environment: "sandbox",
       })
       .eq("id", existing.id)
       .select()
@@ -110,7 +123,7 @@ Deno.serve(async (req) => {
         cancel_at_period_end: false,
         provider: "mock",
         provider_subscription_id: `mock_${crypto.randomUUID()}`,
-        environment: "live",
+        environment: "sandbox",
       })
       .select()
       .single();
