@@ -1,3 +1,4 @@
+// AUTH: JWT required (validated via getClaims). Cancels caller's own subscription only.
 // One-click subscription cancellation. Sets cancel_at_period_end = true.
 // User keeps access until current_period_end, then expire-subscriptions flips to free.
 // Works for mock + future real providers (extends to call provider API later).

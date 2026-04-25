@@ -1,3 +1,4 @@
+// AUTH: JWT required (validated via getClaims). Dev-only — gated by DEV_MOCK_PAYMENTS env var.
 // Dev-only mock subscription flip. Lets us test paid-tier flows end-to-end
 // without a real payment processor. Gated by DEV_MOCK_PAYMENTS env var.
 // When Razorpay/Stripe is wired in, this fn is replaced by the real webhook.

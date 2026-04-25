@@ -1,3 +1,4 @@
+// AUTH: JWT required (validated server-side via checkQuota → getClaims). Free tier: 5/day. Paid: 200-500/day.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { z } from "https://esm.sh/zod@3.23.8";

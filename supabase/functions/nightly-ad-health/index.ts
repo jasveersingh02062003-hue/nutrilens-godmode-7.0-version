@@ -1,3 +1,4 @@
+// AUTH: PUBLIC cron — pg_cron nightly job. No user auth; service role pauses overspent campaigns.
 // Nightly cron: pause overspent campaigns and flag low-CTR campaigns into
 // the feedback queue for admin attention. Triggered via pg_cron.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";

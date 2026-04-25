@@ -1,3 +1,4 @@
+// AUTH: PUBLIC cron — daily 06:00 IST via pg_cron. No user auth; service role writes to city_prices.
 // GOVT_API_HOOK: Placeholder for Government Mandi API (data.gov.in / agmarknet)
 // This edge function will fetch wholesale prices from government open data APIs
 // and apply retail markup to store in city_prices table.

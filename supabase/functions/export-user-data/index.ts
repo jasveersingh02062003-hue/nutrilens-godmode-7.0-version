@@ -1,3 +1,4 @@
+// AUTH: JWT required (validated via getClaims). Returns caller's own data only (DPDP compliance).
 // DPDP-compliant data export — user can download all their data as JSON.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { buildCorsHeaders, handlePreflight } from "../_shared/cors.ts";

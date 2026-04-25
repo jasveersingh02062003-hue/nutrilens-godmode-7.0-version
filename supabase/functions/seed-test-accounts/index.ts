@@ -1,3 +1,4 @@
+// AUTH: JWT required (validated via getClaims). Owner-only — gated by has_role check + dev secret.
 // Owner-only seeder that creates 13 QA personas with auth users + roles + brand setup.
 // All accounts share the password defined below for easy testing.
 import { createClient } from 'npm:@supabase/supabase-js@2';

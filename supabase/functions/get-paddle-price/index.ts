@@ -1,3 +1,4 @@
+// AUTH: JWT required (validated via getClaims). Stateless price-id lookup; no DB writes.
 // Resolves a human-readable price external_id (e.g. "premium_monthly") to a
 // Paddle internal price ID (e.g. "pri_..."). The internal ID differs between
 // sandbox and live, so the client must pass its environment.

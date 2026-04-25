@@ -1,3 +1,4 @@
+// AUTH: JWT required (validated via getClaims). Returns Paddle portal URL for caller's own subscription.
 // Returns a Paddle customer portal URL for the logged-in user.
 // Looks up their most recent Paddle subscription and creates a portal session.
 import { createClient } from 'npm:@supabase/supabase-js@2';
