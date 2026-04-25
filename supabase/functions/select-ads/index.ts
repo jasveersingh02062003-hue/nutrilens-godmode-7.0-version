@@ -7,7 +7,6 @@ import { buildCorsHeaders, handlePreflight } from "../_shared/cors.ts";
 
 interface Body {
   placement_slot: string;
-  user_id: string;
   category?: string;
   diet?: "veg" | "nonveg" | "all";
   city?: string;
@@ -19,14 +18,38 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
+    // SECURITY: Derive user_id from verified JWT — never trust request body.
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const authClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const verifiedUserId = claimsData.claims.sub as string;
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
     const body = (await req.json()) as Body;
-    if (!body.placement_slot || !body.user_id) {
-      return new Response(JSON.stringify({ error: "placement_slot and user_id required" }), {
+    if (!body.placement_slot) {
+      return new Response(JSON.stringify({ error: "placement_slot required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -130,7 +153,7 @@ Deno.serve(async (req) => {
         .from("ad_impressions")
         .select("id", { count: "exact", head: true })
         .eq("campaign_id", ad.campaignId)
-        .eq("user_id", body.user_id)
+        .eq("user_id", verifiedUserId)
         .gte("created_at", fiveMinAgo);
 
       if (!count) {
@@ -138,7 +161,7 @@ Deno.serve(async (req) => {
           campaign_id: ad.campaignId,
           creative_id: ad.creativeId,
           placement_slot: ad.placementSlot,
-          user_id: body.user_id,
+          user_id: verifiedUserId,
         });
         // Debit brand wallet via RPC (auto-pauses & notifies on insufficient funds)
         const debit = pick.pricing_model === "cpm" && Number(pick.cpm_rate) > 0

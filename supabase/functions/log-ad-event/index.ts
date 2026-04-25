@@ -23,7 +23,6 @@ const BodySchema = z.object({
   campaign_id: z.string().uuid(),
   creative_id: z.string().uuid().optional(),
   placement_slot: z.string().max(64).optional(),
-  user_id: z.string().uuid(),
   product_id: z.string().max(128).optional(),
   conversion_type: z.string().max(64).optional(),
 });
@@ -40,6 +39,27 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // SECURITY: Derive user_id from verified JWT — never trust request body.
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const authClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const user_id = claimsData.claims.sub as string;
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -62,7 +82,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { event_type, campaign_id, creative_id, placement_slot, user_id, product_id, conversion_type } = parsed.data;
+    const { event_type, campaign_id, creative_id, placement_slot, product_id, conversion_type } = parsed.data;
 
     // ----- FRAUD GUARDS -----
     pruneRecent();
