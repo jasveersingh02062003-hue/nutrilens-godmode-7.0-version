@@ -66,7 +66,18 @@ export default function DataDeletion() {
             </section>
 
             <section>
-              <h2 className="text-base font-semibold mt-4 mb-2">6. Contact</h2>
+              <h2 className="text-base font-semibold mt-4 mb-2">6. Where your data lives</h2>
+              <p className="text-muted-foreground">
+                All personal data is stored on servers located in <strong>Mumbai, India (ap-south-1)</strong>.
+                Your data does not leave Indian jurisdiction at rest, in line with the DPDP Act 2023
+                data-localisation expectations. The only cross-border traffic is short-lived API calls
+                to AI providers for meal-photo analysis and chat — those calls carry only the image
+                bytes or text you submit, never your name, email, or account ID.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-base font-semibold mt-4 mb-2">7. Contact</h2>
               <p className="text-muted-foreground">
                 Questions or formal data-protection requests:{' '}
                 <a href="mailto:privacy@nutrilens.app" className="text-primary underline">
