@@ -1645,6 +1645,13 @@ export type Database = {
       }
       delete_my_account: { Args: never; Returns: undefined }
       get_ai_quota: { Args: { p_endpoint: string }; Returns: number }
+      get_funnel_counts: {
+        Args: { p_days?: number }
+        Returns: {
+          step_key: string
+          user_count: number
+        }[]
+      }
       get_masked_profile: {
         Args: { _user_id: string }
         Returns: {
