@@ -113,7 +113,22 @@ const RequireAdmin = lazyWithRetry(() => import("./components/admin/RequireAdmin
 const Privacy = lazyWithRetry(() => import("./pages/Privacy"), "privacy");
 const Terms = lazyWithRetry(() => import("./pages/Terms"), "terms");
 
-const queryClient = new QueryClient();
+// Sensible defaults to cut redundant network calls across the app.
+// • staleTime 60s → React Query won't refetch on every component remount
+//   (admin pages, brand pages, ad hooks all benefit).
+// • gcTime 5min → keep cached data around when navigating between pages.
+// • retry only once on failure (faster failure feedback, less noise).
+// • refetchOnWindowFocus off → avoids a thundering herd when user tabs back.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60_000,
+      gcTime: 5 * 60_000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 
 // Wrap each route in its own ErrorBoundary so a crash on one page
