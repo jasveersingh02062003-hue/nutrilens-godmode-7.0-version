@@ -1,7 +1,7 @@
 // Shared Paddle utility — single source of truth for Paddle SDK + gateway routing.
 // See knowledge://paddle-shared-utils.
 
-import { Environment, Paddle, EventName } from 'npm:@paddle/paddle-node-sdk@1.10.1';
+import { Environment, Paddle, EventName } from 'npm:@paddle/paddle-node-sdk';
 
 const getEnv = (key: string): string => {
   const value = Deno.env.get(key);
