@@ -1,3 +1,4 @@
+// AUTH: PUBLIC liveness probe — for UptimeRobot/external monitors. No auth; returns DB ping status.
 // Lightweight liveness + DB readiness probe for UptimeRobot / external monitors.
 // Returns 200 with JSON when the database round-trips successfully, 503 otherwise.
 // Public (verify_jwt = false by default for Lovable-managed fns).

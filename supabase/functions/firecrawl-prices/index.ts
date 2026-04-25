@@ -1,3 +1,4 @@
+// AUTH: PUBLIC cron — pg_cron scheduled price scraper. No user auth; uses Firecrawl secret + service role.
 import { logApiUsage, COST_INR } from '../_shared/api-usage.ts';
 import { buildCorsHeaders, handlePreflight } from "../_shared/cors.ts";
 

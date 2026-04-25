@@ -1,3 +1,4 @@
+// AUTH: JWT required (validated via getClaims). Caller must own the target subscription.
 // Resend receipt — stub.
 // Real email delivery wires in on email-provider day. For now this just
 // records an audit row so admins can see the action was taken.

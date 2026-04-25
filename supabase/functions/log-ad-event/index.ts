@@ -1,3 +1,4 @@
+// AUTH: JWT required (validated via getClaims). Records impressions/clicks for caller's user_id only.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { buildCorsHeaders, handlePreflight } from "../_shared/cors.ts";

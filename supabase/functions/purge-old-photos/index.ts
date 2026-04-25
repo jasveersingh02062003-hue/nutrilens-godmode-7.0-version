@@ -1,3 +1,4 @@
+// AUTH: PUBLIC cron — daily 03:00 IST. Optional PURGE_PHOTOS_SECRET shared-secret header. Service role.
 // Cron-style sweep: delete meal photos older than 90 days from the
 // `meal-photos` storage bucket. Triggered via pg_cron (daily 03:00 IST)
 // or manually with a shared-secret header.

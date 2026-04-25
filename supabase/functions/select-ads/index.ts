@@ -1,3 +1,4 @@
+// AUTH: JWT required (validated via getClaims). Returns ads scoped to caller's profile/diet/budget.
 // Server-side ad selection. Replaces client-side eligibility logic so
 // budget/diet/category filtering and the impression log can't be bypassed
 // by a tampered client. Returns at most one creative per call.

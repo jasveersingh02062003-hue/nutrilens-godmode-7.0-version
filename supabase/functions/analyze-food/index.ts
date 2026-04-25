@@ -1,3 +1,4 @@
+// AUTH: JWT required (validated server-side via checkQuota → getClaims). Free tier: 2/day. Paid: 100-300/day.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { logApiUsage, estimateLovableAiCost } from "../_shared/api-usage.ts";

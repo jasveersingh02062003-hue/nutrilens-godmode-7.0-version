@@ -1,3 +1,4 @@
+// AUTH: PUBLIC cron — guarded by optional EXPIRE_SUBSCRIPTIONS_SECRET shared-secret header. Service role.
 // Cron-style sweep: expire subscriptions whose period has ended.
 // Flips status to 'expired' and plan to 'free' for any active/trialing row
 // where current_period_end < now() AND cancel_at_period_end = true,

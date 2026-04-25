@@ -1,3 +1,4 @@
+// AUTH: JWT required (validated via getClaims). Admin/super_admin/owner role check enforced in code.
 // Admin-only one-shot backfill: queries Open Food Facts to fill missing barcodes
 // on packed_products. Idempotent — only touches rows where barcode IS NULL.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";

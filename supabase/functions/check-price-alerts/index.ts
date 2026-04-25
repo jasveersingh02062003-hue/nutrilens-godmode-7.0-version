@@ -1,3 +1,4 @@
+// AUTH: PUBLIC cron — invoked by pg_cron / scheduler. No user auth; uses service role to scan all alerts.
 import { buildCorsHeaders, handlePreflight } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {

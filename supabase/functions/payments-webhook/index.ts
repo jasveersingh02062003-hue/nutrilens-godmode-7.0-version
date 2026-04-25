@@ -1,3 +1,4 @@
+// AUTH: PUBLIC webhook — verified via Paddle HMAC signature (verifyWebhook + PAYMENTS_*_WEBHOOK_SECRET).
 // Paddle webhook handler. Pre-registered by enable_paddle_payments for both
 // sandbox and live environments at /payments-webhook?env=sandbox|live.
 import { createClient } from 'npm:@supabase/supabase-js@2';

@@ -1,3 +1,4 @@
+// AUTH: JWT required (validated via getClaims). Caller must be brand member of target brand_id.
 // Brand wallet self-serve top-up. Creates a Paddle one-time checkout URL
 // for a brand owner to add credit to their advertising wallet.
 //
