@@ -100,14 +100,20 @@ export function useDashboardInit() {
       adaptation.changes.forEach(c => toast.info(`📊 ${c}`));
     }
     if (profile) {
-      const goalAdapt = runGoalAdaptation(profile);
-      if (goalAdapt && goalAdapt.shouldAdjust) {
-        const updates = applyAdaptation(profile, goalAdapt.newTargetCalories);
-        const current = getStoredProfile();
-        if (current) {
-          saveStoredProfile({ ...current, ...updates });
-          refreshProfile();
-          toast.info(`🎯 Target adjusted to ${goalAdapt.newTargetCalories} kcal — ${goalAdapt.reason}`);
+      // Run goal adaptation at most once per user per day to prevent
+      // redundant profile upserts on every Dashboard mount/remount.
+      const goalAdaptKey = `goal_adapt_${loadedUserId || 'anon'}_${getTodayKey()}`;
+      if (!scopedGet(goalAdaptKey)) {
+        scopedSet(goalAdaptKey, '1');
+        const goalAdapt = runGoalAdaptation(profile);
+        if (goalAdapt && goalAdapt.shouldAdjust) {
+          const updates = applyAdaptation(profile, goalAdapt.newTargetCalories);
+          const current = getStoredProfile();
+          if (current) {
+            saveStoredProfile({ ...current, ...updates });
+            refreshProfile();
+            toast.info(`🎯 Target adjusted to ${goalAdapt.newTargetCalories} kcal — ${goalAdapt.reason}`);
+          }
         }
       }
     }

@@ -113,11 +113,13 @@ export function syncDailyLogToCloud(log: DailyLog) {
 }
 
 /**
- * Restore ALL daily logs from the cloud into localStorage.
- * Fetches in paginated batches of 500 to handle large histories.
- * Only overwrites local if cloud version is newer or local doesn't exist.
+ * Restore recent daily logs from the cloud into localStorage.
+ * By default only fetches the last 90 days to keep first-load fast.
+ * Older logs lazy-load on demand when Trends/History views request them.
+ *
+ * @param sinceDays Number of days back to fetch (default 90, pass 0 for all).
  */
-export async function restoreLogsFromCloud(): Promise<number> {
+export async function restoreLogsFromCloud(sinceDays = 90): Promise<number> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return 0;
@@ -127,13 +129,23 @@ export async function restoreLogsFromCloud(): Promise<number> {
     const batchSize = 500;
     let hasMore = true;
 
+    // Compute YYYY-MM-DD floor (local) for the cutoff
+    let sinceDate: string | null = null;
+    if (sinceDays > 0) {
+      const d = new Date();
+      d.setDate(d.getDate() - sinceDays);
+      sinceDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
     while (hasMore) {
-      const { data, error } = await (supabase
+      let q = (supabase
         .from('daily_logs') as any)
         .select('log_date, log_data, updated_at')
         .eq('user_id', session.user.id)
         .order('log_date', { ascending: false })
         .range(offset, offset + batchSize - 1);
+      if (sinceDate) q = q.gte('log_date', sinceDate);
+      const { data, error } = await q;
 
       if (error) {
         console.error('Failed to restore logs from cloud:', error);
