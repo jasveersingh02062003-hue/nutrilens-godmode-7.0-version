@@ -42,67 +42,19 @@ const STEP_DEFS: Array<{ key: string; label: string; event?: string; computed?: 
 ];
 
 async function loadFunnel(days: number): Promise<FunnelData> {
-  const since = daysAgoISO(days);
-  const sinceTs = new Date(since).toISOString();
+  // Server-side aggregation. Returns one row per step (no PII, no raw events).
+  // Replaces the previous client-side approach that pulled up to 120,000 rows
+  // into the browser and risked OOM on large datasets.
+  const { data: rows, error } = await supabase.rpc('get_funnel_counts', { p_days: days });
+  if (error) throw error;
 
-  // 1) All events in the window we care about
-  const eventNames = STEP_DEFS.filter(s => s.event).map(s => s.event!) as string[];
-  const { data: events } = await supabase
-    .from('events')
-    .select('event_name, user_id, created_at')
-    .in('event_name', eventNames)
-    .gte('created_at', sinceTs)
-    .limit(50000);
-
-  // 2) Distinct user count per event_name
-  const usersByEvent = new Map<string, Set<string>>();
-  for (const name of eventNames) usersByEvent.set(name, new Set());
-  for (const e of events ?? []) {
-    if (!e.user_id) continue;
-    usersByEvent.get(e.event_name)?.add(e.user_id);
-  }
-
-  // 3) "Retained 7 days" = signed up in window AND has a meal_logged or app_opened
-  // event ≥ 7 days after their signup. Pull just enough to compute.
-  const signups = await supabase
-    .from('events')
-    .select('user_id, created_at')
-    .eq('event_name', 'signup')
-    .gte('created_at', sinceTs)
-    .limit(20000);
-
-  const signupAt = new Map<string, number>();
-  for (const s of signups.data ?? []) {
-    if (s.user_id && !signupAt.has(s.user_id)) {
-      signupAt.set(s.user_id, new Date(s.created_at).getTime());
-    }
-  }
-
-  const retainedIds = new Set<string>();
-  if (signupAt.size > 0) {
-    const { data: laterEvents } = await supabase
-      .from('events')
-      .select('user_id, created_at, event_name')
-      .in('event_name', ['app_opened', 'meal_logged', 'first_meal_logged'])
-      .in('user_id', Array.from(signupAt.keys()))
-      .limit(50000);
-    for (const ev of laterEvents ?? []) {
-      if (!ev.user_id) continue;
-      const start = signupAt.get(ev.user_id);
-      if (!start) continue;
-      const diffDays = (new Date(ev.created_at).getTime() - start) / 86400000;
-      if (diffDays >= 7) retainedIds.add(ev.user_id);
-    }
-  }
-
-  // 4) Build ordered funnel
-  const top = usersByEvent.get('signup')?.size ?? 0;
   const counts: Record<string, number> = {};
-  for (const def of STEP_DEFS) {
-    if (def.event) counts[def.key] = usersByEvent.get(def.event)?.size ?? 0;
-    else if (def.computed === 'retained_7d') counts[def.key] = retainedIds.size;
-    else counts[def.key] = 0;
+  for (const def of STEP_DEFS) counts[def.key] = 0;
+  for (const r of (rows ?? []) as Array<{ step_key: string; user_count: number }>) {
+    counts[r.step_key] = Number(r.user_count) || 0;
   }
+
+  const top = counts['signup'] ?? 0;
 
   const steps: Step[] = STEP_DEFS.map((def, i) => {
     const c = counts[def.key];
