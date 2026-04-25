@@ -88,7 +88,7 @@ export default function DataDeletion() {
             </section>
 
             <section>
-              <h2 className="text-base font-semibold mt-4 mb-2">7. Related policies</h2>
+              <h2 className="text-base font-semibold mt-4 mb-2">8. Related policies</h2>
               <p className="text-muted-foreground">
                 See our <Link to="/privacy" className="text-primary underline">Privacy Policy</Link> for full details on
                 what we collect and why, and our <Link to="/terms" className="text-primary underline">Terms of Service</Link>{' '}
