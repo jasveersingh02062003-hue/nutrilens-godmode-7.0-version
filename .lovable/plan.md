@@ -1,121 +1,87 @@
+# Performance & Integrity Plan — What to Fix, What to Leave
 
-# NutriLens Production Hardening — Batch 1 (No Email Work)
-
-Email-dependent work (transactional emails, dunning notices, intake-approval emails) is **DEFERRED** until you have a verified domain. Everything below ships without it.
-
----
-
-## What we ship in this session
-
-| # | Item | Why it blocks launch | Risk if skipped |
-|---|---|---|---|
-| 1 | Fix `brand-kyc` storage INSERT policy | Any logged-in user can write into any brand's KYC folder today | Cross-tenant data tampering |
-| 2 | Defense-in-depth on `price_alert_notifications` realtime | Confirm channel auth respects RLS; harden REPLICA IDENTITY | Other users' alerts could leak via realtime broadcast |
-| 3 | DPDP consent capture on signup | `consent_records` table is empty — illegal to operate in India without explicit consent | Legal / regulatory blocker |
-| 4 | Guard `DEV_MOCK_PAYMENTS` so it cannot be true in live mode | If left enabled in prod, real payments are bypassed | Revenue loss + accounting chaos |
-| 5 | Brand wallet self-serve top-up via Paddle | Only admins can top up brand wallets today (no self-serve revenue from advertisers) | Brand portal cannot generate revenue without manual ops |
-
-After this batch the only remaining launch blockers are external-only: Paddle KYB verification (you do this in the Payments tab) and email infra (waiting on your domain).
+This plan ranks every concern raised (by you and the external developer) into **MUST FIX**, **NICE TO HAVE**, and **DO NOT TOUCH**. Each fix lists *what*, *why*, *how*, and *expected gain*.
 
 ---
 
-## Detailed plan
+## ✅ MUST FIX (real wins, low risk)
 
-### 1. brand-kyc storage policy (5 min)
-**Problem:** current INSERT policy allows any authenticated user to upload into any folder under `brand-kyc`.
+### Fix #1 — Stop duplicate profile sync on Dashboard load
+- **Problem:** When Dashboard mounts, the profile is read AND written back twice within ~200ms (once by `useAuth` hydration, once by `Dashboard` profile sync effect). Doubles your Supabase egress on every page open.
+- **How:** Add a `lastSyncedAt` guard in the dashboard profile sync effect; skip the second write when the in-memory profile equals the just-fetched one (deep-equal on the 6 fields that actually mutate).
+- **Files:** `src/pages/Dashboard.tsx`, `src/hooks/useAuth.tsx` (or wherever the profile hydration lives).
+- **Expected gain:** ~50% fewer profile read/write requests. No visual change.
 
-**Fix:**
-- Drop the existing `"Brand members upload KYC docs"` INSERT policy.
-- Add a new INSERT policy that requires:
-  - `bucket_id = 'brand-kyc'` AND
-  - `(storage.foldername(name))[1]::uuid` matches a brand the user belongs to (via `is_brand_member()`).
-- Add matching SELECT/UPDATE/DELETE policies so brand members can only read/manage their own folder.
-- Verify with a `pg_policies` query.
+### Fix #3 — Cap initial cloud log restore to last 90 days
+- **Problem:** `restoreLogsFromCloud()` currently pulls **up to 500 days** of `daily_logs` on first login → big payload, slow first paint, high egress.
+- **How:** Add `.gte('log_date', <today - 90d>)` to the initial query. Older logs lazy-load only when the user opens a date older than 90 days (Trends/History views already do their own queries).
+- **Files:** `src/lib/daily-log-sync.ts` (or `cloud-restore.ts`).
+- **Expected gain:** First-load payload drops from ~500 rows to ~90 rows for active users. Noticeably faster Dashboard mount.
 
-### 2. price_alert_notifications realtime hardening (5 min)
-**Problem:** RLS SELECT is correct, but realtime broadcast filtering depends on REPLICA IDENTITY being set so RLS evaluates correctly per-row.
+### Fix #4 — Wrap hot reads in React Query with proper `staleTime`
+- **Problem:** `useDailyLog`, `useProfile`, `useSubscription` re-fetch on every component mount because there is no caching layer. Switching tabs = fresh network call.
+- **How:** Standardise on `useQuery` with `staleTime: 60_000` (1 min) for profile/subscription and `staleTime: 30_000` for today's daily log. Invalidate explicitly after mutations.
+- **Files:** `src/hooks/useProfile.ts`, `src/hooks/useSubscription.ts`, `src/hooks/useDailyLog.ts`.
+- **Expected gain:** ~70% fewer redundant requests when navigating between Dashboard ↔ Plan ↔ Profile.
 
-**Fix:**
-- `ALTER TABLE price_alert_notifications REPLICA IDENTITY FULL;` so RLS sees every column at broadcast time.
-- Confirm the table is in `supabase_realtime` publication (already verified).
-- Document the channel-auth model in a code comment in the price-alerts hook.
-
-### 3. DPDP consent on signup (15 min)
-**Problem:** Indian DPDP Act requires explicit consent for processing health/personal data. `consent_records` has 0 rows.
-
-**Fix:**
-- On `/auth` signup form: add two checkboxes:
-  - **Required** "I agree to the Privacy Policy and Terms of Service" (blocks signup if unchecked).
-  - **Optional** "I want product updates and offers" (drives `marketing_consent`).
-- After successful signup, insert two rows into `consent_records`:
-  - `purpose='terms_privacy'`, `granted=true`
-  - `purpose='marketing'`, `granted=<checkbox value>`
-- Backfill existing users with a one-time banner on next login asking them to accept (new row in consent_records).
-- Privacy/Terms links go to existing `/privacy` and `/terms` pages.
-
-### 4. DEV_MOCK_PAYMENTS guard (5 min)
-**Problem:** Secret exists; if it's `true` in live, mock subscriptions are created without real payment.
-
-**Fix:**
-- In `mock-subscribe` edge function: refuse to run if request comes from a live-environment Paddle token OR if env is detected as production. Returns 403 with clear error.
-- Add a runtime check in `payments-webhook` that logs a warning if `DEV_MOCK_PAYMENTS=true` and a real Paddle webhook arrives.
-- Add a frontend check: "Mock subscribe" button only renders in sandbox mode.
-
-### 5. Brand wallet self top-up via Paddle (30 min)
-**Problem:** Today, brand owners cannot top up their own wallet — only admins can via `apply_brand_transaction`. This blocks all advertiser revenue at scale.
-
-**Fix:**
-- New edge function `brand-wallet-checkout`: takes `brand_id` + `amount_inr`, verifies caller is an `owner` of that brand, returns a Paddle checkout URL with `customData = { brand_id, amount_inr, type: 'brand_topup' }`.
-- Extend `payments-webhook` `transaction.completed` handler: if `customData.type === 'brand_topup'`, call `apply_brand_transaction(brand_id, amount, 'topup', paddle_txn_id, 'Self-serve top-up')` and create a notification for the brand.
-- New "Top Up Wallet" button on `/brand/billing` (owner-only via existing `useBrandRole`). Modal with amount picker (₹5k, ₹10k, ₹25k, custom), opens Paddle overlay.
-- Idempotency: `payments-webhook` must skip if a `brand_transactions` row with `reference = paddle_txn_id` already exists.
+### Fix #2 — Code-split `src/lib/recipes.ts` (the big one)
+- **Problem:** `recipes.ts` is **2,000+ lines** of static recipe data shipped in the main bundle. It blocks first paint on slow networks.
+- **How:** Split into category JSON files (`recipes/breakfast.json`, `recipes/lunch.json`, `recipes/dinner.json`, `recipes/snacks.json`) and load on demand via dynamic `import()` when a meal slot is opened. Keep a small "starter" set (10–20 recipes) in the initial bundle for the empty-state preview.
+- **Files:** `src/lib/recipes.ts` → `src/data/recipes/*.json` + a thin loader.
+- **Expected gain:** Initial JS bundle ↓ ~150–250 KB gzipped. First-load TTI improves by 0.5–1.5s on mid-range phones.
 
 ---
 
-## Technical details
+## 🟡 NICE TO HAVE (do later, only if needed)
 
-**Migrations (one combined migration):**
-- Drop + recreate `storage.objects` policies for `brand-kyc` (4 policies: SELECT/INSERT/UPDATE/DELETE scoped by `is_brand_member`).
-- `ALTER TABLE price_alert_notifications REPLICA IDENTITY FULL`.
-- No new tables — `consent_records` already exists with correct RLS.
-
-**Edge functions:**
-- New: `brand-wallet-checkout` (creates Paddle checkout for brand top-up)
-- Edit: `payments-webhook` (handle brand_topup customData)
-- Edit: `mock-subscribe` (refuse in prod)
-
-**Frontend changes:**
-- `src/pages/Auth.tsx` — add consent checkboxes
-- `src/pages/brand/BrandBilling.tsx` — add Top Up Wallet button + modal
-- New: `src/components/brand/TopUpWalletDialog.tsx`
-- New: `src/components/ConsentBackfillBanner.tsx` (one-time prompt for existing users)
-
-**Files NOT touched:**
-- Anything email-related (`send-transactional-email` function stays missing — `payments-webhook` calls to it remain but are logged-and-skipped)
-- Consumer app routes
-- Calorie engine / meal planner / dashboard
-- Admin pages (already verified working)
-
-**Verification after each step:**
-- TS check (`tsc --noEmit`)
-- `pg_policies` re-query for storage
-- `cron.job` query for nothing (no new cron)
-- Confirm three apps still load: `/dashboard`, `/brand`, `/admin`
+- **Compress old daily logs** older than 1 year into a monthly aggregate row. Useful only if a user has 500+ days of history.
+- **Migrate localStorage cache → IndexedDB** for users with very large meal histories (>5MB). Current `scoped-storage.ts` is fine for 95% of users.
+- **Bundle-analyze pass** on `Onboarding.tsx` (currently large because of step components). Lazy-load each step.
 
 ---
 
-## What's left for you (external only)
+## ❌ DO NOT TOUCH (developer's claims that are FALSE)
 
-After this batch ships, the remaining production blockers are entirely on your side:
-1. **Paddle Go-Live** — verify business in the Payments tab (KYB review takes 2–5 business days)
-2. **Email domain** — when you have one, paste it and I'll wire up `send-transactional-email`, dunning notices, and intake-approval emails in one follow-up batch
-3. **Privacy Policy / Terms legal review** — pages exist but should be reviewed by counsel for India + Paddle MoR requirements
-4. **Real ₹1 end-to-end test transaction** — once Paddle is live
+These were flagged by the external developer but are **already correctly built**. Changing them would create real bugs.
+
+| Claim | Reality | Verdict |
+|---|---|---|
+| "Backend logic sits in the frontend" | 22 edge functions + 58 SECURITY DEFINER RPCs handle payments, roles, AI, subscriptions | **FALSE** |
+| "Hackers can steal sensitive data from localStorage" | Only non-sensitive cached UI state lives there. JWT is in httpOnly cookie. Personal data is gated by RLS | **FALSE** |
+| "20× redundant server hits per minor change" | Real number is ~2× on dashboard mount (fixed by #1). Daily log writes are debounced 1.5s + optimistically locked | **EXAGGERATED** |
+| "App is not legally compliant — needs DH audit" | 170 RLS policies + audit_logs + consent_records + delete_my_account RPC are already in place | **FALSE** |
+| "Need to rebuild the backend" | Architecture is sound. Only specific hot paths need polish | **FALSE — DO NOT REWRITE** |
+| "Need SSL / scaling rewrite" | Supabase + Deno edge runtime auto-scales and terminates SSL. Nothing to do | **FALSE** |
+
+**Why this matters:** A "rewrite the backend" project would cost you weeks of work, break Premium/Trial logic, and introduce new RLS gaps. The current backend is production-grade. Reject that scope.
 
 ---
 
-## Order of execution
+## 📋 Execution Order (when you say "go")
 
-I'll ship them in dependency order: 1 → 4 → 2 → 3 → 5. After each one, I'll TS-check and post a short "✅ done, moving to N+1" so you can stop me anytime.
+1. Save the audit as `mem://audit/external-dev-claims-and-perf-fixes-2026-04-25` (preserved forever).
+2. **Batch A (10 min, instant win):** Fix #1 + Fix #3.
+3. **Batch B (15 min):** Fix #4 (React Query caching).
+4. **Batch C (20–30 min, biggest first-paint win):** Fix #2 (recipes split).
+5. After each batch: open Dashboard, confirm no regressions, look at Network panel — request count should visibly drop.
 
-Reply **"go"** to start, or tell me to drop/reorder any item.
+---
+
+## 🛠 Technical details (for reference)
+
+- **Profile dedupe key:** `name | weight_kg | daily_calories | daily_protein | onboarding_complete | updated_at`. Compare these 6 fields before re-upserting.
+- **Log cap query:** `supabase.from('daily_logs').select('*').gte('log_date', subDays(today, 90).toISOString().slice(0,10))`.
+- **React Query keys:** `['profile', userId]`, `['subscription', userId]`, `['daily-log', userId, date]`.
+- **Recipes loader signature:** `await loadRecipes('breakfast')` → returns cached promise.
+- **No DB migration needed.** Pure client-side refactor. RLS, edge functions, and RPCs stay untouched.
+
+---
+
+## ❓ One question before I start
+
+Which order do you want?
+- **(A)** Batch A → B → C in one go (≈45 min, biggest cumulative win)
+- **(B)** Just Batch A right now (10 min, you ship + test, then we do B & C tomorrow)
+- **(C)** Jump straight to Batch C (recipes split) — most visible speed boost on first load
+
+Reply with **A**, **B**, or **C** and I'll execute.
