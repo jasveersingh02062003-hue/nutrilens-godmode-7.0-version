@@ -270,6 +270,66 @@ async function handleTransactionPaymentFailed(data: any, env: PaddleEnv) {
     .eq('environment', env);
 }
 
+// Brand wallet self top-up handler. Triggered when a brand owner completes
+// a Paddle checkout created by `brand-wallet-checkout`. Idempotent via
+// reference = paddle_transaction_id.
+async function handleTransactionCompleted(data: any, env: PaddleEnv) {
+  const supabase = getSupabase();
+  const customData = data?.customData ?? {};
+  if (customData?.type !== 'brand_topup') return; // not our event
+
+  const brandId = customData?.brand_id as string | undefined;
+  const amountInr = Number(customData?.amount_inr ?? 0);
+  const txnId = data?.id as string | undefined;
+  if (!brandId || !amountInr || !txnId) {
+    console.warn('[paddle-webhook] brand_topup missing fields', { brandId, amountInr, txnId });
+    return;
+  }
+
+  // Idempotency: if a brand_transactions row with this reference already exists, skip.
+  const { data: existing } = await supabase
+    .from('brand_transactions')
+    .select('id')
+    .eq('reference', txnId)
+    .maybeSingle();
+  if (existing) {
+    console.log('[paddle-webhook] brand_topup already credited', txnId);
+    return;
+  }
+
+  const { error } = await supabase.rpc('apply_brand_transaction', {
+    p_brand_id: brandId,
+    p_amount: amountInr,
+    p_type: 'topup',
+    p_reference: txnId,
+    p_notes: `Self-serve top-up via Paddle (${env})`,
+  });
+  if (error) {
+    console.error('[paddle-webhook] brand_topup credit failed', error);
+    return;
+  }
+
+  // Notify brand members
+  const { data: members } = await supabase
+    .from('brand_members')
+    .select('user_id')
+    .eq('brand_id', brandId);
+  if (members?.length) {
+    await supabase.from('notifications').insert(
+      (members as any[]).map((m) => ({
+        user_id: m.user_id,
+        audience: 'brand',
+        brand_id: brandId,
+        kind: 'wallet_topped_up',
+        title: 'Wallet topped up',
+        body: `₹${amountInr.toLocaleString('en-IN')} credited to your ad wallet.`,
+        link_url: '/brand/billing',
+        metadata: { amount_inr: amountInr, paddle_txn_id: txnId },
+      })),
+    );
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
 
@@ -291,6 +351,9 @@ Deno.serve(async (req) => {
         break;
       case EventName.TransactionPaymentFailed:
         await handleTransactionPaymentFailed(event.data, env);
+        break;
+      case EventName.TransactionCompleted:
+        await handleTransactionCompleted(event.data, env);
         break;
       default:
         console.log('[paddle-webhook] unhandled event:', event.eventType);
