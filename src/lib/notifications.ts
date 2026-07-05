@@ -56,12 +56,30 @@ export async function requestBrowserPermission(): Promise<boolean> {
   if (Notification.permission === 'granted') return true;
   if (Notification.permission === 'denied') return false;
   const result = await Notification.requestPermission();
+  
+  if (result === 'granted') {
+    // If granted, register Service Worker for Web Push
+    await registerServiceWorker();
+  }
+  
   return result === 'granted';
 }
 
 export function hasBrowserPermission(): boolean {
   if (!('Notification' in window)) return false;
   return Notification.permission === 'granted';
+}
+
+async function registerServiceWorker() {
+  if ('serviceWorker' in navigator) {
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      console.log('Service Worker registered with scope:', registration.scope);
+      return registration;
+    } catch (error) {
+      console.error('Service Worker registration failed:', error);
+    }
+  }
 }
 
 // ── Send browser notification ──
@@ -88,10 +106,16 @@ function sendInAppToast(title: string, body: string, icon?: string) {
 
 // ── Combined send ──
 
-export function sendNotification(title: string, body: string, opts?: { tag?: string }) {
-  // If document is hidden (tab in background), use browser notification
+export function sendNotification(title: string, body: string, opts?: { tag?: string; url?: string }) {
+  // If document is hidden (tab in background), try browser/push notification
   if (document.hidden) {
-    sendBrowserNotification(title, body, opts?.tag);
+    if (hasBrowserPermission()) {
+      // Local notification as fallback
+      sendBrowserNotification(title, body, opts?.tag);
+      
+      // FIRECRAWL_HOOK: In production, trigger a real server-side push via FCM/VAPID
+      // This would normally call a Supabase Edge Function to deliver the push
+    }
   } else {
     // In-app toast
     sendInAppToast(title, body);

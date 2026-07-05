@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Store, Leaf, SlidersHorizontal, Package, Wallet, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MARKET_ITEMS, FRESH_CATEGORIES, PACKED_CATEGORIES, TOP_CATEGORIES, type MarketTopCategory, type MarketSubcategory, type MarketViewMode } from '@/lib/market-data';
+import { FixedSizeList as List } from 'react-window';
 import { useMarket } from '@/contexts/MarketContext';
 import MarketPageHeader from '@/components/MarketPageHeader';
 import MarketItemCard from '@/components/MarketItemCard';
@@ -115,8 +116,6 @@ export default function Market() {
   const [showTrend, setShowTrend] = useState(false);
   const [trendItem, setTrendItem] = useState('Chicken');
   const ITEMS_PER_PAGE = 20;
-  const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
-  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   const isBrowsing = !!selectedCategory || !!search || filter !== 'all';
 
@@ -151,21 +150,10 @@ export default function Market() {
     return result;
   }, [processedItems, viewMode, selectedCategory, selectedSub, search, filter, sort, vegOnly]);
 
-  // Reset visible count when filters change
-  useEffect(() => { setVisibleCount(ITEMS_PER_PAGE); }, [viewMode, selectedCategory, selectedSub, search, filter, sort]);
-
-  // Intersection observer for infinite scroll
+  // Reset scroll when filters change
   useEffect(() => {
-    const el = loadMoreRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        setVisibleCount(prev => Math.min(prev + ITEMS_PER_PAGE, filteredItems.length));
-      }
-    }, { rootMargin: '200px' });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [filteredItems.length]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [viewMode, selectedCategory, selectedSub, search, filter, sort]);
 
   const badgeMap = useMemo(() => {
     const map = new Map<string, 'popular' | 'best_seller' | 'new'>();
@@ -386,42 +374,48 @@ export default function Market() {
                       variant="native"
                     />
                   )}
-                  {filteredItems.slice(0, visibleCount).map((item, i) => (
-                    <MarketItemCard
-                      key={item.id}
-                      rank={i + 1}
-                      name={item.name}
-                      emoji={item.emoji}
-                      price={item.cityPrice}
-                      unit={item.unit}
-                      protein={item.protein}
-                      calories={item.calories}
-                      costPerGram={item.costPerGram}
-                      pesColor={item.pesColor}
-                      pes={item.pes}
-                      servingDesc={item.servingDesc}
-                      isVeg={item.isVeg}
-                      isCompareSelected={compareItems.some(c => c.id === item.id)}
-                      badge={badgeMap.get(item.id) || null}
-                      badgeCity={city && city !== 'India' ? city : undefined}
-                      onTap={() => handleOpenDetail(item)}
-                      onAddToPlan={(e) => {
-                        e.stopPropagation();
-                        toast.success(`${item.name} noted! Open Meal Planner to add it.`, { icon: '✅' });
-                        navigate('/planner');
-                      }}
-                      onToggleCompare={(e) => toggleCompare(item, e)}
-                      index={i}
-                      itemId={item.id}
-                      lastUpdated={item.lastUpdated}
-                    />
-                  ))}
-                  {/* Load more sentinel */}
-                  {visibleCount < filteredItems.length && (
-                    <div ref={loadMoreRef} className="flex justify-center py-4">
-                      <p className="text-[10px] text-muted-foreground">Loading more items...</p>
-                    </div>
-                  )}
+                  {/* Virtualized List of Items */}
+                  <div className="relative min-h-[400px]">
+                    <List
+                      height={917} // Use viewport height
+                      itemCount={filteredItems.length}
+                      itemSize={116} // Safe height for each card
+                      width="100%"
+                      className="scrollbar-hide"
+                    >
+                      {({ index, style }) => (
+                        <div style={style} className="px-0.5">
+                          <MarketItemCard
+                            rank={index + 1}
+                            name={filteredItems[index].name}
+                            emoji={filteredItems[index].emoji}
+                            price={filteredItems[index].cityPrice}
+                            unit={filteredItems[index].unit}
+                            protein={filteredItems[index].protein}
+                            calories={filteredItems[index].calories}
+                            costPerGram={filteredItems[index].costPerGram}
+                            pesColor={filteredItems[index].pesColor}
+                            pes={filteredItems[index].pes}
+                            servingDesc={filteredItems[index].servingDesc}
+                            isVeg={filteredItems[index].isVeg}
+                            isCompareSelected={compareItems.some(c => c.id === filteredItems[index].id)}
+                            badge={badgeMap.get(filteredItems[index].id) || null}
+                            badgeCity={city && city !== 'India' ? city : undefined}
+                            onTap={() => handleOpenDetail(filteredItems[index])}
+                            onAddToPlan={(e) => {
+                              e.stopPropagation();
+                              toast.success(`${filteredItems[index].name} noted! Open Meal Planner to add it.`, { icon: '✅' });
+                              navigate('/planner');
+                            }}
+                            onToggleCompare={(e) => toggleCompare(filteredItems[index], e)}
+                            index={index}
+                            itemId={filteredItems[index].id}
+                            lastUpdated={filteredItems[index].lastUpdated}
+                          />
+                        </div>
+                      )}
+                    </List>
+                  </div>
                 </>
               )}
             </div>
